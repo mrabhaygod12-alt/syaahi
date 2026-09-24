@@ -3,6 +3,10 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 const state = globalThis as unknown as { syaahiDb?: DatabaseSync };
 export function db(): DatabaseSync {
+  if (process.env.APP_ROLE === "backend" || process.env.APP_ROLE === "worker")
+    throw new Error(
+      "SQLite is not available in this deployment. Set DATA_BACKEND=mongo and MONGODB_URI in the environment.",
+    );
   if (state.syaahiDb) return state.syaahiDb;
   const dir = process.env.DATA_DIR || join(process.cwd(), "data");
   mkdirSync(dir, { recursive: true });
