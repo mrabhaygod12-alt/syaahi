@@ -3,28 +3,17 @@ export const FONTS = [
   {
     id: "Caveat",
     label: "Caveat (natural, default)",
-    family: "'Caveat', cursive",
+    family: "var(--font-caveat), cursive",
   },
-  { id: "Kalam", label: "Kalam (neat school)", family: "'Kalam', cursive" },
+  {
+    id: "Kalam",
+    label: "Kalam (neat school)",
+    family: "var(--font-kalam), cursive",
+  },
   {
     id: "Patrick Hand",
     label: "Patrick Hand (print)",
-    family: "'Patrick Hand', cursive",
-  },
-  {
-    id: "Shadows Into Light",
-    label: "Shadows Into Light (tall)",
-    family: "'Shadows Into Light', cursive",
-  },
-  {
-    id: "Indie Flower",
-    label: "Indie Flower (round)",
-    family: "'Indie Flower', cursive",
-  },
-  {
-    id: "Gochi Hand",
-    label: "Gochi Hand (marker)",
-    family: "'Gochi Hand', cursive",
+    family: "var(--font-patrick-hand), cursive",
   },
 ] as const;
 

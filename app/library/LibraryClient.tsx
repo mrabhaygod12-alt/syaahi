@@ -1,22 +1,21 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 interface Pack {
   slug: string;
   title: string;
   category: string;
   pages: number;
   updatedAt?: string;
+  preview?: string;
 }
 
-export default function LibraryClient() {
-  const [packs, setPacks] = useState<Pack[]>([]);
+export default function LibraryClient({
+  initialPacks,
+}: {
+  initialPacks: Pack[];
+}) {
+  const packs = initialPacks;
   const [preview, setPreview] = useState<any>(null);
-
-  useEffect(() => {
-    fetch("/api/library")
-      .then((r) => r.json())
-      .then((j) => setPacks(j.packs ?? []));
-  }, []);
 
   return (
     <>
@@ -33,9 +32,10 @@ export default function LibraryClient() {
               <button
                 className="btn light"
                 onClick={() =>
-                  fetch(`/api/library?slug=${p.slug}`)
-                    .then((r) => r.json())
-                    .then(setPreview)
+                  setPreview({
+                    ...p,
+                    note: "Public sample. Create a private lesson to explore this topic.",
+                  })
                 }
               >
                 Quick preview
@@ -77,7 +77,7 @@ export default function LibraryClient() {
           <pre
             style={{
               whiteSpace: "pre-wrap",
-              fontFamily: "'Caveat', cursive",
+              fontFamily: "var(--font-caveat), cursive",
               fontSize: 22,
               color: "#1a2a6b",
             }}

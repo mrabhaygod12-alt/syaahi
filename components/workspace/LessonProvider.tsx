@@ -71,7 +71,12 @@ export default function LessonProvider({
 
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
+      if (document.hidden) {
+        timer = setTimeout(tick, 5000);
+        return;
+      }
       try {
         const r = await fetch(`/api/jobs/${id}`);
         const j = await r.json();
@@ -79,18 +84,24 @@ export default function LessonProvider({
         setJob(j.error && !j.id ? null : j);
         setLoading(false);
         if (j.status === "working" || j.status === "queued")
-          setTimeout(tick, 2200);
+          timer = setTimeout(tick, 2200);
       } catch {
         if (alive) setLoading(false);
       }
     };
     tick();
+    const onVisible = () => {
+      if (!document.hidden) void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     fetch("/api/credits")
       .then((r) => r.json())
       .then((j) => setBalance(j.balance))
       .catch(() => {});
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [id]);
 

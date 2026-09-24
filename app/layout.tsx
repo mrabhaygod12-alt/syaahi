@@ -1,9 +1,36 @@
-import { SiteHeader, SiteFooter } from "@/components/SiteShell";
+import { SiteFooter } from "@/components/SiteShell";
+import SiteHeader from "@/components/SiteHeader";
 import type { Metadata } from "next";
+import { Caveat, Instrument_Sans, Kalam, Patrick_Hand } from "next/font/google";
 import "./globals.css";
-import { ToastHost } from "@/components/Toasts";
-import CmdK from "@/components/CmdK";
 import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
+
+const instrument = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-caveat",
+  display: "swap",
+  preload: false,
+});
+const kalam = Kalam({
+  subsets: ["latin", "devanagari"],
+  weight: ["400", "700"],
+  variable: "--font-kalam",
+  display: "swap",
+  preload: false,
+});
+const patrickHand = Patrick_Hand({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-patrick-hand",
+  display: "swap",
+  preload: false,
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -34,18 +61,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-IN">
+    <html
+      lang="en-IN"
+      className={`${instrument.variable} ${caveat.variable} ${kalam.variable} ${patrickHand.variable}`}
+    >
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin=""
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Gochi+Hand&family=Indie+Flower&family=Instrument+Sans:wght@400;500;600&family=Kalam:wght@400;700&family=Patrick+Hand&family=Shadows+Into+Light&family=Sora:wght@500;600;700&display=swap"
-          rel="stylesheet"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(orgSchema()) }}
@@ -56,12 +76,9 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ToastHost>
-          <CmdK />
-          <SiteHeader />
-          <main>{children}</main>
-          <SiteFooter />
-        </ToastHost>
+        <SiteHeader />
+        <main>{children}</main>
+        <SiteFooter />
       </body>
     </html>
   );

@@ -40,6 +40,7 @@ export default function SourceView() {
             <iframe
               src={`https://www.youtube-nocookie.com/embed/${vid}`}
               title="Lesson video"
+              loading="lazy"
               allowFullScreen
             />
           </div>
