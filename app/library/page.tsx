@@ -1,6 +1,8 @@
 import { pageMeta, faqSchema, jsonLd } from "@/lib/seo";
 import { PageHero, Faq, CtaBand } from "@/components/site";
 import LibraryClient from "./LibraryClient";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export const metadata = pageMeta({
   title: "Library — free handwritten notes previews",
@@ -20,7 +22,20 @@ const FAQS = [
   },
 ];
 
-export default function Library() {
+async function getPacks() {
+  try {
+    const raw = await readFile(
+      join(process.cwd(), "data", "library.json"),
+      "utf8",
+    );
+    return JSON.parse(raw).packs ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function Library() {
+  const packs = await getPacks();
   return (
     <>
       <script
@@ -33,7 +48,7 @@ export default function Library() {
         lede="Individual handwritten packs on high-demand topics. Open any pack for its free preview, topics list and related packs."
       />
       <div className="wrap" style={{ paddingBottom: 8 }}>
-        <LibraryClient />
+        <LibraryClient initialPacks={packs} />
       </div>
       <Faq items={FAQS} />
       <CtaBand />

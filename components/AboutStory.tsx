@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Image from "next/image";
 const stages = [
   [
     "The starting point",
@@ -36,17 +37,15 @@ export default function AboutStory() {
     const mm = gsap.matchMedia();
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       const ctx = gsap.context(() => {
-        gsap.utils
-          .toArray<HTMLElement>("[data-story]")
-          .forEach((el) =>
-            gsap.from(el, {
-              y: 28,
-              opacity: 0,
-              duration: 0.7,
-              ease: "power2.out",
-              scrollTrigger: { trigger: el, start: "top 88%", once: true },
-            }),
-          );
+        gsap.utils.toArray<HTMLElement>("[data-story]").forEach((el) =>
+          gsap.from(el, {
+            y: 28,
+            opacity: 0,
+            duration: 0.7,
+            ease: "power2.out",
+            scrollTrigger: { trigger: el, start: "top 88%", once: true },
+          }),
+        );
       }, root);
       return () => ctx.revert();
     });
@@ -74,11 +73,12 @@ export default function AboutStory() {
           </div>
         </div>
         <figure>
-          <img
+          <Image
             src="/team/chandan-pandey.jpeg"
             alt="Chandan Pandey, creator of Syaahi"
             width="640"
             height="760"
+            sizes="(max-width: 760px) 100vw, 42vw"
           />
           <figcaption>Chandan Pandey · Creator, Syaahi</figcaption>
         </figure>

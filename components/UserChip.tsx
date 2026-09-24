@@ -4,12 +4,15 @@ import { refreshUser, signOut, type DemoUser } from "@/lib/auth/session";
 
 // Turbo-style header identity: gold Upgrade pill + avatar circle when signed in.
 export default function UserChip() {
-  const [user, setUser] = useState<DemoUser | null>(null);
+  const [user, setUser] = useState<DemoUser | null | undefined>(undefined);
   useEffect(() => {
     refreshUser()
       .then(setUser)
       .catch(() => setUser(null));
   }, []);
+  if (user === undefined) {
+    return <div className="account-skeleton" aria-label="Loading account" />;
+  }
   if (!user) {
     return (
       <div style={{ display: "flex", gap: 8, whiteSpace: "nowrap" }}>

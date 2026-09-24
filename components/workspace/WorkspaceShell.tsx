@@ -2,11 +2,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import Logo from "@/components/Logo";
 import Loader from "@/components/Loader";
 import { useLesson } from "./LessonProvider";
-import LessonChat from "./LessonChat";
 import { ROOMS, lessonTitle, type RoomId } from "./types";
+const LessonChat = dynamic(() => import("./LessonChat"), {
+  loading: () => <div className="ws-chat-loading">Opening study chat…</div>,
+});
 
 function Icon({ id, active }: { id: RoomId; active: boolean }) {
   const c = active ? "#214b40" : "#9a9289";

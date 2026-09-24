@@ -1,6 +1,8 @@
 "use client";
 import LessonProvider from "@/components/workspace/LessonProvider";
 import WorkspaceShell from "@/components/workspace/WorkspaceShell";
+import { ToastHost } from "@/components/Toasts";
+import CmdK from "@/components/CmdK";
 
 export default function LessonWorkspace({
   id,
@@ -10,8 +12,11 @@ export default function LessonWorkspace({
   children: React.ReactNode;
 }) {
   return (
-    <LessonProvider id={id}>
-      <WorkspaceShell>{children}</WorkspaceShell>
-    </LessonProvider>
+    <ToastHost>
+      <CmdK />
+      <LessonProvider id={id}>
+        <WorkspaceShell>{children}</WorkspaceShell>
+      </LessonProvider>
+    </ToastHost>
   );
 }

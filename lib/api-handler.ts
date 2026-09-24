@@ -23,7 +23,11 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
       }
       const response = await handler(...args);
       response.headers.set("X-Request-Id", requestId);
-      if (req && new URL(req.url).pathname !== "/api/print-assets")
+      if (
+        req &&
+        new URL(req.url).pathname !== "/api/print-assets" &&
+        !response.headers.has("Cache-Control")
+      )
         response.headers.set("Cache-Control", "no-store");
       return response;
     } catch (error) {
