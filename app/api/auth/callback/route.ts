@@ -45,16 +45,15 @@ async function handleGET(req: NextRequest) {
         origin,
       ).href,
     );
-  } catch {
+  } catch (err) {
+    console.error("[OAuth Callback Error]:", err);
+    const msg =
+      err instanceof Error
+        ? err.message
+        : "Google sign-in could not be completed. Please retry or contact support.";
     response.headers.set(
       "location",
-      new URL(
-        "/login?error=" +
-          encodeURIComponent(
-            "Google sign-in could not be completed. Please retry or contact support.",
-          ),
-        origin,
-      ).href,
+      new URL("/login?error=" + encodeURIComponent(msg), origin).href,
     );
   }
   response.cookies.set("syaahi-oauth-next", "", { path: "/", maxAge: 0 });
