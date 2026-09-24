@@ -2773,10 +2773,14 @@ select {
   gap: 64px;
   align-items: center;
 }
-.about-hero h1 {
+.about-hero h1,
+.about-team-profile h2 {
   font-size: clamp(38px, 5vw, 66px);
   line-height: 1.08;
   letter-spacing: -2px;
+}
+.about-team-profile {
+  margin-top: clamp(48px, 7vw, 96px);
 }
 .about-hero h1 em {
   color: var(--accent, #285a46);

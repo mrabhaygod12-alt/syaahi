@@ -30,6 +30,7 @@ output/
 *.wav
 *.zip
 chandan.jpeg
+/manish.png
 
 !scripts/test-*.ts
 

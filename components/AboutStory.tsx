@@ -122,14 +122,80 @@ export default function AboutStory() {
           ))}
         </div>
       </section>
+      <section
+        className="about-hero about-team-profile"
+        aria-labelledby="manish-heading"
+        data-story
+      >
+        <div>
+          <p className="eyebrow">ABOUT THE CO-CREATOR</p>
+          <h2 id="manish-heading">
+            Manish Kumar Singh
+            <br />
+            <em>DevOps &amp; Research.</em>
+          </h2>
+          <p className="about-lead">
+            I’m Manish Kumar Singh, DevOps Engineer &amp; Academic Researcher at Syaahi.
+            I focus on architecting resilient cloud infrastructure, container
+            orchestration, and researching high-retention learning workflows.
+          </p>
+          <p className="about-lead">
+            Working alongside Chandan Pandey, my goal is ensuring Syaahi’s study engine
+            runs with zero downtime, instant rendering speeds, and rock-solid reliability.
+          </p>
+          <div className="about-tags">
+            <span>DevOps Engineer</span>
+            <span>Cloud Infrastructure</span>
+            <span>Academic Researcher</span>
+            <span>CI/CD &amp; Docker</span>
+            <span>System Reliability</span>
+          </div>
+        </div>
+        <figure>
+          <Image
+            src="/team/manish-kumar-singh.png"
+            alt="Manish Kumar Singh, DevOps Engineer and Researcher at Syaahi"
+            width={640}
+            height={760}
+            sizes="(max-width: 760px) 100vw, 42vw"
+          />
+          <figcaption>
+            Manish Kumar Singh · DevOps Engineer &amp; Researcher, Syaahi
+          </figcaption>
+        </figure>
+      </section>
       <section className="about-bio card" data-story>
-        <p className="eyebrow">ABOUT THE CREATOR</p>
-        <h2>Manish Kumar Singh</h2>
-        <p className="about-lead">DevOps Engineer &amp; Researcher</p>
+        <p className="eyebrow">ENGINEERING &amp; RESEARCH PHILOSOPHY</p>
+        <h2>Scalable infrastructure for uninterrupted student success.</h2>
         <p>
-          Working alongside creator Chandan Pandey on Syaahi’s engineering and
-          research journey.
+          When students are preparing for semester finals or competitive board exams,
+          every second of focus matters. Downtime or slow note compilation during critical
+          revision periods is unacceptable.
         </p>
+        <p>
+          I design and monitor Syaahi’s infrastructure with a defense-in-depth approach:
+          from automated Docker deployments on Render and multi-layer edge routing on Netlify,
+          to resilient connection pooling with MongoDB Atlas and automated health probes.
+        </p>
+        <p>
+          Alongside infrastructure engineering, I lead academic research on memory encoding,
+          analyzing how handwritten visual anchors and active recall cycles improve long-term
+          retention across CBSE, ICSE, and University syllabi.
+        </p>
+        <div className="about-socials">
+          <span className="btn light" style={{ cursor: "default", fontWeight: 700 }}>
+            ⚡ Infrastructure &amp; DevOps
+          </span>
+          <span className="btn light" style={{ cursor: "default", fontWeight: 700 }}>
+            🧠 Cognitive Science Research
+          </span>
+          <a
+            className="btn dark"
+            href="/support"
+          >
+            Connect with Us ↗
+          </a>
+        </div>
       </section>
       <section className="about-journey">
         <p className="eyebrow">THE PRODUCT JOURNEY</p>
