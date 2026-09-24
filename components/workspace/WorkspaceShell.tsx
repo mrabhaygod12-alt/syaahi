@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Logo from "@/components/Logo";
 import Loader from "@/components/Loader";
+import WorkspaceSkeleton from "./WorkspaceSkeleton";
 import { useLesson } from "./LessonProvider";
 import { ROOMS, lessonTitle, type RoomId } from "./types";
 const LessonChat = dynamic(() => import("./LessonChat"), {
@@ -129,7 +130,7 @@ export default function WorkspaceShell({
   const room = (pathname.split("/").pop() || "notes") as RoomId;
 
   if (loading && !job) {
-    return <div className="ws-loading">Loading lesson…</div>;
+    return <WorkspaceSkeleton />;
   }
   if (!job) {
     return (

@@ -1,5 +1,12 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import Logo from "./Logo";
+
 export function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/lesson/")) return null;
+
   return (
     <footer className="site-footer">
       <div className="wrap footer-grid">
