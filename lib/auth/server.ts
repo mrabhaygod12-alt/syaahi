@@ -163,15 +163,15 @@ export async function register(
           directErr instanceof Error ? directErr.message : directErr,
         );
         await database
-          .collection("users")
+          .collection<any>("users")
           .deleteOne({ _id: user.id })
           .catch(() => {});
         await database
-          .collection("wallets")
+          .collection<any>("wallets")
           .deleteOne({ _id: user.id })
           .catch(() => {});
         await database
-          .collection("ledger")
+          .collection<any>("ledger")
           .deleteOne({ _id: `welcome:${user.id}` })
           .catch(() => {});
         throw directErr;
