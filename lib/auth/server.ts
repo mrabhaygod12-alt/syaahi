@@ -107,30 +107,76 @@ export async function register(
   };
   const encoded = passwordHash(password);
   if (useMongo()) {
-    await mongoTransaction(async (d, session) => {
-      await d
-        .collection<any>("users")
-        .insertOne({ _id: user.id, ...user, password: encoded }, { session });
-      if (oauthSubject)
+    const doc = { _id: user.id, ...user, password: encoded };
+    try {
+      await mongoTransaction(async (d, session) => {
+        await d.collection<any>("users").insertOne(doc, { session });
+        if (oauthSubject)
+          await d
+            .collection<any>("oauth_identities")
+            .insertOne({ _id: oauthSubject, user: user.id }, { session });
         await d
-          .collection<any>("oauth_identities")
-          .insertOne({ _id: oauthSubject, user: user.id }, { session });
-      await d
-        .collection<any>("wallets")
-        .insertOne({ _id: user.id, balance: 5 }, { session });
-      await d
-        .collection<any>("ledger")
-        .insertOne(
-          {
+          .collection<any>("wallets")
+          .insertOne({ _id: user.id, balance: 5 }, { session });
+        await d
+          .collection<any>("ledger")
+          .insertOne(
+            {
+              _id: `welcome:${user.id}`,
+              user: user.id,
+              delta: 5,
+              reason: "Welcome page units",
+              createdAt: new Date(),
+            },
+            { session },
+          );
+      });
+    } catch (txErr) {
+      console.error(
+        "Transaction register failed, trying direct inserts:",
+        txErr instanceof Error ? txErr.message : txErr,
+      );
+      // Fallback: insert without transaction (Atlas M0 compatibility)
+      const { database } = await (await import("@/lib/storage/mongo")).mongo();
+      try {
+        await database.collection<any>("users").insertOne(doc);
+        if (oauthSubject)
+          await database
+            .collection<any>("oauth_identities")
+            .insertOne({ _id: oauthSubject, user: user.id });
+        await database
+          .collection<any>("wallets")
+          .insertOne({ _id: user.id, balance: 5 });
+        await database
+          .collection<any>("ledger")
+          .insertOne({
             _id: `welcome:${user.id}`,
             user: user.id,
             delta: 5,
             reason: "Welcome page units",
             createdAt: new Date(),
-          },
-          { session },
+          });
+      } catch (directErr) {
+        // Clean up partial inserts on failure
+        console.error(
+          "Direct register also failed:",
+          directErr instanceof Error ? directErr.message : directErr,
         );
-    });
+        await database
+          .collection("users")
+          .deleteOne({ _id: user.id })
+          .catch(() => {});
+        await database
+          .collection("wallets")
+          .deleteOne({ _id: user.id })
+          .catch(() => {});
+        await database
+          .collection("ledger")
+          .deleteOne({ _id: `welcome:${user.id}` })
+          .catch(() => {});
+        throw directErr;
+      }
+    }
     return user;
   }
   transaction(() => {
