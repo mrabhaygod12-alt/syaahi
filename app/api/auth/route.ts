@@ -70,17 +70,13 @@ async function handlePOST(req: NextRequest) {
         console.warn("Verification issue warning:", vErr);
       }
 
-      return NextResponse.json(
-        {
-          ok: true,
-          requireVerification: true,
-          user: { id: user.id, email: user.email, name: user.name },
-          verifyUrl: `/verify-email#${verifyToken}`,
-          message:
-            "Account created! Please verify your email before signing in.",
-        },
-        { status: 201 },
-      );
+      return await startSession(user, req, {
+        ok: true,
+        requireVerification: true,
+        verifyUrl: `/verify-email#${verifyToken}`,
+        message:
+          "Account created! Please verify your email to unlock all features.",
+      });
     } catch (err) {
       const detail =
         err instanceof Error ? `${err.name}: ${err.message}` : String(err);
@@ -106,35 +102,36 @@ async function handlePOST(req: NextRequest) {
       { status: 401 },
     );
 
-  // Check email verification before allowing login
+  // Check email verification for production MongoDB accounts
   const userId = String(row.id);
   const { collection, useMongo } = await import("@/lib/storage/mongo");
-  let verified = Boolean((row as any).verified);
   if (useMongo()) {
+    let verified = Boolean((row as any).verified);
     const vDoc = await (
       await collection("verified_accounts")
     ).findOne({ _id: userId });
     if (vDoc) verified = true;
-  }
-  if (!verified) {
-    let verifyToken = "";
-    try {
-      const { issueVerification, sendVerification } = await import(
-        "@/lib/auth/verification"
+
+    if (!verified) {
+      let verifyToken = "";
+      try {
+        const { issueVerification, sendVerification } = await import(
+          "@/lib/auth/verification"
+        );
+        verifyToken = await issueVerification(userId);
+        await sendVerification({ id: userId, email }).catch(() => {});
+      } catch {}
+      return NextResponse.json(
+        {
+          error:
+            "Email not verified yet. Please click the verification link to activate your account.",
+          requireVerification: true,
+          verifyUrl: `/verify-email#${verifyToken}`,
+          email,
+        },
+        { status: 403 },
       );
-      verifyToken = await issueVerification(userId);
-      await sendVerification({ id: userId, email }).catch(() => {});
-    } catch {}
-    return NextResponse.json(
-      {
-        error:
-          "Email not verified yet. Please click the verification link to activate your account.",
-        requireVerification: true,
-        verifyUrl: `/verify-email#${verifyToken}`,
-        email,
-      },
-      { status: 403 },
-    );
+    }
   }
 
   await recordConsent(userId);

@@ -232,6 +232,7 @@ export async function register(
 export async function startSession(
   user: Account,
   req: Request,
+  extra: Record<string, unknown> = {},
 ): Promise<NextResponse> {
   const token = randomBytes(32).toString("hex");
   if (useMongo())
@@ -248,7 +249,7 @@ export async function startSession(
       .prepare("INSERT INTO sessions VALUES (?,?,?)")
       .run(hash(token), user.id, Date.now() + 7 * 86400000);
   }
-  const response = NextResponse.json({ user });
+  const response = NextResponse.json({ user, ...extra });
   response.cookies.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
