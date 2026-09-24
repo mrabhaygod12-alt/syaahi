@@ -57,7 +57,30 @@ async function handlePOST(req: NextRequest) {
         password,
       );
       await recordConsent(user.id);
-      return await startSession(user, req);
+
+      // Issue verification link/token
+      let verifyToken = "";
+      try {
+        const { issueVerification, sendVerification } = await import(
+          "@/lib/auth/verification"
+        );
+        verifyToken = await issueVerification(user.id);
+        await sendVerification(user).catch(() => {});
+      } catch (vErr) {
+        console.warn("Verification issue warning:", vErr);
+      }
+
+      return NextResponse.json(
+        {
+          ok: true,
+          requireVerification: true,
+          user: { id: user.id, email: user.email, name: user.name },
+          verifyUrl: `/verify-email#${verifyToken}`,
+          message:
+            "Account created! Please verify your email before signing in.",
+        },
+        { status: 201 },
+      );
     } catch (err) {
       const detail =
         err instanceof Error ? `${err.name}: ${err.message}` : String(err);
@@ -82,10 +105,42 @@ async function handlePOST(req: NextRequest) {
       { error: "Incorrect email or password." },
       { status: 401 },
     );
-  await recordConsent(String(row.id));
+
+  // Check email verification before allowing login
+  const userId = String(row.id);
+  const { collection, useMongo } = await import("@/lib/storage/mongo");
+  let verified = Boolean((row as any).verified);
+  if (useMongo()) {
+    const vDoc = await (
+      await collection("verified_accounts")
+    ).findOne({ _id: userId });
+    if (vDoc) verified = true;
+  }
+  if (!verified) {
+    let verifyToken = "";
+    try {
+      const { issueVerification, sendVerification } = await import(
+        "@/lib/auth/verification"
+      );
+      verifyToken = await issueVerification(userId);
+      await sendVerification({ id: userId, email }).catch(() => {});
+    } catch {}
+    return NextResponse.json(
+      {
+        error:
+          "Email not verified yet. Please click the verification link to activate your account.",
+        requireVerification: true,
+        verifyUrl: `/verify-email#${verifyToken}`,
+        email,
+      },
+      { status: 403 },
+    );
+  }
+
+  await recordConsent(userId);
   return startSession(
     {
-      id: String(row.id),
+      id: userId,
       email,
       name: String(row.name),
       createdAt: String(row.created_at),

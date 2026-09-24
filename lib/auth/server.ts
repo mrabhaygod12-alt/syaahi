@@ -13,6 +13,8 @@ export interface Account {
   email: string;
   name: string;
   createdAt: string;
+  avatar?: string | null;
+  verified?: boolean;
 }
 const COOKIE = "syaahi-session";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -43,14 +45,19 @@ export async function currentUser(req: Request): Promise<Account | null> {
     const user = await (
       await collection("users")
     ).findOne({ _id: session.user });
-    return user
-      ? {
-          id: user._id,
-          email: user.email,
-          name: user.name,
-          createdAt: user.createdAt,
-        }
-      : null;
+    if (!user) return null;
+    const isVerified =
+      Boolean(user.verified) ||
+      Boolean(user.verifiedAt) ||
+      Boolean(await (await collection("verified_accounts")).findOne({ _id: user._id }));
+    return {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      avatar: user.avatar || null,
+      verified: isVerified,
+    };
   }
   const row = db()
     .prepare(
@@ -64,6 +71,8 @@ export async function currentUser(req: Request): Promise<Account | null> {
         email: String(row.email),
         name: String(row.name),
         createdAt: String(row.created_at),
+        avatar: null,
+        verified: true,
       }
     : null;
 }
@@ -182,6 +191,11 @@ export async function register(
         throw directErr;
       }
     }
+    // Sync to Supabase Auth in background so user appears in Supabase dashboard
+    import("./supabase-sync")
+      .then((m) => m.syncUserToSupabase(email, password, name))
+      .catch(() => {});
+
     return user;
   }
   if (process.env.APP_ROLE === "frontend" || process.env.NETLIFY === "true") {
@@ -208,6 +222,11 @@ export async function register(
         user.createdAt,
       );
   });
+
+  import("./supabase-sync")
+    .then((m) => m.syncUserToSupabase(email, password, name))
+    .catch(() => {});
+
   return user;
 }
 export async function startSession(

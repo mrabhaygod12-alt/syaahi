@@ -33,6 +33,10 @@ const STATIC = [
   "/docs/credits-billing",
   "/docs/api",
   "/about",
+  "/blog",
+  "/blog/how-to-create-high-scoring-handwritten-exam-notes-using-ai",
+  "/blog/science-of-handwriting-vs-typing-for-exam-retention",
+  "/blog/cbse-icse-university-exam-revision-strategy-guide",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

@@ -10,6 +10,7 @@ const links = [
   ["Workspace", "/dashboard"],
   ["Subjects", "/subjects"],
   ["Interview", "/interview"],
+  ["Blog", "/blog"],
   ["How it works", "/how-it-works"],
   ["Pricing", "/pricing"],
 ];

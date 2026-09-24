@@ -21,6 +21,7 @@ export function SiteFooter() {
           ],
           [
             "Resources",
+            ["Study Blog", "/blog"],
             ["About the creator", "/about"],
             ["How it works", "/how-it-works"],
             ["Documentation", "/docs"],

@@ -107,9 +107,64 @@ export default function DashboardClient() {
           </a>
         </aside>
         <div className="workspace-main">
-          <div className="workspace-heading">
-            <span className="eyebrow">THE STUDY WORKSPACE</span>
-            <span className="badge">Notes · Practice · Recall</span>
+          <div
+            className="workspace-heading"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <div>
+              <span className="eyebrow">THE STUDY WORKSPACE</span>
+              <span className="badge">Notes · Practice · Recall</span>
+            </div>
+            {!guest && (
+              <a
+                href="/pricing"
+                title="Your available study balance. 1 Token = 3 Note Sections."
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                  border: "1.5px solid #fde68a",
+                  borderRadius: 24,
+                  padding: "6px 16px",
+                  color: "#92400e",
+                  fontWeight: 700,
+                  fontSize: "0.9rem",
+                  textDecoration: "none",
+                  boxShadow: "0 2px 8px rgba(245, 158, 11, 0.15)",
+                }}
+              >
+                <span>⚡ Remaining Balance:</span>
+                <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "#b45309" }}>
+                  {balance === null
+                    ? "Loading..."
+                    : `${Math.floor(balance / 3)} Tokens (${balance} Credits)`}
+                </span>
+                <span
+                  style={{
+                    background: "#b45309",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: 20,
+                    height: 20,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.85rem",
+                    fontWeight: 800,
+                  }}
+                >
+                  ＋
+                </span>
+              </a>
+            )}
           </div>
           <section className="composer-intro">
             <span className="ink-symbol">✦</span>

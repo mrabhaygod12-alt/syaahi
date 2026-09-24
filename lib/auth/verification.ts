@@ -30,38 +30,61 @@ export async function issueVerification(user: string) {
   }
   return token;
 }
-export async function confirmVerification(user: string, token: string) {
+export async function confirmVerification(
+  userOrToken: string,
+  maybeToken?: string,
+) {
+  const token = maybeToken || userOrToken;
   if (!/^[a-f0-9]{64}$/.test(token))
     throw new RewardError("Verification link is invalid or expired.");
-  let valid = false;
-  if (useMongo())
-    valid = !!(await (
-      await collection("email_verification")
-    ).findOne({
-      _id: user,
-      tokenHash: hash(token),
-      expires: { $gt: Date.now() },
-    }));
-  else {
+  const tokenHash = hash(token);
+  let userId = maybeToken ? userOrToken : "";
+
+  if (useMongo()) {
+    const col = await collection("email_verification");
+    if (!userId) {
+      const match = await col.findOne({
+        tokenHash,
+        expires: { $gt: Date.now() },
+      });
+      if (!match)
+        throw new RewardError("Verification link is invalid or expired.");
+      userId = match._id;
+    } else {
+      const match = await col.findOne({
+        _id: userId,
+        tokenHash,
+        expires: { $gt: Date.now() },
+      });
+      if (!match)
+        throw new RewardError("Verification link is invalid or expired.");
+    }
+    await markEmailVerified(userId);
+    await col.deleteOne({ _id: userId });
+  } else {
     setup();
-    valid = !!db()
-      .prepare(
-        "SELECT 1 FROM email_verification WHERE user_id=? AND token_hash=? AND expires>?",
-      )
-      .get(user, hash(token), Date.now());
+    if (!userId) {
+      const row = db()
+        .prepare(
+          "SELECT user_id FROM email_verification WHERE token_hash=? AND expires>?",
+        )
+        .get(tokenHash, Date.now());
+      if (!row)
+        throw new RewardError("Verification link is invalid or expired.");
+      userId = String((row as any).user_id);
+    } else {
+      const row = db()
+        .prepare(
+          "SELECT 1 FROM email_verification WHERE user_id=? AND token_hash=? AND expires>?",
+        )
+        .get(userId, tokenHash, Date.now());
+      if (!row)
+        throw new RewardError("Verification link is invalid or expired.");
+    }
+    await markEmailVerified(userId);
+    db().prepare("DELETE FROM email_verification WHERE user_id=?").run(userId);
   }
-  if (!valid) throw new RewardError("Verification link is invalid or expired.");
-  await markEmailVerified(user);
-  if (useMongo())
-    await (
-      await collection("email_verification")
-    ).deleteOne({ _id: user, tokenHash: hash(token) });
-  else
-    db()
-      .prepare(
-        "DELETE FROM email_verification WHERE user_id=? AND token_hash=?",
-      )
-      .run(user, hash(token));
+  return userId;
 }
 export async function sendVerification(user: { id: string; email: string }) {
   if (

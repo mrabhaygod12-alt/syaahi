@@ -8,16 +8,28 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [verifyLink, setVerifyLink] = useState<string | null>(null);
+
   useEffect(() => {
     const error = new URLSearchParams(location.search).get("error");
     if (error) setMsg(error.slice(0, 300));
   }, []);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg("");
+    setVerifyLink(null);
     try {
-      await signIn(name, email, password, mode, accepted);
+      const res = await signIn(name, email, password, mode, accepted);
+      if (res.requireVerification) {
+        setVerifyLink(res.verifyUrl || "/verify-email");
+        setMsg(
+          res.message ||
+            "Account created! Please verify your email before signing in.",
+        );
+        return;
+      }
       const ref = new URLSearchParams(location.search).get("ref");
       if (mode === "signup" && ref)
         await fetch("/api/referrals", {
@@ -28,7 +40,10 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       const next = new URLSearchParams(location.search).get("next");
       window.location.href =
         next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.requireVerification && error?.verifyUrl) {
+        setVerifyLink(error.verifyUrl);
+      }
       setMsg(error instanceof Error ? error.message : "Please retry.");
     } finally {
       setBusy(false);
@@ -148,7 +163,49 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
               ? "Create account"
               : "Log in"}
         </button>
-        {msg && (
+        {verifyLink && (
+          <div
+            style={{
+              padding: "16px",
+              background: "#ecfdf5",
+              border: "1.5px solid #a7f3d0",
+              borderRadius: 8,
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                margin: "0 0 8px",
+                color: "#065f46",
+                fontWeight: 700,
+                fontSize: "1rem",
+              }}
+            >
+              ✉️ Email Verification Required
+            </p>
+            <p
+              className="small"
+              style={{ margin: "0 0 14px", color: "#047857" }}
+            >
+              Click below to verify your email and activate your account with 21
+              free study credits:
+            </p>
+            <a
+              href={verifyLink}
+              className="btn dark"
+              style={{
+                display: "inline-block",
+                padding: "8px 20px",
+                background: "#059669",
+                borderColor: "#059669",
+                textDecoration: "none",
+              }}
+            >
+              Click Here to Verify Email →
+            </a>
+          </div>
+        )}
+        {msg && !verifyLink && (
           <p role="alert" style={{ color: "#b91c1c" }}>
             {msg}
           </p>

@@ -8,19 +8,31 @@ export const safeNext = (value: string | null) =>
   value && /^\/(?![\/\\])/.test(value) && !/[\r\n\\]/.test(value)
     ? value
     : "/dashboard";
-export function oauthClient(req: NextRequest, response: NextResponse) {
+export function getSupabaseConfig() {
   const url =
     process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.SUPABASE_URI ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URI ||
+    "https://aoyhbcxvqenijbgjhswg.supabase.co";
   const key =
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key)
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_KEY ||
+    process.env.SUPABASE_SECRET_KEY;
+  return { url, key };
+}
+
+export function oauthClient(req: NextRequest, response: NextResponse) {
+  const { url, key } = getSupabaseConfig();
+  if (!url || !key) {
     throw new Error(
-      "Google sign-in is not configured yet. Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY in environment variables.",
+      `Google sign-in is not configured yet. Missing: ${!url ? "SUPABASE_URI/URL " : ""}${!key ? "SUPABASE_PUBLISHABLE_KEY" : ""}. Please add these in your environment variables.`,
     );
+  }
   return createServerClient(url, key, {
     cookieOptions: {
       httpOnly: true,
