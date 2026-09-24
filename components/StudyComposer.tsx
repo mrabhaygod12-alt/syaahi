@@ -32,9 +32,28 @@ export default function StudyComposer({
     [outline, setOutline] = useState("");
   const [research, setResearch] = useState(true),
     [sourceUrl, setSourceUrl] = useState("");
+  const planSectionRef = useRef<HTMLElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
+
+  useEffect(() => {
+    if (plan && planSectionRef.current) {
+      const timer = setTimeout(() => {
+        planSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (busy && statusRef.current) {
+      statusRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [plan, busy]);
   async function upload(file: File) {
     setBusy("Reading your material...");
     setError("");
@@ -170,6 +189,17 @@ export default function StudyComposer({
             setText(e.target.value);
             setPlan(null);
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && text.trim()) {
+              if (
+                !text.includes("\n") ||
+                /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(text.trim())
+              ) {
+                e.preventDefault();
+                if (!busy) void prepare();
+              }
+            }
+          }}
         />
         <div className="composer-actions">
           <div className="attachment-actions">
@@ -283,7 +313,7 @@ export default function StudyComposer({
         </details>
       )}
       {busy && (
-        <div role="status" className="composer-status">
+        <div ref={statusRef} role="status" className="composer-status">
           <span className="status-dot" />
           {busy}
         </div>
@@ -294,7 +324,7 @@ export default function StudyComposer({
         </p>
       )}
       {plan && (
-        <section className="plan-review">
+        <section ref={planSectionRef} className="plan-review">
           <div className="section-heading">
             <div>
               <span className="eyebrow">YOUR STUDY PLAN</span>

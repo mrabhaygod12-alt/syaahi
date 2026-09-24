@@ -769,8 +769,8 @@ body:has(.ws-app) footer {
   font-weight: 600;
 }
 .ws-nav-item.active {
-  color: #7c3aed;
-  background: #f5f3ff;
+  color: #214b40;
+  background: #edf5f1;
 }
 .ws-body {
   flex: 1;
@@ -850,6 +850,41 @@ body:has(.ws-app) footer {
 .ws-drawer {
   animation: drawerIn 0.22s ease both;
   display: flex;
+  position: relative;
+  height: 100%;
+}
+.ws-drawer.resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+.ws-drawer-resizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.ws-drawer-resizer:hover,
+.ws-drawer.resizing .ws-drawer-resizer {
+  background: rgba(33, 75, 64, 0.15);
+}
+.resizer-handle-grip {
+  width: 3px;
+  height: 38px;
+  border-radius: 999px;
+  background: #cfc5b8;
+  transition: background 0.15s, transform 0.15s;
+}
+.ws-drawer-resizer:hover .resizer-handle-grip,
+.ws-drawer.resizing .resizer-handle-grip {
+  background: #214b40;
+  transform: scaleY(1.15);
 }
 @keyframes drawerIn {
   from {
@@ -860,6 +895,64 @@ body:has(.ws-app) footer {
     transform: none;
     opacity: 1;
   }
+}
+
+/* Fast Top Workspace Navigation: Notes -> Quiz -> Lesson -> Practice */
+.ws-top-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #fbf8f3;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ws-top-tabs::-webkit-scrollbar {
+  display: none;
+}
+.ws-top-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6e675f;
+  background: #fff;
+  border: 1px solid var(--line);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.ws-top-tab:hover {
+  color: var(--ink);
+  border-color: #cbbeaf;
+  background: #faf7f2;
+}
+.ws-top-tab.active {
+  color: #fff;
+  background: #122c24;
+  border-color: #122c24;
+  box-shadow: 0 2px 6px rgba(18, 44, 36, 0.2);
+}
+.ws-top-tab .tab-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.tab-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f0ede6;
+  color: var(--ink);
+}
+.ws-top-tab.active .tab-pill {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 .ws-stage {
   flex: 1;
@@ -897,7 +990,7 @@ body:has(.ws-app) footer {
   justify-content: flex-end;
 }
 .ws-chat {
-  width: 380px;
+  width: 100%;
   max-width: 100%;
   background: #fbf8f3;
   border-left: 1px solid var(--line);
@@ -992,6 +1085,144 @@ body:has(.ws-app) footer {
   color: var(--muted);
   cursor: pointer;
 }
+/* Chat Head Size Presets */
+.ws-chat-size-presets {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #eee8de;
+  padding: 2px 3px;
+  border-radius: 999px;
+}
+.ws-size-pill {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.ws-size-pill:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.6);
+}
+.ws-size-pill.active {
+  background: #fff;
+  color: #122c24;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Redesigned Clean & Modern Chat Prompt Card */
+.ws-prompt-wrap {
+  padding: 12px 16px 14px;
+  background: #fbf8f3;
+  border-top: 1px solid var(--line);
+}
+.ws-prompt-card {
+  background: #fff;
+  border: 1px solid #dcd3c6;
+  border-radius: 16px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ws-prompt-card:focus-within {
+  border-color: #214b40;
+  box-shadow: 0 0 0 3px rgba(33, 75, 64, 0.12);
+}
+.ws-prompt-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  resize: none;
+  min-height: 44px;
+  max-height: 140px;
+  padding: 2px 0;
+}
+.ws-prompt-textarea::placeholder {
+  color: #9a9289;
+}
+.ws-prompt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #f2ede5;
+}
+.ws-prompt-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ws-voice-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pulsing-mic {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  animation: pulse 1s infinite;
+}
+.ws-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ws-prompt-counter {
+  font-size: 11px;
+  color: #9a9289;
+  font-weight: 500;
+}
+.ws-prompt-send-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #122c24;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.ws-prompt-send-btn:hover:not(:disabled) {
+  background: #1e4539;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(18, 44, 36, 0.25);
+}
+.ws-prompt-send-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #9a9289;
+}
+
 .ws-chat-input {
   display: flex;
   gap: 8px;
@@ -1009,18 +1240,23 @@ body:has(.ws-app) footer {
   font-size: 16px;
 }
 .ws-send {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: none;
-  background: #7c3aed;
+  background: #122c24;
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
   flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.ws-send:hover:not(:disabled) {
+  background: #1e4539;
 }
 .ws-send:disabled {
   opacity: 0.4;
+  background: #9a9289;
 }
 /* ChatGPT-style thread polish */
 .ws-chat-dot {

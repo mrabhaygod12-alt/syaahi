@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Logo from "@/components/Logo";
 import Loader from "@/components/Loader";
@@ -72,6 +72,49 @@ export default function WorkspaceShell({
   const { job, loading, balance, chatOpen, openChat, closeChat } = useLesson();
   const pathname = usePathname();
   const router = useRouter();
+
+  // Manageable & resizable chat width
+  const [chatWidth, setChatWidth] = useState(420);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("syaahi_chat_width");
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (parsed >= 320 && parsed <= 900) setChatWidth(parsed);
+      }
+    } catch {}
+  }, []);
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const onMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(
+        Math.max(320, window.innerWidth - e.clientX),
+        Math.min(900, Math.floor(window.innerWidth * 0.88))
+      );
+      setChatWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      setIsResizing(false);
+      try {
+        localStorage.setItem("syaahi_chat_width", String(chatWidth));
+      } catch {}
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizing, chatWidth]);
+
   // AI chat lives behind the hamburger — never auto-open, same drawer on every room.
   // Escape closes it like any ChatGPT-style panel.
   useEffect(() => {
@@ -82,7 +125,8 @@ export default function WorkspaceShell({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [chatOpen, closeChat]);
-  const room = (pathname.split("/").pop() || "learn") as RoomId;
+
+  const room = (pathname.split("/").pop() || "notes") as RoomId;
 
   if (loading && !job) {
     return <div className="ws-loading">Loading lesson…</div>;
@@ -213,7 +257,7 @@ export default function WorkspaceShell({
             <span>{title}</span>
           </nav>
           <div className="ws-top-actions">
-            <span className="small">
+            <span className="small ws-balance-badge">
               Balance <b>{balance ?? "…"}</b>
             </span>
             <a className="btn dark ws-upgrade" href="/pricing">
@@ -232,6 +276,52 @@ export default function WorkspaceShell({
             </button>
           </div>
         </header>
+
+        {/* Top Fast Navigation Bar: Notes -> Quiz -> Lesson -> Practice */}
+        <nav className="ws-top-tabs" aria-label="Lesson workspace sections">
+          <Link
+            href={`/lesson/${job.id}/notes`}
+            className={`ws-top-tab ${room === "notes" ? "active" : ""}`}
+          >
+            <span className="tab-icon">📄</span>
+            <span>Notes</span>
+            {job.pages?.length > 0 && (
+              <span className="tab-pill">{job.pages.length}</span>
+            )}
+          </Link>
+          <Link
+            href={`/lesson/${job.id}/quiz`}
+            className={`ws-top-tab ${room === "quiz" ? "active" : ""}`}
+          >
+            <span className="tab-icon">📝</span>
+            <span>Quiz</span>
+            {job.practice?.quiz?.length ? (
+              <span className="tab-pill">{job.practice.quiz.length}Q</span>
+            ) : null}
+          </Link>
+          <Link
+            href={`/lesson/${job.id}/learn`}
+            className={`ws-top-tab ${room === "learn" ? "active" : ""}`}
+          >
+            <span className="tab-icon">📖</span>
+            <span>Lesson</span>
+          </Link>
+          <Link
+            href={`/lesson/${job.id}/flashcards`}
+            className={`ws-top-tab ${room === "flashcards" ? "active" : ""}`}
+          >
+            <span className="tab-icon">🗂️</span>
+            <span>Flashcards</span>
+          </Link>
+          <Link
+            href={`/lesson/${job.id}/podcast`}
+            className={`ws-top-tab ${room === "podcast" ? "active" : ""}`}
+          >
+            <span className="tab-icon">🎙️</span>
+            <span>Podcast</span>
+          </Link>
+        </nav>
+
         <div className="ws-stage">
           <div className="ws-main">
             {job.status === "error" && (
@@ -263,8 +353,32 @@ export default function WorkspaceShell({
       </div>
       {chatOpen && (
         <div className="ws-overlay" onClick={closeChat}>
-          <div className="ws-drawer" onClick={(e) => e.stopPropagation()}>
-            <LessonChat job={job} variant="overlay" onClose={closeChat} />
+          <div
+            className={`ws-drawer ${isResizing ? "resizing" : ""}`}
+            style={{ width: chatWidth, maxWidth: "90vw" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Draggable manual resize handle on left edge */}
+            <div
+              className="ws-drawer-resizer"
+              onMouseDown={startResizing}
+              title="Drag to resize chat panel"
+              aria-label="Drag to resize chat panel"
+            >
+              <div className="resizer-handle-grip" />
+            </div>
+            <LessonChat
+              job={job}
+              variant="overlay"
+              onClose={closeChat}
+              currentWidth={chatWidth}
+              onSetWidth={(w) => {
+                setChatWidth(w);
+                try {
+                  localStorage.setItem("syaahi_chat_width", String(w));
+                } catch {}
+              }}
+            />
           </div>
         </div>
       )}

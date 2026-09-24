@@ -152,10 +152,14 @@ export default function LessonChat({
   job,
   variant = "panel",
   onClose,
+  currentWidth,
+  onSetWidth,
 }: {
   job: LessonJob;
   variant?: "panel" | "overlay";
   onClose?: () => void;
+  currentWidth?: number;
+  onSetWidth?: (width: number) => void;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -546,11 +550,41 @@ export default function LessonChat({
           <b>Chat</b>
           <span className="small">grounded in this lesson</span>
         </div>
-        {onClose && (
-          <button className="ws-icon-btn" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {onSetWidth && (
+            <div className="ws-chat-size-presets" title="Adjust chat width">
+              <button
+                type="button"
+                className={`ws-size-pill ${currentWidth && currentWidth <= 400 ? "active" : ""}`}
+                onClick={() => onSetWidth(380)}
+                title="Compact (380px)"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                className={`ws-size-pill ${currentWidth && currentWidth > 400 && currentWidth <= 540 ? "active" : ""}`}
+                onClick={() => onSetWidth(480)}
+                title="Standard (480px)"
+              >
+                M
+              </button>
+              <button
+                type="button"
+                className={`ws-size-pill ${currentWidth && currentWidth > 540 ? "active" : ""}`}
+                onClick={() => onSetWidth(640)}
+                title="Wide (640px)"
+              >
+                L
+              </button>
+            </div>
+          )}
+          {onClose && (
+            <button className="ws-icon-btn" onClick={onClose} aria-label="Close">
+              ✕
+            </button>
+          )}
+        </div>
       </div>
       <div className="ws-chat-shortcuts">
         <button
@@ -712,47 +746,69 @@ export default function LessonChat({
           </div>
         )}
       </div>
-      <form
-        className="ws-chat-input"
-        onSubmit={(e) => {
-          e.preventDefault();
-          ask();
-        }}
-      >
-        <textarea
-          ref={inputRef}
-          autoFocus
-          value={q}
-          rows={1}
-          onChange={(e) => setQ(e.target.value.slice(0, 500))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              ask();
-            }
+      <div className="ws-prompt-wrap">
+        <form
+          className="ws-prompt-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            ask();
           }}
-          placeholder="Ask anything about this lesson…"
-          maxLength={500}
-        />
-        <span className="small ws-count">{q.length}/500</span>
-        <LectureRecorder
-          onFile={(file) => void transcribe(file)}
-          disabled={busy || voiceBusy}
-        />
-        {voiceBusy && (
-          <span role="status" className="small">
-            Gemini audio…
-          </span>
-        )}
-        <button
-          type="submit"
-          className="ws-send"
-          disabled={busy || !q.trim()}
-          aria-label="Send"
         >
-          ↑
-        </button>
-      </form>
+          <textarea
+            ref={inputRef}
+            className="ws-prompt-textarea"
+            autoFocus
+            value={q}
+            rows={2}
+            onChange={(e) => setQ(e.target.value.slice(0, 500))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                ask();
+              }
+            }}
+            placeholder="Ask anything about this lesson or paste questions…"
+            maxLength={500}
+          />
+          <div className="ws-prompt-footer">
+            <div className="ws-prompt-tools">
+              <LectureRecorder
+                onFile={(file) => void transcribe(file)}
+                disabled={busy || voiceBusy}
+              />
+              {voiceBusy && (
+                <span role="status" className="small ws-voice-pill">
+                  <span className="pulsing-mic" /> Listening…
+                </span>
+              )}
+            </div>
+            <div className="ws-prompt-actions">
+              <span className="ws-prompt-counter">{q.length}/500</span>
+              <button
+                type="submit"
+                className="ws-prompt-send-btn"
+                disabled={busy || !q.trim()}
+                aria-label="Send message"
+                title="Send (Enter)"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
       {tokens > 0 && (
         <div
           className="small"
