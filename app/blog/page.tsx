@@ -46,7 +46,7 @@ export default function BlogIndexPage() {
           <p className="eyebrow">SYAAHI STUDY INSIGHTS</p>
           <h1 style={{ fontSize: "2.6rem", lineHeight: 1.15, margin: "10px 0 16px" }}>
             Master Your Exams with <br />
-            <span style={{ color: "#6246ea" }}>Handwritten Notes & AI</span>
+            <span style={{ color: "#b45309" }}>Handwritten Notes & AI</span>
           </h1>
           <p className="small" style={{ fontSize: "1.05rem", color: "#4b5563" }}>
             Actionable study strategies, cognitive science insights, and board exam blueprints to help you score higher in less time.
@@ -88,8 +88,9 @@ export default function BlogIndexPage() {
                 >
                   <span
                     style={{
-                      background: "#efedfc",
-                      color: "#6246ea",
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      border: "1px solid #fde68a",
                       fontSize: "0.75rem",
                       fontWeight: 700,
                       padding: "3px 10px",
@@ -159,15 +160,16 @@ export default function BlogIndexPage() {
         {/* Bottom CTA Card */}
         <section
           style={{
-            background: "linear-gradient(135deg, #2b2c34 0%, #1e1b4b 100%)",
+            background: "linear-gradient(135deg, #1f1f1f 0%, #2b2c34 100%)",
             color: "#ffffff",
             padding: "44px 36px",
             borderRadius: 16,
             textAlign: "center",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            border: "1px solid #3f3f46",
           }}
         >
-          <span className="eyebrow" style={{ color: "#a5b4fc" }}>
+          <span className="eyebrow" style={{ color: "#f0c06a", letterSpacing: "0.08em" }}>
             START LEARNING BETTER TODAY
           </span>
           <h2 style={{ color: "#ffffff", fontSize: "2rem", margin: "8px 0 12px" }}>
@@ -175,7 +177,7 @@ export default function BlogIndexPage() {
           </h2>
           <p
             className="small"
-            style={{ color: "#e0e7ff", maxWidth: 580, margin: "0 auto 24px" }}
+            style={{ color: "#d1d5db", maxWidth: 580, margin: "0 auto 24px" }}
           >
             Turn complex chapters into clean, legible handwritten PDFs with diagrams and formulas. Claim your 21 free credits now.
           </p>
@@ -184,10 +186,12 @@ export default function BlogIndexPage() {
               href="/signup"
               className="btn dark"
               style={{
-                background: "#6246ea",
-                borderColor: "#6246ea",
+                background: "#f0c06a",
+                color: "#1f1f1f",
+                borderColor: "#f0c06a",
                 padding: "12px 28px",
                 fontSize: "1rem",
+                fontWeight: 700,
               }}
             >
               Get Started Free (21 Credits)
@@ -198,7 +202,7 @@ export default function BlogIndexPage() {
               style={{
                 background: "transparent",
                 color: "#ffffff",
-                borderColor: "rgba(255,255,255,0.3)",
+                borderColor: "rgba(255,255,255,0.4)",
                 padding: "12px 24px",
               }}
             >

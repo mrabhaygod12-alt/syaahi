@@ -283,8 +283,11 @@ export async function endSession(req: Request): Promise<NextResponse> {
 }
 
 export async function accountByEmail(email: string) {
+  if (typeof email !== "string") return null;
+  const clean = email.trim().toLowerCase();
+  if (!clean || clean.length > 254) return null;
   if (useMongo()) {
-    const user = await (await collection("users")).findOne({ email });
+    const user = await (await collection("users")).findOne({ email: clean });
     return user
       ? {
           id: String(user._id),
@@ -295,5 +298,5 @@ export async function accountByEmail(email: string) {
         }
       : null;
   }
-  return db().prepare("SELECT * FROM users WHERE email=?").get(email);
+  return db().prepare("SELECT * FROM users WHERE email=?").get(clean);
 }

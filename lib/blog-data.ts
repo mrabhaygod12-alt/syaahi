@@ -19,8 +19,8 @@ export const BLOG_POSTS: BlogPost[] = [
     excerpt:
       "Discover the proven strategy to convert messy PDFs, video lectures, and textbook chapters into clear, legible handwritten exam notes with AI in minutes.",
     category: "Exam Prep",
-    author: "Abhay Sharma",
-    authorRole: "Head of Learning Engineering, Syaahi",
+    author: "Chandan Pandey",
+    authorRole: "Creator & Head of Learning Engineering, Syaahi",
     date: "2026-09-24",
     readingTime: "6 min read",
     tags: ["Exam Prep", "Handwritten Notes", "Study Hacks", "CBSE", "College Exams"],
@@ -90,8 +90,8 @@ You don't need to sacrifice your sleep to create gorgeous, structured exam notes
     excerpt:
       "Cognitive neuroscience reveals why physical pen strokes activate deeper neural pathways than keyboard clicks. Learn how to maximize your study retention.",
     category: "Study Science",
-    author: "Dr. Ritu Verma",
-    authorRole: "Cognitive Science Advisor",
+    author: "Manish Kumar Singh",
+    authorRole: "Academic Coordinator & DevOps Researcher, Syaahi",
     date: "2026-09-20",
     readingTime: "5 min read",
     tags: ["Cognitive Science", "Memory Retention", "Study Techniques", "Active Learning"],

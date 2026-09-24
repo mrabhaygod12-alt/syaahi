@@ -8,14 +8,14 @@ export const safeNext = (value: string | null) =>
   value && /^\/(?![\/\\])/.test(value) && !/[\r\n\\]/.test(value)
     ? value
     : "/dashboard";
-export function getSupabaseConfig() {
-  const url =
+export function getSupabaseConfig(): { url: string; key: string | undefined } {
+  let url =
     process.env.SUPABASE_URL ||
     process.env.SUPABASE_URI ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URI ||
-    "https://aoyhbcxvqenijbgjhswg.supabase.co";
-  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_URI;
+
+  let key =
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
     process.env.SUPABASE_KEY ||
@@ -23,14 +23,56 @@ export function getSupabaseConfig() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_KEY ||
     process.env.SUPABASE_SECRET_KEY;
-  return { url, key };
+
+  // Fuzzy scan across all environment variables to handle accidental typos like "SUPABASUPABASE_PUBLISHABLE_KEYE_URL"
+  if (!key || !url) {
+    for (const [envKey, rawVal] of Object.entries(process.env)) {
+      if (!rawVal || typeof rawVal !== "string") continue;
+      const envVal = rawVal.trim();
+      if (!envVal) continue;
+      const upperKey = envKey.toUpperCase();
+
+      // Check key name for publishable / anon / supabase key typos (never a URL)
+      if (!key && !envVal.startsWith("http")) {
+        if (
+          upperKey.includes("PUBLISHABLE") ||
+          upperKey.includes("ANON") ||
+          (upperKey.includes("SUPABASE") && upperKey.includes("KEY"))
+        ) {
+          key = envVal;
+        } else if (
+          envVal.startsWith("eyJhbGci") ||
+          envVal.startsWith("sb_publishable_") ||
+          envVal.startsWith("sb_anon_")
+        ) {
+          key = envVal;
+        }
+      }
+
+      // Check for URL typos (must start with http)
+      if (!url && envVal.startsWith("http")) {
+        if (upperKey.includes("SUPABASE") && upperKey.includes("URL")) {
+          url = envVal;
+        } else if (envVal.includes(".supabase.co")) {
+          url = envVal;
+        }
+      }
+    }
+  }
+
+  // Known project fallback if URL was not explicitly configured
+  if (!url) {
+    url = "https://aoyhbcxvqenijbgjhswg.supabase.co";
+  }
+
+  return { url: url.replace(/\/+$/, ""), key };
 }
 
 export function oauthClient(req: NextRequest, response: NextResponse) {
   const { url, key } = getSupabaseConfig();
   if (!url || !key) {
     throw new Error(
-      `Google sign-in is not configured yet. Missing: ${!url ? "SUPABASE_URI/URL " : ""}${!key ? "SUPABASE_PUBLISHABLE_KEY" : ""}. Please add these in your environment variables.`,
+      `Google sign-in is not configured yet. Missing: ${!url ? "SUPABASE_URL " : ""}${!key ? "SUPABASE_PUBLISHABLE_KEY" : ""}. Please add these in your environment variables.`,
     );
   }
   return createServerClient(url, key, {

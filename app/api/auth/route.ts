@@ -84,14 +84,15 @@ async function handlePOST(req: NextRequest) {
       const isDuplicate =
         err instanceof Error &&
         (err.message.includes("duplicate key") ||
-          err.message.includes("E11000"));
+          err.message.includes("E11000") ||
+          err.message.includes("already registered"));
       return NextResponse.json(
         {
           error: isDuplicate
             ? "This email is already registered. Please log in instead."
-            : `Unable to create this account. If registered, please log in. (${detail})`,
+            : "Unable to create this account. If registered, please log in or contact support.",
         },
-        { status: 409 },
+        { status: isDuplicate ? 409 : 500 },
       );
     }
   }

@@ -90,8 +90,9 @@ export default async function BlogPostPage({ params }: PageProps) {
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
             <span
               style={{
-                background: "#efedfc",
-                color: "#6246ea",
+                background: "#fef3c7",
+                color: "#92400e",
+                border: "1px solid #fde68a",
                 fontSize: "0.75rem",
                 fontWeight: 700,
                 padding: "3px 10px",
@@ -132,8 +133,9 @@ export default async function BlogPostPage({ params }: PageProps) {
                 width: 44,
                 height: 44,
                 borderRadius: "50%",
-                background: "#6246ea",
-                color: "#fff",
+                background: "linear-gradient(135deg, #1f1f1f 0%, #3f3f46 100%)",
+                color: "#f0c06a",
+                border: "1px solid #e5e0d8",
                 fontWeight: 800,
                 display: "flex",
                 alignItems: "center",
@@ -258,8 +260,9 @@ export default async function BlogPostPage({ params }: PageProps) {
               width: 56,
               height: 56,
               borderRadius: "50%",
-              background: "#6246ea",
-              color: "#fff",
+              background: "linear-gradient(135deg, #1f1f1f 0%, #3f3f46 100%)",
+              color: "#f0c06a",
+              border: "1px solid #e5e0d8",
               fontWeight: 800,
               display: "flex",
               alignItems: "center",
@@ -281,27 +284,31 @@ export default async function BlogPostPage({ params }: PageProps) {
         {/* Bottom CTA Box */}
         <section
           style={{
-            background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)",
+            background: "linear-gradient(135deg, #1f1f1f 0%, #2b2c34 100%)",
             color: "#ffffff",
             padding: "36px 30px",
             borderRadius: 14,
             textAlign: "center",
+            border: "1px solid #3f3f46",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
           }}
         >
           <h2 style={{ color: "#fff", fontSize: "1.7rem", margin: "0 0 10px" }}>
             Ready to study with high-retention handwritten notes?
           </h2>
-          <p className="small" style={{ color: "#e0e7ff", maxWidth: 500, margin: "0 auto 20px" }}>
+          <p className="small" style={{ color: "#d1d5db", maxWidth: 500, margin: "0 auto 20px" }}>
             Generate structured handwritten PDFs from any topic or lecture. Get 21 free credits on registration.
           </p>
           <a
             href="/signup"
             className="btn dark"
             style={{
-              background: "#6246ea",
-              borderColor: "#6246ea",
+              background: "#f0c06a",
+              color: "#1f1f1f",
+              borderColor: "#f0c06a",
               padding: "10px 24px",
               fontSize: "0.95rem",
+              fontWeight: 700,
             }}
           >
             Create Your Free Account →
