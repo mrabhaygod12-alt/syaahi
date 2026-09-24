@@ -6,7 +6,10 @@ import { startSession } from "@/lib/auth/server";
 import { markEmailVerified } from "@/lib/billing/rewards";
 import { claimReferral } from "@/lib/billing/referrals";
 async function handleGET(req: NextRequest) {
-  const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
+  const origin =
+    (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
+    req.headers.get("origin")?.replace(/\/+$/, "") ||
+    "https://syaahii.netlify.app";
   const response = NextResponse.redirect(new URL("/login", origin));
   response.headers.set("Cache-Control", "no-store");
   try {

@@ -59,6 +59,9 @@ async function handlePOST(req: NextRequest) {
       await recordConsent(user.id);
       return await startSession(user, req);
     } catch (err) {
+      const detail =
+        err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      console.error("Signup failed:", detail);
       const isDuplicate =
         err instanceof Error &&
         (err.message.includes("duplicate key") ||
@@ -67,7 +70,7 @@ async function handlePOST(req: NextRequest) {
         {
           error: isDuplicate
             ? "This email is already registered. Please log in instead."
-            : "Unable to create this account. If registered, please log in.",
+            : `Unable to create this account. If registered, please log in. (${detail})`,
         },
         { status: 409 },
       );

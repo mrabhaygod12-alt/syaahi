@@ -24,8 +24,7 @@ export async function mongo() {
   const database = client.db(process.env.MONGODB_DATABASE || "syaahi");
   if (!state.mongoReady)
     state.mongoReady = indexes(database).catch((e) => {
-      state.mongoReady = undefined;
-      throw e;
+      console.warn("MongoDB index creation warning:", e instanceof Error ? e.message : e);
     });
   await state.mongoReady;
   return { client, database };

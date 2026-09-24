@@ -9,11 +9,17 @@ export const safeNext = (value: string | null) =>
     ? value
     : "/dashboard";
 export function oauthClient(req: NextRequest, response: NextResponse) {
-  const url = process.env.SUPABASE_URL,
-    key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const url =
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key)
     throw new Error(
-      "Google sign-in is not configured yet. Email sign-in is available.",
+      "Google sign-in is not configured yet. Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY in environment variables.",
     );
   return createServerClient(url, key, {
     cookieOptions: {
@@ -75,6 +81,11 @@ export async function googleAccount(identity: {
       identity.id,
     );
     return user;
+  }
+  if (process.env.APP_ROLE === "frontend" || process.env.NETLIFY === "true") {
+    throw new Error(
+      "Frontend database is not configured. Configure BACKEND_URL on Netlify or set MONGODB_URI.",
+    );
   }
   db().exec(
     "CREATE TABLE IF NOT EXISTS oauth_identities (subject TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id))",

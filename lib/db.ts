@@ -7,6 +7,10 @@ export function db(): DatabaseSync {
     throw new Error(
       "SQLite is not available in this deployment. Set DATA_BACKEND=mongo and MONGODB_URI in the environment.",
     );
+  if (process.env.APP_ROLE === "frontend" || process.env.NETLIFY === "true")
+    throw new Error(
+      "SQLite is not available on frontend deployments. Set BACKEND_URL on Netlify or set MONGODB_URI.",
+    );
   if (state.syaahiDb) return state.syaahiDb;
   const dir = process.env.DATA_DIR || join(process.cwd(), "data");
   mkdirSync(dir, { recursive: true });

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 export function middleware(req: NextRequest) {
   const role = process.env.APP_ROLE;
-  if (role === "frontend") {
-    const backend = process.env.BACKEND_URL,
-      secret = process.env.BACKEND_PROXY_SECRET;
+  const backend = process.env.BACKEND_URL;
+  const isFrontend =
+    role === "frontend" ||
+    (!!backend && role !== "backend" && role !== "worker");
+  if (isFrontend) {
+    const secret = process.env.BACKEND_PROXY_SECRET;
     if (!backend || !secret)
       return NextResponse.json(
-        { error: "The study backend is not connected yet." },
+        {
+          error:
+            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in Netlify environment variables.",
+        },
         { status: 503 },
       );
     const target = new URL(req.nextUrl.pathname + req.nextUrl.search, backend);

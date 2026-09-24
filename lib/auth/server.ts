@@ -69,12 +69,27 @@ export async function currentUser(req: Request): Promise<Account | null> {
 }
 export function originError(req: Request): NextResponse | null {
   const origin = req.headers.get("origin");
-  if (
-    !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-    origin &&
-    origin !== new URL(req.url).origin &&
-    origin !== process.env.NEXT_PUBLIC_APP_URL
-  ) {
+  if (!origin || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return null;
+
+  // Requests verified by frontend proxy secret are trusted
+  const proxySecret = process.env.BACKEND_PROXY_SECRET;
+  if (proxySecret && req.headers.get("x-syaahi-proxy") === proxySecret) {
+    return null;
+  }
+
+  const normalizedOrigin = origin.replace(/\/+$/, "");
+  const allowed = new Set(
+    [
+      new URL(req.url).origin,
+      (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, ""),
+      "https://syaahii.netlify.app",
+      "https://syaahi.netlify.app",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ].filter(Boolean),
+  );
+
+  if (!allowed.has(normalizedOrigin)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
       { status: 403 },
@@ -108,27 +123,71 @@ export async function register(
   const encoded = passwordHash(password);
   if (useMongo()) {
     const doc = { _id: user.id, ...user, password: encoded };
-    await mongoTransaction(async (d, session) => {
-      await d.collection<any>("users").insertOne(doc, { session });
-      if (oauthSubject)
+    try {
+      await mongoTransaction(async (d, session) => {
+        await d.collection<any>("users").insertOne(doc, { session });
+        if (oauthSubject)
+          await d
+            .collection<any>("oauth_identities")
+            .insertOne({ _id: oauthSubject, user: user.id }, { session });
         await d
-          .collection<any>("oauth_identities")
-          .insertOne({ _id: oauthSubject, user: user.id }, { session });
-      await d
-        .collection<any>("wallets")
-        .insertOne({ _id: user.id, balance: 21 }, { session });
-      await d.collection<any>("ledger").insertOne(
-        {
+          .collection<any>("wallets")
+          .insertOne({ _id: user.id, balance: 21 }, { session });
+        await d.collection<any>("ledger").insertOne(
+          {
+            _id: `welcome:${user.id}`,
+            user: user.id,
+            delta: 21,
+            reason: "Welcome page units",
+            createdAt: new Date(),
+          },
+          { session },
+        );
+      });
+    } catch (txErr) {
+      console.warn(
+        "MongoDB transaction failed, trying direct inserts fallback:",
+        txErr instanceof Error ? txErr.message : txErr,
+      );
+      const { database } = await (await import("@/lib/storage/mongo")).mongo();
+      try {
+        await database.collection<any>("users").insertOne(doc);
+        if (oauthSubject)
+          await database
+            .collection<any>("oauth_identities")
+            .insertOne({ _id: oauthSubject, user: user.id });
+        await database
+          .collection<any>("wallets")
+          .insertOne({ _id: user.id, balance: 21 });
+        await database.collection<any>("ledger").insertOne({
           _id: `welcome:${user.id}`,
           user: user.id,
           delta: 21,
           reason: "Welcome page units",
           createdAt: new Date(),
-        },
-        { session },
-      );
-    });
+        });
+      } catch (directErr) {
+        await database
+          .collection<any>("users")
+          .deleteOne({ _id: user.id })
+          .catch(() => {});
+        await database
+          .collection<any>("wallets")
+          .deleteOne({ _id: user.id })
+          .catch(() => {});
+        await database
+          .collection<any>("ledger")
+          .deleteOne({ _id: `welcome:${user.id}` })
+          .catch(() => {});
+        throw directErr;
+      }
+    }
     return user;
+  }
+  if (process.env.APP_ROLE === "frontend" || process.env.NETLIFY === "true") {
+    throw new Error(
+      "Frontend database is not configured. Configure BACKEND_URL on Netlify or set MONGODB_URI.",
+    );
   }
   transaction(() => {
     db()

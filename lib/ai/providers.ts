@@ -135,20 +135,20 @@ export function eligibleProviders(): ProviderDef[] {
       providerKeys(providerEnvKey(p.type)).length > 0 &&
       (p.type !== "zen" || process.env.ENABLE_ZEN_API === "true") &&
       (p.type !== "nvidia" || process.env.ENABLE_NVIDIA_TRIAL === "true") &&
-      (p.type !== "apinex" || process.env.ENABLE_APINEX === "true"),
+      (p.type !== "apinex" || process.env.ENABLE_APINEX !== "false"),
   );
 }
 
 export const PROVIDER_BASE_URL: Record<ProviderType, string> = {
-  openrouter: "https://openrouter.ai/api/v1",
-  zen: "https://opencode.ai/zen/v1",
-  gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
-  groq: "https://api.groq.com/openai/v1",
-  cerebras: "https://api.cerebras.ai/v1",
-  nvidia: "https://integrate.api.nvidia.com/v1",
-  mistral: "https://api.mistral.ai/v1",
-  deepseek: "https://api.deepseek.com/v1",
-  apinex: "https://api.apinex.bond/v1",
+  openrouter: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+  zen: process.env.ZEN_BASE_URL || "https://opencode.ai/zen/v1",
+  gemini: process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai",
+  groq: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
+  cerebras: process.env.CEREBRAS_BASE_URL || "https://api.cerebras.ai/v1",
+  nvidia: process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1",
+  mistral: process.env.MISTRAL_BASE_URL || "https://api.mistral.ai/v1",
+  deepseek: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
+  apinex: process.env.APINEX_BASE_URL || "https://api.apinex.bond/v1",
 };
 
 export function providerEnvKey(t: ProviderType): string {

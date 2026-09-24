@@ -2,16 +2,21 @@
 // an organisation/project's quota, and quota errors must cool down the provider.
 const cursor = new Map<string, number>();
 export function providerKeys(name: string): string[] {
-  return Array.from(
-    new Set(
-      [
-        process.env[name],
-        ...Array.from({ length: 6 }, (_, i) => process.env[`${name}_${i + 1}`]),
-      ]
-        .filter((v): v is string => !!v?.trim())
-        .map((v) => v.trim()),
-    ),
-  ).slice(0, 6);
+  const rawList = [
+    process.env[name],
+    ...Array.from({ length: 10 }, (_, i) => process.env[`${name}_${i + 1}`]),
+  ];
+  const keys: string[] = [];
+  for (const raw of rawList) {
+    if (!raw) continue;
+    for (const part of raw.split(",")) {
+      const trimmed = part.trim();
+      if (trimmed && !keys.includes(trimmed)) {
+        keys.push(trimmed);
+      }
+    }
+  }
+  return keys.slice(0, 10);
 }
 export function orderedKeys(name: string): string[] {
   const keys = providerKeys(name);
