@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = ".next-production"
+
+[build.environment]
+  NODE_VERSION = "24"
+  APP_ROLE = "frontend"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Set BACKEND_URL, BACKEND_PROXY_SECRET and NEXT_PUBLIC_APP_URL in Netlify.
+# Provider, payment and database keys belong only on Render.

@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: syaahi-api
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - fromGroup: syaahi-private
+      - key: APP_ROLE
+        value: backend
+      - key: DATA_BACKEND
+        value: mongo
+      - key: WORKER_MODE
+        value: external
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+  - type: worker
+    name: syaahi-generation-worker
+    runtime: docker
+    plan: starter
+    dockerCommand: npm run worker
+    envVars:
+      - fromGroup: syaahi-private
+      - key: APP_ROLE
+        value: worker
+      - key: DATA_BACKEND
+        value: mongo
+      - key: WORKER_MODE
+        value: embedded
+
+# Create the syaahi-private environment group before importing this blueprint.
+# Required: MONGODB_URI, MONGODB_DATABASE, NEXT_PUBLIC_APP_URL,
+# BACKEND_PROXY_SECRET, GROQ_API_KEY and/or GEMINI_API_KEY.
+# Optional integrations: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
+# RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SUPPORT_EMAIL.

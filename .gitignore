@@ -1,0 +1,36 @@
+# Secrets — never commit
+.env.local
+.env*.local
+
+# Runtime data (credits, jobs, feedback, seeded library cache)
+data/credits.json
+data/jobs.json
+data/feedback.json
+
+# Build + deps
+.next/
+node_modules/
+*.log
+tsconfig.tsbuildinfo
+
+# Never commit: exported PDFs, local test scripts, stray downloads
+*.pdf
+test-*.ts
+
+.next-production/
+data/*.sqlite*
+tmp/
+output/qa/
+
+.env
+.env.*
+!.env.example
+.netlify/
+output/
+*.wav
+*.zip
+chandan.jpeg
+
+!scripts/test-*.ts
+
+~$*

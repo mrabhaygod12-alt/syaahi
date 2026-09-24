@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-production
+.git
+.env*
+data
+output
+tmp
+*.log
+*.pdf
+chandan.jpeg
