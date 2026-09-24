@@ -1,4 +1,4 @@
-// Provider catalog researched 2026-09-21; see RESEARCH-AND-BUILD-PLAN.md.
+// Dated provider evidence and access limits: docs/PROVIDERS.md.
 import { providerKeys } from "./keys";
 
 export type ProviderType =
@@ -98,14 +98,36 @@ export const PROVIDERS: ProviderDef[] = [
     note: "Evaluation endpoint: opt-in for development, not a default production dependency.",
   },
   {
-    id: "apinex-muse",
+    id: "apinex-glm",
     type: "apinex",
-    model: "free/muse-spark-1.3",
+    model: "free/glm-5.3-flash",
     maxCtx: 32000,
-    priority: 22,
+    priority: 7,
     tier: "auto",
-    note: "Existing third-party integration retained as opt-in. Provider claims not independently verified.",
+    note: "Public free catalog; account quotas apply. Model identity is the gateway's claim.",
   },
+  ...["free/deepseek-v4.1-flash", "free/mimo-v2.6-pro"].map(
+    (model, i): ProviderDef => ({
+      id: `apinex-${i + 1}`,
+      type: "apinex",
+      model,
+      maxCtx: 32000,
+      priority: 8 + i,
+      tier: "auto",
+      note: "Public free catalog; verify account access before enabling.",
+    }),
+  ),
+  ...["space-bunny-free", "mimo-v2.6-flash-free"].map(
+    (model, i): ProviderDef => ({
+      id: `zen-${i + 1}`,
+      type: "zen",
+      model,
+      maxCtx: 32000,
+      priority: 10 + i,
+      tier: "auto",
+      note: "Limited-time free catalog; account access and data terms apply.",
+    }),
+  ),
 ];
 export function eligibleProviders(): ProviderDef[] {
   return PROVIDERS.filter(
@@ -126,7 +148,7 @@ export const PROVIDER_BASE_URL: Record<ProviderType, string> = {
   nvidia: "https://integrate.api.nvidia.com/v1",
   mistral: "https://api.mistral.ai/v1",
   deepseek: "https://api.deepseek.com/v1",
-  apinex: "https://apinex.bond/v1",
+  apinex: "https://api.apinex.bond/v1",
 };
 
 export function providerEnvKey(t: ProviderType): string {

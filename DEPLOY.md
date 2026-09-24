@@ -1,5 +1,15 @@
 # Deploy Syaahi: Netlify + Render + Atlas
 
+## New signup and verified-referral release
+
+New email/Google accounts receive **21 study credits once**. Existing balances are preserved. Every eligible verified signup awards **5 reward credits to the inviter**, with at most 20 monthly qualifications. The reward wallet converts one-for-one into study credits; three credits are one token. Payment capture no longer triggers a new referral reward. Previously rewarded referrals cannot qualify again.
+
+For email verification set `RESEND_API_KEY` and `EMAIL_FROM` on Render, using a verified sender domain. `NEXT_PUBLIC_APP_URL` must be the HTTPS frontend URL. Learners request a verification email from the dashboard/referral wallet; links expire in one hour. Delivery is not active without these settings. Google verification uses the confirmed OAuth identity; referral codes survive the OAuth redirect. Deploy both frontend and backend for these changes to appear on the public site.
+
+MongoDB transactions are required. Registration now fails atomically when a transaction cannot commit, rather than attempting partial fallback writes. Atlas supports transactions; investigate connection, database permissions and replica-set configuration instead of bypassing atomicity.
+
+APInex and Zen catalog/routing setup and unresolved live-access checks are in [PROVIDERS.md](docs/PROVIDERS.md).
+
 ## Update: consent, support and Gemini audio — 24 September
 
 Set `SUPPORT_ADMIN_IDS` privately on Render to trusted account UUIDs, separated by commas. Create the operator account normally; its authenticated `/api/auth` response contains `user.id`. Operators use `/support` to see the staff inbox. Learners see only their own tickets. Messages persist in the configured database; email notifications are not enabled.

@@ -24,7 +24,7 @@ export default function Home() {
               </a>
             </div>
             <span className="small">
-              5 welcome note sections · Choose your page target · Keep your PDFs
+              21 welcome credits (7 tokens) · Choose your page target · Keep your PDFs
             </span>
           </div>
           <div className="note-showcase">

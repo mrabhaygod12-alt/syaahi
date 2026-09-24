@@ -29,7 +29,9 @@ async function main() {
       db().prepare("SELECT balance FROM wallets WHERE user_id=?").get(user.id)
         ?.balance,
     );
-  assert.equal(balance(), 5);
+  assert.equal(balance(), 21);
+  const { spend } = await import("../lib/credits/store");
+  await spend(user.id, 16); // Set up a constrained wallet for competing reservations.
   assert(passwordMatches("secret", passwordHash("secret")));
   assert(!passwordMatches("wrong", passwordHash("secret")));
   const results = await Promise.allSettled([

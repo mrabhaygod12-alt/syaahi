@@ -20,6 +20,19 @@ async function handlePOST(req: NextRequest) {
   try {
     const client = oauthClient(req, response);
     response.cookies.set(
+      "syaahi-oauth-ref",
+      typeof body.ref === "string" && /^[a-f0-9]{18}$/.test(body.ref)
+        ? body.ref
+        : "",
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: origin.startsWith("https:"),
+        maxAge: 600,
+        path: "/",
+      },
+    );
+    response.cookies.set(
       "syaahi-oauth-next",
       safeNext(typeof body.next === "string" ? body.next : null),
       {

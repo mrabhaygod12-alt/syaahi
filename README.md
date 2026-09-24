@@ -36,7 +36,7 @@ Gemini supplies transcription and generated speech. Choose a voice and delivery 
 
 ## Pricing in the application
 
-**1 token = 3 generated note sections.** A section may continue over multiple PDF sheets without an extra charge. A new account receives five section units.
+**1 token = 3 generated note sections.** A section may continue over multiple PDF sheets without an extra charge. A new account receives 21 credits (7 tokens / 21 note sections).
 
 | Pack    | Tokens | Note sections | Price |
 | ------- | -----: | ------------: | ----: |
@@ -45,7 +45,7 @@ Gemini supplies transcription and generated speech. Choose a voice and delivery 
 | Popular |     12 |            36 |   ₹79 |
 | Pro     |     30 |            90 |  ₹179 |
 
-Payments use server-owned prices and verified Razorpay captures. Eligible referrals reward both accounts after the referred account’s first verified purchase. These are configured product prices, not evidence of revenue or profitability.
+Payments use server-owned prices and verified Razorpay captures. Each eligible verified signup gives the inviter 5 reward credits, transferable to their study balance. These are configured product prices, not evidence of revenue or profitability.
 
 ## Built for cloud deployment
 

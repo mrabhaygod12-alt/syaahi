@@ -45,7 +45,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </h1>
       <p className="small">
         {mode === "signup"
-          ? "Create your account. Start with 5 free note sections."
+          ? "Create your account. Start with 21 free credits (7 tokens / 21 note sections)."
           : "Pick up your notes, questions, and revision where you left off."}
       </p>
       <label className="consent-check">
@@ -80,6 +80,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 next,
+                ref: new URLSearchParams(location.search).get("ref"),
                 acceptTerms: accepted,
                 termsVersion: "2026-09-24",
               }),

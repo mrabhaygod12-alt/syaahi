@@ -3,6 +3,8 @@ import { TERMS_VERSION, recordConsent } from "@/lib/auth/consent";
 import { NextRequest, NextResponse } from "next/server";
 import { oauthClient, googleAccount, safeNext } from "@/lib/auth/oauth";
 import { startSession } from "@/lib/auth/server";
+import { markEmailVerified } from "@/lib/billing/rewards";
+import { claimReferral } from "@/lib/billing/referrals";
 async function handleGET(req: NextRequest) {
   const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
   const response = NextResponse.redirect(new URL("/login", origin));
@@ -20,6 +22,15 @@ async function handleGET(req: NextRequest) {
     if (verifyError || !data.user)
       throw new Error("Google identity could not be verified.");
     const account = await googleAccount(data.user);
+    const referral = req.cookies.get("syaahi-oauth-ref")?.value;
+    if (referral) {
+      try {
+        await claimReferral(account.id, referral);
+      } catch {
+        /* An expired invitation must not prevent an existing member signing in. */
+      }
+    }
+    await markEmailVerified(account.id);
     await recordConsent(account.id);
     const session = await startSession(account, req);
     for (const cookie of session.cookies.getAll()) response.cookies.set(cookie);
@@ -31,13 +42,13 @@ async function handleGET(req: NextRequest) {
         origin,
       ).href,
     );
-  } catch (e) {
+  } catch {
     response.headers.set(
       "location",
       new URL(
         "/login?error=" +
           encodeURIComponent(
-            e instanceof Error ? e.message : "Sign-in failed.",
+            "Google sign-in could not be completed. Please retry or contact support.",
           ),
         origin,
       ).href,
@@ -45,6 +56,7 @@ async function handleGET(req: NextRequest) {
   }
   response.cookies.set("syaahi-oauth-next", "", { path: "/", maxAge: 0 });
   response.cookies.set("syaahi-oauth-consent", "", { path: "/", maxAge: 0 });
+  response.cookies.set("syaahi-oauth-ref", "", { path: "/", maxAge: 0 });
   return response;
 }
 

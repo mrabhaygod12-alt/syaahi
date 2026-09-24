@@ -29,7 +29,7 @@ async function main() {
       db().prepare("SELECT balance FROM wallets WHERE user_id=?").get(id)
         ?.balance,
     );
-  assert.equal(balance(inviter.id), 5);
+  assert.equal(balance(inviter.id), 21);
   db()
     .prepare(
       "INSERT INTO orders (id,user_id,pack,amount,credits) VALUES (?,?,?,?,?)",
@@ -46,21 +46,21 @@ async function main() {
     async () => await capturePayment({ ...payment, amount: 1 }),
   );
   await capturePayment(payment, friend.id);
-  assert.equal(balance(inviter.id), 8);
-  assert.equal(balance(friend.id), 11);
+  assert.equal(balance(inviter.id), 21);
+  assert.equal(balance(friend.id), 24);
   await capturePayment(payment, friend.id);
-  assert.equal(balance(inviter.id), 8);
-  assert.equal(balance(friend.id), 11);
+  assert.equal(balance(inviter.id), 21);
+  assert.equal(balance(friend.id), 24);
   assert.equal(
     db()
       .prepare(
         "SELECT COUNT(*) AS n FROM ledger WHERE reason='Referral reward: one token'",
       )
       .get()?.n,
-    2,
+    0,
   );
   console.log(
-    "PASS: referral eligibility, self-referral rejection, verified capture, both rewards, payment replay protection.",
+    "PASS: referral eligibility, self-referral rejection, verified capture, no signup reward on payment alone, payment replay protection.",
   );
   db().close();
 }

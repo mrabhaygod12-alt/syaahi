@@ -55,7 +55,7 @@ export default function AboutStory() {
     <div ref={root} className="wrap about-page">
       <section className="about-hero">
         <div>
-          <p className="eyebrow">THE PERSON BEHIND THE PAGES</p>
+          <p className="eyebrow">ABOUT THE CREATORS</p>
           <h1>
             Built with curiosity.
             <br />
@@ -65,6 +65,10 @@ export default function AboutStory() {
             I’m Chandan Pandey, the creator of Syaahi. I’m building a study
             space where a difficult idea becomes something you can see, question
             and remember.
+          </p>
+          <p className="about-lead">
+            <strong>Manish Kumar Singh</strong> builds alongside me as a{" "}
+            <strong>DevOps Engineer &amp; Researcher</strong>.
           </p>
           <div className="about-tags">
             <span>Developer</span>
@@ -119,7 +123,7 @@ export default function AboutStory() {
         </div>
       </section>
       <section className="about-bio card" data-story>
-        <p className="eyebrow">THE TEAM</p>
+        <p className="eyebrow">ABOUT THE CREATOR</p>
         <h2>Manish Kumar Singh</h2>
         <p className="about-lead">DevOps Engineer &amp; Researcher</p>
         <p>

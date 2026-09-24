@@ -38,3 +38,4 @@ chandan.jpeg
 # Investor presentations are private deliverables, not repository assets.
 *.pptx
 docs/pitch/
+.chart-data-*/

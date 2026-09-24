@@ -1,3 +1,4 @@
+import { RewardError } from "../billing/rewards";
 import { randomUUID, randomBytes } from "node:crypto";
 import { collection, mongoTransaction } from "./mongo";
 export async function mongoBalance(user: string) {
@@ -42,18 +43,16 @@ export async function mongoSpend(user: string, units: number) {
         opts,
       );
     if (!changed.modifiedCount) throw new Error("Insufficient balance.");
-    await d
-      .collection<any>("ledger")
-      .insertOne(
-        {
-          _id: randomUUID(),
-          user,
-          delta: -units,
-          reason: "Generation",
-          createdAt: new Date(),
-        },
-        opts,
-      );
+    await d.collection<any>("ledger").insertOne(
+      {
+        _id: randomUUID(),
+        user,
+        delta: -units,
+        reason: "Generation",
+        createdAt: new Date(),
+      },
+      opts,
+    );
     return Number(
       (await d.collection<any>("wallets").findOne({ _id: user }, opts))
         ?.balance || 0,
@@ -76,19 +75,19 @@ export async function mongoClaimReferral(user: string, code: string) {
       .collection<any>("referral_codes")
       .findOne({ code }, opts);
     if (!inviter || inviter._id === user)
-      throw new Error("Invalid referral code.");
+      throw new RewardError("Invalid referral code.");
     const account = await d
       .collection<any>("users")
       .findOne({ _id: user }, opts);
     if (!account || Date.now() - Date.parse(account.createdAt) > 86400000)
-      throw new Error("Apply within 24 hours of signup.");
+      throw new RewardError("Apply within 24 hours of signup.");
     if (await d.collection<any>("orders").findOne({ user, paid: true }, opts))
-      throw new Error("Apply before your first purchase.");
+      throw new RewardError("Apply before your first purchase.");
     const referrals = d.collection<any>("referrals"),
       old = await referrals.findOne({ _id: user }, opts);
     if (old) {
       if (old.inviter === inviter._id) return;
-      throw new Error("A referral is already attached.");
+      throw new RewardError("A referral is already attached.");
     }
     await referrals.insertOne(
       {
@@ -150,53 +149,6 @@ export async function mongoCapture(
         },
         opts,
       );
-      const referrals = d.collection<any>("referrals");
-      const referral = await referrals.findOne(
-        { _id: order.user, rewardedAt: null },
-        opts,
-      );
-      if (
-        referral &&
-        (await orders.countDocuments(
-          { user: order.user, paid: true },
-          opts,
-        )) === 1
-      ) {
-        const month = new Date(
-          new Date().toISOString().slice(0, 7) + "-01T00:00:00Z",
-        );
-        const count = await referrals.countDocuments(
-          { inviter: referral.inviter, rewardedAt: { $gte: month } },
-          opts,
-        );
-        if (count < 20) {
-          await referrals.updateOne(
-            { _id: order.user },
-            { $set: { rewardedAt: new Date(), paymentId: payment.id } },
-            opts,
-          );
-          for (const [target, kind] of [
-            [referral.inviter, "inviter"],
-            [order.user, "new-member"],
-          ]) {
-            await wallets.updateOne(
-              { _id: target },
-              { $inc: { balance: 3 } },
-              opts,
-            );
-            await ledger.insertOne(
-              {
-                _id: `referral:${order.user}:${kind}`,
-                user: target,
-                delta: 3,
-                reason: "Referral reward: one token",
-                createdAt: new Date(),
-              },
-              opts,
-            );
-          }
-        }
-      }
     }
     return Number(
       (await wallets.findOne({ _id: order.user }, opts))?.balance || 0,

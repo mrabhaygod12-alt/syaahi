@@ -129,7 +129,7 @@ export async function chatWithFallback(
   ];
   let attempts = 0;
   for (const p of queue) {
-    if (++attempts > 5 || Date.now() - start > 90000) break;
+    if (attempts >= 5 || Date.now() - start > 90000) break;
     if ((breaker.get(p.type)?.until || 0) > Date.now()) continue;
     const budget = opts?.maxTokens || 2500;
     // Conservative estimate for multilingual text; reserve output room as well.
@@ -138,6 +138,7 @@ export async function chatWithFallback(
       p.maxCtx
     )
       continue;
+    attempts++;
     active.set(p.type, (active.get(p.type) || 0) + 1);
     try {
       const response = await callOne(

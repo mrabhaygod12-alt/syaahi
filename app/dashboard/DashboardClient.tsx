@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import StudyOrganisation from "@/components/StudyOrganisation";
 import StudyComposer from "@/components/StudyComposer";
 import CmdK from "@/components/CmdK";
+import ReferralWallet from "@/components/ReferralWallet";
 interface Job {
   id: string;
   title: string | null;
@@ -123,10 +124,11 @@ export default function DashboardClient() {
             </p>
           </section>
           <StudyComposer initialTopic={topic} />
+          {!guest && <ReferralWallet compact />}
           {guest && (
             <p className="guest-hint">
               <a href="/signup">Create a free account</a> to save your lessons
-              and get 5 welcome note sections.
+              and get 21 welcome credits (7 tokens).
             </p>
           )}
           <div className="topic-suggestions">

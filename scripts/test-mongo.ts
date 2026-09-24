@@ -11,7 +11,7 @@ async function main() {
   try {
     const auth = await import("../lib/auth/server");
     const jobs = await import("../lib/jobs/store");
-    const { balance } = await import("../lib/credits/store");
+    const { balance, spend } = await import("../lib/credits/store");
     const { saveOrder } = await import("../lib/billing/orders");
     const { capturePayment } = await import("../lib/billing/payments");
     const { referralCode, claimReferral } =
@@ -41,6 +41,8 @@ async function main() {
       )?.id,
       user.id,
     );
+    assert.equal(await balance(user.id), 21);
+    await spend(user.id, 16);
     const results = await Promise.allSettled([
       jobs.createJob(user.id, ["A", "B", "C"], "concise"),
       jobs.createJob(user.id, ["D", "E", "F"], "concise"),
@@ -102,8 +104,8 @@ async function main() {
       capturePayment(payment, user.id),
       capturePayment(payment, user.id),
     ]);
-    assert.equal(await balance(user.id), 8);
-    assert.equal(await balance(owner.id), 8);
+    assert.equal(await balance(user.id), 5);
+    assert.equal(await balance(owner.id), 21);
     await state.mutateState(user.id, "test", { value: 0 }, (s) => ({
       value: s.value + 1,
     }));

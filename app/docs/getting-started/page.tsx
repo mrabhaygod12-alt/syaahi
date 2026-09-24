@@ -2,7 +2,7 @@ import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
     "Start with an account",
-    "Create an account with an email address and a password of at least 10 characters. New accounts receive 5 welcome note sections. Your lessons are private to your signed-in account.",
+    "Create an account with an email address and a password of at least 10 characters. New accounts receive 21 welcome credits (7 tokens). Your lessons are private to your signed-in account.",
   ],
   [
     "Bring a question or material",

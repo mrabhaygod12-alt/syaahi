@@ -14,7 +14,7 @@ export default function FAQ() {
           },
           {
             q: "What does a credit buy?",
-            a: "One generated section. Long sections can occupy extra printed sheets without extra credits. A new account receives 5 welcome note sections.",
+            a: "One generated section. Long sections can occupy extra printed sheets without extra credits. A new account receives 21 welcome credits (7 tokens).",
           },
           {
             q: "What if generation fails?",
