@@ -34,3 +34,7 @@ chandan.jpeg
 !scripts/test-*.ts
 
 ~$*
+
+# Investor presentations are private deliverables, not repository assets.
+*.pptx
+docs/pitch/

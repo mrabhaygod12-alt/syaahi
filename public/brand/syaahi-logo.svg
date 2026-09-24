@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="220" viewBox="0 0 840 220" role="img" aria-labelledby="title desc">
+<title id="title">Syaahi</title><desc id="desc">Visual notes, active learning</desc>
+<rect width="840" height="220" rx="24" fill="#f7f2e8"/>
+<svg x="62" y="52" width="116" height="116" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#214b40"/><path d="M12 33V14c5-1 9 0 12 3 3-3 7-4 12-3v19c-5-1-9 0-12 3-3-3-7-4-12-3Z" fill="none" stroke="#f7f2e8" stroke-width="2" stroke-linejoin="round"/><path d="M24 18v18" stroke="#f7f2e8" stroke-width="2"/><path d="m29 22 3-5 3 5-3 7Z" fill="#e7b477"/></svg>
+<text x="214" y="114" font-family="Georgia,serif" font-weight="bold" font-size="72" fill="#214b40">Syaahi</text>
+<text x="218" y="154" font-family="Arial,sans-serif" font-size="24" fill="#52635c">Visual notes. Active learning.</text>
+</svg>

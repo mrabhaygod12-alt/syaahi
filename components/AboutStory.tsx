@@ -118,6 +118,15 @@ export default function AboutStory() {
           ))}
         </div>
       </section>
+      <section className="about-bio card" data-story>
+        <p className="eyebrow">THE TEAM</p>
+        <h2>Manish Kumar Singh</h2>
+        <p className="about-lead">DevOps Engineer &amp; Researcher</p>
+        <p>
+          Working alongside creator Chandan Pandey on Syaahi’s engineering and
+          research journey.
+        </p>
+      </section>
       <section className="about-journey">
         <p className="eyebrow">THE PRODUCT JOURNEY</p>
         <h2>
