@@ -1,7 +1,9 @@
+import LandingReveal from "@/components/LandingReveal";
 import { CtaBand, Faq } from "@/components/site";
 export default function Home() {
   return (
     <>
+      <LandingReveal />
       <section className="public-hero">
         <div className="wrap hero-grid">
           <div>
@@ -24,7 +26,8 @@ export default function Home() {
               </a>
             </div>
             <span className="small">
-              21 welcome credits (7 tokens) · Choose your page target · Keep your PDFs
+              21 welcome credits (7 tokens) · Automatic page planning · Keep
+              your PDFs
             </span>
           </div>
           <div className="note-showcase">
@@ -53,17 +56,34 @@ export default function Home() {
       </section>
 
       {/* Curriculum & Board Coverage Strip */}
-      <section className="curriculum-strip" aria-label="Curriculum and exam coverage">
+      <section
+        className="curriculum-strip"
+        aria-label="Curriculum and exam coverage"
+      >
         <div className="wrap curriculum-wrap">
           <span className="curriculum-label">Exam Ready For:</span>
           <div className="curriculum-tags">
-            <span className="curriculum-tag"><em>🏫</em> CBSE Class 10 & 12</span>
-            <span className="curriculum-tag"><em>🎯</em> JEE Main & Advanced</span>
-            <span className="curriculum-tag"><em>🩺</em> NEET Medical</span>
-            <span className="curriculum-tag"><em>🏛️</em> UPSC Civil Services</span>
-            <span className="curriculum-tag"><em>🎓</em> University Semesters</span>
-            <span className="curriculum-tag"><em>💻</em> B.Tech / BCA / CS</span>
-            <span className="curriculum-tag"><em>💼</em> CA / Commerce</span>
+            <span className="curriculum-tag">
+              <em>🏫</em> CBSE Class 10 & 12
+            </span>
+            <span className="curriculum-tag">
+              <em>🎯</em> JEE Main & Advanced
+            </span>
+            <span className="curriculum-tag">
+              <em>🩺</em> NEET Medical
+            </span>
+            <span className="curriculum-tag">
+              <em>🏛️</em> UPSC Civil Services
+            </span>
+            <span className="curriculum-tag">
+              <em>🎓</em> University Semesters
+            </span>
+            <span className="curriculum-tag">
+              <em>💻</em> B.Tech / BCA / CS
+            </span>
+            <span className="curriculum-tag">
+              <em>💼</em> CA / Commerce
+            </span>
           </div>
         </div>
       </section>
@@ -73,14 +93,17 @@ export default function Home() {
         <span className="eyebrow">YOUR COMPLETE STUDY DESK</span>
         <h2>Four ways to master any concept.</h2>
         <p style={{ color: "#6e675f", maxWidth: 640 }}>
-          Most AI tools give you a giant block of text and leave you stranded. Syaahi transforms your study material into an authentic four-part learning toolkit.
+          Move between reading, practice, recall, and listening in one connected
+          lesson workspace.
         </p>
         <div className="pillars-grid">
           <div className="pillar-card">
             <span className="pillar-icon">📄</span>
             <h3>Handwritten A4 Notes</h3>
             <p>
-              Classic blue ink on ruled paper with red margins, golden highlight headers, formula boxes, and key takeaway anchors. Downloadable as high-res printable PDFs.
+              Classic blue ink on ruled paper with red margins, golden highlight
+              headers, formula boxes, and key takeaway anchors. Downloadable as
+              high-res printable PDFs.
             </p>
             <span className="pillar-tag">Printable PDF</span>
           </div>
@@ -88,7 +111,8 @@ export default function Home() {
             <span className="pillar-icon">📝</span>
             <h3>Interactive Adaptive Quizzes</h3>
             <p>
-              Test active recall with multiple-choice questions, hints, and step-by-step reasoning grounded strictly in your syllabus.
+              Test active recall with multiple-choice questions, hints, and
+              step-by-step reasoning grounded strictly in your syllabus.
             </p>
             <span className="pillar-tag">Self-Testing</span>
           </div>
@@ -96,7 +120,8 @@ export default function Home() {
             <span className="pillar-icon">🗂️</span>
             <h3>Active Recall Flashcards</h3>
             <p>
-              Flip cards for high-yield definitions, formulas, and historical facts. Review an entire chapter before walking into the exam room.
+              Flip cards for high-yield definitions, formulas, and historical
+              facts. Review an entire chapter before walking into the exam room.
             </p>
             <span className="pillar-tag">Spaced Repetition</span>
           </div>
@@ -104,7 +129,8 @@ export default function Home() {
             <span className="pillar-icon">🎙️</span>
             <h3>Conversational Audio Podcast</h3>
             <p>
-              Listen to two AI tutors discuss, explain, and connect your concepts while commuting or relaxing. Learn on the go.
+              Listen to a spoken explanation built from your lesson notes.
+              Revisit the main ideas while commuting or taking a break.
             </p>
             <span className="pillar-tag">Audio Learning</span>
           </div>
@@ -115,43 +141,30 @@ export default function Home() {
       <section className="wrap comparison-section">
         <span className="eyebrow">WHY SYAAHI</span>
         <h2>Built for exam retention, not just text generation.</h2>
-        <div className="comparison-table-wrap">
-          <table className="comparison-table">
-            <thead>
-              <tr>
-                <th>Study Capability</th>
-                <th style={{ color: "#9a9289" }}>Generic ChatGPT</th>
-                <th className="syaahi-col">✒️ Syaahi AI Workspace</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="feature-name">Note Layout & Formatting</td>
-                <td className="bad">Unformatted, overwhelming walls of text</td>
-                <td className="good syaahi-col">Authentic ruled notebook pages with red margins & gold headings</td>
-              </tr>
-              <tr>
-                <td className="feature-name">Source Grounding</td>
-                <td className="bad">Hallucinates facts or strays off-syllabus</td>
-                <td className="good syaahi-col">Strictly grounded in your uploaded PDF, YouTube lecture, or textbook</td>
-              </tr>
-              <tr>
-                <td className="feature-name">Printable Exam Notes</td>
-                <td className="bad">Copy-paste raw text into Word/Docs</td>
-                <td className="good syaahi-col">One-click high-resolution standard A4 printable PDF exports</td>
-              </tr>
-              <tr>
-                <td className="feature-name">Active Recall & Practice</td>
-                <td className="bad">Must prompt repeatedly for questions</td>
-                <td className="good syaahi-col">Auto-generated Quizzes & Flashcards built into the workspace</td>
-              </tr>
-              <tr>
-                <td className="feature-name">Audio & Podcast Learning</td>
-                <td className="bad">Flat robotic screen reader voice</td>
-                <td className="good syaahi-col">Natural conversational two-tutor study podcast for hands-free study</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="retention-grid">
+          {[
+            [
+              "01",
+              "Understand the idea",
+              "Follow short explanations and worked examples in your guided lesson. Ask questions when something is unclear.",
+            ],
+            [
+              "02",
+              "Retrieve it from memory",
+              "Check your understanding with a checkpoint, then revisit ideas through quizzes and flashcards.",
+            ],
+            [
+              "03",
+              "Keep a useful reference",
+              "Return to your source material and export notebook-style PDFs for revision. Check important facts against your course materials.",
+            ],
+          ].map(([n, title, copy]) => (
+            <article className="retention-card" key={n}>
+              <span className="feature-number">{n}</span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -169,7 +182,7 @@ export default function Home() {
             [
               "02",
               "Shape your understanding",
-              "Choose your page target and edit your outline. See whether the plan uses your material, verified external sources, or general knowledge.",
+              "Review the suggested page count and edit your outline. See whether the plan uses your material, retrieved external sources, or general knowledge.",
             ],
             [
               "03",
@@ -210,8 +223,8 @@ export default function Home() {
             a: "Never. Long content automatically continues onto extra A4 continuation sheets without consuming extra credits or tokens. Your token reserve covers the conceptual section; continuation pages are always free.",
           },
           {
-            q: "How does the dual-host AI Podcast work?",
-            a: "Syaahi generates an engaging conversational script between two AI study partners discussing your lesson, and synthesizes clear, natural audio so you can revise while traveling, exercising, or relaxing.",
+            q: "How does the study podcast work?",
+            a: "Syaahi generates a spoken study script from your lesson notes and synthesizes audio so you can revise while traveling or taking a break.",
           },
           {
             q: "Can I ask questions or chat with my notes?",
@@ -219,7 +232,7 @@ export default function Home() {
           },
           {
             q: "Are my uploaded notes, syllabi, and study data private?",
-            a: "Yes, 100%. Your uploads and generated study workspaces are stored securely in your private account and are never shared or used to train public third-party models.",
+            a: "Your lessons are private by default unless you share them. Configured AI services process your material to produce study content; their data policies also apply. Read our privacy policy for details.",
           },
         ]}
       />

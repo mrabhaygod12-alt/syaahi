@@ -12,7 +12,7 @@ export default function WorkspaceSkeleton({
       {/* Sidebar Rail Skeleton */}
       <aside className="ws-rail ws-skeleton-rail">
         <div className="ws-brand">
-          <Logo size={28} />
+          <Logo size={34} showText={false} />
         </div>
         <div className="ws-skeleton-nav">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -43,31 +43,6 @@ export default function WorkspaceSkeleton({
             </div>
           </div>
         </header>
-
-        {/* Top Tabs Bar: Notes -> Quiz -> Lesson -> Flashcards */}
-        <div className="ws-top-tabs ws-skeleton-tabs">
-          <div className="ws-top-tab active ws-skeleton-tab">
-            <span className="tab-icon">📄</span>
-            <span>Notes</span>
-            <span className="tab-pill ws-shimmer-pill">…</span>
-          </div>
-          <div className="ws-top-tab ws-skeleton-tab">
-            <span className="tab-icon">📝</span>
-            <span>Quiz</span>
-          </div>
-          <div className="ws-top-tab ws-skeleton-tab">
-            <span className="tab-icon">📖</span>
-            <span>Lesson</span>
-          </div>
-          <div className="ws-top-tab ws-skeleton-tab">
-            <span className="tab-icon">🗂️</span>
-            <span>Flashcards</span>
-          </div>
-          <div className="ws-top-tab ws-skeleton-tab">
-            <span className="tab-icon">🎙️</span>
-            <span>Podcast</span>
-          </div>
-        </div>
 
         {/* Stage with Notebook Page Skeleton */}
         <div className="ws-stage">

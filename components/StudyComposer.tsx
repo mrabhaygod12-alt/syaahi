@@ -23,7 +23,7 @@ export default function StudyComposer({
   const [text, setText] = useState(initialTopic),
     [context, setContext] = useState(""),
     [source, setSource] = useState("");
-  const [pages, setPages] = useState(3),
+  const [pages, setPages] = useState(0),
     [language, setLanguage] = useState("english"),
     [detail, setDetail] = useState("detailed");
   const [busy, setBusy] = useState(""),
@@ -38,20 +38,23 @@ export default function StudyComposer({
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
 
+  const scrollToTarget = (ref: React.RefObject<HTMLElement | null>) => {
+    if (!ref.current) return;
+    const y = ref.current.getBoundingClientRect().top + window.pageYOffset - 36;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+  };
+
   useEffect(() => {
     if (plan && planSectionRef.current) {
       const timer = setTimeout(() => {
-        planSectionRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+        scrollToTarget(planSectionRef);
       }, 100);
       return () => clearTimeout(timer);
     } else if (busy && statusRef.current) {
-      statusRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
+      const timer = setTimeout(() => {
+        scrollToTarget(statusRef);
+      }, 60);
+      return () => clearTimeout(timer);
     }
   }, [plan, busy]);
   async function upload(file: File) {
@@ -86,9 +89,13 @@ export default function StudyComposer({
       setBusy("");
     }
   }
-  async function prepare() {
+  async function prepare(pageOverride?: number) {
+    const targetPages = typeof pageOverride === "number" ? pageOverride : pages;
     setBusy("Finding sources and planning...");
     setError("");
+    setTimeout(() => {
+      scrollToTarget(statusRef);
+    }, 60);
     try {
       let material =
         context || (text.length > 500 ? text.slice(0, 100000) : "");
@@ -117,7 +124,7 @@ export default function StudyComposer({
               ? "Create a study guide from the supplied notes"
               : text,
           context: material,
-          pages,
+          pages: targetPages || "auto",
           research,
         }),
       });
@@ -129,6 +136,9 @@ export default function StudyComposer({
       if (!response.ok) throw new Error(data.error || "Planning failed.");
       setPlan(data);
       setOutline(data.topics.join("\n"));
+      setTimeout(() => {
+        scrollToTarget(planSectionRef);
+      }, 120);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please retry.");
     } finally {
@@ -193,7 +203,9 @@ export default function StudyComposer({
             if (e.key === "Enter" && !e.shiftKey && text.trim()) {
               if (
                 !text.includes("\n") ||
-                /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(text.trim())
+                /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(
+                  text.trim(),
+                )
               ) {
                 e.preventDefault();
                 if (!busy) void prepare();
@@ -230,7 +242,7 @@ export default function StudyComposer({
             className="send-btn"
             aria-label="Plan my notes"
             disabled={!!busy || !text.trim()}
-            onClick={prepare}
+            onClick={() => void prepare()}
           >
             ↗
           </button>
@@ -242,13 +254,19 @@ export default function StudyComposer({
           <select
             value={pages}
             onChange={(e) => {
-              setPages(Number(e.target.value));
-              setPlan(null);
+              const val = Number(e.target.value);
+              setPages(val);
+              if (text.trim()) {
+                void prepare(val);
+              } else {
+                setPlan(null);
+              }
             }}
           >
+            <option value={0}>Auto · match my topic</option>
             {[1, 2, 3, 5, 8, 12, 16, 24].map((n) => (
               <option key={n} value={n}>
-                {n} pages
+                {n} {n === 1 ? "page" : "pages"}
               </option>
             ))}
           </select>
@@ -336,7 +354,7 @@ export default function StudyComposer({
           </div>
           <p>{plan.reason}</p>
           <textarea
-            aria-label="Edit your note sections, one per line"
+            aria-label="Edit your note pages, one per line"
             value={outline}
             onChange={(e) => setOutline(e.target.value)}
             rows={Math.min(8, plan.topics.length + 1)}
@@ -360,7 +378,7 @@ export default function StudyComposer({
             </a>
           ))}
           <p className="small">
-            {plan.note} 1 token covers 3 sections. Each section uses ⅓ token;
+            {plan.note} 1 token covers 3 pages. Each page uses ⅓ token;
             continuation sheets are free. Check the outline before starting.
           </p>
           <button

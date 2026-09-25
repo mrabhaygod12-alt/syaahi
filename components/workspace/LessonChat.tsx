@@ -8,14 +8,6 @@ import { useLesson } from "./LessonProvider";
 import { touchStudyDay } from "@/lib/study/streak";
 import { useToast } from "@/components/Toasts";
 
-function prettyModel(m?: string): string {
-  if (!m) return "";
-  return m
-    .replace(/^free\//, "")
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 // Tiny markdown renderer for answers: headings, bullets, numbered,
 // **bold**, `code`, tables. Raw asterisks never leak to the student.
 function Md({ text }: { text: string }) {
@@ -580,7 +572,11 @@ export default function LessonChat({
             </div>
           )}
           {onClose && (
-            <button className="ws-icon-btn" onClick={onClose} aria-label="Close">
+            <button
+              className="ws-icon-btn"
+              onClick={onClose}
+              aria-label="Close"
+            >
               ✕
             </button>
           )}
@@ -674,7 +670,7 @@ export default function LessonChat({
                     className="ws-tiny"
                     disabled={busy}
                     onClick={() => regenerate(i)}
-                    title="Try another model"
+                    title="Explain again"
                   >
                     ↻
                   </button>
@@ -692,12 +688,6 @@ export default function LessonChat({
                   >
                     👎
                   </button>
-                  {(h.model || h.via) && (
-                    <span className="small ws-via" title={h.via}>
-                      {prettyModel(h.model ?? h.via)}
-                      {h.ms ? ` · ${(h.ms / 1000).toFixed(1)}s` : ""}
-                    </span>
-                  )}
                 </div>
               )}
             </div>

@@ -55,7 +55,7 @@ export default function Pricing() {
         amount: j.amount,
         currency: "INR",
         name: "Syaahi",
-        description: `${tokenLabel(j.credits)} for ${j.credits} note sections`,
+        description: `${tokenLabel(j.credits)} for ${j.credits} note pages`,
         handler: async (payment: unknown) => {
           const verified = await fetch("/api/razorpay/verify", {
             method: "POST",
@@ -86,11 +86,11 @@ export default function Pricing() {
       </p>
       <h1>A little goes a long way.</h1>
       <p className="small">
-        1 token = 3 generated note sections. One section uses ⅓ token; PDF
+        1 token = 3 generated note pages. One page uses ⅓ token; PDF
         continuation sheets are free. Current balance:{" "}
         <b>
           {balance === null ? "…" : tokenLabel(balance)} ({balance ?? 0}{" "}
-          sections)
+          pages)
         </b>
       </p>
       <p className="small">
@@ -108,14 +108,14 @@ export default function Pricing() {
               {c?.featured && (
                 <div
                   className="small"
-                  style={{ color: "#7c3aed", fontWeight: 700 }}
+                  style={{ color: "#214b40", fontWeight: 700 }}
                 >
                   Suggested pack
                 </div>
               )}
               <h2 style={{ margin: "4px 0" }}>₹{p.inr}</h2>
               <b>
-                {tokenLabel(p.credits)} · {p.credits} sections
+                {tokenLabel(p.credits)} · {p.credits} pages
               </b>
               <p className="small">{c?.blurb}</p>
               <button

@@ -17,14 +17,21 @@ export default function UserChip() {
         if (u) {
           fetch("/api/credits")
             .then((r) => r.json())
-            .then((d) => setTokens(d.tokens ?? Math.floor((d.balance ?? 0) / 3)))
+            .then((d) =>
+              setTokens(
+                Number(Number(d.tokens ?? (d.balance ?? 0) / 3).toFixed(2)),
+              ),
+            )
             .catch(() => {});
         }
       })
       .catch(() => setUser(null));
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -50,7 +57,9 @@ export default function UserChip() {
   }
 
   const anime = getAnimeAvatar(user.avatar || user.id);
-  const isCustomImage = user.avatar?.startsWith("data:image/") || user.avatar?.startsWith("https://");
+  const isCustomImage =
+    user.avatar?.startsWith("data:image/") ||
+    user.avatar?.startsWith("https://");
 
   return (
     <div
@@ -135,7 +144,8 @@ export default function UserChip() {
             width: 260,
             background: "#ffffff",
             borderRadius: 14,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)",
+            boxShadow:
+              "0 10px 30px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)",
             border: "1px solid #e5e0d8",
             padding: 12,
             zIndex: 9999,
@@ -219,13 +229,24 @@ export default function UserChip() {
               ⚡ {tokens !== null ? `${tokens} Tokens` : "Study Tokens"}
             </span>
             {user.verified ? (
-              <span style={{ color: "#059669", fontWeight: 700, fontSize: "0.75rem" }}>
+              <span
+                style={{
+                  color: "#059669",
+                  fontWeight: 700,
+                  fontSize: "0.75rem",
+                }}
+              >
                 ✓ Verified
               </span>
             ) : (
               <a
                 href="/verify-email"
-                style={{ color: "#d97706", fontWeight: 700, fontSize: "0.75rem", textDecoration: "underline" }}
+                style={{
+                  color: "#d97706",
+                  fontWeight: 700,
+                  fontSize: "0.75rem",
+                  textDecoration: "underline",
+                }}
               >
                 Verify Email
               </a>
@@ -249,8 +270,12 @@ export default function UserChip() {
                 textDecoration: "none",
                 transition: "background 0.1s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f3f4f6")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
             >
               <span>👤</span> Profile & Settings
             </a>
@@ -270,8 +295,12 @@ export default function UserChip() {
                 textDecoration: "none",
                 transition: "background 0.1s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f3f4f6")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
             >
               <span>✦</span> Study Dashboard
             </a>
@@ -291,8 +320,12 @@ export default function UserChip() {
                 textDecoration: "none",
                 transition: "background 0.1s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f3f4f6")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
             >
               <span>↗</span> Invite & Earn Credits
             </a>
@@ -312,8 +345,12 @@ export default function UserChip() {
                 textDecoration: "none",
                 transition: "background 0.1s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f3f4f6")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
             >
               <span>💳</span> Pricing & Packs
             </a>
@@ -346,7 +383,9 @@ export default function UserChip() {
               transition: "background 0.1s",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "transparent")
+            }
           >
             <span>🚪</span> Sign Out
           </button>

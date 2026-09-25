@@ -750,19 +750,31 @@ body:has(.ws-gate) footer {
   background: #fbf8f3;
 }
 .ws-rail {
-  width: 92px;
+  width: 80px;
   flex-shrink: 0;
   border-right: 1px solid var(--line);
   background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 8px 24px;
+  padding: 16px 6px 24px;
   gap: 8px;
 }
 .ws-brand {
   text-decoration: none;
   padding: 4px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.ws-brand .logo-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ws-brand .logo-lockup span {
+  display: none !important;
 }
 .ws-nav {
   display: flex;
@@ -911,63 +923,6 @@ body:has(.ws-gate) footer {
   }
 }
 
-/* Fast Top Workspace Navigation: Notes -> Quiz -> Lesson -> Practice */
-.ws-top-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 20px;
-  background: #fbf8f3;
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.ws-top-tabs::-webkit-scrollbar {
-  display: none;
-}
-.ws-top-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: #6e675f;
-  background: #fff;
-  border: 1px solid var(--line);
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-.ws-top-tab:hover {
-  color: var(--ink);
-  border-color: #cbbeaf;
-  background: #faf7f2;
-}
-.ws-top-tab.active {
-  color: #fff;
-  background: #122c24;
-  border-color: #122c24;
-  box-shadow: 0 2px 6px rgba(18, 44, 36, 0.2);
-}
-.ws-top-tab .tab-icon {
-  font-size: 14px;
-  line-height: 1;
-}
-.tab-pill {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: #f0ede6;
-  color: var(--ink);
-}
-.ws-top-tab.active .tab-pill {
-  background: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
 .ws-stage {
   flex: 1;
   display: flex;
@@ -3610,3 +3565,33 @@ select {
   border-bottom: none;
 }
 
+/* Learning path and progressively enhanced landing reveals */
+.teaching-page {max-width:820px;padding:clamp(18px,4vw,48px);margin:auto}
+.teaching-page h1 {font-size:clamp(26px,4vw,42px);line-height:1.2;overflow-wrap:anywhere}
+.learning-intro,.teaching-step {padding:clamp(20px,4vw,36px);border:1px solid var(--line);border-radius:24px;background:var(--panel,#fff);margin:28px 0}
+.learning-goals,.learning-answers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}
+.learning-goals .btn,.learning-answers .btn {white-space:normal;text-align:left;justify-content:flex-start;padding:16px}
+.learning-outline {list-style:none;padding:0;display:grid;gap:12px}
+.learning-outline li {display:flex;align-items:center;gap:16px;padding:20px;border:1px solid var(--line);border-radius:18px}
+.learning-outline li>span {border-radius:50%;background:#e3eddf;min-width:32px;height:32px;display:grid;place-items:center;color:#214b40}
+.learning-outline li>div {flex:1;min-width:0}.learning-outline h3 {margin:0;overflow-wrap:anywhere}
+.learning-progress {width:100%;height:8px;accent-color:#214b40;margin:24px 0}
+.teaching-copy {font-size:18px;line-height:1.9;white-space:pre-line}
+.learning-feedback {padding:20px;border-left:3px solid #66886c;background:#eaf1e7;color:#214b40;line-height:1.7}
+.teaching-step audio {width:100%;margin-top:20px}
+.teaching-step {animation:teaching-enter .3s ease-out}
+@keyframes teaching-enter {from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.retention-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:32px}
+.retention-card {padding:32px;border-top:2px solid #809781;background:#f0f3eb;border-radius:4px 4px 24px 24px;color:#214b40}
+.retention-card p {line-height:1.8}.pillar-card {border-radius:24px;padding:32px;box-shadow:0 8px 30px #214b4008}
+.curriculum-tags {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));width:100%;gap:14px}
+.curriculum-tag {padding:18px;border-radius:16px;white-space:normal}
+.curriculum-wrap {flex-direction:column;align-items:stretch;gap:24px}
+.scroll-reveal {opacity:0;transform:translateY(28px);transition:opacity .65s ease var(--reveal-delay),transform .65s ease var(--reveal-delay)}
+.scroll-reveal.reveal-visible {opacity:1;transform:none}
+.ws-brand svg {flex-shrink:0;display:block}.ws-rail {box-sizing:border-box}
+@media(max-width:700px){.retention-grid{grid-template-columns:1fr}.learning-goals,.learning-answers{grid-template-columns:1fr}.learning-outline li{padding:14px;gap:10px}.teaching-page .guided-top{flex-wrap:wrap;gap:12px}.teaching-page .guided-actions{flex-wrap:wrap}.teaching-page{width:100%;box-sizing:border-box}}
+@media(prefers-reduced-motion:reduce){.scroll-reveal{opacity:1;transform:none;transition:none}.teaching-step{animation:none}}
+/* Explicit inline size prevents content-visibility placeholders widening flex children. */
+main > .wrap {width:100%;min-width:0}
+.feature-section,.site-footer {contain-intrinsic-width:0}

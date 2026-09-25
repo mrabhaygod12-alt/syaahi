@@ -1,4 +1,4 @@
-// Storage uses integer page units. One token buys three generated sections.
+// Storage uses integer page units. 1 token = 3 generated note pages.
 export const PAGES_PER_TOKEN = 3;
 export const tokenLabel = (pages: number) =>
   `${Number((pages / PAGES_PER_TOKEN).toFixed(2))} tokens`;

@@ -78,11 +78,7 @@ async function handlePOST(req: NextRequest) {
 
   try {
     const result = await chatWithFallback(messages, { maxTokens: 1500 });
-    const frames = [
-      { t: result.text },
-      { usage: result.usage, model: result.model, provider: result.provider },
-      "[DONE]",
-    ];
+    const frames = [{ t: result.text }, { usage: result.usage }, "[DONE]"];
     return new Response(
       frames.map((item) => `data: ${JSON.stringify(item)}\n\n`).join(""),
       {

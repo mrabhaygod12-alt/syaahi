@@ -231,8 +231,8 @@ export default function WorkspaceShell({
   return (
     <div className="ws-app">
       <aside className="ws-rail">
-        <Link href="/dashboard" className="ws-brand">
-          <Logo size={28} />
+        <Link href="/dashboard" className="ws-brand" title="Syaahi Home">
+          <Logo size={34} showText={false} />
         </Link>
         <nav className="ws-nav">
           {ROOMS.map((r) => {
@@ -277,51 +277,6 @@ export default function WorkspaceShell({
             </button>
           </div>
         </header>
-
-        {/* Top Fast Navigation Bar: Notes -> Quiz -> Lesson -> Practice */}
-        <nav className="ws-top-tabs" aria-label="Lesson workspace sections">
-          <Link
-            href={`/lesson/${job.id}/notes`}
-            className={`ws-top-tab ${room === "notes" ? "active" : ""}`}
-          >
-            <span className="tab-icon">📄</span>
-            <span>Notes</span>
-            {job.pages?.length > 0 && (
-              <span className="tab-pill">{job.pages.length}</span>
-            )}
-          </Link>
-          <Link
-            href={`/lesson/${job.id}/quiz`}
-            className={`ws-top-tab ${room === "quiz" ? "active" : ""}`}
-          >
-            <span className="tab-icon">📝</span>
-            <span>Quiz</span>
-            {job.practice?.quiz?.length ? (
-              <span className="tab-pill">{job.practice.quiz.length}Q</span>
-            ) : null}
-          </Link>
-          <Link
-            href={`/lesson/${job.id}/learn`}
-            className={`ws-top-tab ${room === "learn" ? "active" : ""}`}
-          >
-            <span className="tab-icon">📖</span>
-            <span>Lesson</span>
-          </Link>
-          <Link
-            href={`/lesson/${job.id}/flashcards`}
-            className={`ws-top-tab ${room === "flashcards" ? "active" : ""}`}
-          >
-            <span className="tab-icon">🗂️</span>
-            <span>Flashcards</span>
-          </Link>
-          <Link
-            href={`/lesson/${job.id}/podcast`}
-            className={`ws-top-tab ${room === "podcast" ? "active" : ""}`}
-          >
-            <span className="tab-icon">🎙️</span>
-            <span>Podcast</span>
-          </Link>
-        </nav>
 
         <div className="ws-stage">
           <div className="ws-main">

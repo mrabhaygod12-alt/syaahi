@@ -102,7 +102,7 @@ export default function DashboardClient() {
           <a className="wallet-link" href="/pricing">
             {balance === null
               ? "Your study tokens"
-              : `${tokenLabel(balance)} · ${balance} sections`}{" "}
+              : `${tokenLabel(balance)} · ${balance} pages`}{" "}
             <span>＋</span>
           </a>
         </aside>
@@ -125,7 +125,7 @@ export default function DashboardClient() {
             {!guest && (
               <a
                 href="/pricing"
-                title="Your available study balance. 1 Token = 3 Note Sections."
+                title="Your available study balance. 1 Token = 3 Pages."
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

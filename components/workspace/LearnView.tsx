@@ -1,203 +1,358 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import ConceptHero from "./ConceptHero";
-import NotePage from "@/components/NotePage";
-import SelectionAsk from "./SelectionAsk";
-import { DEFAULT_STYLE } from "@/lib/handwriting/options";
 import { useLesson } from "./LessonProvider";
-import { contentsModel, lessonTitle } from "./types";
-
-// Turbo-style Learn room: overview (hero + contents) + a guided step-through
-// session. "Start lesson" walks one section at a time — page, explain-in-chat,
-// complete-and-advance — instead of dumping all notes at once.
+import { lessonTitle } from "./types";
+type Unit = {
+  objective: string;
+  explanation: string;
+  example: string;
+  question: string;
+  options: string[];
+};
+const goals = [
+  "Exam preparation",
+  "Assignment",
+  "Learn something new",
+  "Other",
+];
 export default function LearnView() {
-  const { job, markComplete, openChat } = useLesson();
-  const [step, setStep] = useState<number | null>(null);
-  const stepRef = useRef<HTMLDivElement>(null);
-  if (!job) return null;
-
-  const items = contentsModel(job);
-  const completed = new Set(job.progress?.completed ?? []);
-  const sectionCount = job.topics.length + 1; // sections + final quiz slot
-  const done = completed.size;
-  const firstOpen = job.topics.findIndex((_, i) => !completed.has(i));
-  const nextIdx = firstOpen === -1 ? 0 : firstOpen;
-  const getStepScope = () => stepRef.current;
-
-  // ── Guided session: one section at a time ──
-  if (step !== null) {
-    const topic = job.topics[step] ?? "Section";
-    const page = job.pages[step];
-    const isDone = completed.has(step);
-    const last = step === job.topics.length - 1;
-    const pct = Math.round(((step + 1) / Math.max(job.topics.length, 1)) * 100);
-    const advance = () => {
-      markComplete(step, true);
-      if (!last) setStep(step + 1);
+  const { job, openChat } = useLesson();
+  const [goal, setGoal] = useState(goals[0]),
+    [version, setVersion] = useState(""),
+    [completed, setCompleted] = useState<number[]>([]),
+    [index, setIndex] = useState<number | null>(null),
+    [phase, setPhase] = useState(0),
+    [unit, setUnit] = useState<Unit | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [feedback, setFeedback] = useState(""),
+    [correct, setCorrect] = useState(false),
+    [audio, setAudio] = useState("");
+  const requestId = useRef(0);
+  useEffect(
+    () => () => {
+      if (audio) URL.revokeObjectURL(audio);
+    },
+    [audio],
+  );
+  useEffect(() => {
+    if (!job) return;
+    let active = true;
+    setVersion("");
+    setError("");
+    fetch("/api/learn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lesson: job.id, goal, action: "overview" }),
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw Error(d.error);
+        if (active) {
+          setVersion(d.version);
+          setCompleted(d.progress.completed);
+        }
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
     };
-    return (
-      <div className="learn-page">
-        <div className="guided-top">
-          <button className="btn light" onClick={() => setStep(null)}>
-            ✕ Overview
-          </button>
-          <div className="guided-progress">
-            <div className="quiz-bar">
-              <i style={{ width: `${pct}%` }} />
+  }, [job?.id, job?.revision, goal]);
+  if (!job) return null;
+  async function api(action: string, extra: object = {}) {
+    const r = await fetch("/api/learn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lesson: job!.id,
+        goal,
+        version,
+        index,
+        action,
+        ...extra,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error || "Could not load lesson.");
+    return d;
+  }
+  async function start(n: number) {
+    const id = ++requestId.current;
+    setIndex(n);
+    setPhase(0);
+    setUnit(null);
+    setFeedback("");
+    setCorrect(false);
+    setError("");
+    setAudio("");
+    setBusy(true);
+    try {
+      const d = await api("unit", { index: n });
+      if (id === requestId.current) {
+        setUnit(d.unit);
+        setCompleted(d.progress.completed);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      if (id === requestId.current) setBusy(false);
+    }
+  }
+  async function answer(n: number) {
+    setBusy(true);
+    setError("");
+    try {
+      const d = await api("answer", { answer: n });
+      setFeedback(d.feedback);
+      setCorrect(d.correct);
+      setCompleted(d.progress.completed);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function listen() {
+    if (!unit) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch("/api/speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lesson: job!.id,
+          action: "chat",
+          text: phase === 0 ? unit.explanation : unit.example,
+        }),
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        throw Error(d.error || "Audio unavailable");
+      }
+      setAudio(URL.createObjectURL(await r.blob()));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const next = job.pages.findIndex((_, i) => !completed.includes(i));
+  return (
+    <div className="learn-page teaching-page">
+      {index === null ? (
+        <>
+          <p className="eyebrow">YOUR GUIDED LEARNING PATH</p>
+          <h1>{lessonTitle(job)}</h1>
+          <p>
+            Understand each idea, work through an example, then check what you
+            learned. Progress is saved after each correct checkpoint.
+          </p>
+          <section className="learning-intro">
+            <h2>Getting started</h2>
+            <p>What’s your goal for this lesson?</p>
+            <div className="learning-goals">
+              {goals.map((g) => (
+                <button
+                  key={g}
+                  className={`btn ${goal === g ? "dark" : "light"}`}
+                  aria-pressed={goal === g}
+                  onClick={() => setGoal(g)}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
+            <p className="small">
+              Your goal shapes the teaching examples. Each goal has its own
+              progress.
+            </p>
+            <button
+              disabled={!version || !job.pages.length}
+              className="btn dark"
+              onClick={() => start(next < 0 ? 0 : next)}
+            >
+              {completed.length ? "Continue learning" : "Start lesson"} →
+            </button>
+          </section>
+          <h2>
+            Contents{" "}
             <span className="small">
-              Section {step + 1} of {job.topics.length}
+              {completed.length} / {job.pages.length} complete
+            </span>
+          </h2>
+          <ol className="learning-outline">
+            {job.pages.map((p, i) => (
+              <li key={i}>
+                <span>{completed.includes(i) ? "✓" : i + 1}</span>
+                <div>
+                  <h3>{p.topic}</h3>
+                  <p className="small">
+                    Explanation · Worked example · Checkpoint
+                  </p>
+                </div>
+                <button
+                  className="btn light"
+                  disabled={!version}
+                  onClick={() => start(i)}
+                >
+                  {completed.includes(i) ? "Review" : "Start"}
+                </button>
+              </li>
+            ))}
+          </ol>
+          {job.pages.length > 0 && completed.length === job.pages.length && (
+            <section className="learning-intro">
+              <h2>Learning path complete</h2>
+              <Link className="btn dark" href={`/lesson/${job.id}/quiz`}>
+                Practise with the full quiz →
+              </Link>
+            </section>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="guided-top">
+            <button
+              className="btn light"
+              disabled={busy}
+              onClick={() => {
+                setIndex(null);
+                setAudio("");
+              }}
+            >
+              ← Contents
+            </button>
+            <span>
+              Section {index + 1} / {job.pages.length} · Step {phase + 1} / 3
             </span>
           </div>
-        </div>
-        <div ref={stepRef}>
-          {page ? (
-            <NotePage
-              markdown={page.markdown}
-              style={DEFAULT_STYLE}
-              seedKey={`guided-${job.id}-${step}`}
-              footer={`Page ${step + 1} of ${job.pages.length} · Syaahi`}
-            />
-          ) : (
-            <div className="card" style={{ textAlign: "center", padding: 32 }}>
-              <b>{topic}</b>
-              <p className="small">
-                This page is still generating — check back in a bit.
+          <progress
+            className="learning-progress"
+            value={phase + 1}
+            max={3}
+            aria-label="Current section progress"
+          />
+          <h1>{job.pages[index]?.topic}</h1>
+          {busy && !unit && (
+            <p role="status">Preparing your explanation and worked example…</p>
+          )}
+          {unit && (
+            <article className="teaching-step" key={`${index}-${phase}`}>
+              <p className="eyebrow">
+                {["UNDERSTAND", "APPLY", "CHECK YOUR UNDERSTANDING"][phase]}
               </p>
-            </div>
-          )}
-        </div>
-        <SelectionAsk getScope={getStepScope} />
-        <div className="guided-actions">
-          <button
-            className="btn light"
-            disabled={step === 0}
-            onClick={() => setStep(step - 1)}
-          >
-            ← Prev
-          </button>
-          <button
-            className="btn light"
-            onClick={() =>
-              openChat(`Teach me "${topic}" simply, using my lesson notes.`)
-            }
-          >
-            Explain in chat ✦
-          </button>
-          {!last ? (
-            <button className="btn dark" onClick={advance}>
-              {isDone ? "Next →" : "✓ Complete & next"}
-            </button>
-          ) : (
-            <>
-              <button
-                className="btn dark"
-                onClick={() => markComplete(step, true)}
-              >
-                ✓ Complete
-              </button>
-              <Link className="btn dark" href={`/lesson/${job.id}/quiz`}>
-                Take the quiz →
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Overview ──
-  const started = done > 0;
-  return (
-    <div className="learn-page">
-      <div className="learn-hero">
-        <ConceptHero title={lessonTitle(job)} seed={job.id} />
-        <div>
-          <h1>{lessonTitle(job)}</h1>
-          <p className="small">
-            {job.pages.length} pages generated
-            {(job.plannedTotal ?? job.total) !== job.pages.length
-              ? ` · ${job.plannedTotal ?? job.total} planned`
-              : ""}
-            {job.planNote ? ` · ${job.planNote}` : ""}
-          </p>
-          <div className="learn-cta">
-            <button className="btn dark" onClick={() => setStep(nextIdx)}>
-              {started ? "Continue lesson" : "Start lesson"}
-            </button>
-            <div>
-              <div className="small">UP NEXT</div>
-              <b>{job.topics[nextIdx] ?? "Getting Started"}</b>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="learn-contents-head">
-        <h2>Contents</h2>
-        <span className="small">
-          {done} of {sectionCount} complete
-        </span>
-      </div>
-      <ol className="learn-list">
-        {items.map((it, i) => {
-          const num = it.kind === "section" ? it.index + 1 : null;
-          const isDone = it.kind === "section" && completed.has(it.index);
-          const href =
-            it.kind === "final" || it.kind === "checkpoint"
-              ? `/lesson/${job.id}/quiz`
-              : `/lesson/${job.id}/notes`;
-          return (
-            <li
-              key={`${it.kind}-${i}`}
-              className={`learn-row ${it.kind} ${isDone ? "done" : ""}`}
-            >
-              <span className="learn-idx">
-                {it.kind === "checkpoint" || it.kind === "final" ? "★" : num}
-              </span>
-              <div className="learn-meta">
-                {it.kind === "section" ? (
+              <h2>{unit.objective}</h2>
+              {phase < 2 ? (
+                <p className="teaching-copy">
+                  {phase === 0 ? unit.explanation : unit.example}
+                </p>
+              ) : (
+                <>
+                  <h3>{unit.question}</h3>
+                  <div className="learning-answers">
+                    {unit.options.map((o, i) => (
+                      <button
+                        key={i}
+                        className="btn light"
+                        disabled={busy || correct}
+                        onClick={() => answer(i)}
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                  {feedback && (
+                    <div role="status" className="learning-feedback">
+                      <strong>
+                        {correct ? "That’s right. " : "Try again. "}
+                      </strong>
+                      {feedback}
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="guided-actions">
+                {phase > 0 && (
                   <button
-                    className="learn-link"
-                    onClick={() => setStep(it.index)}
+                    className="btn light"
+                    disabled={busy}
+                    onClick={() => {
+                      setPhase(phase - 1);
+                      setAudio("");
+                    }}
                   >
-                    {it.title}
+                    ← Back
+                  </button>
+                )}
+                {phase < 2 &&
+                  job.accessRole !== "viewer" &&
+                  job.accessRole !== "editor" && (
+                    <button
+                      className="btn light"
+                      disabled={busy}
+                      onClick={listen}
+                    >
+                      Listen
+                    </button>
+                  )}
+                <button
+                  className="btn light"
+                  onClick={() =>
+                    openChat(
+                      `Help me understand ${job.pages[index].topic}. My learning goal is ${goal}. Explain this idea: ${unit.objective}`,
+                    )
+                  }
+                >
+                  Ask Syaahi
+                </button>
+                {phase < 2 ? (
+                  <button
+                    className="btn dark"
+                    disabled={busy}
+                    onClick={() => {
+                      setPhase(phase + 1);
+                      setAudio("");
+                    }}
+                  >
+                    Continue →
                   </button>
                 ) : (
-                  <Link href={href}>{it.title}</Link>
+                  correct && (
+                    <button
+                      className="btn dark"
+                      disabled={busy}
+                      onClick={() =>
+                        index + 1 < job.pages.length
+                          ? start(index + 1)
+                          : setIndex(null)
+                      }
+                    >
+                      {index + 1 < job.pages.length
+                        ? "Next section →"
+                        : "Finish lesson ✓"}
+                    </button>
+                  )
                 )}
-                <span className="small">
-                  {it.kind === "section" ? `${it.pages} page` : "Checkpoint"}
-                </span>
               </div>
-              {it.kind === "section" && i === 0 && (
-                <button
-                  className="btn dark learn-start"
-                  onClick={() => setStep(it.index)}
-                >
-                  Start
-                </button>
-              )}
-              {it.kind === "section" && i > 0 && (
-                <button
-                  className="learn-check"
-                  onClick={() => markComplete(it.index, !isDone)}
-                  title="Mark complete"
-                >
-                  {isDone ? "✓" : "○"}
-                </button>
-              )}
-            </li>
-          );
-        })}
-        <li className="learn-row trophy">
-          <span className="learn-idx">🏆</span>
-          <div className="learn-meta">
-            <span>Finish every section to complete the lesson</span>
-          </div>
-        </li>
-      </ol>
+              {audio && <audio controls autoPlay src={audio} />}
+            </article>
+          )}
+          {!unit && !busy && (
+            <button className="btn dark" onClick={() => start(index)}>
+              Retry teaching
+            </button>
+          )}
+        </>
+      )}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
