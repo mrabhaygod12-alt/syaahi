@@ -120,6 +120,31 @@ async function main() {
     ).json();
     assert.equal(answer.correct, false);
     assert.deepEqual(answer.progress.completed, []);
+    assert.equal(answer.progress.attempts[0], 1);
+    assert.equal(
+      (await post(other.cookie, { action: "tutor", question: "Explain" }))
+        .status,
+      404,
+    );
+    assert.equal(
+      (await post(owner.cookie, { action: "tutor", question: "" })).status,
+      400,
+    );
+    if (process.env.LIVE_TUTOR === "1") {
+      const live = await post(owner.cookie, {
+        action: "tutor",
+        question: "Why should I preserve the original?",
+        phase: 0,
+      });
+      const response = await live.json();
+      assert.equal(live.status, 200, response.error || "Live tutor failed");
+      assert.equal(typeof response.answer, "string");
+      assert(response.answer.length > 20);
+      assert(!response.model && !response.provider);
+      console.log(
+        "PASS: live lesson tutor returned a grounded answer without model metadata.",
+      );
+    }
     browser = await chromium.launch();
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },
@@ -128,25 +153,37 @@ async function main() {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const split = owner.cookie.indexOf("=");
-    await page
-      .context()
-      .addCookies([
-        {
-          name: owner.cookie.slice(0, split),
-          value: owner.cookie.slice(split + 1),
-          url: base,
-        },
-      ]);
+    await page.context().addCookies([
+      {
+        name: owner.cookie.slice(0, split),
+        value: owner.cookie.slice(split + 1),
+        url: base,
+      },
+    ]);
     await page.goto(`${base}/lesson/${job.id}/learn`);
     await page.getByRole("button", { name: "Start lesson" }).click();
     await page.getByText(unit.explanation, { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Ask Syaahi", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByText("Lesson tutor", { exact: true })
+      .waitFor();
+    await page.screenshot({ path: "output/qa/lesson-tutor.png" });
+    await page.keyboard.press("Escape");
+    assert.equal(await page.getByRole("dialog").count(), 0);
+
     await page.getByRole("button", { name: "Continue →", exact: true }).click();
     await page.getByText(unit.example, { exact: true }).waitFor();
     await page.getByRole("button", { name: "Continue →", exact: true }).click();
     await page
       .getByRole("button", { name: "Recording each transfer", exact: true })
       .click();
-    await page.getByText("That’s right.", { exact: false }).waitFor();
+    await page
+      .getByRole("heading", { name: "Section complete", exact: true })
+      .waitFor();
+    await page
+      .getByText("Checkpoint passed · 2 attempts", { exact: true })
+      .waitFor();
     mkdirSync("output/qa", { recursive: true });
     await page.screenshot({
       path: "output/qa/learning-desktop.png",

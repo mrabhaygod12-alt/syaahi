@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Logo from "@/components/Logo";
 import Loader from "@/components/Loader";
@@ -98,7 +98,7 @@ export default function WorkspaceShell({
     const onMouseMove = (e: MouseEvent) => {
       const newWidth = Math.min(
         Math.max(320, window.innerWidth - e.clientX),
-        Math.min(900, Math.floor(window.innerWidth * 0.88))
+        Math.min(900, Math.floor(window.innerWidth * 0.88)),
       );
       setChatWidth(newWidth);
     };
@@ -116,15 +116,42 @@ export default function WorkspaceShell({
     };
   }, [isResizing, chatWidth]);
 
+  const drawerRef = useRef<HTMLDivElement>(null);
   // AI chat lives behind the hamburger — never auto-open, same drawer on every room.
   // Escape closes it like any ChatGPT-style panel.
   useEffect(() => {
     if (!chatOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const timer = setTimeout(() => drawerRef.current?.focus(), 0);
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        const controls = Array.from(
+          drawerRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]),textarea:not([disabled]),input:not([disabled]),a[href],[tabindex="0"]',
+          ) || [],
+        ).filter((el) => el.getClientRects().length);
+        const first = controls[0],
+          last = controls[controls.length - 1];
+        if (
+          e.shiftKey &&
+          (document.activeElement === first ||
+            document.activeElement === drawerRef.current)
+        ) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
       if (e.key === "Escape") closeChat();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", onKey);
+      previous?.focus();
+    };
   }, [chatOpen, closeChat]);
 
   const room = (pathname.split("/").pop() || "notes") as RoomId;
@@ -310,6 +337,11 @@ export default function WorkspaceShell({
       {chatOpen && (
         <div className="ws-overlay" onClick={closeChat}>
           <div
+            ref={drawerRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Syaahi study assistant"
             className={`ws-drawer ${isResizing ? "resizing" : ""}`}
             style={{ width: chatWidth, maxWidth: "90vw" }}
             onClick={(e) => e.stopPropagation()}

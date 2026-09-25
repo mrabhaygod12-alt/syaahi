@@ -155,15 +155,18 @@ export default function LessonChat({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { chatPrefill, refresh } = useLesson();
+  const { chatPrefill, refresh, tutorContext } = useLesson();
+  const conversationId = tutorContext
+    ? `${job.id}:tutor:${tutorContext.version}:${tutorContext.index}`
+    : job.id;
   const pages: JobPage[] = job.pages;
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [thread, setThread] = useState<Msg[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(chatKey(job.id)) ?? "[]").slice(
-        -20,
-      );
+      return JSON.parse(
+        localStorage.getItem(chatKey(conversationId)) ?? "[]",
+      ).slice(-20);
     } catch {
       return [];
     }
@@ -171,7 +174,7 @@ export default function LessonChat({
   const [copied, setCopied] = useState<number | null>(null);
   const [voted, setVoted] = useState<Record<number, string>>({});
   const [tokens, setTokens] = useState<number>(
-    () => Number(localStorage.getItem(useKey(job.id)) ?? 0) || 0,
+    () => Number(localStorage.getItem(useKey(conversationId)) ?? 0) || 0,
   );
   const [exported, setExported] = useState(false);
   const voiceAudio = useRef<HTMLAudioElement | null>(null);
@@ -191,14 +194,17 @@ export default function LessonChat({
   // Persist thread + token meter across drawer closes and refreshes.
   useEffect(() => {
     try {
-      localStorage.setItem(chatKey(job.id), JSON.stringify(thread.slice(-20)));
+      localStorage.setItem(
+        chatKey(conversationId),
+        JSON.stringify(thread.slice(-20)),
+      );
     } catch {
       /* full */
     }
   }, [thread, job.id]);
   useEffect(() => {
     try {
-      localStorage.setItem(useKey(job.id), String(tokens));
+      localStorage.setItem(useKey(conversationId), String(tokens));
     } catch {
       /* noop */
     }
@@ -238,13 +244,15 @@ export default function LessonChat({
     const flush = () => {
       let box: string[] = [];
       try {
-        box = JSON.parse(localStorage.getItem(outboxKey(job.id)) ?? "[]");
+        box = JSON.parse(
+          localStorage.getItem(outboxKey(conversationId)) ?? "[]",
+        );
       } catch {
         /* noop */
       }
       if (!box.length || busy) return;
       try {
-        localStorage.setItem(outboxKey(job.id), "[]");
+        localStorage.setItem(outboxKey(conversationId), "[]");
       } catch {
         /* noop */
       }
@@ -264,6 +272,7 @@ export default function LessonChat({
     hist: Msg[],
     signal: AbortSignal,
   ): Promise<boolean> {
+    if (tutorContext) return false;
     const r = await fetch("/api/ask-stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -340,10 +349,13 @@ export default function LessonChat({
   }
 
   async function askSync(qq: string, hist: Msg[]): Promise<boolean> {
-    const r = await fetch("/api/ask", {
+    const r = await fetch(tutorContext ? "/api/learn" : "/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(tutorContext
+          ? { ...tutorContext, lesson: job.id, action: "tutor" }
+          : {}),
         pages: pages.map((p) => ({ topic: p.topic, markdown: p.markdown })),
         question: `Lesson: ${lessonTitle(job)}. ${qq}`,
         language: job.language ?? "english",
@@ -377,9 +389,11 @@ export default function LessonChat({
     // Offline → queue, auto-send on reconnect.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
-        const box = JSON.parse(localStorage.getItem(outboxKey(job.id)) ?? "[]");
+        const box = JSON.parse(
+          localStorage.getItem(outboxKey(conversationId)) ?? "[]",
+        );
         localStorage.setItem(
-          outboxKey(job.id),
+          outboxKey(conversationId),
           JSON.stringify([...box, qq].slice(-10)),
         );
       } catch {
@@ -534,13 +548,17 @@ export default function LessonChat({
 
   return (
     <aside
-      className={`ws-chat ${variant === "overlay" ? "ws-chat-overlay" : ""}`}
+      className={`ws-chat ${tutorContext ? "ws-lesson-tutor" : ""} ${variant === "overlay" ? "ws-chat-overlay" : ""}`}
     >
       <div className="ws-chat-head">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="ws-chat-dot" />
-          <b>Chat</b>
-          <span className="small">grounded in this lesson</span>
+          <b>{tutorContext ? "Lesson tutor" : "Chat"}</b>
+          <span className="small">
+            {tutorContext
+              ? "Reading along with you"
+              : "grounded in this lesson"}
+          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {onSetWidth && (
@@ -582,7 +600,7 @@ export default function LessonChat({
           )}
         </div>
       </div>
-      <div className="ws-chat-shortcuts">
+      <div className="ws-chat-shortcuts" hidden={!!tutorContext}>
         <button
           className="ws-shortcut popular"
           onClick={() => router.push(`${base}/quiz`)}
@@ -611,10 +629,21 @@ export default function LessonChat({
       <div className="ws-chat-thread" ref={threadRef}>
         {!thread.length && (
           <div className="ws-chat-empty">
-            <h2>Hey, I&apos;m Syaahi</h2>
-            <p>I can work with you on this lesson and answer any questions.</p>
+            <div className="tutor-emblem" aria-hidden="true">
+              ✦
+            </div>
+            <h2>
+              {tutorContext
+                ? "Let’s work through this together."
+                : "Hey, I’m Syaahi"}
+            </h2>
+            <p>
+              {tutorContext
+                ? `You’re studying ${tutorContext.topic}. Ask for a simpler explanation, an example, or a hint.`
+                : "I can work with you on this lesson and answer any questions."}
+            </p>
             <div className="ws-chips">
-              {topics.map((t) => (
+              {(tutorContext ? [tutorContext.topic] : topics).map((t) => (
                 <button
                   key={t}
                   className="ws-chip"

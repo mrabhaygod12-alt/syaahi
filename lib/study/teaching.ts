@@ -17,6 +17,7 @@ export interface TeachingUnit {
 export interface LearningProgress {
   completed: number[];
   cursor: number;
+  attempts?: Record<string, number>;
 }
 export const emptyLearningProgress = (): LearningProgress => ({
   completed: [],
@@ -84,12 +85,17 @@ export function recordCheckpoint(
   index: number,
   correct: boolean,
 ): LearningProgress {
-  return correct
-    ? {
-        completed: [...new Set([...progress.completed, index])].sort(
-          (a, b) => a - b,
-        ),
-        cursor: index + 1,
-      }
-    : progress;
+  if (progress.completed.includes(index)) return progress;
+  const attempts = {
+    ...progress.attempts,
+    [index]: (progress.attempts?.[index] || 0) + 1,
+  };
+  return {
+    ...progress,
+    attempts,
+    completed: correct
+      ? [...progress.completed, index].sort((a, b) => a - b)
+      : progress.completed,
+    cursor: correct ? index + 1 : progress.cursor,
+  };
 }

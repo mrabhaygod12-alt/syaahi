@@ -21,3 +21,10 @@ Reviewed https://www.turbo.ai/for-students and the user's supplied guided-learni
 
 ## Deployment
 Both Netlify frontend and Render backend must deploy this commit because `/api/learn` is new. Existing API proxy middleware includes this route automatically. No manual database migration is required: study state uses the existing persistence layer. Production auth-protected lesson content was not inspected using a customer's session.
+
+## Tutor, completion and reference-note update
+- Ask Syaahi opens a dedicated lesson tutor drawer. The server loads the authorized section and cached teaching step; goal, explanation/example/checkpoint context and bounded history accompany the question. Checkpoint mode requests hints rather than the answer. Conversations are separated by lesson content version and section.
+- Completed sections show an animated completion ring, real persisted attempt count, feedback and next-section/contents controls. Completed checkpoints no longer accumulate attempts on replay. Reduced-motion preferences disable celebratory animation; the drawer supports Escape, focus containment and focus restoration.
+- Added selectable **Study notebook** PDF template, inspired by the user-provided one-page Algorithms PDF: blue handwriting, maroon underlined headings, plain warm paper and boxed flowcharts. Rendering uses the same document engine in preview and export, with pagination retained. This is a typographic approximation, not an exact copy of the reference person's handwriting.
+- Generated and visually reviewed `output/pdf/study-notebook-sample.pdf`: one A4 sheet, no body overflow. Reference and output PDF images inspected locally; private sample remains outside Git.
+- Updated browser/API regression covers tutor drawer opening/closing and persisted two-attempt completion. Production build, study suite and ledger suite pass. An optional `LIVE_TUTOR=1` run successfully exercised the real tutor provider path with synthetic study material and confirmed no model/provider response metadata. This is a functional smoke check, not a broad teaching-quality assessment.

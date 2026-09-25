@@ -17,7 +17,8 @@ const goals = [
   "Other",
 ];
 export default function LearnView() {
-  const { job, openChat } = useLesson();
+  const { job, openTutor, closeChat } = useLesson();
+  const [attempts, setAttempts] = useState(0);
   const [goal, setGoal] = useState(goals[0]),
     [version, setVersion] = useState(""),
     [completed, setCompleted] = useState<number[]>([]),
@@ -81,6 +82,8 @@ export default function LearnView() {
   }
   async function start(n: number) {
     const id = ++requestId.current;
+    closeChat();
+    setAttempts(0);
     setIndex(n);
     setPhase(0);
     setUnit(null);
@@ -108,6 +111,7 @@ export default function LearnView() {
       const d = await api("answer", { answer: n });
       setFeedback(d.feedback);
       setCorrect(d.correct);
+      setAttempts(d.progress.attempts?.[index!] || 1);
       setCompleted(d.progress.completed);
     } catch (e) {
       setError((e as Error).message);
@@ -240,106 +244,159 @@ export default function LearnView() {
           {busy && !unit && (
             <p role="status">Preparing your explanation and worked example…</p>
           )}
-          {unit && (
-            <article className="teaching-step" key={`${index}-${phase}`}>
+          {correct && phase === 2 ? (
+            <section className="section-celebration" aria-live="polite">
+              <div className="completion-ring">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle className="ring-track" cx="60" cy="60" r="52" />
+                  <circle className="ring-progress" cx="60" cy="60" r="52" />
+                </svg>
+                <span>
+                  ✓<small>COMPLETE</small>
+                </span>
+              </div>
               <p className="eyebrow">
-                {["UNDERSTAND", "APPLY", "CHECK YOUR UNDERSTANDING"][phase]}
+                {attempts === 1 ? "FIRST TRY" : "KEEPING AT IT PAYS OFF"}
               </p>
-              <h2>{unit.objective}</h2>
-              {phase < 2 ? (
-                <p className="teaching-copy">
-                  {phase === 0 ? unit.explanation : unit.example}
-                </p>
-              ) : (
-                <>
-                  <h3>{unit.question}</h3>
-                  <div className="learning-answers">
-                    {unit.options.map((o, i) => (
-                      <button
-                        key={i}
-                        className="btn light"
-                        disabled={busy || correct}
-                        onClick={() => answer(i)}
-                      >
-                        {o}
-                      </button>
-                    ))}
-                  </div>
-                  {feedback && (
-                    <div role="status" className="learning-feedback">
-                      <strong>
-                        {correct ? "That’s right. " : "Try again. "}
-                      </strong>
-                      {feedback}
-                    </div>
-                  )}
-                </>
-              )}
+              <h2>Section complete</h2>
+              <p>{job.pages[index].topic}</p>
+              <p className="small">
+                Checkpoint passed · {attempts}{" "}
+                {attempts === 1 ? "attempt" : "attempts"}
+              </p>
+              <p className="learning-feedback">{feedback}</p>
               <div className="guided-actions">
-                {phase > 0 && (
-                  <button
-                    className="btn light"
-                    disabled={busy}
-                    onClick={() => {
-                      setPhase(phase - 1);
-                      setAudio("");
-                    }}
-                  >
-                    ← Back
-                  </button>
+                <button
+                  className="btn light"
+                  onClick={() => {
+                    setIndex(null);
+                    closeChat();
+                  }}
+                >
+                  Back to contents
+                </button>
+                <button
+                  className="btn dark"
+                  onClick={() =>
+                    index + 1 < job.pages.length
+                      ? start(index + 1)
+                      : setIndex(null)
+                  }
+                >
+                  {index + 1 < job.pages.length
+                    ? "Next section →"
+                    : "Finish lesson ✓"}
+                </button>
+              </div>
+            </section>
+          ) : (
+            unit && (
+              <article className="teaching-step" key={`${index}-${phase}`}>
+                <p className="eyebrow">
+                  {["UNDERSTAND", "APPLY", "CHECK YOUR UNDERSTANDING"][phase]}
+                </p>
+                <h2>{unit.objective}</h2>
+                {phase < 2 ? (
+                  <p className="teaching-copy">
+                    {phase === 0 ? unit.explanation : unit.example}
+                  </p>
+                ) : (
+                  <>
+                    <h3>{unit.question}</h3>
+                    <div className="learning-answers">
+                      {unit.options.map((o, i) => (
+                        <button
+                          key={i}
+                          className="btn light"
+                          disabled={busy || correct}
+                          onClick={() => answer(i)}
+                        >
+                          {o}
+                        </button>
+                      ))}
+                    </div>
+                    {feedback && (
+                      <div role="status" className="learning-feedback">
+                        <strong>
+                          {correct ? "That’s right. " : "Try again. "}
+                        </strong>
+                        {feedback}
+                      </div>
+                    )}
+                  </>
                 )}
-                {phase < 2 &&
-                  job.accessRole !== "viewer" &&
-                  job.accessRole !== "editor" && (
+                <div className="guided-actions">
+                  {phase > 0 && (
                     <button
                       className="btn light"
                       disabled={busy}
-                      onClick={listen}
+                      onClick={() => {
+                        closeChat();
+                        setPhase(phase - 1);
+                        setAudio("");
+                      }}
                     >
-                      Listen
+                      ← Back
                     </button>
                   )}
-                <button
-                  className="btn light"
-                  onClick={() =>
-                    openChat(
-                      `Help me understand ${job.pages[index].topic}. My learning goal is ${goal}. Explain this idea: ${unit.objective}`,
-                    )
-                  }
-                >
-                  Ask Syaahi
-                </button>
-                {phase < 2 ? (
+                  {phase < 2 &&
+                    job.accessRole !== "viewer" &&
+                    job.accessRole !== "editor" && (
+                      <button
+                        className="btn light"
+                        disabled={busy}
+                        onClick={listen}
+                      >
+                        Listen
+                      </button>
+                    )}
                   <button
-                    className="btn dark"
-                    disabled={busy}
-                    onClick={() => {
-                      setPhase(phase + 1);
-                      setAudio("");
-                    }}
+                    className="btn light"
+                    onClick={() =>
+                      openTutor({
+                        goal,
+                        version,
+                        index,
+                        phase,
+                        topic: job.pages[index].topic,
+                      })
+                    }
                   >
-                    Continue →
+                    Ask Syaahi
                   </button>
-                ) : (
-                  correct && (
+                  {phase < 2 ? (
                     <button
                       className="btn dark"
                       disabled={busy}
-                      onClick={() =>
-                        index + 1 < job.pages.length
-                          ? start(index + 1)
-                          : setIndex(null)
-                      }
+                      onClick={() => {
+                        closeChat();
+                        setPhase(phase + 1);
+                        setAudio("");
+                      }}
                     >
-                      {index + 1 < job.pages.length
-                        ? "Next section →"
-                        : "Finish lesson ✓"}
+                      Continue →
                     </button>
-                  )
-                )}
-              </div>
-              {audio && <audio controls autoPlay src={audio} />}
-            </article>
+                  ) : (
+                    correct && (
+                      <button
+                        className="btn dark"
+                        disabled={busy}
+                        onClick={() =>
+                          index + 1 < job.pages.length
+                            ? start(index + 1)
+                            : setIndex(null)
+                        }
+                      >
+                        {index + 1 < job.pages.length
+                          ? "Next section →"
+                          : "Finish lesson ✓"}
+                      </button>
+                    )
+                  )}
+                </div>
+                {audio && <audio controls autoPlay src={audio} />}
+              </article>
+            )
           )}
           {!unit && !busy && (
             <button className="btn dark" onClick={() => start(index)}>
