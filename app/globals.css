@@ -3620,3 +3620,4 @@ main > .wrap {width:100%;min-width:0}
 @media(max-width:700px){.referral-journey{grid-template-columns:1fr}.continue-study{align-items:stretch;flex-direction:column}.study-goal-cards button{flex:1;min-width:130px}}
 /* Small marketing sections should remain rendered for reliable scrolling and screenshots. */
 .feature-section{content-visibility:visible;contain-intrinsic-size:none}
+.tutor-choice-cards{display:grid;gap:10px;margin:18px 0}.tutor-choice-cards button{display:flex;flex-direction:column;gap:8px;text-align:left;padding:18px;background:#f3f7ed;border:1px solid #cad8c2;border-radius:14px;color:#214b40;cursor:pointer}.tutor-choice-cards span{font-size:12px;color:#687a61}

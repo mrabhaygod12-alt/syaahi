@@ -148,6 +148,16 @@ export default function Pricing() {
         Payments are credited only after verified capture. Failed generation
         returns unused page units.
       </p>
+      <p style={{ marginTop: 12, padding: "14px 20px", background: "#e8f0df", borderRadius: 14, border: "1px solid #cad8c2" }}>
+        💳 <b>Prefer UPI?</b>{" "}
+        <a href="/pay" style={{ color: "#214b40", fontWeight: 600 }}>
+          Pay directly via any UPI app →
+        </a>
+        <br />
+        <span className="small" style={{ color: "#687a61" }}>
+          Scan QR, pay, enter UTR — no Razorpay needed.
+        </span>
+      </p>
       <p>
         <a href="/refer">Invite a friend and earn a token →</a>
       </p>

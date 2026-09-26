@@ -145,6 +145,18 @@ async function main() {
         "PASS: live lesson tutor returned a grounded answer without model metadata.",
       );
     }
+    const clarification = await (
+      await post(owner.cookie, {
+        action: "tutor",
+        question: "help me",
+        phase: 0,
+      })
+    ).json();
+    assert.equal(clarification.choices.length, 3);
+    assert.equal(
+      (await post(owner.cookie, { action: "position", phase: 3 })).status,
+      400,
+    );
     browser = await chromium.launch();
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },
@@ -173,6 +185,11 @@ async function main() {
     assert.equal(await page.getByRole("dialog").count(), 0);
 
     await page.getByRole("button", { name: "Continue →", exact: true }).click();
+    await page.getByText(unit.example, { exact: true }).waitFor();
+    await page.reload();
+    await page
+      .getByRole("button", { name: /^Start lesson/ })
+      .click();
     await page.getByText(unit.example, { exact: true }).waitFor();
     await page.getByRole("button", { name: "Continue →", exact: true }).click();
     await page
@@ -271,3 +288,4 @@ main().catch((e) => {
   console.error(e);
   process.exitCode = 1;
 });
+

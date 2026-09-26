@@ -3,6 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import type { Metadata } from "next";
 import { Caveat, Instrument_Sans, Kalam, Patrick_Hand } from "next/font/google";
 import "./globals.css";
+import "./upi-payments.css";
 import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
 
 const instrument = Instrument_Sans({

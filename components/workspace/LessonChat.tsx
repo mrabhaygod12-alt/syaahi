@@ -128,6 +128,7 @@ function Inline({ t }: { t: string }) {
 }
 
 interface Msg {
+  choices?: Array<{ label: string; question: string }>;
   q: string;
   a: string;
   via?: string;
@@ -278,7 +279,7 @@ export default function LessonChat({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pages: pages.map((p) => ({ topic: p.topic, markdown: p.markdown })),
-        question: `Lesson: ${lessonTitle(job)}. ${qq}`,
+        question: tutorContext ? qq : `Lesson: ${lessonTitle(job)}. ${qq}`,
         language: job.language ?? "english",
         history: hist.slice(-4).map((h) => ({ q: h.q, a: h.a.slice(0, 600) })),
       }),
@@ -357,7 +358,7 @@ export default function LessonChat({
           ? { ...tutorContext, lesson: job.id, action: "tutor" }
           : {}),
         pages: pages.map((p) => ({ topic: p.topic, markdown: p.markdown })),
-        question: `Lesson: ${lessonTitle(job)}. ${qq}`,
+        question: tutorContext ? qq : `Lesson: ${lessonTitle(job)}. ${qq}`,
         language: job.language ?? "english",
         history: hist.slice(-4).map((h) => ({ q: h.q, a: h.a.slice(0, 600) })),
       }),
@@ -377,6 +378,14 @@ export default function LessonChat({
         via: j.provider,
         model: j.model,
         cites: j.cites,
+        choices: Array.isArray(j.choices)
+          ? j.choices
+              .slice(0, 3)
+              .filter(
+                (c: any) =>
+                  typeof c.label === "string" && typeof c.question === "string",
+              )
+          : undefined,
       },
     ]);
     return true;
@@ -669,6 +678,20 @@ export default function LessonChat({
             <div className="ws-msg-q">{h.q}</div>
             <div className="ws-msg-a">
               {h.a ? <Md text={h.a} /> : <span className="small">…</span>}
+              {h.choices && (
+                <div className="tutor-choice-cards">
+                  {h.choices.map((c) => (
+                    <button
+                      key={c.label}
+                      disabled={busy}
+                      onClick={() => ask(c.question)}
+                    >
+                      <strong>{c.label}</strong>
+                      <span>Continue with this →</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {h.cites && h.cites.length > 0 && (
                 <div className="ws-cites">
                   {h.cites.map((c) => (

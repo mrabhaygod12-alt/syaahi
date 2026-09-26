@@ -19,6 +19,7 @@ const goals = [
 export default function LearnView() {
   const { job, openTutor, closeChat } = useLesson();
   const [attempts, setAttempts] = useState(0);
+  const [resumeIndex, setResumeIndex] = useState(0);
   const [goal, setGoal] = useState(goals[0]),
     [version, setVersion] = useState(""),
     [completed, setCompleted] = useState<number[]>([]),
@@ -52,6 +53,7 @@ export default function LearnView() {
         if (!r.ok) throw Error(d.error);
         if (active) {
           setVersion(d.version);
+          setResumeIndex(d.progress.cursor || 0);
           setCompleted(d.progress.completed);
         }
       })
@@ -80,7 +82,7 @@ export default function LearnView() {
     if (!r.ok) throw Error(d.error || "Could not load lesson.");
     return d;
   }
-  async function start(n: number) {
+  async function start(n: number, resume = false) {
     const id = ++requestId.current;
     closeChat();
     setAttempts(0);
@@ -93,15 +95,30 @@ export default function LearnView() {
     setAudio("");
     setBusy(true);
     try {
-      const d = await api("unit", { index: n });
+      const d = await api("unit", { index: n, resume });
       if (id === requestId.current) {
         setUnit(d.unit);
+        setPhase(d.progress.phase || 0);
         setCompleted(d.progress.completed);
       }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       if (id === requestId.current) setBusy(false);
+    }
+  }
+  async function movePhase(phase: number) {
+    setBusy(true);
+    setError("");
+    try {
+      await api("position", { phase });
+      closeChat();
+      setPhase(phase);
+      setAudio("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   async function answer(n: number) {
@@ -177,7 +194,17 @@ export default function LearnView() {
             <button
               disabled={!version || !job.pages.length}
               className="btn dark"
-              onClick={() => start(next < 0 ? 0 : next)}
+              onClick={() =>
+                start(
+                  resumeIndex < job.pages.length &&
+                    !completed.includes(resumeIndex)
+                    ? resumeIndex
+                    : next < 0
+                      ? 0
+                      : next,
+                  true,
+                )
+              }
             >
               {completed.length ? "Continue learning" : "Start lesson"} →
             </button>
@@ -331,9 +358,7 @@ export default function LearnView() {
                       className="btn light"
                       disabled={busy}
                       onClick={() => {
-                        closeChat();
-                        setPhase(phase - 1);
-                        setAudio("");
+                        void movePhase(phase - 1);
                       }}
                     >
                       ← Back
@@ -369,9 +394,7 @@ export default function LearnView() {
                       className="btn dark"
                       disabled={busy}
                       onClick={() => {
-                        closeChat();
-                        setPhase(phase + 1);
-                        setAudio("");
+                        void movePhase(phase + 1);
                       }}
                     >
                       Continue →

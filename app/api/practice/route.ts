@@ -105,7 +105,13 @@ async function handlePOST(req: NextRequest) {
   const owner = (await currentUser(req))!.id;
   if (body.regenerate !== true) {
     const saved = await readState<any>(owner, cacheKey, null);
-    if (saved) return NextResponse.json({ ...saved, cached: true });
+    if (saved) {
+      if (owned)
+        await updateJob(owned.id, {
+          practice: { quiz: saved.quiz, flashcards: saved.flashcards },
+        });
+      return NextResponse.json({ ...saved, cached: true });
+    }
   }
   const sectionBudget = Math.max(350, Math.floor(18000 / pages.length));
   const material = pages

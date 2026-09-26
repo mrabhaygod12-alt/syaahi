@@ -18,7 +18,7 @@ import {
 export const maxDuration = 120;
 async function handlePOST(req: Request) {
   const denied =
-    (await authError(req)) || (await rateLimit(req, "learn", 20, 60000));
+    (await authError(req)) || (await rateLimit(req, "learn", 60, 60000));
   if (denied) return denied;
   const b = await req.json().catch(() => ({}));
   const user = (await currentUser(req))!;
@@ -43,6 +43,20 @@ async function handlePOST(req: Request) {
     );
   const cacheKey = `${key}:${index}`;
   let unit = await readState<TeachingUnit | null>("teaching", cacheKey, null);
+  if (b.action === "position") {
+    if (!Number.isInteger(b.phase) || b.phase < 0 || b.phase > 2)
+      return NextResponse.json(
+        { error: "Invalid lesson step." },
+        { status: 400 },
+      );
+    const saved = await mutateState(
+      user.id,
+      key,
+      emptyLearningProgress(),
+      (p) => ({ ...p, cursor: index, phase: b.phase }),
+    );
+    return NextResponse.json({ progress: saved });
+  }
   if (b.action === "tutor") {
     const question =
       typeof b.question === "string" ? b.question.trim().slice(0, 1000) : "";
@@ -51,6 +65,30 @@ async function handlePOST(req: Request) {
         { error: "Open a lesson step and ask a question." },
         { status: 400 },
       );
+    if (
+      /^(help|help me|explain|i don.t understand|samjhao|samajh nahi aaya)[.!?]*$/i.test(
+        question,
+      )
+    ) {
+      return NextResponse.json({
+        answer:
+          "What would help you with this step? Choose a direction, or describe the part that is confusing.",
+        choices: [
+          {
+            label: "Explain more simply",
+            question: "Explain the current idea in simpler language.",
+          },
+          {
+            label: "Show a worked example",
+            question: "Walk through an illustrative example of this idea.",
+          },
+          {
+            label: "Give me a hint",
+            question: "Give me one small hint to reason through this step.",
+          },
+        ],
+      });
+    }
     const limited = await rateLimit(req, "lesson-tutor", 12, 60000);
     if (limited) return limited;
     const phase =
@@ -60,12 +98,10 @@ async function handlePOST(req: Request) {
           ? "checkpoint"
           : "explanation";
     const history = Array.isArray(b.history)
-      ? b.history
-          .slice(-4)
-          .map((h: any) => ({
-            question: String(h?.q || "").slice(0, 500),
-            answer: String(h?.a || "").slice(0, 1000),
-          }))
+      ? b.history.slice(-4).map((h: any) => ({
+          question: String(h?.q || "").slice(0, 500),
+          answer: String(h?.a || "").slice(0, 1000),
+        }))
       : [];
     try {
       const result = await chatWithFallback(
@@ -167,6 +203,16 @@ async function handlePOST(req: Request) {
       );
     }
   }
-  return NextResponse.json({ unit: publicTeaching(unit!), progress });
+  const saved = await mutateState(
+    user.id,
+    key,
+    emptyLearningProgress(),
+    (p) => ({
+      ...p,
+      cursor: index,
+      phase: b.resume === true && p.cursor === index ? p.phase || 0 : 0,
+    }),
+  );
+  return NextResponse.json({ unit: publicTeaching(unit!), progress: saved });
 }
 export const POST = apiHandler(handlePOST);
