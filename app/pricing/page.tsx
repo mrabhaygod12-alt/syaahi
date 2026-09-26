@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PACKS, tokenLabel } from "@/lib/billing/packs";
 
 const COPY: Record<
@@ -20,12 +20,36 @@ export default function Pricing() {
   const [balance, setBalance] = useState<number | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const autoBuyStarted = useRef(false);
 
   useEffect(() => {
+    let active = true;
+    const pendingPack = new URLSearchParams(window.location.search).get("buy");
     fetch("/api/credits")
-      .then((r) => r.json())
-      .then((j) => setBalance(typeof j.balance === "number" ? j.balance : null))
+      .then(async (r) => ({ response: r, data: await r.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (!response.ok) {
+          setBalance(null);
+          return;
+        }
+        setBalance(typeof data.balance === "number" ? data.balance : null);
+        if (
+          pendingPack &&
+          Object.hasOwn(PACKS, pendingPack) &&
+          !autoBuyStarted.current
+        ) {
+          autoBuyStarted.current = true;
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("buy");
+          window.history.replaceState({}, "", cleanUrl);
+          void buy(pendingPack);
+        }
+      })
       .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function buy(pack: string) {
@@ -39,6 +63,11 @@ export default function Pricing() {
         body: JSON.stringify({ pack }),
       });
       const j = await r.json();
+      if (r.status === 401) {
+        const next = `/pricing?buy=${encodeURIComponent(pack)}`;
+        window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
       if (!r.ok || j.error) {
         setMsg(j.error);
         return;

@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 export function middleware(req: NextRequest) {
+  // Keep one indexable/public origin even if the Vercel alias or apex domain
+  // remains attached without a redirect in the hosting dashboard.
+  const hostname = req.nextUrl.hostname.toLowerCase();
+  if (hostname === "syaahii.in" || hostname === "syaahii.vercel.app") {
+    const canonical = req.nextUrl.clone();
+    canonical.protocol = "https:";
+    canonical.hostname = "www.syaahii.in";
+    canonical.port = "";
+    return NextResponse.redirect(canonical, 308);
+  }
+
   const role = process.env.APP_ROLE;
   const backend = process.env.BACKEND_URL;
   const isFrontend =
@@ -47,4 +58,6 @@ export function middleware(req: NextRequest) {
   }
   return NextResponse.next();
 }
-export const config = { matcher: "/api/:path*" };
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};

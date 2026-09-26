@@ -13,6 +13,15 @@ async function main() {
   process.env.NEXT_PUBLIC_APP_URL = "https://www.syaahii.in";
   process.env.RESEND_API_KEY = "test-resend-key";
   process.env.EMAIL_FROM = "Syaahi <verify@example.test>";
+  for (const key of [
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_KEY",
+  ])
+    delete process.env[key];
 
   const originalFetch = globalThis.fetch;
   let lastEmail = "";
@@ -23,6 +32,7 @@ async function main() {
 
   try {
     const { POST: authPost } = await import("../app/api/auth/route");
+    const { POST: googlePost } = await import("../app/api/auth/google/route");
     const { POST: verifyPost } =
       await import("../app/api/auth/verify-email/route");
     const { currentUser } = await import("../lib/auth/server");
@@ -30,6 +40,21 @@ async function main() {
       origin: "https://www.syaahii.in",
       "content-type": "application/json",
     };
+    const google = await googlePost(
+      new NextRequest("https://www.syaahii.in/api/auth/google", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          acceptTerms: true,
+          termsVersion: "2026-09-24",
+        }),
+      }),
+    );
+    assert.equal(google.status, 503);
+    const googleError = await google.json();
+    assert.match(googleError.error, /temporarily unavailable/i);
+    assert.doesNotMatch(googleError.error, /SUPABASE_PUBLISHABLE_KEY/);
+
     const signup = await authPost(
       new NextRequest("https://www.syaahii.in/api/auth", {
         method: "POST",
@@ -90,7 +115,7 @@ async function main() {
       "verified-learner@example.test",
     );
     console.log(
-      "PASS: signup has no session cookie, unverified login is blocked and resends verification, confirmed token creates an authenticated session.",
+      "PASS: missing Google config returns a generic public error; signup has no session before verification; verified token creates an authenticated session.",
     );
   } finally {
     globalThis.fetch = originalFetch;

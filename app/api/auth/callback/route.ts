@@ -48,9 +48,7 @@ async function handleGET(req: NextRequest) {
   } catch (err) {
     console.error("[OAuth Callback Error]:", err);
     const msg =
-      err instanceof Error
-        ? err.message
-        : "Google sign-in could not be completed. Please retry or contact support.";
+      "Google sign-in could not be completed. Please retry or use email sign-in.";
     response.headers.set(
       "location",
       new URL("/login?error=" + encodeURIComponent(msg), origin).href,

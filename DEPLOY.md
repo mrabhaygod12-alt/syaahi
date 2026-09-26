@@ -51,6 +51,13 @@ key here. Check the Render deploy logs for a successful restart, then test
 `/api/auth/google` on the production domain. Do not paste the key into chat,
 GitHub, or a `NEXT_PUBLIC_*` variable.
 
+If the key is already visible in Render, confirm the API service is linked to
+the environment group containing it, that the service is the one receiving the
+Vercel proxy requests, and that you saved and completed a fresh deploy. The
+public `/api/health` endpoint checks Mongo status only; it does not prove the
+OAuth key is available. The Google button shows a generic error to visitors;
+the missing-variable detail is written to Render logs.
+
 Password accounts are not issued an application session until their verification
 link is confirmed. Set `RESEND_API_KEY`, a verified `EMAIL_FROM`, and
 `NEXT_PUBLIC_APP_URL=https://www.syaahii.in` on Render so signup can send the
@@ -65,12 +72,12 @@ Import `mrabhaygod12-alt/syaahi`, production branch `main`, repository root. Sel
 
 Set environment variables:
 
-| Variable | Scope | Value |
-| --- | --- | --- |
-| `APP_ROLE` | Production and Preview | `frontend` (Preview fails closed if backend credentials are absent) |
-| `BACKEND_URL` | Production only | Existing Render API HTTPS origin, without `/api` |
-| `BACKEND_PROXY_SECRET` | Production only | Same private value as Render |
-| `NEXT_PUBLIC_APP_URL` | Production | `https://www.syaahii.in` |
+| Variable               | Scope                  | Value                                                               |
+| ---------------------- | ---------------------- | ------------------------------------------------------------------- |
+| `APP_ROLE`             | Production and Preview | `frontend` (Preview fails closed if backend credentials are absent) |
+| `BACKEND_URL`          | Production only        | Existing Render API HTTPS origin, without `/api`                    |
+| `BACKEND_PROXY_SECRET` | Production only        | Same private value as Render                                        |
+| `NEXT_PUBLIC_APP_URL`  | Production             | `https://www.syaahii.in`                                            |
 
 Do not expose provider credentials, Atlas URI or proxy secret to browser code. Avoid giving production backend secrets to untrusted Preview deployments. The app remains on its current frontend host until DNS is changed; a Vercel deployment URL can be smoke-tested first.
 
@@ -79,7 +86,7 @@ Do not expose provider credentials, Atlas URI or proxy secret to browser code. A
 1. In Vercel **Project → Settings → Domains**, add `syaahii.in` and `www.syaahii.in`.
 2. Vercel will show the DNS records required for this project. In GoDaddy, edit the active DNS records to match those exact targets. Remove stale website A/CNAME values from the previous host; preserve mail and verification TXT/MX records.
 3. Keep the current nameservers unless you intentionally move DNS hosting. If GoDaddy is no longer authoritative, edit records at the provider named by the active nameservers.
-4. Set `www.syaahii.in` as primary in Vercel. The current screenshot connects both domains to Production with no redirect selected; optionally configure the apex as a permanent redirect to `www` for one canonical origin. Verify DNS and HTTPS before testing login or payments.
+4. Set `www.syaahii.in` as primary in Vercel and configure the apex as a permanent redirect to `www`. The app also redirects the production apex and exact Vercel alias to the canonical domain. Verify DNS and HTTPS before testing login or payments.
 5. Do not delete GoDaddy registration. The domain stays registered there even while Vercel serves the app.
 
 ## 5. Supabase and Google OAuth
@@ -95,6 +102,26 @@ After `https://www.syaahii.in` resolves to Vercel with HTTPS:
 - Google's authorized redirect URI remains the Supabase callback: `https://eoybbxevqenijbglhsog.supabase.co/auth/v1/callback`.
 
 Test a new Google signup and an existing account from the final custom domain. Application accounts, passwords, sessions and balances stay in Atlas. New signup allowance is 19 credits; existing balances are not reduced.
+
+## Search indexing and discovery
+
+- The application emits canonical URLs, a sitemap, robots rules, `WebSite` and
+  `Organization` JSON-LD, and `/llms.txt`. The apex and exact production Vercel
+  alias permanently redirect to `https://www.syaahii.in`.
+- In Google Search Console, add a **Domain** property for `syaahii.in`. Add its
+  TXT verification record at the active DNS provider (currently Vercel DNS,
+  not GoDaddy), wait for DNS propagation, then verify ownership. Submit
+  `https://www.syaahii.in/sitemap.xml` in the Sitemaps report.
+- Use URL Inspection on the homepage, `/about`, `/subjects`, and selected
+  subject, library, and blog pages. If Google reports the URL is crawlable and
+  the canonical is correct, request indexing for important pages. Monitor the
+  Page indexing report for crawl blocks, duplicate canonical selection, and
+  server errors.
+- Search appearance is not guaranteed by metadata, structured data, a sitemap,
+  or a code push. For a branded query such as “Syaahi”, keep the product name
+  and description consistent on the homepage and About page, and earn
+  legitimate references from public profiles and useful original study
+  material. Avoid mass-publishing thin pages to chase keywords.
 
 ## 6. Razorpay and UPI
 

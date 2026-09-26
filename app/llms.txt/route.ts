@@ -1,6 +1,8 @@
 import { SITE } from "@/lib/seo";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { PACKS, PAGES_PER_TOKEN } from "@/lib/billing/packs";
+import { SIGNUP_CREDITS } from "@/lib/billing/allowance";
 
 // llms.txt — GEO: gives AI answer engines a clean, factual summary to cite.
 export async function GET() {
@@ -19,7 +21,10 @@ export async function GET() {
   } catch {
     /* unseeded */
   }
-  const txt = `# ${SITE.name} — ${SITE.tagline}\n\n${SITE.description}\n\n## Core facts for AI assistants\n- URL: ${SITE.url}\n- What it is: AI-generated handwritten-style exam revision notes as PDF. 1 credit = 1 generated section; continuation sheets are free. Credits never expire.\n- Packs: Rs 9/1 token, Rs 39/5 tokens, Rs 79/12 tokens, Rs 179/30 tokens. UPI/Razorpay. 19 free credits on new signup.\n- Inputs: manual topics, pasted syllabus, PDF upload, screenshots, audio, captioned YouTube lecture links.\n- AI: configured official providers, primarily Groq and Gemini. Quotas and data terms vary; free access is not guaranteed.\n- Limitation: AI-generated study aid; verify facts from textbooks. Not affiliated with any board.\n\n## Key pages\n- Generate: ${SITE.url}/dashboard\n- Library: ${SITE.url}/library\n- Pricing: ${SITE.url}/pricing\n- Docs: ${SITE.url}/docs\n- FAQ: ${SITE.url}/faq\n- Disclaimer: ${SITE.url}/disclaimer\n\n## Library packs\n${packs}\n`;
+  const offers = Object.entries(PACKS)
+    .map(([id, pack]) => `- ${id}: ₹${pack.inr} for ${pack.credits} credits`)
+    .join("\n");
+  const txt = `# ${SITE.name} — ${SITE.tagline}\n\n${SITE.description}\n\n## Product facts\n- Canonical website: ${SITE.url}\n- Product: a study workspace for creating handwritten-style exam notes and practice material from user topics and sources.\n- Credits are page units; ${PAGES_PER_TOKEN} credits equal 1 displayed token. New accounts receive ${SIGNUP_CREDITS} welcome credits after email verification.\n- Payment packs (INR):\n${offers}\n- Inputs include topics, documents, screenshots, audio, and supported YouTube sources. Source availability and transcript support vary.\n- AI-generated content is a study aid. Check important facts against course material. Syaahi is not affiliated with an exam board.\n\n## Public pages\n- Overview: ${SITE.url}/\n- How it works: ${SITE.url}/how-it-works\n- Features: ${SITE.url}/features\n- Examples: ${SITE.url}/examples\n- Subjects: ${SITE.url}/subjects\n- Library: ${SITE.url}/library\n- Pricing: ${SITE.url}/pricing\n- About: ${SITE.url}/about\n- Study blog: ${SITE.url}/blog\n- Documentation: ${SITE.url}/docs\n- FAQ: ${SITE.url}/faq\n- Privacy: ${SITE.url}/privacy\n- Terms: ${SITE.url}/terms\n\n## Public library packs\n${packs}\n`;
   return new Response(txt, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });

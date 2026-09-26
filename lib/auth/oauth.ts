@@ -9,19 +9,23 @@ export const safeNext = (value: string | null) =>
     ? value
     : "/dashboard";
 export function getSupabaseConfig(): { url: string; key: string | undefined } {
-  let url =
-    process.env.SUPABASE_URL ||
-    process.env.SUPABASE_URI ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URI;
+  const envValue = (...names: string[]) =>
+    names.map((name) => process.env[name]?.trim()).find(Boolean);
+  let url = envValue(
+    "SUPABASE_URL",
+    "SUPABASE_URI",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_URI",
+  );
 
-  let key =
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_KEY;
+  let key = envValue(
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_KEY",
+  );
 
   // Never infer credentials from unrelated environment variables or use service-role secrets for OAuth.
   if (key?.startsWith("sb_secret_")) key = undefined;
@@ -36,7 +40,17 @@ export function getSupabaseConfig(): { url: string; key: string | undefined } {
       key = undefined;
     }
   }
-  return { url: (url || "").replace(/\/+$/, ""), key };
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.hostname !== "localhost")
+        url = undefined;
+      else url = parsed.origin;
+    } catch {
+      url = undefined;
+    }
+  }
+  return { url: url || "", key };
 }
 
 export function oauthClient(req: NextRequest, response: NextResponse) {

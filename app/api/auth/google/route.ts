@@ -63,8 +63,15 @@ async function handlePOST(req: NextRequest) {
     for (const cookie of response.cookies.getAll()) result.cookies.set(cookie);
     return result;
   } catch (e) {
+    console.error(
+      "Google OAuth initialization failed:",
+      e instanceof Error ? `${e.name}: ${e.message}` : "unknown error",
+    );
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Google sign-in unavailable." },
+      {
+        error:
+          "Google sign-in is temporarily unavailable. Please use email sign-in or try again later.",
+      },
       { status: 503 },
     );
   }

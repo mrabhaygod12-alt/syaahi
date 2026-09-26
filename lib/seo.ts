@@ -79,6 +79,7 @@ export function orgSchema() {
     url: SITE.url,
     slogan: SITE.tagline,
     description: SITE.description,
+    logo: `${SITE.url}/icon-512.png`,
   };
 }
 
@@ -87,7 +88,9 @@ export function websiteSchema() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE.name,
+    alternateName: "Syaahi",
     url: SITE.url,
+    description: SITE.description,
     inLanguage: "en-IN",
   };
 }
