@@ -21,51 +21,22 @@ export function getSupabaseConfig(): { url: string; key: string | undefined } {
     process.env.SUPABASE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_KEY ||
-    process.env.SUPABASE_SECRET_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_KEY;
 
-  // Fuzzy scan across all environment variables to handle accidental typos like "SUPABASUPABASE_PUBLISHABLE_KEYE_URL"
-  if (!key || !url) {
-    for (const [envKey, rawVal] of Object.entries(process.env)) {
-      if (!rawVal || typeof rawVal !== "string") continue;
-      const envVal = rawVal.trim();
-      if (!envVal) continue;
-      const upperKey = envKey.toUpperCase();
-
-      // Check key name for publishable / anon / supabase key typos (never a URL)
-      if (!key && !envVal.startsWith("http")) {
-        if (
-          upperKey.includes("PUBLISHABLE") ||
-          upperKey.includes("ANON") ||
-          (upperKey.includes("SUPABASE") && upperKey.includes("KEY"))
-        ) {
-          key = envVal;
-        } else if (
-          envVal.startsWith("eyJhbGci") ||
-          envVal.startsWith("sb_publishable_") ||
-          envVal.startsWith("sb_anon_")
-        ) {
-          key = envVal;
-        }
-      }
-
-      // Check for URL typos (must start with http)
-      if (!url && envVal.startsWith("http")) {
-        if (upperKey.includes("SUPABASE") && upperKey.includes("URL")) {
-          url = envVal;
-        } else if (envVal.includes(".supabase.co")) {
-          url = envVal;
-        }
-      }
+  // Never infer credentials from unrelated environment variables or use service-role secrets for OAuth.
+  if (key?.startsWith("sb_secret_")) key = undefined;
+  if (key?.startsWith("ey")) {
+    try {
+      if (
+        JSON.parse(Buffer.from(key.split(".")[1], "base64url").toString())
+          .role === "service_role"
+      )
+        key = undefined;
+    } catch {
+      key = undefined;
     }
   }
-
-  // Known project fallback if URL was not explicitly configured
-  if (!url) {
-    url = "https://aoyhbcxvqenijbgjhswg.supabase.co";
-  }
-
-  return { url: url.replace(/\/+$/, ""), key };
+  return { url: (url || "").replace(/\/+$/, ""), key };
 }
 
 export function oauthClient(req: NextRequest, response: NextResponse) {
@@ -99,9 +70,12 @@ export async function googleAccount(identity: {
   app_metadata?: Record<string, unknown>;
 }): Promise<Account> {
   const isGoogle =
-    (identity.app_metadata?.providers as string[] | undefined)?.includes("google") ||
+    (identity.app_metadata?.providers as string[] | undefined)?.includes(
+      "google",
+    ) ||
     identity.app_metadata?.provider === "google" ||
-    (typeof identity.user_metadata?.iss === "string" && identity.user_metadata.iss.includes("google"));
+    (typeof identity.user_metadata?.iss === "string" &&
+      identity.user_metadata.iss.includes("google"));
 
   const isConfirmed =
     Boolean(identity.email_confirmed_at) ||
@@ -131,12 +105,16 @@ export async function googleAccount(identity: {
     const existing = await (await collection("users")).findOne({ email });
     if (existing) {
       // Securely link verified Google OAuth identity to existing account
-      await (await collection("oauth_identities")).updateOne(
+      await (
+        await collection("oauth_identities")
+      ).updateOne(
         { _id: identity.id },
         { $set: { user: existing._id } },
         { upsert: true },
       );
-      await (await collection("users")).updateOne(
+      await (
+        await collection("users")
+      ).updateOne(
         { _id: existing._id },
         { $set: { verified: true, verifiedAt: new Date().toISOString() } },
       );
@@ -178,7 +156,9 @@ export async function googleAccount(identity: {
       name: String(mapped.name),
       createdAt: String(mapped.created_at),
     };
-  const existingLocal = db().prepare("SELECT * FROM users WHERE email=?").get(email) as any;
+  const existingLocal = db()
+    .prepare("SELECT * FROM users WHERE email=?")
+    .get(email) as any;
   if (existingLocal) {
     db()
       .prepare(

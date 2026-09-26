@@ -18,7 +18,7 @@ const sections = [
   ],
   [
     "Sharing and referral rewards",
-    "Share only material you have permission to share. An active link reveals generated notes to its holder; editor invitations additionally allow signed-in members to edit. New accounts receive 21 study credits once; signing in again gives no additional signup bonus. Apply a referral code within 24 hours of signup before the first purchase. An eligible verified signup gives the inviter 5 reward credits, transferable one-for-one into study credits. Three credits equal one token. Up to 20 inviter rewards may qualify per calendar month; over-cap pending referrals can be retried later. Prior purchase-based rewards remain unchanged and cannot earn a second reward. Self-referrals, duplicate accounts and abuse are ineligible. Promotional credits have no cash value.",
+    "Share only material you have permission to share. An active link reveals generated notes to its holder; editor invitations additionally allow signed-in members to edit. New accounts receive 19 study credits once; signing in again gives no additional signup bonus. Apply a referral code within 24 hours of signup before the first purchase. An eligible verified signup gives the inviter 5 reward credits, transferable one-for-one into study credits. Three credits equal one token. Up to 20 inviter rewards may qualify per calendar month; over-cap pending referrals can be retried later. Prior purchase-based rewards remain unchanged and cannot earn a second reward. Self-referrals, duplicate accounts and abuse are ineligible. Promotional credits have no cash value.",
   ],
   [
     "Payments",

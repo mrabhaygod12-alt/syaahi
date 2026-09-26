@@ -1,3 +1,4 @@
+import { SIGNUP_CREDITS } from "@/lib/billing/allowance";
 import { useMongo, collection, mongoTransaction } from "@/lib/storage/mongo";
 import {
   createHash,
@@ -92,6 +93,8 @@ export function originError(req: Request): NextResponse | null {
       new URL(req.url).origin,
       (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, ""),
       "https://syaahii.netlify.app",
+      "https://syaahii.in",
+      "https://www.syaahii.in",
       "https://syaahi.netlify.app",
       "http://localhost:3000",
       "http://127.0.0.1:3000",
@@ -141,12 +144,12 @@ export async function register(
             .insertOne({ _id: oauthSubject, user: user.id }, { session });
         await d
           .collection<any>("wallets")
-          .insertOne({ _id: user.id, balance: 21 }, { session });
+          .insertOne({ _id: user.id, balance: SIGNUP_CREDITS }, { session });
         await d.collection<any>("ledger").insertOne(
           {
             _id: `welcome:${user.id}`,
             user: user.id,
-            delta: 21,
+            delta: SIGNUP_CREDITS,
             reason: "Welcome page units",
             createdAt: new Date(),
           },
@@ -167,11 +170,11 @@ export async function register(
             .insertOne({ _id: oauthSubject, user: user.id });
         await database
           .collection<any>("wallets")
-          .insertOne({ _id: user.id, balance: 21 });
+          .insertOne({ _id: user.id, balance: SIGNUP_CREDITS });
         await database.collection<any>("ledger").insertOne({
           _id: `welcome:${user.id}`,
           user: user.id,
-          delta: 21,
+          delta: SIGNUP_CREDITS,
           reason: "Welcome page units",
           createdAt: new Date(),
         });
@@ -211,13 +214,15 @@ export async function register(
       db()
         .prepare("INSERT INTO oauth_identities VALUES (?,?)")
         .run(oauthSubject, user.id);
-    db().prepare("INSERT INTO wallets VALUES (?,21)").run(user.id);
+    db()
+      .prepare("INSERT INTO wallets VALUES (?,?)")
+      .run(user.id, SIGNUP_CREDITS);
     db()
       .prepare("INSERT INTO ledger VALUES (?,?,?,?,?)")
       .run(
         `welcome:${user.id}`,
         user.id,
-        21,
+        SIGNUP_CREDITS,
         "Welcome credits",
         user.createdAt,
       );

@@ -57,7 +57,7 @@ export default function Pricing() {
         amount: j.amount,
         currency: "INR",
         name: "Syaahi",
-        description: `${tokenLabel(j.credits)} for ${j.credits} note pages`,
+        description: `${j.testMode ? "TEST — no real money — " : ""}${tokenLabel(j.credits)} for ${j.credits} note pages`,
         modal: {
           ondismiss: () => {
             setBusy(null);

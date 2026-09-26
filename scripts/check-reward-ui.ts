@@ -56,7 +56,7 @@ async function main() {
         headers: { cookie, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-    assert.equal((await get("/api/credits", owner.cookie)).balance, 21);
+    assert.equal((await get("/api/credits", owner.cookie)).balance, 19);
     const ref = await get("/api/referrals", owner.cookie);
     assert.equal(
       (await post("/api/referrals", friend.cookie, { code: ref.code })).status,
@@ -99,7 +99,7 @@ async function main() {
     await page
       .getByText("Reward credits added to your study balance.", { exact: true })
       .waitFor();
-    assert.equal((await get("/api/credits", owner.cookie)).balance, 26);
+    assert.equal((await get("/api/credits", owner.cookie)).balance, 24);
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
@@ -128,7 +128,7 @@ async function main() {
     });
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: production HTTP signup21, invalid verification token rejection, reward5, mobile transfer to26, creator intro and no browser errors.",
+      "PASS: production HTTP signup19, invalid verification token rejection, reward5, mobile transfer to26, creator intro and no browser errors.",
     );
   } finally {
     await browser?.close();

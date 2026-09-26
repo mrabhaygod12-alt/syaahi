@@ -27,7 +27,7 @@ export default function Home() {
               </a>
             </div>
             <p className="small">
-              21 welcome credits · Review your plan before generation
+              19 welcome credits · Review your plan before generation
             </p>
           </div>
           <div
@@ -165,7 +165,7 @@ export default function Home() {
           },
           {
             q: "How are credits used?",
-            a: "New accounts receive 21 credits. One token equals 3 credits. Each generated note section uses one credit; extra PDF continuation sheets do not cost additional credits. Review your outline before starting.",
+            a: "New accounts receive 19 credits. One token equals 3 credits. Each generated note section uses one credit; extra PDF continuation sheets do not cost additional credits. Review your outline before starting.",
           },
           {
             q: "Does completing a lesson prove mastery?",

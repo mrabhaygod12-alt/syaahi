@@ -90,7 +90,7 @@ export function CtaBand() {
         <div>
           <b>Ready to make your first handwritten PDF?</b>
           <div className="small" style={{ color: "#c9c4bb" }}>
-            21 welcome credits · One credit per generated section
+            19 welcome credits · One credit per generated section
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>

@@ -36,7 +36,7 @@ Gemini supplies transcription and generated speech. Choose a voice and delivery 
 
 ## Pricing in the application
 
-**1 token = 3 generated note sections.** A section may continue over multiple PDF sheets without an extra charge. A new account receives 21 credits (7 tokens / 21 note sections).
+**1 token = 3 generated note sections.** A section may continue over multiple PDF sheets without an extra charge. A new account receives 19 credits (6⅓ tokens / 19 note sections).
 
 | Pack    | Tokens | Note sections | Price |
 | ------- | -----: | ------------: | ----: |
@@ -134,3 +134,7 @@ The roadmap is informed by public study-tool research. Full Turbo parity, native
 ## Payment setup
 
 Direct UPI QR + UTR review and automatic Razorpay capture are separate flows. See [payment setup, QR replacement and verification](docs/PAYMENTS.md). Manual approval and wallet credit are atomic, references cannot be reused, and payment records do not expire from storage. Live merchant configuration and a real receipt check remain required before collecting customer money.
+
+## Custom domain launch
+
+Follow [syaahii.in full-stack launch steps](docs/DOMAIN-LAUNCH.md) for GoDaddy DNS, Netlify, Render API/worker, Atlas, Supabase Google OAuth and Razorpay test checkout.

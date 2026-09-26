@@ -179,7 +179,7 @@ export default function BlogIndexPage() {
             className="small"
             style={{ color: "#d1d5db", maxWidth: 580, margin: "0 auto 24px" }}
           >
-            Turn complex chapters into clean, legible handwritten PDFs with diagrams and formulas. Claim your 21 free credits now.
+            Turn complex chapters into clean, legible handwritten PDFs with diagrams and formulas. Claim your 19 free credits now.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <a
@@ -194,7 +194,7 @@ export default function BlogIndexPage() {
                 fontWeight: 700,
               }}
             >
-              Get Started Free (21 Credits)
+              Get Started Free (19 Credits)
             </a>
             <a
               href="/examples"

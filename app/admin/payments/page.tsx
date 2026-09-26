@@ -12,7 +12,10 @@ interface Payment {
   credits: number;
   pack: string;
   utr?: string;
+  paymentId?: string;
   upiId?: string;
+  qrProvider?: string;
+  approvedBy?: string;
   method: string;
   rejectionReason?: string;
   createdAt: string;
@@ -27,6 +30,8 @@ interface Stats {
 }
 
 const STATUS_TABS = [
+  { key: "gateway", label: "Razorpay", icon: "↗" },
+  { key: "all", label: "All payments", icon: "▤" },
   { key: "", label: "Pending", icon: "⏳" },
   { key: "approved", label: "Approved", icon: "✅" },
   { key: "rejected", label: "Rejected", icon: "❌" },
@@ -34,6 +39,8 @@ const STATUS_TABS = [
 ];
 
 export default function AdminPayments() {
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [payments, setPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,10 +57,11 @@ export default function AdminPayments() {
     async (tab?: string, p?: number) => {
       setLoading(true);
       try {
+        const gateway = (tab ?? activeTab) === "gateway";
         const statusParam =
-          (tab ?? activeTab) ? `&status=${tab ?? activeTab}` : "";
+          !gateway && (tab ?? activeTab) ? `&status=${tab ?? activeTab}` : "";
         const r = await fetch(
-          `/api/upi/admin?action=list${statusParam}&page=${p ?? page}`,
+          `/api/upi/admin?action=${gateway ? "gateway" : "list"}${statusParam}&page=${p ?? page}&q=${encodeURIComponent(query)}`,
         );
         if (r.status === 403 || r.status === 401) {
           setAuthorized(false);
@@ -73,7 +81,7 @@ export default function AdminPayments() {
         setLoading(false);
       }
     },
-    [activeTab, page],
+    [activeTab, page, query],
   );
 
   const loadStats = useCallback(async () => {
@@ -213,11 +221,52 @@ export default function AdminPayments() {
               <div className="stat-value">
                 ₹{stats.totalRevenue.toLocaleString("en-IN")}
               </div>
-              <div className="stat-label">Revenue</div>
+              <div className="stat-label">Manual UPI revenue</div>
             </div>
           </div>
         )}
 
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPage(1);
+            setQuery(search.trim());
+            setActiveTab((current) =>
+              current === "gateway" ? "gateway" : "all",
+            );
+          }}
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 20,
+          }}
+        >
+          <label style={{ flex: 1 }}>
+            Find a user's payment
+            <input
+              style={{ width: "100%" }}
+              value={search}
+              maxLength={120}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Email, user ID, order ID or UTR"
+            />
+          </label>
+          <button className="btn dark" type="submit">
+            Search
+          </button>
+          <button
+            className="btn light"
+            type="button"
+            onClick={() => {
+              setSearch("");
+              setQuery("");
+              setPage(1);
+            }}
+          >
+            Clear
+          </button>
+        </form>
         {/* ── Tab Bar ── */}
         <div className="admin-tabs">
           {STATUS_TABS.map((tab) => (
@@ -286,31 +335,43 @@ export default function AdminPayments() {
                 <div className="payment-card-body">
                   <div className="payment-detail-row">
                     <span>Order</span>
-                    <code>{p.orderId.slice(0, 20)}…</code>
+                    <code style={{ overflowWrap: "anywhere" }}>
+                      {p.orderId}
+                    </code>
                   </div>
                   <div className="payment-detail-row">
-                    <span>UTR</span>
-                    <code className="utr-code">{p.utr || "Not submitted"}</code>
+                    <span>User ID</span>
+                    <code style={{ overflowWrap: "anywhere" }}>{p.user}</code>
+                  </div>
+                  <div className="payment-detail-row">
+                    <span>UTR / Payment ID</span>
+                    <code className="utr-code">
+                      {p.utr || p.paymentId || "Not submitted"}
+                    </code>
                   </div>
                   <div className="payment-detail-row">
                     <span>Payee UPI</span>
-                    <code>{p.upiId}</code>
+                    <code>{p.upiId || "Gateway"}</code>
                   </div>
                   <div className="payment-detail-row">
                     <span>Method</span>
                     <span>
-                      {p.method === "upi_qr" ? "UPI QR" : "Auto Gateway"}
+                      {p.method === "upi_qr"
+                        ? `UPI QR · ${p.qrProvider || "legacy"}`
+                        : "Auto Gateway"}
                     </span>
                   </div>
                   <div className="payment-detail-row">
                     <span>Time</span>
                     <span>
-                      {new Date(p.createdAt).toLocaleString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {p.createdAt
+                        ? new Date(p.createdAt).toLocaleString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "Not recorded (legacy order)"}
                     </span>
                   </div>
                   {p.rejectionReason && (

@@ -2,7 +2,7 @@ import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
     "Welcome credits",
-    "A new account receives 21 free credits (7 tokens / 21 note sections). One token covers 3 sections; one section consumes ⅓ token; longer sections may print on multiple sheets. Planning and PDF re-downloads do not subtract credits.",
+    "A new account receives 19 free credits (6⅓ tokens / 19 note sections). One token covers 3 sections; one section consumes ⅓ token; longer sections may print on multiple sheets. Planning and PDF re-downloads do not subtract credits.",
   ],
   [
     "Reservations and refunds",

@@ -1,7 +1,12 @@
-# Replaceable UPI QR references
+# Owner-supplied UPI QR images
 
-phonepe.png, paytm.png, google-pay.png and navi.png are generated SAMPLE references. All four currently encode the SAME owner-provided destination: 8090912278@ybl, CHANDAN PANDEY. They are not four independently verified merchant accounts and do not contain an amount.
+The four original images are published unchanged. Their decoded receiving IDs are:
 
-You may replace these files with your app-exported QR images. Check the decoded receiving UPI ID and payee name before publishing. These reference files deliberately do not control checkout: checkout generates its own QR locally with the server-owned amount and order reference, from UPI_MERCHANT_ID and UPI_MERCHANT_NAME. No third-party QR image service receives order details.
+| File | Receiving ID |
+| --- | --- |
+| phonepe.jpeg | 8090912278@ibl |
+| paytm.jpeg | 8090912278@ptyes |
+| google-pay.jpeg | chandanabhay458@okhdfcbank |
+| navi.jpeg | 8090912278@nyes |
 
-If a replacement points to another account, update and verify the server merchant configuration too before collecting money. Never include a UPI PIN, OTP or bank statement in this public folder.
+Checkout lets the user select a receiving QR before creating an order. The selected receiving ID, payee name and QR provider are saved on that order. Original static QRs have no amount: enter the exact order amount manually. The UPI-app link includes the same receiving ID and amount. Replacing an image requires updating and decoding the catalog in lib/billing/upi-merchants.ts. Old orders keep their original receiving ID for bank reconciliation.

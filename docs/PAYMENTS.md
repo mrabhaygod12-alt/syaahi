@@ -11,7 +11,7 @@ A typed UTR, screenshot or client success state is never sufficient to grant cre
 
 ## Direct UPI setup
 
-Owner-provided public receiving identity: `8090912278@ybl`, `CHANDAN PANDEY`. Confirm the resolved bank payee in the UPI app before a real payment. This identity is configurable on the Render API service with `UPI_MERCHANT_ID` and `UPI_MERCHANT_NAME`; these are public payee details, not credentials.
+Receiving identities are decoded from the four owner-supplied QR images and listed in `public/payments/qr/README.md`. The catalog is `lib/billing/upi-merchants.ts`; legacy `UPI_MERCHANT_ID` and `UPI_MERCHANT_NAME` variables no longer override this catalog. Each order saves its exact receiving ID, provider and payee name. Confirm the resolved payee in the UPI app before paying.
 
 Payment operators are identified by immutable account IDs in the private `payment_admins` MongoDB collection (`active: true`) or `PAYMENT_ADMIN_IDS` server environment variable. Support agents do not automatically receive money-approval access. Provision roles only through a trusted operator/database session. There is no browser endpoint for self-promotion. The owner-requested account was provisioned in the configured Atlas database; its password is not included in this repository. Log in normally and visit `/admin/payments` after deployment.
 
@@ -21,7 +21,7 @@ Manual orders are disabled if no payment reviewer is configured. Local SQLite de
 
 ### QR replacement folder
 
-`public/payments/qr/` contains `phonepe.png`, `paytm.png`, `google-pay.png`, `navi.png`. These four **sample reference images all point to the same provided UPI account**. They contain no amount and are not four verified bank destinations. They can be replaced for branding/reference after decoding and checking the payee. The actual checkout continues to generate a local amount-specific QR using server merchant configuration; replacing a reference image cannot silently redirect checkout payments. No external QR image service receives order details.
+`public/payments/qr/` contains the four original `.jpeg` images. Checkout displays the selected original QR; these images have no preset amount, so the customer must enter the displayed order amount. The Open UPI App link includes the amount and the same receiving ID. No external QR generation service is used. Replace images only together with their decoded catalog entries.
 
 ### Review procedure
 
@@ -61,3 +61,5 @@ Manual review requires staffing and does not scale like an automatic gateway. Re
 ## Verification
 
 `npx tsx scripts/test-payments.ts --http` runs against an isolated MongoDB replica set and a local production build. It covers financial-record retention migration, owner/admin restrictions, concurrent UTR submission, concurrent approval/capture replay, rollback, server-owned prices, forged webhooks and responsive QR rendering. Run `npm run build` first. These tests do not charge a bank account or call live Razorpay.
+
+Production test-key checkout is restricted to payment administrators so ordinary customers cannot mint paid credits with test payments. Live keys require merchant activation and a live webhook.

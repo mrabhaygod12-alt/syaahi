@@ -66,14 +66,14 @@ async function main() {
     await assert.rejects(upi.approvePayment(a._id, user.id));
     await assert.rejects(upi.approvePayment(a._id, admin.id));
     await upi.submitUTR(a._id, user.id, "123456789012");
-    assert.equal(await balance(user.id), 21, "UTR alone grants nothing");
+    assert.equal(await balance(user.id), 19, "UTR alone grants nothing");
     await upi.submitUTR(a._id, user.id, "123456789012");
     await Promise.all(
       Array.from({ length: 6 }, () => upi.approvePayment(a._id, admin.id)),
     );
     assert.equal(
       await balance(user.id),
-      24,
+      22,
       "competing approval is exactly once",
     );
     const b = await upi.createUpiPayment(user.id, "try");
@@ -89,7 +89,7 @@ async function main() {
     await upi.submitUTR(b._id, user.id, "123456789013"); // money may arrive near expiry
     await upi.rejectPayment(b._id, admin.id, "No corresponding bank receipt");
     await assert.rejects(upi.approvePayment(b._id, admin.id));
-    assert.equal(await balance(user.id), 24);
+    assert.equal(await balance(user.id), 22);
     const c = await upi.createUpiPayment(user.id, "try");
     await assert.rejects(upi.submitUTR(c._id, user.id, "123456789013"));
     const d = await upi.createUpiPayment(user.id, "try");
@@ -133,7 +133,7 @@ async function main() {
     await Promise.all(
       Array.from({ length: 4 }, () => capturePayment(payment, user.id)),
     );
-    assert.equal(await balance(user.id), 27);
+    assert.equal(await balance(user.id), 25);
     console.log(
       "PASS gateway: amount/status/ownership and concurrent capture replay",
     );
@@ -188,6 +188,52 @@ async function main() {
       (await req("/api/upi/gateway-webhook", buyerCookie, {})).status,
       410,
     );
+    assert.equal(
+      (
+        await req("/api/upi/order", buyerCookie, {
+          pack: "try",
+          qrProvider: "attacker",
+        })
+      ).status,
+      400,
+    );
+    const { UPI_MERCHANTS } = await import("../lib/billing/upi-merchants");
+    for (const [provider, expected] of Object.entries(UPI_MERCHANTS)) {
+      const r = await req("/api/upi/order", buyerCookie, {
+        pack: "try",
+        qrProvider: provider,
+      });
+      const doc = await r.json();
+      assert.equal(r.status, 200);
+      assert.equal(doc.upiId, expected.id);
+      assert.equal(doc.qrImage, expected.image);
+      assert.equal(new URL(doc.deepLink).searchParams.get("pa"), expected.id);
+      assert.equal(
+        (await col.findOne({ _id: doc.orderId }))?.qrProvider,
+        provider,
+      );
+    }
+    const search = await req(
+      "/api/upi/admin?status=all&q=" + encodeURIComponent(user.id),
+      adminCookie,
+    );
+    const results = await search.json();
+    assert.equal(search.status, 200);
+    assert(results.payments.length > 0);
+    assert(results.payments.every((p: any) => p.user === user.id));
+    assert.equal(
+      await balance(admin.id),
+      19,
+      "buyer payments never credit the administrator",
+    );
+    const gatewayHistory = await req(
+      "/api/upi/admin?action=gateway&q=" + encodeURIComponent(user.id),
+      adminCookie,
+    );
+    const gatewayRows = await gatewayHistory.json();
+    assert.equal(gatewayHistory.status, 200);
+    assert.equal(gatewayRows.payments[0].paymentId, "pay_TestCapture");
+    assert.equal(gatewayRows.payments[0].userEmail, "buyer@example.test");
     const created = await req("/api/upi/order", buyerCookie, {
       pack: "starter",
       amount: 1,
@@ -199,6 +245,7 @@ async function main() {
     assert.equal(j.credits, 15);
     assert(j.qrDataUrl.startsWith("data:image/png;base64,"));
     assert.equal(j.payeeName, "CHANDAN PANDEY");
+    assert.equal(j.upiId, "8090912278@ibl");
     assert.equal(
       (
         await req("/api/upi/submit-utr", buyerCookie, {
@@ -227,7 +274,7 @@ async function main() {
       ).status,
       200,
     );
-    assert.equal(await balance(user.id), 42);
+    assert.equal(await balance(user.id), 40);
     const raw = JSON.stringify({
       event: "payment.captured",
       payload: { payment: { entity: payment } },
@@ -255,7 +302,7 @@ async function main() {
       ).status,
       200,
     );
-    assert.equal(await balance(user.id), 42);
+    assert.equal(await balance(user.id), 40);
     const forgedOrigin = await fetch(base + "/api/upi/admin", {
       method: "POST",
       headers: {
@@ -287,7 +334,7 @@ async function main() {
       await page.getByRole("heading", { name: "Scan & Pay ₹9" }).waitFor();
       assert.equal(
         await page
-          .locator('img[alt="UPI payment QR with order amount"]')
+          .locator('img[alt="Merchant UPI payment QR"]')
           .evaluate((el: any) => el.complete && el.naturalWidth > 0),
         true,
       );
@@ -337,7 +384,7 @@ async function main() {
       (await col.findOne({ _id: awaiting!._id }))?.status,
       "approved",
     );
-    assert.equal(await balance(user.id), 45);
+    assert.equal(await balance(user.id), 43);
     await page.reload();
     await page.getByRole("button", { name: "Show Payment History" }).click();
     await page

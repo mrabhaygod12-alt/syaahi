@@ -131,7 +131,7 @@ export async function mongoCapture(
     } else {
       await orders.updateOne(
         { _id: order._id },
-        { $set: { paid: true, paymentId: payment.id } },
+        { $set: { paid: true, paymentId: payment.id, updatedAt: new Date() } },
         opts,
       );
       const credited = await wallets.updateOne(

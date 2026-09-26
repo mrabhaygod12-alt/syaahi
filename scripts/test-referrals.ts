@@ -29,7 +29,7 @@ async function main() {
       db().prepare("SELECT balance FROM wallets WHERE user_id=?").get(id)
         ?.balance,
     );
-  assert.equal(balance(inviter.id), 21);
+  assert.equal(balance(inviter.id), 19);
   db()
     .prepare(
       "INSERT INTO orders (id,user_id,pack,amount,credits) VALUES (?,?,?,?,?)",
@@ -46,11 +46,11 @@ async function main() {
     async () => await capturePayment({ ...payment, amount: 1 }),
   );
   await capturePayment(payment, friend.id);
-  assert.equal(balance(inviter.id), 21);
-  assert.equal(balance(friend.id), 24);
+  assert.equal(balance(inviter.id), 19);
+  assert.equal(balance(friend.id), 22);
   await capturePayment(payment, friend.id);
-  assert.equal(balance(inviter.id), 21);
-  assert.equal(balance(friend.id), 24);
+  assert.equal(balance(inviter.id), 19);
+  assert.equal(balance(friend.id), 22);
   assert.equal(
     db()
       .prepare(

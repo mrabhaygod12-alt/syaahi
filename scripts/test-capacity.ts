@@ -46,7 +46,7 @@ async function main() {
         assert(r.reason instanceof QueueCapacityError);
     assert.equal(
       await balance(user.id),
-      19,
+      17,
       "rejected requests must not reserve credits",
     );
     console.log(

@@ -34,16 +34,36 @@ async function handlePOST(req: NextRequest) {
   if (!Object.hasOwn(PACKS, pack))
     return NextResponse.json({ error: "Unknown pack." }, { status: 400 });
 
+  const qrProvider = String(body.qrProvider || "phonepe");
+  try {
+    merchant(qrProvider);
+  } catch {
+    return NextResponse.json(
+      { error: "Unknown receiving QR." },
+      { status: 400 },
+    );
+  }
   const user = (await currentUser(req))!;
   const p = PACKS[pack];
 
   try {
-    const payment = await createUpiPayment(user.id, pack, method, {
-      name: user.name,
-      email: user.email,
-    });
+    const payment = await createUpiPayment(
+      user.id,
+      pack,
+      method,
+      {
+        name: user.name,
+        email: user.email,
+      },
+      qrProvider,
+    );
 
-    const deepLink = upiDeepLink(payment._id, payment.amount, merchant().name);
+    const deepLink = upiDeepLink(
+      payment._id,
+      payment.amount,
+      payment.payeeName!,
+      payment.upiId,
+    );
 
     return NextResponse.json({
       orderId: payment._id,
@@ -55,7 +75,9 @@ async function handlePOST(req: NextRequest) {
       credits: p.credits,
       tokenLabel: tokenLabel(p.credits),
       deepLink,
-      payeeName: merchant().name,
+      payeeName: payment.payeeName!,
+      qrProvider: payment.qrProvider,
+      qrImage: merchant(qrProvider).image,
       qrDataUrl: await QRCode.toDataURL(deepLink, {
         width: 320,
         margin: 3,

@@ -40,3 +40,9 @@ chandan.jpeg
 *.pptx
 docs/pitch/
 .chart-data-*/
+
+# Original owner-supplied QR exports; published copies live under public/payments/qr.
+/PhonePay.jpeg
+/googlePay.jpeg
+/naviupi.jpeg
+/paytm.jpeg

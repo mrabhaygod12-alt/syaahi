@@ -33,7 +33,7 @@ export default function VerifyEmail() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Verification failed.");
       setIsSuccess(true);
-      setMessage("Email verified successfully! Your account and 21 welcome credits are now active.");
+      setMessage("Email verified successfully! Your account and 19 welcome credits are now active.");
       await refreshUser().catch(() => {});
       setTimeout(() => {
         window.location.href = "/dashboard";
@@ -50,7 +50,7 @@ export default function VerifyEmail() {
       <p className="eyebrow">ACCOUNT ACTIVATION</p>
       <h1>Verify your email</h1>
       <p className="small">
-        Verify your email address to unlock AI notes generation, custom PDF downloads, and your 21 welcome credits.
+        Verify your email address to unlock AI notes generation, custom PDF downloads, and your 19 welcome credits.
       </p>
 
       {message && (

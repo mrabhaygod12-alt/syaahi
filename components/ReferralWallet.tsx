@@ -202,7 +202,7 @@ export default function ReferralWallet({
                 if (navigator.share)
                   await navigator.share({
                     title: "Study with me on Syaahi",
-                    text: "Create your first lesson with 21 welcome credits.",
+                    text: "Create your first lesson with 19 welcome credits.",
                     url,
                   });
                 else {

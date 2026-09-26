@@ -1,4 +1,6 @@
 "use client";
+import { UPI_MERCHANTS, type UpiMerchant } from "@/lib/billing/upi-merchants";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { PACKS, tokenLabel } from "@/lib/billing/packs";
 
@@ -99,6 +101,7 @@ const COPY: Record<
 
 /* ────────── Main Page ────────── */
 export default function UPICheckout() {
+  const [qrProvider, setQrProvider] = useState<UpiMerchant>("phonepe");
   const [balance, setBalance] = useState<number | null>(null);
   const [step, setStep] = useState(1); // 1=select, 2=scan, 3=utr, 4=done
   const [, setSelectedPack] = useState<string | null>(null);
@@ -192,7 +195,7 @@ export default function UPICheckout() {
       const r = await fetch("/api/upi/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pack }),
+        body: JSON.stringify({ pack, qrProvider }),
       });
       const j = await r.json();
       if (!r.ok || j.error) {
@@ -306,6 +309,29 @@ export default function UPICheckout() {
           </p>
         </div>
 
+        {step === 1 && (
+          <fieldset style={{ border: 0, padding: 0, marginBottom: 24 }}>
+            <legend>Choose a receiving QR</legend>
+            <div className="status-actions" style={{ flexWrap: "wrap" }}>
+              {Object.entries(UPI_MERCHANTS).map(([id, m]) => (
+                <label key={id} className="btn light">
+                  <input
+                    type="radio"
+                    name="receiving-qr"
+                    checked={qrProvider === id}
+                    disabled={busy}
+                    onChange={() => setQrProvider(id as UpiMerchant)}
+                  />{" "}
+                  {m.label}
+                </label>
+              ))}
+            </div>
+            <p className="small">
+              Any compatible UPI app can scan these QRs. Selected receiver:{" "}
+              {UPI_MERCHANTS[qrProvider].id}
+            </p>
+          </fieldset>
+        )}
         <StepIndicator step={step} total={4} />
 
         {/* ── STEP 1: Pack Selection ── */}
@@ -363,14 +389,18 @@ export default function UPICheckout() {
               <div className="qr-body">
                 <div className="qr-wrapper">
                   <img
-                    src={order.qrDataUrl}
-                    alt="UPI payment QR with order amount"
-                    width={220}
-                    height={220}
+                    src={order.qrImage || order.qrDataUrl}
+                    alt="Merchant UPI payment QR"
+                    width={320}
+                    style={{ width: "100%", maxWidth: 320, height: "auto" }}
                   />
                 </div>
 
                 <div className="qr-info">
+                  <p>
+                    <b>Enter exactly ₹{order.amountInr}</b> when paying. This
+                    original merchant QR has no preset amount.
+                  </p>
                   <p>
                     Payee: <b>{order.payeeName}</b>. Verify this name in your
                     UPI app before paying.

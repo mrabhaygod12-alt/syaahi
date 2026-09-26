@@ -1,3 +1,5 @@
+import { isAdmin } from "@/lib/billing/upi";
+import { randomUUID } from "node:crypto";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { authError, currentUser } from "@/lib/auth/server";
@@ -15,16 +17,41 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({ error: "Unknown pack." }, { status: 400 });
   const p = PACKS[pack],
     user = (await currentUser(req))!;
+  const testMode = (process.env.RAZORPAY_KEY_ID || "").startsWith("rzp_test_");
+  if (
+    testMode &&
+    process.env.NODE_ENV === "production" &&
+    !(await isAdmin(user.id))
+  )
+    return NextResponse.json(
+      {
+        error:
+          "Checkout is in test mode and is available to payment administrators only.",
+      },
+      { status: 403 },
+    );
+  if (!Number.isSafeInteger(p.inr * 100) || p.inr * 100 < 100)
+    return NextResponse.json(
+      { error: "Minimum payment is 100 paise." },
+      { status: 400 },
+    );
   try {
     const order = await razorpay("orders", {
       amount: p.inr * 100,
       currency: "INR",
-      receipt: `syaahi_${Date.now()}`,
+      receipt: `sy_${randomUUID().replace(/-/g, "")}`,
       notes: { userId: user.id, pack },
     });
+    if (
+      !/^order_[a-zA-Z0-9]+$/.test(order.id) ||
+      Number(order.amount) !== p.inr * 100 ||
+      order.currency !== "INR"
+    )
+      throw new Error("Invalid order response from provider.");
     await saveOrder(order.id, user.id, pack, p.inr * 100, p.credits);
     return NextResponse.json({
       orderId: order.id,
+      testMode,
       keyId: process.env.RAZORPAY_KEY_ID,
       amount: p.inr * 100,
       currency: "INR",
@@ -36,7 +63,7 @@ async function handlePOST(req: NextRequest) {
       {
         error: error instanceof Error ? error.message : "Payments unavailable.",
       },
-      { status: 503 },
+      { status: 500 },
     );
   }
 }

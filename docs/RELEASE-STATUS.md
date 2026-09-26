@@ -2,7 +2,7 @@
 
 ## Latest change: signup and referral wallets
 
-New signup allowance is 21 credits (7 tokens), replacing the historical five-section offer. Existing users retain their balances. An eligible verified signup gives the inviter five reward credits. Password users verify by a one-hour emailed link; Google uses its confirmed identity. Reward credits transfer atomically into study balance; repeated login, verification and transfer retries do not mint extra credits. Both SQLite and MongoDB tests cover these rules and the 20-reward monthly cap. Resend sender/key configuration and actual email delivery still need deployment verification.
+New signup allowance is 19 credits (6⅓ tokens), replacing the historical five-section offer. Existing users retain their balances. An eligible verified signup gives the inviter five reward credits. Password users verify by a one-hour emailed link; Google uses its confirmed identity. Reward credits transfer atomically into study balance; repeated login, verification and transfer retries do not mint extra credits. Both SQLite and MongoDB tests cover these rules and the 20-reward monthly cap. Resend sender/key configuration and actual email delivery still need deployment verification.
 
 Manish Kumar Singh is now visible in the introductory creator section, with the supplied DevOps Engineer & Researcher role. APInex's endpoint and free catalog are corrected; Zen has additional documented chat-compatible free models. Current live access to these gateways remains unverified; see PROVIDERS.md. Historical bullets below describe the earlier release where applicable.
 

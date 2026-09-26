@@ -8,7 +8,7 @@ export default function Refer() {
       <p className="eyebrow">LEARN BETTER TOGETHER</p>
       <h1>Give a friend a fresh start.</h1>
       <p>
-        New accounts receive 21 free study credits. Every eligible friend who
+        New accounts receive 19 free study credits. Every eligible friend who
         verifies their signup earns you 5 reward credits. Transfer rewards into
         your study balance whenever you choose.
       </p>
@@ -22,7 +22,7 @@ export default function Refer() {
           [
             "2",
             "They verify their account",
-            "Your friend receives 21 welcome credits. Eligible verified signups earn you 5 reward credits.",
+            "Your friend receives 19 welcome credits. Eligible verified signups earn you 5 reward credits.",
           ],
           [
             "3",

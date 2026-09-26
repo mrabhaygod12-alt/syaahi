@@ -44,15 +44,15 @@ async function main() {
       "random-test-password",
       "verified-google-subject",
     );
-    assert.equal(await balance(owner.id), 21);
-    assert.equal(await balance(google.id), 21);
+    assert.equal(await balance(owner.id), 19);
+    assert.equal(await balance(google.id), 19);
     await startSession(owner, new Request("https://test.local"));
     await startSession(owner, new Request("https://test.local"));
-    assert.equal(await balance(owner.id), 21);
+    assert.equal(await balance(owner.id), 19);
     await assert.rejects(() =>
       register("Duplicate", "inviter@example.test", "long-test-password"),
     );
-    assert.equal(await balance(owner.id), 21);
+    assert.equal(await balance(owner.id), 19);
     const code = await referralCode(owner.id);
     await assert.rejects(() => claimReferral(owner.id, code));
     await claimReferral(friend.id, code);
@@ -65,14 +65,14 @@ async function main() {
     await markEmailVerified(friend.id);
     await claimReferral(friend.id, code);
     assert.equal((await rewardSummary(owner.id)).rewardBalance, 5);
-    assert.equal(await balance(owner.id), 21);
-    assert.equal(await balance(friend.id), 21);
+    assert.equal(await balance(owner.id), 19);
+    assert.equal(await balance(friend.id), 19);
     const id = randomUUID();
     await Promise.all([
       transferRewards(owner.id, 5, id),
       transferRewards(owner.id, 5, id),
     ]);
-    assert.equal(await balance(owner.id), 26);
+    assert.equal(await balance(owner.id), 24);
     assert.equal((await rewardSummary(owner.id)).rewardBalance, 0);
     await assert.rejects(() => transferRewards(owner.id, 4, id));
     await assert.rejects(() => transferRewards(owner.id, -5, randomUUID()));
@@ -85,7 +85,7 @@ async function main() {
       transferRewards(owner.id, 5, randomUUID()),
     ]);
     assert.equal(attempts.filter((x) => x.status === "fulfilled").length, 1);
-    assert.equal(await balance(owner.id), 31);
+    assert.equal(await balance(owner.id), 29);
     for (let i = 0; i < 19; i++) {
       const u = await register(
         "Member",
@@ -100,7 +100,7 @@ async function main() {
     console.log(
       "PASS: " +
         (replica ? "Mongo" : "SQLite") +
-        " signup21, login no regrant, duplicate account rollback, verified referral5, verification isolation/replay, Google identity path, atomic transfers and monthly cap.",
+        " signup19, login no regrant, duplicate account rollback, verified referral5, verification isolation/replay, Google identity path, atomic transfers and monthly cap.",
     );
   } finally {
     if (replica) {

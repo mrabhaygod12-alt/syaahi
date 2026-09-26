@@ -81,7 +81,7 @@ Generating the note is only half the battle. To lock the material into long-term
 
 ## Conclusion
 
-You don't need to sacrifice your sleep to create gorgeous, structured exam notes. Start with **21 free welcome credits** on Syaahi today and experience how AI handwriting transforms your academic performance.
+You don't need to sacrifice your sleep to create gorgeous, structured exam notes. Start with **19 free welcome credits** on Syaahi today and experience how AI handwriting transforms your academic performance.
     `,
   },
   {
@@ -194,7 +194,7 @@ Manually transcribing 15 chapters by hand takes weeks. With Syaahi:
 - Syaahi automatically structures answers according to standard marking schemes.
 - Download the generated PDF, print it, and focus your hours on actual memorization rather than manual transcribing.
 
-Sign up for Syaahi to receive 21 complimentary study credits and supercharge your exam prep.
+Sign up for Syaahi to receive 19 complimentary study credits and supercharge your exam prep.
     `,
   },
 ];

@@ -32,7 +32,11 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({ error: "Unknown order." }, { status: 404 });
   try {
     const entity = await razorpay(`payments/${payment}`);
-    if (entity.id !== payment || entity.order_id !== order)
+    if (
+      !("order_id" in entity) ||
+      entity.id !== payment ||
+      entity.order_id !== order
+    )
       throw new Error("Payment order mismatch.");
     return NextResponse.json({
       ok: true,

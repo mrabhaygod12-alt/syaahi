@@ -60,7 +60,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </h1>
       <p className="small">
         {mode === "signup"
-          ? "Create your account. Start with 21 free credits (7 tokens / 21 note sections)."
+          ? "Create your account. Start with 19 free credits (6⅓ tokens / 19 note sections)."
           : "Pick up your notes, questions, and revision where you left off."}
       </p>
       <label className="consent-check">
@@ -187,7 +187,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
               className="small"
               style={{ margin: "0 0 14px", color: "#047857" }}
             >
-              Click below to verify your email and activate your account with 21
+              Click below to verify your email and activate your account with 19
               free study credits:
             </p>
             <a

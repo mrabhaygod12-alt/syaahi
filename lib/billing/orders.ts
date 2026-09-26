@@ -10,7 +10,15 @@ export async function saveOrder(
   if (useMongo()) {
     await (
       await collection("orders")
-    ).insertOne({ _id: id, user, pack, amount, credits, paid: false });
+    ).insertOne({
+      _id: id,
+      user,
+      pack,
+      amount,
+      credits,
+      paid: false,
+      createdAt: new Date(),
+    });
     return;
   }
   db()

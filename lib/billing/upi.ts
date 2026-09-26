@@ -1,3 +1,4 @@
+import { UPI_MERCHANTS, type UpiMerchant } from "./upi-merchants";
 /**
  * UPI Payment System — Core Library
  * ----------------------------------
@@ -35,7 +36,9 @@ export interface UpiPayment {
   credits: number;
   method: PaymentMethod;
   status: PaymentStatus;
-  upiId: string; // merchant UPI ID
+  upiId: string; // Immutable receiving account snapshot
+  qrProvider?: string;
+  payeeName?: string;
   utr?: string; // submitted by user
   gatewayRef?: string; // auto-gateway reference
   paymentToken?: string; // Legacy field; never used for authorization
@@ -51,19 +54,10 @@ export interface UpiPayment {
 
 const PAYMENT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 export class PaymentError extends Error {}
-export function merchant() {
-  const id = (process.env.UPI_MERCHANT_ID || "8090912278@ybl").trim();
-  const name = (process.env.UPI_MERCHANT_NAME || "CHANDAN PANDEY").trim();
-  if (
-    !/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9.-]{2,64}$/.test(id) ||
-    !name ||
-    name.length > 100 ||
-    /^(yourname|syaahi)@upi$/i.test(id)
-  )
-    throw new PaymentError(
-      "Manual UPI checkout is not configured. Please use automatic checkout or contact support.",
-    );
-  return { id, name };
+export function merchant(provider: string = "phonepe") {
+  if (!Object.hasOwn(UPI_MERCHANTS, provider))
+    throw new PaymentError("Unknown receiving QR.");
+  return UPI_MERCHANTS[provider as UpiMerchant];
 }
 export function paymentPage(value: unknown): number {
   const n = Number(value || 1);
@@ -104,9 +98,9 @@ export function upiDeepLink(
   orderId: string,
   amount: number,
   name: string,
+  upiId = merchant().id as string,
 ): string {
   const amountInr = (amount / 100).toFixed(2);
-  const upiId = merchant().id;
   const tn = `Syaahi-${orderId.slice(0, 8)}`;
   return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amountInr}&cu=INR&tn=${encodeURIComponent(tn)}&tr=${encodeURIComponent(orderId)}`;
 }
@@ -171,11 +165,12 @@ export async function createUpiPayment(
   packId: string,
   method: PaymentMethod = "upi_qr",
   userInfo?: { name?: string; email?: string },
+  qrProvider = "phonepe",
 ): Promise<UpiPayment> {
   if (!useMongo()) throw new Error("UPI payments require MongoDB backend.");
   if (method !== "upi_qr")
     throw new PaymentError("Use Razorpay checkout for automatic payments.");
-  const payee = merchant();
+  const payee = merchant(qrProvider);
   if (
     !(process.env.PAYMENT_ADMIN_IDS || "").trim() &&
     !(await (await collection("payment_admins")).findOne({ active: true }))
@@ -203,6 +198,8 @@ export async function createUpiPayment(
     method,
     status: "pending",
     upiId: payee.id,
+    qrProvider,
+    payeeName: payee.name,
     expiresAt: new Date(now.getTime() + PAYMENT_TTL_MS),
     createdAt: now,
     updatedAt: now,
@@ -281,7 +278,8 @@ export async function submitUTR(
 export async function listPendingPayments(
   page = 1,
   limit = 20,
-  statusFilter?: PaymentStatus,
+  statusFilter?: PaymentStatus | "all",
+  search = "",
 ): Promise<{ payments: UpiPayment[]; total: number }> {
   if (!useMongo()) return { payments: [], total: 0 };
   await ensureUpiIndexes();
@@ -289,9 +287,21 @@ export async function listPendingPayments(
   const col = await collection("upi_payments");
   await expirePending();
   page = paymentPage(page);
-  const filter = statusFilter
-    ? { status: statusFilter }
-    : { status: { $in: ["utr_submitted", "verifying", "pending"] } };
+  const filter: Record<string, any> =
+    statusFilter === "all"
+      ? {}
+      : statusFilter
+        ? { status: statusFilter }
+        : { status: { $in: ["utr_submitted", "verifying", "pending"] } };
+  if (search.trim()) {
+    const literal = search
+      .trim()
+      .slice(0, 120)
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.$or = ["user", "userName", "userEmail", "_id", "utr"].map((key) => ({
+      [key]: { $regex: literal, $options: "i" },
+    }));
+  }
   const total = await col.countDocuments(filter);
   const payments = await col
     .find(filter)

@@ -217,7 +217,7 @@ export default function DashboardClient() {
           {guest && (
             <p className="guest-hint">
               <a href="/signup">Create a free account</a> to save your lessons
-              and get 21 welcome credits (7 tokens).
+              and get 19 welcome credits (6⅓ tokens).
             </p>
           )}
           <div className="topic-suggestions">

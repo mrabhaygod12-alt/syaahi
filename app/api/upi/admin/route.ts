@@ -1,3 +1,4 @@
+import { collection, useMongo } from "@/lib/storage/mongo";
 import { PaymentError } from "@/lib/billing/upi";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
@@ -43,6 +44,7 @@ async function handleGET(req: NextRequest) {
     page > 10000 ||
     (status &&
       ![
+        "all",
         "pending",
         "utr_submitted",
         "verifying",
@@ -56,7 +58,87 @@ async function handleGET(req: NextRequest) {
       { error: "Invalid filter or page." },
       { status: 400 },
     );
-  const result = await listPendingPayments(page, 20, status || undefined);
+  if (action === "gateway") {
+    if (!useMongo()) return NextResponse.json({ payments: [], total: 0, page });
+    const q = (url.searchParams.get("q") || "")
+      .trim()
+      .slice(0, 120)
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pipeline: Record<string, unknown>[] = [
+      { $match: { _id: { $regex: "^order_" } } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "owner",
+        },
+      },
+    ];
+    if (q)
+      pipeline.push({
+        $match: {
+          $or: ["user", "owner.email", "owner.name", "_id", "paymentId"].map(
+            (k) => ({ [k]: { $regex: q, $options: "i" } }),
+          ),
+        },
+      });
+    pipeline.push({
+      $facet: {
+        items: [
+          { $sort: { createdAt: -1, _id: -1 } },
+          { $skip: (page - 1) * 20 },
+          { $limit: 20 },
+          {
+            $project: {
+              _id: 1,
+              user: 1,
+              pack: 1,
+              amount: 1,
+              credits: 1,
+              paid: 1,
+              paymentId: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              "owner.name": 1,
+              "owner.email": 1,
+            },
+          },
+        ],
+        count: [{ $count: "total" }],
+      },
+    });
+    const [data] = await (
+      await collection("orders")
+    )
+      .aggregate(pipeline)
+      .toArray();
+    return NextResponse.json({
+      page,
+      total: data?.count?.[0]?.total || 0,
+      payments: (data?.items || []).map((p: any) => ({
+        orderId: p._id,
+        user: p.user,
+        userName: p.owner?.[0]?.name,
+        userEmail: p.owner?.[0]?.email,
+        amount: p.amount,
+        amountInr: p.amount / 100,
+        credits: p.credits,
+        pack: p.pack,
+        status: p.paid ? "approved" : "pending",
+        method: "razorpay",
+        paymentId: p.paymentId,
+        createdAt: p.createdAt || null,
+        updatedAt: p.updatedAt || null,
+      })),
+    });
+  }
+  const result = await listPendingPayments(
+    page,
+    20,
+    status || undefined,
+    url.searchParams.get("q") || "",
+  );
 
   return NextResponse.json({
     payments: result.payments.map((p) => ({
@@ -71,6 +153,9 @@ async function handleGET(req: NextRequest) {
       pack: p.pack,
       utr: p.utr,
       upiId: p.upiId,
+      qrProvider: p.qrProvider,
+      payeeName: p.payeeName,
+      approvedBy: p.approvedBy,
       method: p.method,
       rejectionReason: p.rejectionReason,
       createdAt: p.createdAt,

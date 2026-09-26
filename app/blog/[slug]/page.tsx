@@ -297,7 +297,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             Ready to study with high-retention handwritten notes?
           </h2>
           <p className="small" style={{ color: "#d1d5db", maxWidth: 500, margin: "0 auto 20px" }}>
-            Generate structured handwritten PDFs from any topic or lecture. Get 21 free credits on registration.
+            Generate structured handwritten PDFs from any topic or lecture. Get 19 free credits on registration.
           </p>
           <a
             href="/signup"
