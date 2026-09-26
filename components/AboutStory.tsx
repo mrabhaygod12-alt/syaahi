@@ -174,7 +174,7 @@ export default function AboutStory() {
         </p>
         <p>
           I design and monitor Syaahi’s infrastructure with a defense-in-depth approach:
-          from automated Docker deployments on Render and multi-layer edge routing on Netlify,
+          from automated Docker deployments on Render and Vercel frontend delivery and edge routing,
           to resilient connection pooling with MongoDB Atlas and automated health probes.
         </p>
         <p>

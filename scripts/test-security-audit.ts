@@ -52,7 +52,7 @@ async function runSecurityAudit() {
 
   const legitimateRequest = new Request("http://localhost:3000/api/auth", {
     method: "POST",
-    headers: { origin: "https://syaahii.netlify.app" },
+    headers: { origin: "https://syaahii.in" },
   });
   const legitimateResult = originError(legitimateRequest);
   assert.equal(legitimateResult, null, "Legitimate frontend origin must be permitted");

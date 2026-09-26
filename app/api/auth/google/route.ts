@@ -18,7 +18,7 @@ async function handlePOST(req: NextRequest) {
   const origin =
     (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
     req.headers.get("origin")?.replace(/\/+$/, "") ||
-    "https://syaahii.netlify.app";
+    "https://syaahii.in";
   const response = NextResponse.redirect(new URL("/login", origin));
   try {
     const client = oauthClient(req, response);

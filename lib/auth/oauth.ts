@@ -136,9 +136,9 @@ export async function googleAccount(identity: {
     );
     return user;
   }
-  if (process.env.APP_ROLE === "frontend" || process.env.NETLIFY === "true") {
+  if (process.env.APP_ROLE === "frontend" || process.env.VERCEL === "1") {
     throw new Error(
-      "Frontend database is not configured. Configure BACKEND_URL on Netlify or set MONGODB_URI.",
+      "Frontend database is not configured. Configure BACKEND_URL on Vercel or set MONGODB_URI.",
     );
   }
   db().exec(

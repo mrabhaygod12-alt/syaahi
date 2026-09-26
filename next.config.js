@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   reactStrictMode: true,
-  // Vercel expects Next.js output in .next; Netlify and the Render container
-  // keep their existing isolated production directory.
+  // Vercel expects Next.js output in .next; the Render container keeps an
+  // isolated production directory for its persistent API and worker services.
   distDir:
     process.env.VERCEL === "1"
       ? ".next"

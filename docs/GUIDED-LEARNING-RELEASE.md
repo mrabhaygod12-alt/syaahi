@@ -20,7 +20,7 @@ Reviewed https://www.turbo.ai/for-students and the user's supplied guided-learni
 - Local screenshots: `output/qa/learning-*.png` (ignored). Private investor PPT remains excluded from Git.
 
 ## Deployment
-Both Netlify frontend and Render backend must deploy this commit because `/api/learn` is new. Existing API proxy middleware includes this route automatically. No manual database migration is required: study state uses the existing persistence layer. Production auth-protected lesson content was not inspected using a customer's session.
+Both Vercel frontend and Render backend must deploy this commit because `/api/learn` is new. Existing API proxy middleware includes this route automatically. No manual database migration is required: study state uses the existing persistence layer. Production auth-protected lesson content was not inspected using a customer's session.
 
 ## Tutor, completion and reference-note update
 - Ask Syaahi opens a dedicated lesson tutor drawer. The server loads the authorized section and cached teaching step; goal, explanation/example/checkpoint context and bounded history accompany the question. Checkpoint mode requests hints rather than the answer. Conversations are separated by lesson content version and section.

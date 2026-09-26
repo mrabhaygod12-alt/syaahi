@@ -4,6 +4,7 @@ export function middleware(req: NextRequest) {
   const backend = process.env.BACKEND_URL;
   const isFrontend =
     role === "frontend" ||
+    process.env.VERCEL === "1" ||
     (!!backend && role !== "backend" && role !== "worker");
   if (isFrontend) {
     const secret = process.env.BACKEND_PROXY_SECRET;
@@ -11,7 +12,7 @@ export function middleware(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in your frontend hosting environment variables.",
+            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in Vercel environment variables.",
         },
         { status: 503 },
       );
@@ -28,12 +29,10 @@ export function middleware(req: NextRequest) {
     headers.set("x-syaahi-proxy", secret);
     headers.set(
       "x-forwarded-for",
-      // Only trust the header supplied by the actual hosting platform.
+      // Vercel overwrites x-forwarded-for at its trusted ingress.
       (process.env.VERCEL === "1"
         ? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-        : process.env.NETLIFY === "true"
-          ? req.headers.get("x-nf-client-connection-ip")
-          : undefined) || "unknown",
+        : undefined) || "unknown",
     );
     headers.delete("x-real-ip");
     return NextResponse.rewrite(target, { request: { headers } });

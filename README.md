@@ -51,7 +51,7 @@ Payments use server-owned prices and verified Razorpay captures. Each eligible v
 
 ```mermaid
 flowchart LR
-  Learner[Browser / installed web app] --> Frontend[Netlify frontend]
+  Learner[Browser / installed web app] --> Frontend[Vercel Next.js frontend]
   Frontend -->|Private API proxy| API[Render API]
   API --> DB[(MongoDB Atlas)]
   Worker[Render generation worker] --> DB
@@ -61,9 +61,9 @@ flowchart LR
   API --> Payment[Razorpay]
 ```
 
-**Deployment order:** Atlas → Render API and worker → Netlify → Google login and Razorpay → optional Cloudflare → production verification.
+**Deployment order:** Atlas → Render API and worker → Vercel → Google login and Razorpay → optional Cloudflare → production verification.
 
-1. Connect this repository to Render and Netlify.
+1. Connect this repository to Vercel and Render.
 2. Set the variables listed in [`.env.example`](.env.example) privately in the hosting dashboards.
 3. Follow [DEPLOY.md](DEPLOY.md) for database access, callback URLs, webhooks and Cloudflare setup.
 4. Verify login, generation, PDF export, payment capture, recovery, backups and support before opening paid access.
@@ -137,4 +137,4 @@ Direct UPI QR + UTR review and automatic Razorpay capture are separate flows. Se
 
 ## Custom domain launch
 
-Follow [syaahii.in full-stack launch steps](docs/DOMAIN-LAUNCH.md) for GoDaddy DNS, Netlify, Render API/worker, Atlas, Supabase Google OAuth and Razorpay test checkout.
+Follow [syaahii.in full-stack launch steps](docs/DOMAIN-LAUNCH.md) for GoDaddy DNS, Vercel frontend, Render API/worker, Atlas, Supabase Google OAuth and Razorpay test checkout.

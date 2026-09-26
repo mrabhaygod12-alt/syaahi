@@ -16,61 +16,34 @@ assert.equal(
   200,
 );
 process.env.APP_ROLE = "frontend";
-process.env.NETLIFY = "true";
-delete process.env.VERCEL;
+process.env.VERCEL = "1";
 process.env.BACKEND_URL = "https://backend.test";
 const proxied = middleware(
-  new NextRequest("https://frontend.test/api/jobs", {
-    headers: {
-      "x-forwarded-for": "spoofed",
-      "x-nf-client-connection-ip": "192.0.2.1",
-    },
-  }),
-);
-assert.equal(
-  proxied.headers.get("x-middleware-rewrite"),
-  "https://backend.test/api/jobs",
-);
-assert.equal(
-  proxied.headers.get("x-middleware-request-x-forwarded-for"),
-  "192.0.2.1",
-);
-assert.equal(
-  proxied.headers.get("x-middleware-request-x-syaahi-proxy"),
-  "test-only-proxy-secret",
-);
-process.env.VERCEL = "1";
-delete process.env.NETLIFY;
-const vercel = middleware(
   new NextRequest("https://frontend.test/api/jobs?status=active", {
     headers: {
       "x-forwarded-for": "192.0.2.2",
-      "x-nf-client-connection-ip": "spoofed",
       "x-real-ip": "spoofed",
       "x-syaahi-proxy": "spoofed",
     },
   }),
 );
 assert.equal(
-  vercel.headers.get("x-middleware-request-x-forwarded-for"),
+  proxied.headers.get("x-middleware-rewrite"),
+  "https://backend.test/api/jobs?status=active",
+);
+assert.equal(
+  proxied.headers.get("x-middleware-request-x-forwarded-for"),
   "192.0.2.2",
 );
-assert.equal(vercel.headers.get("x-middleware-request-x-real-ip"), null);
+assert.equal(proxied.headers.get("x-middleware-request-x-real-ip"), null);
 assert.equal(
-  vercel.headers.get("x-middleware-request-x-syaahi-proxy"),
+  proxied.headers.get("x-middleware-request-x-syaahi-proxy"),
   "test-only-proxy-secret",
-);
-assert.equal(
-  vercel.headers.get("x-middleware-rewrite"),
-  "https://backend.test/api/jobs?status=active",
 );
 delete process.env.VERCEL;
 const untrusted = middleware(
   new NextRequest("https://frontend.test/api/jobs", {
-    headers: {
-      "x-forwarded-for": "spoofed",
-      "x-nf-client-connection-ip": "spoofed",
-    },
+    headers: { "x-forwarded-for": "spoofed" },
   }),
 );
 assert.equal(
@@ -83,5 +56,12 @@ assert.equal(
   503,
 );
 console.log(
-  "PASS: backend rejects direct access, frontend rewrites only to configured backend, forwarding headers are overwritten, missing configuration fails closed.",
+  "PASS: protected Render API ingress, Vercel proxy routing, forged headers replaced, missing configuration fails closed.",
+);
+process.env.VERCEL = "1";
+delete process.env.APP_ROLE;
+delete process.env.BACKEND_URL;
+assert.equal(
+  middleware(new NextRequest("https://frontend.test/api/jobs")).status,
+  503,
 );

@@ -1,6 +1,6 @@
 # Vercel frontend deployment
 
-Keep Render API/worker and Atlas in place. Import `mrabhaygod12-alt/syaahi`, branch `main`, repository root, Next.js preset, Node 24.x, build `npm run build`, install `npm ci`, and leave Output Directory override disabled. The Vercel deployment uses Next.js's expected `.next` output directory; Netlify and Render retain `.next-production`. Do not set a custom output directory or use a static export.
+Keep Render API/worker and Atlas in place. Import `mrabhaygod12-alt/syaahi`, branch `main`, repository root, Next.js preset, Node 24.x, build `npm run build`, install `npm ci`, and leave Output Directory override disabled. The Vercel deployment uses Next.js's expected `.next` output directory; Render retains `.next-production`. Do not set a custom output directory or use a static export.
 
 Production environment:
 - APP_ROLE=frontend
@@ -9,7 +9,7 @@ Production environment:
 - NEXT_PUBLIC_APP_URL=https://syaahii.in (canonical production domain)
 - NEXT_TELEMETRY_DISABLED=1 (optional)
 
-Do not import the backend environment wholesale. Database, payment, email and AI secrets stay on Render. Netlify's build environment does not apply on Vercel, so APP_ROLE must be configured explicitly. On Render retain TRUST_PROXY_HEADERS=true for per-client IP limits behind the authenticated proxy. The middleware selects Vercel's platform-supplied x-forwarded-for on Vercel and Netlify's client header on Netlify; an unsupported host fails to an unknown IP rather than trusting arbitrary forwarded headers.
+A private local template exists at `.env.vercel` for transferring the frontend values; it is ignored by Git and never uploaded automatically. Enter those values in the Vercel project dashboard. Do not import the backend environment wholesale. Database, payment, email and AI secrets stay on Render. Vercel does not use the Render environment group, so configure APP_ROLE explicitly on the frontend project. On Render retain TRUST_PROXY_HEADERS=true for per-client IP limits behind the authenticated proxy. The middleware selects Vercel's platform-supplied x-forwarded-for on Vercel on Vercel; an unsupported host fails to an unknown IP rather than trusting arbitrary forwarded headers.
 
 The supplied log ending at the Next.js version banner contains no build failure. Node engines are pinned to 24.x to avoid automatic major-version selection. Dependency deprecation/install-script notices alone do not establish a failed deployment. If deployment fails, collect the final error and surrounding lines; do not enable every install script to silence warnings.
 

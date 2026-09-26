@@ -86,16 +86,14 @@ export function originError(req: Request): NextResponse | null {
   if (!origin || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return null;
 
   // The proxy authenticates infrastructure, not the browser Origin.
-  // Keep CSRF checks even when Netlify forwards the request to Render.
+  // Keep CSRF checks when Vercel forwards the request to Render.
   const normalizedOrigin = origin.replace(/\/+$/, "");
   const allowed = new Set(
     [
       new URL(req.url).origin,
       (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, ""),
-      "https://syaahii.netlify.app",
       "https://syaahii.in",
       "https://www.syaahii.in",
-      "https://syaahi.netlify.app",
       "http://localhost:3000",
       "http://127.0.0.1:3000",
     ].filter(Boolean),
@@ -157,43 +155,13 @@ export async function register(
         );
       });
     } catch (txErr) {
-      console.warn(
-        "MongoDB transaction failed, trying direct inserts fallback:",
-        txErr instanceof Error ? txErr.message : txErr,
+      console.error(
+        "Mongo account transaction failed",
+        txErr instanceof Error ? txErr.name : "unknown",
       );
-      const { database } = await (await import("@/lib/storage/mongo")).mongo();
-      try {
-        await database.collection<any>("users").insertOne(doc);
-        if (oauthSubject)
-          await database
-            .collection<any>("oauth_identities")
-            .insertOne({ _id: oauthSubject, user: user.id });
-        await database
-          .collection<any>("wallets")
-          .insertOne({ _id: user.id, balance: SIGNUP_CREDITS });
-        await database.collection<any>("ledger").insertOne({
-          _id: `welcome:${user.id}`,
-          user: user.id,
-          delta: SIGNUP_CREDITS,
-          reason: "Welcome page units",
-          createdAt: new Date(),
-        });
-      } catch (directErr) {
-        await database
-          .collection<any>("users")
-          .deleteOne({ _id: user.id })
-          .catch(() => {});
-        await database
-          .collection<any>("wallets")
-          .deleteOne({ _id: user.id })
-          .catch(() => {});
-        await database
-          .collection<any>("ledger")
-          .deleteOne({ _id: `welcome:${user.id}` })
-          .catch(() => {});
-        throw directErr;
-      }
+      throw new Error("Account creation could not be completed. Please retry.");
     }
+
     // Sync to Supabase Auth in background so user appears in Supabase dashboard
     import("./supabase-sync")
       .then((m) => m.syncUserToSupabase(email, password, name))
@@ -201,9 +169,9 @@ export async function register(
 
     return user;
   }
-  if (process.env.APP_ROLE === "frontend" || process.env.NETLIFY === "true") {
+  if (process.env.APP_ROLE === "frontend" || process.env.VERCEL === "1") {
     throw new Error(
-      "Frontend database is not configured. Configure BACKEND_URL on Netlify or set MONGODB_URI.",
+      "Frontend database is not configured. Configure BACKEND_URL on Vercel or set MONGODB_URI.",
     );
   }
   transaction(() => {
