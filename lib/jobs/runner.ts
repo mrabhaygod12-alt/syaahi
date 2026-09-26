@@ -1,3 +1,4 @@
+import { pageConcurrency } from "./capacity";
 import { chatWithFallback, type ChatMsg } from "@/lib/ai/router";
 import { pagePrompt, normalizeLang, type PageBrief } from "@/lib/ai/prompts";
 import { parseNote } from "@/lib/notes/parse";
@@ -16,7 +17,7 @@ export type ChatFn = (
 
 // Parallel page workers (3 lanes). Each lane starts on a different provider so
 // one slow/rate-limited model never blocks the whole lesson (~3x faster).
-const PAGE_LANES = 2;
+const PAGE_LANES = pageConcurrency();
 
 async function makeOnePage(
   topic: string,

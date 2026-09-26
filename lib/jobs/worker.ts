@@ -1,16 +1,19 @@
+import { workerConcurrency } from "./capacity";
 import { pendingJobs } from "./store";
 import { processJob } from "./runner";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
 };
-export function kickWorker() {
-  if (process.env.WORKER_MODE === "external") return;
+export function kickWorker(standalone = false) {
+  if (process.env.WORKER_MODE === "external" && !standalone) return;
   const tick = async () => {
     if (state.syaahiTick) return;
     state.syaahiTick = true;
     try {
-      await Promise.all((await pendingJobs()).slice(0, 2).map(processJob));
+      await Promise.all(
+        (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
+      );
     } catch (error) {
       console.error(
         "Worker tick failed",

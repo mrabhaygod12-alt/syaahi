@@ -65,7 +65,11 @@ async function main() {
     const { issueVerification } = await import("../lib/auth/verification");
     const token = await issueVerification(friend.user.id);
     assert.equal(
-      (await post("/api/auth/verify-email", owner.cookie, { token: "0".repeat(64) })).status,
+      (
+        await post("/api/auth/verify-email", owner.cookie, {
+          token: "0".repeat(64),
+        })
+      ).status,
       400,
     );
     assert.equal(
@@ -81,15 +85,13 @@ async function main() {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const separator = owner.cookie.indexOf("=");
-    await page
-      .context()
-      .addCookies([
-        {
-          name: owner.cookie.slice(0, separator),
-          value: owner.cookie.slice(separator + 1),
-          url: base,
-        },
-      ]);
+    await page.context().addCookies([
+      {
+        name: owner.cookie.slice(0, separator),
+        value: owner.cookie.slice(separator + 1),
+        url: base,
+      },
+    ]);
     await page.goto(base + "/refer");
     await page
       .getByRole("button", { name: "Add 5 credits to study balance" })

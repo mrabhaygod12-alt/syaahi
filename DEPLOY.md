@@ -148,3 +148,6 @@ Measure API p95 latency, queue age, token throughput, provider 429s, Mongo pool 
 - [Supabase Google login](https://supabase.com/docs/guides/auth/social-login/auth-google)
 - [Razorpay web checkout](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/)
 - [Cloudflare domain setup](https://developers.cloudflare.com/fundamentals/manage-domains/add-site/)
+
+### Capacity controls
+Set `WORKER_CONCURRENCY=2`, `PAGE_CONCURRENCY=2`, `MAX_ACTIVE_JOBS_PER_USER=3`, and `MONGO_POOL_SIZE=20` initially. Bounds are enforced in code. Each additional worker increases provider demand; add replicas only after measuring queue age, provider rate limits, memory and Atlas connections. Run `npx tsx scripts/test-capacity.ts` for a local smoke check and append `--mongo` for transactional admission checks. These are not production capacity guarantees.

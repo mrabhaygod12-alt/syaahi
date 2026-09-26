@@ -1,3 +1,4 @@
+import { activeJobLimit, QueueCapacityError } from "../jobs/capacity";
 import { randomUUID } from "node:crypto";
 import { collection, mongoTransaction } from "./mongo";
 import type { Job, JobPage } from "../jobs/store";
@@ -21,21 +22,26 @@ export async function mongoCreateJob(job: Job) {
       );
     if (!wallet.modifiedCount)
       throw new Error("Insufficient page balance for this outline.");
+    const active = await d
+      .collection("jobs")
+      .countDocuments(
+        { user: job.user, status: { $in: ["queued", "working"] } },
+        opts,
+      );
+    if (active >= activeJobLimit()) throw new QueueCapacityError();
     await d
       .collection<any>("reservations")
       .insertOne({ _id: job.id, user: job.user, remaining: job.total }, opts);
-    await d
-      .collection<any>("ledger")
-      .insertOne(
-        {
-          _id: `reserve:${job.id}`,
-          user: job.user,
-          delta: -job.total,
-          reason: "Lesson reservation",
-          createdAt: new Date(),
-        },
-        opts,
-      );
+    await d.collection<any>("ledger").insertOne(
+      {
+        _id: `reserve:${job.id}`,
+        user: job.user,
+        delta: -job.total,
+        reason: "Lesson reservation",
+        createdAt: new Date(),
+      },
+      opts,
+    );
     await d
       .collection<any>("jobs")
       .insertOne({ _id: job.id, ...job, leaseUntil: 0 }, opts);
@@ -144,18 +150,16 @@ export async function mongoFinish(id: string, token: string, error?: string) {
       await d
         .collection<any>("wallets")
         .updateOne({ _id: job.user }, { $inc: { balance: r.remaining } }, opts);
-      await d
-        .collection<any>("ledger")
-        .insertOne(
-          {
-            _id: randomUUID(),
-            user: job.user,
-            delta: r.remaining,
-            reason: "Unused reservation",
-            createdAt: new Date(),
-          },
-          opts,
-        );
+      await d.collection<any>("ledger").insertOne(
+        {
+          _id: randomUUID(),
+          user: job.user,
+          delta: r.remaining,
+          reason: "Unused reservation",
+          createdAt: new Date(),
+        },
+        opts,
+      );
     }
     await d.collection<any>("reservations").deleteOne({ _id: id }, opts);
     const done = job.pages.length === job.total;
@@ -196,18 +200,16 @@ export async function mongoResume(id: string) {
     await d
       .collection<any>("reservations")
       .insertOne({ _id: id, user: job.user, remaining: count }, opts);
-    await d
-      .collection<any>("ledger")
-      .insertOne(
-        {
-          _id: randomUUID(),
-          user: job.user,
-          delta: -count,
-          reason: "Resume reservation",
-          createdAt: new Date(),
-        },
-        opts,
-      );
+    await d.collection<any>("ledger").insertOne(
+      {
+        _id: randomUUID(),
+        user: job.user,
+        delta: -count,
+        reason: "Resume reservation",
+        createdAt: new Date(),
+      },
+      opts,
+    );
     await c.updateOne(
       { _id: id },
       { $set: { status: "queued", error: null, finishedAt: null } },

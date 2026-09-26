@@ -1,3 +1,4 @@
+import { activeJobLimit, QueueCapacityError } from "./capacity";
 import { useMongo, collection } from "@/lib/storage/mongo";
 import * as cloud from "@/lib/storage/mongo-jobs";
 import { randomUUID } from "node:crypto";
@@ -109,6 +110,14 @@ export async function createJob(
   };
   if (useMongo()) return cloud.mongoCreateJob(job);
   transaction(() => {
+    const active = Number(
+      db()
+        .prepare(
+          "SELECT COUNT(*) AS count FROM jobs WHERE user_id=? AND status IN ('queued','working')",
+        )
+        .get(user)?.count || 0,
+    );
+    if (active >= activeJobLimit()) throw new QueueCapacityError();
     const available = Number(
       db().prepare("SELECT balance FROM wallets WHERE user_id=?").get(user)
         ?.balance ?? 0,

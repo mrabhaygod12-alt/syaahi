@@ -1,3 +1,4 @@
+import { QueueCapacityError } from "@/lib/jobs/capacity";
 import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { researchTopic } from "@/lib/research";
@@ -142,6 +143,11 @@ async function handlePOST(req: NextRequest) {
       language,
     });
   } catch (error) {
+    if (error instanceof QueueCapacityError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: 429, headers: { "Retry-After": "30" } },
+      );
     return NextResponse.json(
       {
         error:
