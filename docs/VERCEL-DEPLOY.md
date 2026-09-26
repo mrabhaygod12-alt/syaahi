@@ -1,6 +1,6 @@
 # Vercel frontend deployment
 
-Keep Render API/worker and Atlas in place. Import `mrabhaygod12-alt/syaahi`, branch `main`, repository root, Next.js preset, Node 24.x, build `npm run build`, install `npm ci`, and leave Output Directory override disabled. Next.js reads the existing custom distDir. Do not use a static export.
+Keep Render API/worker and Atlas in place. Import `mrabhaygod12-alt/syaahi`, branch `main`, repository root, Next.js preset, Node 24.x, build `npm run build`, install `npm ci`, and leave Output Directory override disabled. The Vercel deployment uses Next.js's expected `.next` output directory; Netlify and Render retain `.next-production`. Do not set a custom output directory or use a static export.
 
 Production environment:
 - APP_ROLE=frontend

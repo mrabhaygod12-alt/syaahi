@@ -1,7 +1,14 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   reactStrictMode: true,
-  distDir: process.env.NODE_ENV === "production" ? ".next-production" : ".next",
+  // Vercel expects Next.js output in .next; Netlify and the Render container
+  // keep their existing isolated production directory.
+  distDir:
+    process.env.VERCEL === "1"
+      ? ".next"
+      : process.env.NODE_ENV === "production"
+        ? ".next-production"
+        : ".next",
   devIndicators: false,
   serverExternalPackages: ["playwright", "playwright-core", "pdf-parse"],
   webpack(config, { isServer }) {
