@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-  U[Browser: syaahii.in] --> V[Vercel: Next.js app and /api proxy]
+  U[Browser: www.syaahii.in] --> V[Vercel: Next.js app and /api proxy]
   V -->|private proxy header| R[Render API]
   R --> M[(MongoDB Atlas)]
   W[Render generation worker] --> M
@@ -33,7 +33,7 @@ Set or confirm these in the Render private environment group:
 
 - `MONGODB_URI`, `MONGODB_DATABASE=syaahi`
 - `BACKEND_PROXY_SECRET` — must exactly match Vercel's private value
-- `NEXT_PUBLIC_APP_URL=https://syaahii.in` after the domain points to Vercel
+- `NEXT_PUBLIC_APP_URL=https://www.syaahii.in` after the domain points to Vercel
 - `SUPABASE_URL=https://eoybbxevqenijbglhsog.supabase.co`
 - `SUPABASE_PUBLISHABLE_KEY` — the project's anon/publishable key
 - AI provider keys needed by API/worker
@@ -53,7 +53,7 @@ Set environment variables:
 | `APP_ROLE` | Production and Preview | `frontend` (Preview fails closed if backend credentials are absent) |
 | `BACKEND_URL` | Production only | Existing Render API HTTPS origin, without `/api` |
 | `BACKEND_PROXY_SECRET` | Production only | Same private value as Render |
-| `NEXT_PUBLIC_APP_URL` | Production | `https://syaahii.in` |
+| `NEXT_PUBLIC_APP_URL` | Production | `https://www.syaahii.in` |
 
 Do not expose provider credentials, Atlas URI or proxy secret to browser code. Avoid giving production backend secrets to untrusted Preview deployments. The app remains on its current frontend host until DNS is changed; a Vercel deployment URL can be smoke-tested first.
 
@@ -62,26 +62,26 @@ Do not expose provider credentials, Atlas URI or proxy secret to browser code. A
 1. In Vercel **Project → Settings → Domains**, add `syaahii.in` and `www.syaahii.in`.
 2. Vercel will show the DNS records required for this project. In GoDaddy, edit the active DNS records to match those exact targets. Remove stale website A/CNAME values from the previous host; preserve mail and verification TXT/MX records.
 3. Keep the current nameservers unless you intentionally move DNS hosting. If GoDaddy is no longer authoritative, edit records at the provider named by the active nameservers.
-4. Set `syaahii.in` as primary in Vercel, verify DNS, and wait for HTTPS to become active before testing login or payments.
+4. Set `www.syaahii.in` as primary in Vercel (the supplied dashboard currently redirects the apex to www), verify DNS, and wait for HTTPS to become active before testing login or payments.
 5. Do not delete GoDaddy registration. The domain stays registered there even while Vercel serves the app.
 
 ## 5. Supabase and Google OAuth
 
 The correct Supabase project is `eoybbxevqenijbglhsog`; its Auth settings endpoint responded successfully and Google was enabled during the setup check. The Supabase **OAuth Server** consent page is separate from Google sign-in configuration.
 
-After `https://syaahii.in` resolves to Vercel with HTTPS:
+After `https://www.syaahii.in` resolves to Vercel with HTTPS:
 
-- Supabase Authentication → URL Configuration: Site URL `https://syaahii.in`.
-- Allow redirect URL `https://syaahii.in/api/auth/callback`; include `https://www.syaahii.in/api/auth/callback` only if www is independently serving the app. Remove obsolete frontend callback origins.
+- Supabase Authentication → URL Configuration: Site URL `https://www.syaahii.in`.
+- Allow redirect URL `https://www.syaahii.in/api/auth/callback`. The apex may redirect to www; keep its callback only if you explicitly need it. Remove obsolete frontend callback origins.
 - Supabase Authentication → Sign In / Providers → Google: keep the existing Google web client ID/secret configured.
-- Google OAuth authorized JavaScript origins: `https://syaahii.in` (and `https://www.syaahii.in` if used). Remove obsolete frontend origins.
+- Google OAuth authorized JavaScript origin: `https://www.syaahii.in` (add the apex only if it is used directly). Remove obsolete frontend origins.
 - Google's authorized redirect URI remains the Supabase callback: `https://eoybbxevqenijbglhsog.supabase.co/auth/v1/callback`.
 
 Test a new Google signup and an existing account from the final custom domain. Application accounts, passwords, sessions and balances stay in Atlas. New signup allowance is 19 credits; existing balances are not reduced.
 
 ## 6. Razorpay and UPI
 
-Razorpay order creation, capture verification and signed webhooks run through the Vercel `/api` proxy to Render. Update the Razorpay webhook target to `https://syaahii.in/api/razorpay/webhook` and verify the webhook secret matches Render. Use test mode first; a Git push does not update the Razorpay dashboard. Direct UPI QR/UTR review remains a separate, operator-approved flow.
+Razorpay order creation, capture verification and signed webhooks run through the Vercel `/api` proxy to Render. Update the Razorpay webhook target to `https://www.syaahii.in/api/razorpay/webhook` and verify the webhook secret matches Render. Use test mode first; a Git push does not update the Razorpay dashboard. Direct UPI QR/UTR review remains a separate, operator-approved flow.
 
 Test on the custom domain: successful checkout, cancellation, invalid signature rejection, duplicate webhook idempotency, manual UTR review and account-specific wallet history. Only change to live keys after merchant activation and successful test reconciliation.
 
@@ -91,7 +91,7 @@ Test on the custom domain: successful checkout, cancellation, invalid signature 
 - Render API and worker are healthy and connected to the existing Atlas database.
 - Vercel has production `APP_ROLE`, `BACKEND_URL`, `BACKEND_PROXY_SECRET` and canonical app URL.
 - Custom domain DNS and HTTPS are active.
-- Google login and password verification callback return on `syaahii.in`.
+- Google login and password verification callback return on `www.syaahii.in`.
 - Lesson generation completes through the Render worker; PDF export works.
 - Razorpay webhook and payment history update the correct user's wallet once.
 

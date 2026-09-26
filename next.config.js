@@ -4,11 +4,12 @@ module.exports = {
   // Vercel expects Next.js output in .next; the Render container keeps an
   // isolated production directory for its persistent API and worker services.
   distDir:
-    process.env.VERCEL === "1"
+    process.env.NEXT_DIST_DIR ||
+    (process.env.APP_ROLE === "frontend" || process.env.VERCEL === "1"
       ? ".next"
       : process.env.NODE_ENV === "production"
         ? ".next-production"
-        : ".next",
+        : ".next"),
   devIndicators: false,
   serverExternalPackages: ["playwright", "playwright-core", "pdf-parse"],
   webpack(config, { isServer }) {

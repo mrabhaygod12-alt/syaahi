@@ -39,7 +39,7 @@ Razorpay is selected because this app already uses its server orders, signature 
 
 1. In Razorpay, finish required merchant onboarding and enable the payment methods supported for the account.
 2. Put **test-mode** `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` into Render's API-service environment, not client code. Configure automatic capture in the merchant dashboard.
-3. Create a separate `RAZORPAY_WEBHOOK_SECRET`. Configure the webhook URL as `https://syaahii.in/api/razorpay/webhook` (or your actual frontend origin), with event `payment.captured`. The frontend proxy carries it to Render; the API validates the raw-body signature.
+3. Create a separate `RAZORPAY_WEBHOOK_SECRET`. Configure the webhook URL as `https://www.syaahii.in/api/razorpay/webhook` (or your actual frontend origin), with event `payment.captured`. The frontend proxy carries it to Render; the API validates the raw-body signature.
 4. Keep `BACKEND_URL`, matching `BACKEND_PROXY_SECRET`, and `NEXT_PUBLIC_APP_URL` correct on the applicable services. Do not route the gateway directly to Render's protected API without its intended ingress.
 5. Deploy the pushed main branch on Vercel and Render. Test successful capture, cancelled checkout, invalid signature, repeated callback and webhook, and a browser close before callback. Check the bank/provider dashboard and Syaahi ledger together.
 6. After test verification, configure live keys and a live webhook, then perform a small authorised live purchase. A passing local test is not proof of settlement or live activation.

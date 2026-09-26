@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-  U[Browser: syaahii.in] --> V[Vercel Next.js frontend]
+  U[Browser: www.syaahii.in] --> V[Vercel Next.js frontend]
   V -->|same-origin /api + private proxy secret| R[Render API]
   R --> M[(MongoDB Atlas)]
   W[Render generation worker] --> M
@@ -18,7 +18,7 @@ GoDaddy remains the registrar. Vercel serves the Next.js app; Render runs protec
 
 1. Vercel → Syaahi project → **Settings → Domains**.
 2. Add `syaahii.in` and `www.syaahii.in`.
-3. Set `syaahii.in` as the primary domain.
+3. Set `www.syaahii.in` as the primary domain (matching the current apex-to-www redirect shown in Vercel).
 4. Vercel displays the DNS targets assigned to this project. Use those exact targets; do not reuse the previous host's IP/CNAME values.
 
 ## 2. Update the active DNS records
@@ -38,15 +38,15 @@ Set:
 - `APP_ROLE=frontend` on Production and Preview.
 - `BACKEND_URL` to the existing Render API HTTPS origin, without `/api`, on Production.
 - `BACKEND_PROXY_SECRET` to the same private value used by Render, on Production only.
-- `NEXT_PUBLIC_APP_URL=https://syaahii.in` on Production.
+- `NEXT_PUBLIC_APP_URL=https://www.syaahii.in` on Production.
 
 Never place Mongo, AI-provider, Razorpay secret or proxy secret in a `NEXT_PUBLIC_*` variable. Keep production credentials out of untrusted Preview deployments.
 
 ## 4. Render API and worker
 
-Keep both existing Render services and the same Atlas database. Confirm API role `backend`, `DATA_BACKEND=mongo`, `WORKER_MODE=external`, and worker role `worker`, `DATA_BACKEND=mongo`, `WORKER_MODE=embedded`. Keep the proxy secret identical to Vercel. Once DNS/HTTPS are active, set `NEXT_PUBLIC_APP_URL=https://syaahii.in` on Render and redeploy API/worker from the same commit.
+Keep both existing Render services and the same Atlas database. Confirm API role `backend`, `DATA_BACKEND=mongo`, `WORKER_MODE=external`, and worker role `worker`, `DATA_BACKEND=mongo`, `WORKER_MODE=embedded`. Keep the proxy secret identical to Vercel. Once DNS/HTTPS are active, set `NEXT_PUBLIC_APP_URL=https://www.syaahii.in` on Render and redeploy API/worker from the same commit.
 
-API health path: `/api/health`. Test `https://syaahii.in/api/health` through Vercel; direct protected Render API paths should reject requests without the proxy secret.
+API health path: `/api/health`. Test `https://www.syaahii.in/api/health` through Vercel; direct protected Render API paths should reject requests without the proxy secret.
 
 ## 5. Supabase Google sign-in
 
@@ -54,17 +54,17 @@ Correct project: `https://eoybbxevqenijbglhsog.supabase.co`. Use the normal **Au
 
 After Vercel HTTPS is active:
 
-- Supabase Site URL: `https://syaahii.in`.
-- Redirect URL: `https://syaahii.in/api/auth/callback`.
+- Supabase Site URL: `https://www.syaahii.in`.
+- Redirect URL: `https://www.syaahii.in/api/auth/callback`.
 - Remove callback URLs for the retired frontend host.
-- Google Cloud authorized JavaScript origin: `https://syaahii.in` (plus `https://www.syaahii.in` only if you serve it separately); remove obsolete frontend origins.
+- Google Cloud authorized JavaScript origin: `https://www.syaahii.in`; add the apex only if it is used directly, and remove obsolete frontend origins.
 - Google authorized redirect URI stays `https://eoybbxevqenijbglhsog.supabase.co/auth/v1/callback`.
 - Keep the existing Google client credentials stored in Supabase. Render keeps `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; the anon key is not an admin credential.
 
-Test Google login in a fresh browser on `https://syaahii.in`; verify the callback returns to the same domain and existing Atlas accounts retain their history and balance.
+Test Google login in a fresh browser on `https://www.syaahii.in`; verify the callback returns to the same domain and existing Atlas accounts retain their history and balance.
 
 ## 6. Payments and final checks
 
-Set Razorpay webhook to `https://syaahii.in/api/razorpay/webhook`; keep its separate signing secret on Render. Test checkout and verify one-time wallet crediting after Vercel domain activation. UPI manual receipt review continues through the existing Atlas-backed admin flow.
+Set Razorpay webhook to `https://www.syaahii.in/api/razorpay/webhook`; keep its separate signing secret on Render. Test checkout and verify one-time wallet crediting after Vercel domain activation. UPI manual receipt review continues through the existing Atlas-backed admin flow.
 
 Final sequence: domain/HTTPS → Vercel `/api/health` → password and Google login → Atlas user/lesson/wallet continuity → Render worker lesson generation and PDF → Razorpay test webhook and payment history. The same Render/Atlas backend is used across hosting cutover; no data migration should be done just for moving the frontend.
