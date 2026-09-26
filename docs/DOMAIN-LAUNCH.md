@@ -18,12 +18,12 @@ GoDaddy remains the registrar. Vercel serves the Next.js app; Render runs protec
 
 1. Vercel → Syaahi project → **Settings → Domains**.
 2. Add `syaahii.in` and `www.syaahii.in`.
-3. Set `www.syaahii.in` as the primary domain (matching the current apex-to-www redirect shown in Vercel).
+3. Set `www.syaahii.in` as the primary domain. The latest screenshot has both apex and `www` connected directly to Production; configure an apex-to-`www` permanent redirect if you want one canonical host.
 4. Vercel displays the DNS targets assigned to this project. Use those exact targets; do not reuse the previous host's IP/CNAME values.
 
 ## 2. Update the active DNS records
 
-In GoDaddy, check the domain's active nameservers first. If GoDaddy's default nameservers are active, update records in GoDaddy DNS. If another provider's nameservers are active, update DNS at that provider.
+Check the active nameservers first. The latest screenshots show Vercel nameservers, and GoDaddy says DNS is managed by Vercel; in that state, edit DNS records in Vercel's Domains → DNS Records page. If you later restore GoDaddy's nameservers, edit records at GoDaddy instead.
 
 Replace the old website A/CNAME records with the exact records Vercel showed for `@` and `www`. Preserve mail MX and TXT records (including SPF, DKIM, DMARC and ownership verification). Do not change nameservers just to use Vercel. Wait until Vercel verifies DNS and issues HTTPS.
 

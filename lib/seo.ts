@@ -1,15 +1,33 @@
 import type { Metadata } from "next";
 
+const fallbackSiteUrl =
+  process.env.NODE_ENV === "production"
+    ? "https://www.syaahii.in"
+    : "http://localhost:3000";
+
+function resolveSiteUrl(value: string | undefined): string {
+  const configured = value?.trim();
+  if (!configured) return fallbackSiteUrl;
+
+  try {
+    const parsed = new URL(configured);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+      return fallbackSiteUrl;
+    return parsed.origin;
+  } catch {
+    // A blank or malformed dashboard variable must not make Next.js fail while
+    // it imports root metadata to collect static page data.
+    return fallbackSiteUrl;
+  }
+}
+
 // Single source of truth for SEO + GEO (Generative Engine Optimization).
 // Every page uses pageMeta() so titles, descriptions, canonicals and OG tags
 // stay consistent for Google AND for AI answer engines (ChatGPT, Perplexity…).
 export const SITE = {
   name: "Syaahi",
   tagline: "AI Handwritten Exam Notes Generator",
-  url: (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  ),
+  url: resolveSiteUrl(process.env.NEXT_PUBLIC_APP_URL),
   description:
     "Turn any topic into beautiful handwritten exam notes. Generate custom handwritten PDFs for school, college and interviews — free previews, pay-as-you-go credits, instant download.",
   locale: "en_IN",

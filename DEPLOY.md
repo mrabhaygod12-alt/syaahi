@@ -62,7 +62,7 @@ Do not expose provider credentials, Atlas URI or proxy secret to browser code. A
 1. In Vercel **Project → Settings → Domains**, add `syaahii.in` and `www.syaahii.in`.
 2. Vercel will show the DNS records required for this project. In GoDaddy, edit the active DNS records to match those exact targets. Remove stale website A/CNAME values from the previous host; preserve mail and verification TXT/MX records.
 3. Keep the current nameservers unless you intentionally move DNS hosting. If GoDaddy is no longer authoritative, edit records at the provider named by the active nameservers.
-4. Set `www.syaahii.in` as primary in Vercel (the supplied dashboard currently redirects the apex to www), verify DNS, and wait for HTTPS to become active before testing login or payments.
+4. Set `www.syaahii.in` as primary in Vercel. The current screenshot connects both domains to Production with no redirect selected; optionally configure the apex as a permanent redirect to `www` for one canonical origin. Verify DNS and HTTPS before testing login or payments.
 5. Do not delete GoDaddy registration. The domain stays registered there even while Vercel serves the app.
 
 ## 5. Supabase and Google OAuth
