@@ -16,6 +16,8 @@ assert.equal(
   200,
 );
 process.env.APP_ROLE = "frontend";
+process.env.NETLIFY = "true";
+delete process.env.VERCEL;
 process.env.BACKEND_URL = "https://backend.test";
 const proxied = middleware(
   new NextRequest("https://frontend.test/api/jobs", {
@@ -36,6 +38,44 @@ assert.equal(
 assert.equal(
   proxied.headers.get("x-middleware-request-x-syaahi-proxy"),
   "test-only-proxy-secret",
+);
+process.env.VERCEL = "1";
+delete process.env.NETLIFY;
+const vercel = middleware(
+  new NextRequest("https://frontend.test/api/jobs?status=active", {
+    headers: {
+      "x-forwarded-for": "192.0.2.2",
+      "x-nf-client-connection-ip": "spoofed",
+      "x-real-ip": "spoofed",
+      "x-syaahi-proxy": "spoofed",
+    },
+  }),
+);
+assert.equal(
+  vercel.headers.get("x-middleware-request-x-forwarded-for"),
+  "192.0.2.2",
+);
+assert.equal(vercel.headers.get("x-middleware-request-x-real-ip"), null);
+assert.equal(
+  vercel.headers.get("x-middleware-request-x-syaahi-proxy"),
+  "test-only-proxy-secret",
+);
+assert.equal(
+  vercel.headers.get("x-middleware-rewrite"),
+  "https://backend.test/api/jobs?status=active",
+);
+delete process.env.VERCEL;
+const untrusted = middleware(
+  new NextRequest("https://frontend.test/api/jobs", {
+    headers: {
+      "x-forwarded-for": "spoofed",
+      "x-nf-client-connection-ip": "spoofed",
+    },
+  }),
+);
+assert.equal(
+  untrusted.headers.get("x-middleware-request-x-forwarded-for"),
+  "unknown",
 );
 delete process.env.BACKEND_PROXY_SECRET;
 assert.equal(

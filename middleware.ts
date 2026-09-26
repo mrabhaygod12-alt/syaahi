@@ -11,7 +11,7 @@ export function middleware(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in Netlify environment variables.",
+            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in your frontend hosting environment variables.",
         },
         { status: 503 },
       );
@@ -28,7 +28,12 @@ export function middleware(req: NextRequest) {
     headers.set("x-syaahi-proxy", secret);
     headers.set(
       "x-forwarded-for",
-      req.headers.get("x-nf-client-connection-ip") || "unknown",
+      // Only trust the header supplied by the actual hosting platform.
+      (process.env.VERCEL === "1"
+        ? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        : process.env.NETLIFY === "true"
+          ? req.headers.get("x-nf-client-connection-ip")
+          : undefined) || "unknown",
     );
     headers.delete("x-real-ip");
     return NextResponse.rewrite(target, { request: { headers } });
