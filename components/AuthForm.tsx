@@ -21,14 +21,15 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setMsg("");
     setVerifyLink(null);
     try {
-      const res = await signIn(name, email, password, mode, accepted);
       const ref = new URLSearchParams(location.search).get("ref");
-      if (mode === "signup" && ref)
-        await fetch("/api/referrals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: ref }),
-        });
+      const res = await signIn(
+        name,
+        email,
+        password,
+        mode,
+        accepted,
+        mode === "signup" ? ref : null,
+      );
       if (res.requireVerification) {
         setVerifyLink(res.verifyUrl || "/verify-email");
         setMsg(
@@ -187,8 +188,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
               className="small"
               style={{ margin: "0 0 14px", color: "#047857" }}
             >
-              Click below to verify your email and activate your account with 19
-              free study credits:
+              {msg ||
+                "Verify your email before signing in or using your study credits."}
             </p>
             <a
               href={verifyLink}

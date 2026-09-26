@@ -30,6 +30,7 @@ export async function signIn(
   password: string,
   mode: "login" | "signup",
   acceptTerms = false,
+  referralCode?: string | null,
 ): Promise<SignInResult> {
   const response = await fetch("/api/auth", {
     method: "POST",
@@ -40,6 +41,7 @@ export async function signIn(
       password,
       mode,
       acceptTerms,
+      referralCode,
       termsVersion: "2026-09-24",
     }),
   });

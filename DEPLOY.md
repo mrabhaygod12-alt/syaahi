@@ -40,6 +40,23 @@ Set or confirm these in the Render private environment group:
 - `RESEND_API_KEY` and `EMAIL_FROM` for password-account verification email
 - Razorpay key ID, key secret and webhook secret on the API only
 
+The Google-login message `Missing: SUPABASE_PUBLISHABLE_KEY` means the running
+Render API process did not receive a recognized public Supabase key. Add the
+exact variable name `SUPABASE_PUBLISHABLE_KEY` to the **Render API web service**
+(not only Vercel, and not only a local `.env` file), alongside
+`SUPABASE_URL=https://eoybbxevqenijbglhsog.supabase.co`, then save and redeploy
+the API. A valid Supabase anon key is accepted too, but use the current key shown
+in Supabase Project Settings → API Keys; never use a `service_role` or secret
+key here. Check the Render deploy logs for a successful restart, then test
+`/api/auth/google` on the production domain. Do not paste the key into chat,
+GitHub, or a `NEXT_PUBLIC_*` variable.
+
+Password accounts are not issued an application session until their verification
+link is confirmed. Set `RESEND_API_KEY`, a verified `EMAIL_FROM`, and
+`NEXT_PUBLIC_APP_URL=https://www.syaahii.in` on Render so signup can send the
+one-hour verification link. If delivery fails, signup still creates the account
+but protected features remain unavailable; attempting login retries delivery.
+
 The Render API health check is `/api/health`. Direct protected API requests should be rejected; the Vercel proxy attaches the private header. Deploy the API and worker after pushing code. A missing worker can leave generation queued even when the frontend and health check respond.
 
 ## 3. Vercel frontend
@@ -82,6 +99,17 @@ Test a new Google signup and an existing account from the final custom domain. A
 ## 6. Razorpay and UPI
 
 Razorpay order creation, capture verification and signed webhooks run through the Vercel `/api` proxy to Render. Update the Razorpay webhook target to `https://www.syaahii.in/api/razorpay/webhook` and verify the webhook secret matches Render. Use test mode first; a Git push does not update the Razorpay dashboard. Direct UPI QR/UTR review remains a separate, operator-approved flow.
+
+### Razorpay setup, test, and go-live
+
+1. In Razorpay Dashboard, finish the website/app details and payment-method activation. KYC approval alone does not prove that live checkout is enabled.
+2. In **Test Mode → API Keys**, generate a test key pair. Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to the Render API service only. The browser receives the key ID only after the server creates an order; the secret never goes to Vercel or the client.
+3. In **Test Mode → Webhooks**, add `https://www.syaahii.in/api/razorpay/webhook`, create a separate webhook signing secret, and subscribe to `payment.captured`. Put that value in Render as `RAZORPAY_WEBHOOK_SECRET`. It is distinct from the API key secret.
+4. Confirm automatic capture is enabled in Razorpay. The app credits only a captured payment that matches its saved order's owner, amount, currency, and payment ID. A signed checkout response is checked on the server, then the payment is fetched from Razorpay; the signed webhook safely recovers a callback interrupted by a closed tab.
+5. Test using Razorpay's test checkout credentials. Confirm a successful test payment appears as **Captured** in Razorpay and exactly one matching payment/credit entry appears for the same user in Syaahi. Also test cancel/failure, wrong signature, wrong user/order, repeated verify request, and replayed webhook. Test payments never charge real money.
+6. Only after these checks and Razorpay enabling the live account, switch the dashboard to **Live Mode**, generate a new live key pair, replace both Render API key variables, and configure the live webhook with its own secret. Then make one small real purchase and reconcile the captured transaction and settlement in Razorpay before advertising payments as live.
+
+The API key pair and webhook secret shared in chat should be rotated before production use. If the API secret was ever configured in a client-visible Vercel variable or committed file, revoke it immediately and issue a replacement.
 
 Test on the custom domain: successful checkout, cancellation, invalid signature rejection, duplicate webhook idempotency, manual UTR review and account-specific wallet history. Only change to live keys after merchant activation and successful test reconciliation.
 

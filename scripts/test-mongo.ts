@@ -28,6 +28,30 @@ async function main() {
       "mongo-learner@example.test",
       "long-test-password",
     );
+    const unverifiedSession = await auth.startSession(
+      user,
+      new Request("http://localhost"),
+    );
+    const unverifiedCookie = unverifiedSession.headers
+      .get("set-cookie")!
+      .split(";")[0];
+    assert.equal(
+      await auth.currentUser(
+        new Request("http://localhost", {
+          headers: { cookie: unverifiedCookie },
+        }),
+      ),
+      null,
+      "unverified users cannot authenticate with a session cookie",
+    );
+    assert.equal(
+      await (await mongo()).database.collection("sessions").countDocuments({
+        user: user.id,
+      }),
+      0,
+    );
+    const { markEmailVerified } = await import("../lib/billing/rewards");
+    await markEmailVerified(user.id);
     const response = await auth.startSession(
       user,
       new Request("http://localhost"),

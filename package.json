@@ -13,6 +13,7 @@
     "audit:providers": "node scripts/audit-providers.mjs",
     "format": "prettier --write app components lib scripts docs *.md *.json *.js *.ts",
     "test:study": "tsx scripts/test-study.ts",
+    "test:auth": "tsx scripts/test-auth-verification.ts",
     "test:mongo": "tsx scripts/test-mongo.ts"
   },
   "dependencies": {

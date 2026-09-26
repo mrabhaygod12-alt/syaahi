@@ -55,13 +55,18 @@ export async function currentUser(req: Request): Promise<Account | null> {
           await collection("verified_accounts")
         ).findOne({ _id: user._id }),
       );
+    // Never let an old or pre-verification session authorize a password account.
+    if (!isVerified) {
+      await (await collection("sessions")).deleteOne({ _id: hash(token) });
+      return null;
+    }
     return {
       id: user._id,
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
       avatar: user.avatar || null,
-      verified: isVerified,
+      verified: true,
     };
   }
   const row = db()

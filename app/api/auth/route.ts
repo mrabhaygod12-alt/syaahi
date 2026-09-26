@@ -58,6 +58,17 @@ async function handlePOST(req: NextRequest) {
       );
       await recordConsent(user.id);
 
+      // Record invite attribution now; the inviter is rewarded only after
+      // this account completes email verification.
+      if (typeof body.referralCode === "string" && body.referralCode) {
+        try {
+          const { claimReferral } = await import("@/lib/billing/referrals");
+          await claimReferral(user.id, body.referralCode);
+        } catch {
+          // A stale or invalid invite should not block signup.
+        }
+      }
+
       // Issue verification link/token
       let verificationSent = false;
       try {
@@ -68,14 +79,17 @@ async function handlePOST(req: NextRequest) {
         console.warn("Verification delivery unavailable");
       }
 
-      return await startSession(user, req, {
-        ok: true,
-        requireVerification: true,
-        verifyUrl: "/verify-email",
-        message: verificationSent
-          ? "Account created. Open the verification link sent to your email."
-          : "Account created, but verification email delivery is unavailable. Contact support or retry sending from your account.",
-      });
+      return NextResponse.json(
+        {
+          ok: true,
+          requireVerification: true,
+          verifyUrl: "/verify-email",
+          message: verificationSent
+            ? "Account created. Open the verification link sent to your email."
+            : "Account created, but the verification email could not be sent. Go to Log in and submit your email and password to retry delivery. You cannot use the account until it is verified.",
+        },
+        { status: 202 },
+      );
     } catch (err) {
       const detail =
         err instanceof Error ? `${err.name}: ${err.message}` : String(err);
