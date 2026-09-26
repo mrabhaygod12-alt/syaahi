@@ -76,6 +76,16 @@ The existing payment administrator was provisioned in the configured Atlas datab
 
 ## 5. Supabase + Google OAuth
 
+Confirmed project: `https://eoybbxevqenijbglhsog.supabase.co`. The supplied anon key was accepted by its Auth settings endpoint; Google is enabled. These checks do not verify the Google client secret or a complete user sign-in.
+
+The **OAuth Server** screen in Supabase configures Supabase as an identity provider for third-party applications. It is not the Google sign-in setup screen; `/oauth/consent` is not Syaahi's login callback. Use **Authentication > URL Configuration** and **Sign In / Providers > Google**.
+
+- URL configuration: https://supabase.com/dashboard/project/eoybbxevqenijbglhsog/auth/url-configuration
+- Google provider settings: https://supabase.com/dashboard/project/eoybbxevqenijbglhsog/auth/providers
+- Google Cloud clients: https://console.cloud.google.com/auth/clients
+
+Keep Site URL and NEXT_PUBLIC_APP_URL on `https://syaahii.netlify.app` until custom-domain HTTPS is working. You can add the new callback allowlist entries before that cutover.
+
 1. In Supabase Authentication > URL Configuration, set Site URL to `https://syaahii.in` after DNS is ready.
 2. Add exact Redirect URLs:
    - `https://syaahii.in/api/auth/callback`
@@ -83,7 +93,7 @@ The existing payment administrator was provisioned in the configured Atlas datab
    - `https://syaahii.netlify.app/api/auth/callback` during migration
    - `http://localhost:3000/api/auth/callback` for local development only
 3. Enable the Google provider in Supabase and enter Google OAuth client ID/secret there.
-4. In Google Cloud OAuth configuration, add the app origin(s) and use the **Supabase project's** `https://<project-ref>.supabase.co/auth/v1/callback` as Google's authorized redirect URI. This is different from Syaahi's `/api/auth/callback` URL.
+4. In Google Cloud OAuth configuration, add the app origin(s) and use the **Supabase project's** `https://eoybbxevqenijbglhsog.supabase.co/auth/v1/callback` as Google's authorized redirect URI. This is different from Syaahi's `/api/auth/callback` URL.
 5. If the Google OAuth consent screen is in testing, add your test accounts; complete Google's relevant production configuration before opening it publicly.
 6. Put only the project's URL and publishable/anon key into the Render OAuth configuration. A Supabase service-role secret is not an OAuth publishable key.
 7. Test Google sign-in from the final primary domain in a fresh browser session. Confirm it returns to that same domain and grants a new account **19 credits once**. Repeated login must not grant another allowance.
@@ -131,4 +141,4 @@ For local testing use `npm ci`, `npm run dev`, then http://localhost:3000/pricin
 
 ## Verification on 26 September 2026
 
-Build, ledger tests, MongoDB tests and browser checkout tests passed locally. The supplied Razorpay test credentials created an actual test API order and opened the Standard Checkout modal. No payment was submitted or captured in that external test. The isolated payment suite verifies capture/approval replay and ledger correctness. Both syaahii.in and www.syaahii.in returned DNS ENOTFOUND from this workstation during the check. The configured Supabase hostname also returned ENOTFOUND; confirm the active project URL before attempting Google login. Password verification email sender/key are not configured in the private Render environment template. Provider dashboard changes remain operator steps.
+Build, ledger tests, MongoDB tests and browser checkout tests passed locally. The supplied Razorpay test credentials created an actual test API order and opened the Standard Checkout modal. No payment was submitted or captured in that external test. The isolated payment suite verifies capture/approval replay and ledger correctness. Both syaahii.in and www.syaahii.in returned DNS ENOTFOUND from this workstation during the check. The earlier Supabase hostname was incorrect. After correcting the private configuration to eoybbxevqenijbglhsog.supabase.co, its Auth settings endpoint returned HTTP 200 with Google enabled. The Netlify /api/health endpoint returned HTTP 200. A complete Google sign-in and custom-domain HTTPS are still unverified. Password verification email sender/key are not configured in the private Render environment template. Provider dashboard changes remain operator steps.
