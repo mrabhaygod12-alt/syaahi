@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readState, mutateState } from "@/lib/study/state";
 import { apiHandler } from "@/lib/api-handler";
 import { accessRole } from "@/lib/study/collaboration";
 import { getJob, updateJob } from "@/lib/jobs/store";
@@ -9,6 +11,7 @@ import { chatWithFallback } from "@/lib/ai/router";
 import { languageLine, normalizeLang } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 export interface QuizQ {
   q: string;
@@ -51,7 +54,11 @@ async function handlePOST(req: NextRequest) {
     (!owned || !(await accessRole(owned, (await currentUser(req))!.id)))
   )
     return NextResponse.json({ error: "Unknown lesson." }, { status: 404 });
-  if (owned?.practice && body.regenerate !== true)
+  if (
+    owned?.practice &&
+    owned.user !== (await currentUser(req))!.id &&
+    body.regenerate !== true
+  )
     return NextResponse.json({ ...owned.practice, provider: "saved" });
   if (owned && owned.user !== (await currentUser(req))!.id)
     return NextResponse.json(
@@ -78,13 +85,35 @@ async function handlePOST(req: NextRequest) {
     ? body.difficulty
     : "standard";
   const focus = String(body.focus || "").slice(0, 160);
+  const cardCount = Math.min(36, Math.max(6, pages.length * 3));
+  const cacheKey =
+    "practice:" +
+    createHash("sha256")
+      .update(
+        JSON.stringify([
+          owned?.id,
+          pages,
+          lang,
+          size,
+          format,
+          difficulty,
+          focus,
+          cardCount,
+        ]),
+      )
+      .digest("hex");
+  const owner = (await currentUser(req))!.id;
+  if (body.regenerate !== true) {
+    const saved = await readState<any>(owner, cacheKey, null);
+    if (saved) return NextResponse.json({ ...saved, cached: true });
+  }
   const sectionBudget = Math.max(350, Math.floor(18000 / pages.length));
   const material = pages
     .map((p) => `## ${p.topic}\n${p.markdown.slice(0, sectionBudget)}`)
     .join("\n\n");
 
   let text: string;
-  let provider = "unknown";
+
   try {
     const r = await chatWithFallback(
       [
@@ -94,18 +123,19 @@ async function handlePOST(req: NextRequest) {
             `You write exam practice from the notes. ${languageLine(lang)} STRICT JSON only, no fences:\n` +
             '{"quiz":[{"q":"...","type":"mcq","options":["option text","...","...","..."],"answer":"option text","hint":"...","topic":"...","explanation":"why the correct option follows from the notes"}],' +
             '"flashcards":[{"front":"...","back":"..."}]}\n' +
-            `Exactly ${size} quiz items in format ${format} + 8 flashcards. Mixed means a balance of mcq, blank, and short. For mcq use 4 options and answer MUST equal an option. For blank include ___ in the question and a brief exact answer, with no options. For short ask for a precise term, not an essay, and omit options. ` +
+            `Exactly ${size} quiz items in format ${format} + ${cardCount} flashcards. Each flashcard must test a single meaningful idea; distribute cards across all supplied topics and avoid duplicate or trivial cards. Mixed means a balance of mcq, blank, and short. For mcq use 4 options and answer MUST equal an option. For blank include ___ in the question and a brief exact answer, with no options. For short ask for a precise term, not an essay, and omit options. ` +
             `Answerable ONLY from the notes. Difficulty: ${difficulty}. Focus: ${focus || "all supplied topics"}. Include a clear explanation for every answer. Hints nudge, they do not leak the answer.`,
         },
         { role: "user", content: material },
       ],
-      { maxTokens: 6000 },
+      { maxTokens: 9000 },
     );
     text = r.text;
-    provider = `${(r as any).provider}:${(r as any).model}`;
   } catch (e: any) {
     return NextResponse.json(
-      { error: e.message },
+      {
+        error: "Practice generation is temporarily unavailable. Please retry.",
+      },
       { status: e.message?.includes("NO_KEYS") ? 402 : 502 },
     );
   }
@@ -118,6 +148,9 @@ async function handlePOST(req: NextRequest) {
       .filter(
         (q: any) =>
           typeof q.q === "string" &&
+          q.q.trim().length > 8 &&
+          typeof q.explanation === "string" &&
+          q.explanation.trim().length > 10 &&
           typeof q.answer === "string" &&
           q.answer.trim().length > 0 &&
           (q.type === "mcq"
@@ -128,18 +161,50 @@ async function handlePOST(req: NextRequest) {
               q.options.includes(q.answer)
             : ["blank", "short"].includes(q.type)),
       )
+      .filter(
+        (q: QuizQ, i: number, all: QuizQ[]) =>
+          all.findIndex(
+            (x) => x.q.trim().toLowerCase() === q.q.trim().toLowerCase(),
+          ) === i,
+      )
       .slice(0, size);
     const flashcards: Flash[] = (
       Array.isArray(j.flashcards) ? j.flashcards : []
     )
       .filter(
-        (f: any) => typeof f.front === "string" && typeof f.back === "string",
+        (f: any) =>
+          typeof f.front === "string" &&
+          f.front.trim().length > 5 &&
+          typeof f.back === "string" &&
+          f.back.trim().length > 2,
       )
-      .slice(0, 12);
+      .filter(
+        (f: Flash, i: number, all: Flash[]) =>
+          all.findIndex(
+            (x) =>
+              x.front.trim().toLowerCase() === f.front.trim().toLowerCase(),
+          ) === i,
+      )
+      .slice(0, cardCount);
     if (!quiz.length) throw new Error("empty-quiz");
     if (owned && owned.status === "done")
       await updateJob(owned.id, { practice: { quiz, flashcards } });
-    return NextResponse.json({ quiz, flashcards, provider });
+    const result = {
+      quiz,
+      flashcards,
+      quality: {
+        requestedQuestions: size,
+        acceptedQuestions: quiz.length,
+        requestedCards: cardCount,
+        acceptedCards: flashcards.length,
+      },
+      warning:
+        quiz.length < size || flashcards.length < cardCount
+          ? "Some generated items did not pass quality checks. Only accepted items are shown."
+          : null,
+    };
+    await mutateState(owner, cacheKey, result, () => result);
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json(
       { error: "Practice generation returned malformed output — retry once." },

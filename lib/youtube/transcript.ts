@@ -1,3 +1,4 @@
+import { readPublicVideo } from "./study";
 // Real YouTube intake — no mocks, ever.
 // Strategy chain (first success wins):
 //   1. oEmbed → real video title + author (proves the link resolves; always attempted)
@@ -14,7 +15,8 @@ export interface YTResult {
   durationSource: "watch-page" | "piped-api" | "unknown";
   transcript: string;
   transcriptChars: number;
-  transcriptSource: "youtube-transcript" | "watch-page-captions" | "none";
+  transcriptSource:
+    "youtube-transcript" | "watch-page-captions" | "video-digest" | "none";
   debug: string[];
 }
 
@@ -30,10 +32,24 @@ export function fmtDur(sec: number): string {
 }
 
 export function videoId(url: string): string | null {
-  const m = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{6,20})/,
-  );
-  return m?.[1] ?? null;
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    if (!["https:", "http:"].includes(u.protocol) || u.username || u.password)
+      return null;
+    const host = u.hostname.toLowerCase();
+    let id: string | null = null;
+    if (host === "youtu.be") id = u.pathname.split("/")[1];
+    else if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(host))
+      id =
+        u.pathname === "/watch"
+          ? u.searchParams.get("v")
+          : /^\/(shorts|embed|live)\//.test(u.pathname)
+            ? u.pathname.split("/")[2]
+            : null;
+    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
 }
 
 const UA =
@@ -246,10 +262,22 @@ export async function fetchYouTube(url: string): Promise<YTResult> {
 
   if (!realTitle)
     throw new Error(
-      `Video ${id} is unreachable (private, deleted, or region-blocked). Debug: ${debug.join(" | ")}`,
+      "This video is unavailable or not public. Upload a source you can access instead.",
     );
-  throw new Error(
-    `“${realTitle}” has no readable captions, so there is nothing to summarize. ` +
-      `Tip: use a lecture with subtitles enabled, or generate from the title as a manual topic. Debug: ${debug.join(" | ")}`,
-  );
+  if (dur.seconds === null)
+    throw new Error(
+      "Could not verify the video duration. Upload audio or a transcript instead.",
+    );
+  const digest = await readPublicVideo(id);
+  return {
+    videoId: id,
+    title: realTitle,
+    author,
+    durationSeconds: dur.seconds,
+    durationSource: dur.source,
+    transcript: digest,
+    transcriptChars: digest.length,
+    transcriptSource: "video-digest",
+    debug,
+  };
 }

@@ -23,6 +23,7 @@ export default function StudyComposer({
   const [text, setText] = useState(initialTopic),
     [context, setContext] = useState(""),
     [source, setSource] = useState("");
+  const [sourceNotice, setSourceNotice] = useState("");
   const [pages, setPages] = useState(0),
     [language, setLanguage] = useState("english"),
     [detail, setDetail] = useState("detailed");
@@ -97,9 +98,11 @@ export default function StudyComposer({
       scrollToTarget(statusRef);
     }, 60);
     try {
+      let studyTitle = text;
       let material =
         context || (text.length > 500 ? text.slice(0, 100000) : "");
       if (
+        sourceUrl !== text.trim() &&
         /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(text.trim())
       ) {
         const response = await fetch("/api/youtube", {
@@ -111,6 +114,8 @@ export default function StudyComposer({
         if (!response.ok)
           throw new Error(data.error || "Could not read this lecture.");
         material = data.transcript;
+        studyTitle = data.title || "Study the supplied video";
+        setSourceNotice(data.warning || data.assessment?.reason || "");
         setContext(material);
         setSource(data.title || "YouTube lecture");
         setSourceUrl(text.trim());
@@ -122,7 +127,7 @@ export default function StudyComposer({
           topic:
             text.length > 500
               ? "Create a study guide from the supplied notes"
-              : text,
+              : studyTitle,
           context: material,
           pages: targetPages || "auto",
           research,
@@ -307,6 +312,8 @@ export default function StudyComposer({
           <button
             aria-label="Remove attachment"
             onClick={() => {
+              setSourceNotice("");
+              setSourceUrl("");
               setSource("");
               setContext("");
               setPlan(null);
@@ -315,6 +322,11 @@ export default function StudyComposer({
             ×
           </button>
         </div>
+      )}
+      {sourceNotice && (
+        <p className="source-notice" role="status">
+          {sourceNotice}
+        </p>
       )}
       {context && (
         <details className="source-review">
