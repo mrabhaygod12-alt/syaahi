@@ -6,7 +6,7 @@ const sections = [
   ],
   [
     "If payment succeeds but credits are missing",
-    "Keep your payment and order IDs, the purchase time, and account email. Do not send card details, passwords, or payment OTPs. Ask the operator to reconcile the payment. Repeated valid callbacks cannot credit the same payment twice.",
+    "For manual UPI payments, allow time for bank verification and do not pay again while review is pending. Keep your UTR, payment and order IDs, the purchase time, and account email. Do not send card details, passwords, or payment OTPs. Ask the operator to reconcile the payment. Repeated valid callbacks cannot credit the same payment twice.",
   ],
   [
     "Requesting a payment refund",

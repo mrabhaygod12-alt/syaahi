@@ -31,6 +31,7 @@ async function handleGET(req: NextRequest) {
       pack: payment.pack,
       utr: payment.utr,
       method: payment.method,
+      upiId: payment.upiId,
       rejectionReason: payment.rejectionReason,
       createdAt: payment.createdAt,
       expiresAt: payment.expiresAt,
@@ -39,6 +40,8 @@ async function handleGET(req: NextRequest) {
 
   if (history) {
     const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+    if (!Number.isSafeInteger(page) || page > 10000)
+      return NextResponse.json({ error: "Invalid page." }, { status: 400 });
     const result = await listUserPayments(user.id, page, 20);
     return NextResponse.json({
       payments: result.payments.map((p) => ({

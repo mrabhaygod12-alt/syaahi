@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { authError, currentUser } from "@/lib/auth/server";
@@ -5,6 +6,8 @@ import { rateLimit } from "@/lib/ratelimit";
 import { PACKS, tokenLabel } from "@/lib/billing/packs";
 import {
   createUpiPayment,
+  merchant,
+  PaymentError,
   upiDeepLink,
   type PaymentMethod,
 } from "@/lib/billing/upi";
@@ -20,6 +23,11 @@ async function handlePOST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const pack = String(body.pack || "");
+  if (body.method && body.method !== "upi_qr")
+    return NextResponse.json(
+      { error: "Use /pricing for automatic Razorpay checkout." },
+      { status: 400 },
+    );
   const method: PaymentMethod =
     body.method === "upi_gateway" ? "upi_gateway" : "upi_qr";
 
@@ -35,7 +43,7 @@ async function handlePOST(req: NextRequest) {
       email: user.email,
     });
 
-    const deepLink = upiDeepLink(payment._id, payment.amount, "Syaahi");
+    const deepLink = upiDeepLink(payment._id, payment.amount, merchant().name);
 
     return NextResponse.json({
       orderId: payment._id,
@@ -47,6 +55,12 @@ async function handlePOST(req: NextRequest) {
       credits: p.credits,
       tokenLabel: tokenLabel(p.credits),
       deepLink,
+      payeeName: merchant().name,
+      qrDataUrl: await QRCode.toDataURL(deepLink, {
+        width: 320,
+        margin: 3,
+        errorCorrectionLevel: "M",
+      }),
       expiresAt: payment.expiresAt.toISOString(),
       status: payment.status,
       method: payment.method,
@@ -54,7 +68,10 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Payment unavailable.",
+        error:
+          error instanceof PaymentError
+            ? error.message
+            : "Payment temporarily unavailable. Please retry later.",
       },
       { status: 503 },
     );

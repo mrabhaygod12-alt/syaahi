@@ -2,21 +2,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { PACKS, tokenLabel } from "@/lib/billing/packs";
 
-/* ────────── QR Code generator (pure client-side) ────────── */
-function QRCodeSVG({ data, size = 200 }: { data: string; size?: number }) {
-  /* Simple QR via Google Charts API fallback rendered as image */
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&margin=8&format=svg`;
-  return (
-    <img
-      src={url}
-      alt="UPI QR Code"
-      width={size}
-      height={size}
-      style={{ borderRadius: 12, background: "#fff", padding: 8 }}
-    />
-  );
-}
-
 /* ────────── Timer Component ────────── */
 function CountdownTimer({
   expiresAt,
@@ -59,13 +44,7 @@ function CountdownTimer({
 }
 
 /* ────────── Step indicators ────────── */
-function StepIndicator({
-  step,
-  total,
-}: {
-  step: number;
-  total: number;
-}) {
+function StepIndicator({ step, total }: { step: number; total: number }) {
   return (
     <div className="upi-steps">
       {Array.from({ length: total }, (_, i) => (
@@ -73,9 +52,7 @@ function StepIndicator({
           key={i}
           className={`upi-step ${i + 1 <= step ? "active" : ""} ${i + 1 === step ? "current" : ""}`}
         >
-          <div className="step-dot">
-            {i + 1 < step ? "✓" : i + 1}
-          </div>
+          <div className="step-dot">{i + 1 < step ? "✓" : i + 1}</div>
           <span className="step-label">
             {["Select", "Scan & Pay", "Enter UTR", "Done"][i]}
           </span>
@@ -133,6 +110,9 @@ export default function UPICheckout() {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const pollingVersion = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -145,10 +125,26 @@ export default function UPICheckout() {
   /* ── Poll for status updates ── */
   const startPolling = useCallback((orderId: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
+    const version = ++pollingVersion.current;
+    let inFlight = false;
     pollRef.current = setInterval(async () => {
+      if (inFlight) return;
+      inFlight = true;
       try {
         const r = await fetch(`/api/upi/status?orderId=${orderId}`);
         const j = await r.json();
+        if (version !== pollingVersion.current) return;
+        if (!r.ok) {
+          if (r.status === 401 && pollRef.current)
+            clearInterval(pollRef.current);
+          setMsg(
+            r.status === 401
+              ? "Please sign in again and open payment history. Do not pay again."
+              : "Status check is delayed. Your submitted reference is saved; please retry history later.",
+          );
+          setMsgType("info");
+          return;
+        }
         if (j.status === "approved" || j.status === "auto_verified") {
           setPaymentStatus(j.status);
           setStep(4);
@@ -162,16 +158,31 @@ export default function UPICheckout() {
         } else if (j.status === "rejected") {
           setPaymentStatus(j.status);
           setMsg(
-            `❌ Payment rejected: ${j.rejectionReason || "Could not verify."} Please try again.`,
+            `❌ Payment rejected: ${j.rejectionReason || "Could not verify."} Contact support with your order and UTR; do not pay again.`,
           );
           setMsgType("error");
           if (pollRef.current) clearInterval(pollRef.current);
         }
-      } catch {}
+      } catch {
+        if (version === pollingVersion.current) {
+          setMsg(
+            "Connection interrupted. Check payment history when you reconnect; do not pay again.",
+          );
+          setMsgType("info");
+        }
+      } finally {
+        inFlight = false;
+      }
     }, 5000);
   }, []);
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(
+    () => () => {
+      pollingVersion.current++;
+      if (pollRef.current) clearInterval(pollRef.current);
+    },
+    [],
+  );
 
   /* ── Create order ── */
   async function createOrder(pack: string) {
@@ -184,16 +195,20 @@ export default function UPICheckout() {
         body: JSON.stringify({ pack }),
       });
       const j = await r.json();
-      if (j.error) {
+      if (!r.ok || j.error) {
         setMsg(j.error);
         setMsgType("error");
         return;
       }
+      setPaymentStatus(null);
+      setUtr("");
       setSelectedPack(pack);
       setOrder(j);
       setStep(2);
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : "Failed to create order.");
+      setMsg(
+        error instanceof Error ? error.message : "Failed to create order.",
+      );
       setMsgType("error");
     } finally {
       setBusy(false);
@@ -216,7 +231,7 @@ export default function UPICheckout() {
         body: JSON.stringify({ orderId: order.orderId, utr: utr.trim() }),
       });
       const j = await r.json();
-      if (j.error) {
+      if (!r.ok || j.error) {
         setMsg(j.error);
         setMsgType("error");
         return;
@@ -224,7 +239,7 @@ export default function UPICheckout() {
       setPaymentStatus("utr_submitted");
       setStep(4);
       setMsg(
-        "✅ UTR submitted! We're verifying your payment. This usually takes 1-5 minutes.",
+        "UTR submitted. An administrator will verify the bank receipt before adding credits. You can leave and check payment history later.",
       );
       setMsgType("success");
       // Start polling for approval
@@ -238,17 +253,24 @@ export default function UPICheckout() {
   }
 
   /* ── Load history ── */
-  async function loadHistory() {
+  async function loadHistory(page = 1) {
     try {
-      const r = await fetch("/api/upi/status?history=1");
+      const r = await fetch(`/api/upi/status?history=1&page=${page}`);
       const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Cannot load history.");
       setHistory(j.payments || []);
+      setHistoryPage(page);
+      setHistoryTotal(j.total || 0);
       setShowHistory(true);
-    } catch {}
+    } catch {
+      setMsg("Could not load payment history. Please sign in and retry.");
+      setMsgType("error");
+    }
   }
 
   /* ── Reset ── */
   function reset() {
+    pollingVersion.current++;
     setStep(1);
     setSelectedPack(null);
     setOrder(null);
@@ -272,7 +294,8 @@ export default function UPICheckout() {
             <span className="upi-icon-title">💳</span> Pay via UPI
           </h1>
           <p className="upi-subtitle">
-            Scan QR, pay from any UPI app, enter UTR — credits added instantly.
+            Pay with PhonePe, Google Pay, Paytm, Navi or another UPI app.
+            Credits are added after bank verification.
           </p>
           <p className="small" style={{ marginTop: 4 }}>
             Current balance:{" "}
@@ -294,7 +317,6 @@ export default function UPICheckout() {
                 <div
                   key={id}
                   className={`upi-pack-card ${c?.featured ? "featured" : ""}`}
-                  onClick={() => !busy && createOrder(id)}
                 >
                   <div className="pack-icon">{c?.icon}</div>
                   {c?.featured && (
@@ -309,6 +331,7 @@ export default function UPICheckout() {
                   <p className="small pack-blurb">{c?.blurb}</p>
                   <button
                     className="btn dark pack-btn"
+                    onClick={() => createOrder(id)}
                     disabled={busy}
                   >
                     {busy ? "Creating…" : `Pay ₹${p.inr}`}
@@ -328,19 +351,30 @@ export default function UPICheckout() {
                 <CountdownTimer
                   expiresAt={order.expiresAt}
                   onExpire={() => {
-                    setMsg("⏰ Payment expired. Please start again.");
+                    setMsg(
+                      "The QR session ended. If you already paid, submit your UTR; do not pay again.",
+                    );
                     setMsgType("error");
-                    setStep(1);
+                    setStep(3);
                   }}
                 />
               </div>
 
               <div className="qr-body">
                 <div className="qr-wrapper">
-                  <QRCodeSVG data={order.deepLink} size={220} />
+                  <img
+                    src={order.qrDataUrl}
+                    alt="UPI payment QR with order amount"
+                    width={220}
+                    height={220}
+                  />
                 </div>
 
                 <div className="qr-info">
+                  <p>
+                    Payee: <b>{order.payeeName}</b>. Verify this name in your
+                    UPI app before paying.
+                  </p>
                   <div className="info-row">
                     <span className="info-label">UPI ID</span>
                     <span className="info-value">
@@ -348,7 +382,14 @@ export default function UPICheckout() {
                       <button
                         className="copy-btn"
                         onClick={() => {
-                          navigator.clipboard.writeText(order.upiId);
+                          navigator.clipboard
+                            .writeText(order.upiId)
+                            .catch(() => {
+                              setMsg(
+                                "Copy failed. Select the UPI ID and copy it manually.",
+                              );
+                              setMsgType("error");
+                            });
                           setMsg("UPI ID copied!");
                           setMsgType("info");
                           setTimeout(() => setMsg(""), 2000);
@@ -384,8 +425,12 @@ export default function UPICheckout() {
                   <ol>
                     <li>Open any UPI app (GPay, PhonePe, Paytm, etc.)</li>
                     <li>Scan the QR code or enter the UPI ID manually</li>
-                    <li>Pay exactly <b>₹{order.amountInr}</b></li>
-                    <li>Note down the <b>UTR / Transaction Reference</b> number</li>
+                    <li>
+                      Pay exactly <b>₹{order.amountInr}</b>
+                    </li>
+                    <li>
+                      Note down the <b>UTR / Transaction Reference</b> number
+                    </li>
                   </ol>
                 </div>
               </div>
@@ -422,9 +467,8 @@ export default function UPICheckout() {
             <div className="upi-utr-card">
               <h2>Enter UTR Number</h2>
               <p className="small">
-                After paying ₹{order.amountInr}, enter the UTR /
-                Transaction Reference Number from your UPI app's payment
-                confirmation.
+                After paying ₹{order.amountInr}, enter the UTR / Transaction
+                Reference Number from your UPI app's payment confirmation.
               </p>
 
               <div className="utr-input-group">
@@ -451,11 +495,15 @@ export default function UPICheckout() {
               <div className="utr-summary">
                 <div className="info-row">
                   <span className="info-label">Amount Paid</span>
-                  <span className="info-value highlight">₹{order.amountInr}</span>
+                  <span className="info-value highlight">
+                    ₹{order.amountInr}
+                  </span>
                 </div>
                 <div className="info-row">
                   <span className="info-label">Credits</span>
-                  <span className="info-value">{order.credits} pages ({order.tokenLabel})</span>
+                  <span className="info-value">
+                    {order.credits} pages ({order.tokenLabel})
+                  </span>
                 </div>
               </div>
 
@@ -468,10 +516,7 @@ export default function UPICheckout() {
                 >
                   {busy ? "Submitting…" : "Submit UTR"}
                 </button>
-                <button
-                  className="btn light"
-                  onClick={() => setStep(2)}
-                >
+                <button className="btn light" onClick={() => setStep(2)}>
                   ← Back to QR
                 </button>
               </div>
@@ -483,13 +528,14 @@ export default function UPICheckout() {
         {step === 4 && (
           <div className="upi-status-section">
             <div className="upi-status-card">
-              {paymentStatus === "approved" || paymentStatus === "auto_verified" ? (
+              {paymentStatus === "approved" ||
+              paymentStatus === "auto_verified" ? (
                 <div className="status-success">
                   <div className="status-icon">🎉</div>
                   <h2>Payment Confirmed!</h2>
                   <p>
-                    {order?.credits} pages ({order && tokenLabel(order.credits)}) have been added to your
-                    account.
+                    {order?.credits} pages ({order && tokenLabel(order.credits)}
+                    ) have been added to your account.
                   </p>
                   <p className="small">
                     New balance:{" "}
@@ -516,15 +562,15 @@ export default function UPICheckout() {
                   <p>
                     Your UTR has been submitted. We're verifying your payment.
                     <br />
-                    This usually takes <b>1-5 minutes</b>.
+                    Approval timing depends on manual review. Do not pay again.
                   </p>
                   <div className="verification-progress">
                     <div className="progress-bar">
                       <div className="progress-fill"></div>
                     </div>
                     <p className="small">
-                      Auto-checking every 5 seconds. You can close this page — credits
-                      will be added automatically.
+                      Auto-checking every 5 seconds. You can close this page —
+                      credits will be added automatically.
                     </p>
                   </div>
                 </div>
@@ -534,8 +580,8 @@ export default function UPICheckout() {
                 <button className="btn dark" onClick={reset}>
                   Buy More Tokens
                 </button>
-                <a href="/dashboard" className="btn light">
-                  Go to Dashboard
+                <a href="/support" className="btn light">
+                  Payment support
                 </a>
               </div>
             </div>
@@ -544,7 +590,7 @@ export default function UPICheckout() {
 
         {/* ── Message toast ── */}
         {msg && (
-          <div className={`upi-toast ${msgType}`}>
+          <div role="status" className={`upi-toast ${msgType}`}>
             <span>{msg}</span>
             <button onClick={() => setMsg("")} className="toast-close">
               ✕
@@ -556,7 +602,9 @@ export default function UPICheckout() {
         <div className="upi-history-section">
           <button
             className="btn-link"
-            onClick={() => (showHistory ? setShowHistory(false) : loadHistory())}
+            onClick={() =>
+              showHistory ? setShowHistory(false) : loadHistory()
+            }
           >
             {showHistory ? "Hide" : "Show"} Payment History
           </button>
@@ -592,6 +640,36 @@ export default function UPICheckout() {
                         <td className="mono">{p.utr || "—"}</td>
                         <td>
                           <StatusBadge status={p.status} />
+                          {[
+                            "pending",
+                            "expired",
+                            "utr_submitted",
+                            "verifying",
+                          ].includes(p.status) && (
+                            <button
+                              className="btn light"
+                              onClick={() => {
+                                setOrder({
+                                  ...p,
+                                  amountInr: p.amount / 100,
+                                  tokenLabel: tokenLabel(p.credits),
+                                });
+                                setPaymentStatus(p.status);
+                                setMsg("");
+                                if (["pending", "expired"].includes(p.status))
+                                  setStep(3);
+                                else {
+                                  setStep(4);
+                                  startPolling(p.orderId);
+                                }
+                              }}
+                            >
+                              {" "}
+                              {p.utr
+                                ? "Check status"
+                                : "Already paid? Submit UTR"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -602,10 +680,32 @@ export default function UPICheckout() {
           )}
         </div>
 
+        {showHistory && historyTotal > 20 && (
+          <nav aria-label="Payment history pages" className="status-actions">
+            <button
+              className="btn light"
+              disabled={historyPage === 1}
+              onClick={() => loadHistory(historyPage - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              Page {historyPage} of {Math.ceil(historyTotal / 20)}
+            </span>
+            <button
+              className="btn light"
+              disabled={historyPage * 20 >= historyTotal}
+              onClick={() => loadHistory(historyPage + 1)}
+            >
+              Next
+            </button>
+          </nav>
+        )}
         <div style={{ marginTop: 24 }}>
           <p className="small">
-            <b>Secure payment:</b> Your UPI ID is never stored. Only the
-            transaction reference (UTR) is recorded for verification.
+            <b>Secure payment:</b> We store your order, account and transaction
+            reference for payment verification. Never share your UPI PIN or OTP
+            with Syaahi.
           </p>
           <p>
             <a href="/refer">Invite a friend and earn a token →</a>

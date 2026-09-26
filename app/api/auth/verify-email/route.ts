@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
-import { authError, currentUser } from "@/lib/auth/server";
+import { authError, currentUser, originError } from "@/lib/auth/server";
 import { confirmVerification, sendVerification } from "@/lib/auth/verification";
 import { RewardError, rewardSummary } from "@/lib/billing/rewards";
 import { rateLimit } from "@/lib/ratelimit";
 export const POST = apiHandler(async (req: Request) => {
+  const crossOrigin = originError(req);
+  if (crossOrigin) return crossOrigin;
   const b = await req.json().catch(() => ({}));
 
   if (b.token) {
@@ -18,9 +20,7 @@ export const POST = apiHandler(async (req: Request) => {
         userObj = await (await collection("users")).findOne({ _id: userId });
       } else {
         const { db } = await import("@/lib/db");
-        userObj = db()
-          .prepare("SELECT * FROM users WHERE id=?")
-          .get(userId);
+        userObj = db().prepare("SELECT * FROM users WHERE id=?").get(userId);
       }
       if (userObj) {
         const { startSession } = await import("@/lib/auth/server");

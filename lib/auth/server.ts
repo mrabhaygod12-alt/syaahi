@@ -49,7 +49,11 @@ export async function currentUser(req: Request): Promise<Account | null> {
     const isVerified =
       Boolean(user.verified) ||
       Boolean(user.verifiedAt) ||
-      Boolean(await (await collection("verified_accounts")).findOne({ _id: user._id }));
+      Boolean(
+        await (
+          await collection("verified_accounts")
+        ).findOne({ _id: user._id }),
+      );
     return {
       id: user._id,
       email: user.email,
@@ -80,12 +84,8 @@ export function originError(req: Request): NextResponse | null {
   const origin = req.headers.get("origin");
   if (!origin || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return null;
 
-  // Requests verified by frontend proxy secret are trusted
-  const proxySecret = process.env.BACKEND_PROXY_SECRET;
-  if (proxySecret && req.headers.get("x-syaahi-proxy") === proxySecret) {
-    return null;
-  }
-
+  // The proxy authenticates infrastructure, not the browser Origin.
+  // Keep CSRF checks even when Netlify forwards the request to Render.
   const normalizedOrigin = origin.replace(/\/+$/, "");
   const allowed = new Set(
     [

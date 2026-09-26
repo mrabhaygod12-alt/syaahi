@@ -130,3 +130,7 @@ Copy `.env.example` to `.env.local`, configure an eligible provider, run `npx pl
 - [Deployment and operations](DEPLOY.md)
 
 The roadmap is informed by public study-tool research. Full Turbo parity, native apps, simultaneous character-level collaboration and measured learning gains are not claimed. The next milestone is a monitored learner pilot.
+
+## Payment setup
+
+Direct UPI QR + UTR review and automatic Razorpay capture are separate flows. See [payment setup, QR replacement and verification](docs/PAYMENTS.md). Manual approval and wallet credit are atomic, references cannot be reused, and payment records do not expire from storage. Live merchant configuration and a real receipt check remain required before collecting customer money.

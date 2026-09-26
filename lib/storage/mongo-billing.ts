@@ -134,11 +134,12 @@ export async function mongoCapture(
         { $set: { paid: true, paymentId: payment.id } },
         opts,
       );
-      await wallets.updateOne(
+      const credited = await wallets.updateOne(
         { _id: order.user },
         { $inc: { balance: order.credits } },
         opts,
       );
+      if (!credited.matchedCount) throw new Error("Unknown payment wallet.");
       await ledger.insertOne(
         {
           _id: `payment:${payment.id}`,

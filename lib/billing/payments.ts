@@ -61,9 +61,10 @@ export async function capturePayment(
       db()
         .prepare("UPDATE orders SET paid=1,payment_id=? WHERE id=? AND paid=0")
         .run(payment.id, payment.order_id);
-      db()
+      const credited = db()
         .prepare("UPDATE wallets SET balance=balance+? WHERE user_id=?")
         .run(Number(order.credits), String(order.user_id));
+      if (!credited.changes) throw new Error("Unknown payment wallet.");
       db()
         .prepare("INSERT INTO ledger VALUES (?,?,?,?,?)")
         .run(

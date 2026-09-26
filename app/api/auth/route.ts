@@ -59,23 +59,22 @@ async function handlePOST(req: NextRequest) {
       await recordConsent(user.id);
 
       // Issue verification link/token
-      let verifyToken = "";
+      let verificationSent = false;
       try {
-        const { issueVerification, sendVerification } = await import(
-          "@/lib/auth/verification"
-        );
-        verifyToken = await issueVerification(user.id);
-        await sendVerification(user).catch(() => {});
+        const { sendVerification } = await import("@/lib/auth/verification");
+        await sendVerification(user);
+        verificationSent = true;
       } catch (vErr) {
-        console.warn("Verification issue warning:", vErr);
+        console.warn("Verification delivery unavailable");
       }
 
       return await startSession(user, req, {
         ok: true,
         requireVerification: true,
-        verifyUrl: `/verify-email#${verifyToken}`,
-        message:
-          "Account created! Please verify your email to unlock all features.",
+        verifyUrl: "/verify-email",
+        message: verificationSent
+          ? "Account created. Open the verification link sent to your email."
+          : "Account created, but verification email delivery is unavailable. Contact support or retry sending from your account.",
       });
     } catch (err) {
       const detail =
@@ -114,20 +113,19 @@ async function handlePOST(req: NextRequest) {
     if (vDoc) verified = true;
 
     if (!verified) {
-      let verifyToken = "";
+      let verificationSent = false;
       try {
-        const { issueVerification, sendVerification } = await import(
-          "@/lib/auth/verification"
-        );
-        verifyToken = await issueVerification(userId);
-        await sendVerification({ id: userId, email }).catch(() => {});
+        const { sendVerification } = await import("@/lib/auth/verification");
+        await sendVerification({ id: userId, email });
+        verificationSent = true;
       } catch {}
       return NextResponse.json(
         {
-          error:
-            "Email not verified yet. Please click the verification link to activate your account.",
+          error: verificationSent
+            ? "Email not verified. Open the link sent to your inbox."
+            : "Email verification delivery is unavailable. Please contact support.",
           requireVerification: true,
-          verifyUrl: `/verify-email#${verifyToken}`,
+          verifyUrl: "/verify-email",
           email,
         },
         { status: 403 },

@@ -1,3 +1,4 @@
+import { PaymentError } from "@/lib/billing/upi";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { authError, currentUser } from "@/lib/auth/server";
@@ -36,13 +37,15 @@ async function handlePOST(req: NextRequest) {
       ok: true,
       status: payment.status,
       message:
-        "UTR submitted successfully. Your payment will be verified within a few minutes.",
+        "UTR submitted successfully. Credits will be added after an administrator verifies receipt in the bank account.",
     });
   } catch (error) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Could not submit UTR.",
+          error instanceof PaymentError
+            ? error.message
+            : "Could not submit UTR.",
       },
       { status: 400 },
     );

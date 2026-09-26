@@ -22,7 +22,7 @@ const sections = [
   ],
   [
     "Payments",
-    "Prices and pack quantities are displayed before checkout. Credits are granted only after verified captured payment. Checkout availability depends on the operator’s configuration. Monetary refund requests are handled separately from generation-credit returns, as described on Refunds.",
+    "Prices and pack quantities are displayed before checkout. Credits are granted after a verified captured gateway payment or administrator verification of a direct UPI bank receipt. Entering a UTR alone does not prove payment. Checkout availability depends on the operator’s configuration. Monetary refund requests are handled separately from generation-credit returns, as described on Refunds.",
   ],
   [
     "Acceptable use and availability",

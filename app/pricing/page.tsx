@@ -24,12 +24,14 @@ export default function Pricing() {
   useEffect(() => {
     fetch("/api/credits")
       .then((r) => r.json())
-      .then((j) => setBalance(j.balance));
+      .then((j) => setBalance(typeof j.balance === "number" ? j.balance : null))
+      .catch(() => {});
   }, []);
 
   async function buy(pack: string) {
     setMsg("");
     setBusy(pack);
+    let opened = false;
     try {
       const r = await fetch("/api/razorpay/order", {
         method: "POST",
@@ -37,7 +39,7 @@ export default function Pricing() {
         body: JSON.stringify({ pack }),
       });
       const j = await r.json();
-      if (j.error) {
+      if (!r.ok || j.error) {
         setMsg(j.error);
         return;
       }
@@ -56,26 +58,49 @@ export default function Pricing() {
         currency: "INR",
         name: "Syaahi",
         description: `${tokenLabel(j.credits)} for ${j.credits} note pages`,
+        modal: {
+          ondismiss: () => {
+            setBusy(null);
+            setMsg(
+              "Checkout closed. If money was debited, wait for confirmation and contact support before paying again.",
+            );
+          },
+        },
         handler: async (payment: unknown) => {
-          const verified = await fetch("/api/razorpay/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payment),
-          });
-          const result = await verified.json();
-          if (!verified.ok) {
-            setMsg(result.error || "Payment pending verification.");
-            return;
+          try {
+            const verified = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payment),
+            });
+            const result = await verified.json();
+            if (!verified.ok) {
+              setMsg(result.error || "Payment pending verification.");
+              return;
+            }
+            setBalance(result.balance);
+            setMsg("Payment verified. Tokens added.");
+          } catch {
+            setMsg(
+              "Confirmation interrupted. Do not pay again. Refresh your balance shortly or contact support with your payment ID.",
+            );
+          } finally {
+            setBusy(null);
           }
-          setBalance(result.balance);
-          setMsg("Payment verified. Tokens added.");
         },
       });
+      checkout.on("payment.failed", () => {
+        setMsg(
+          "Payment did not complete. If debited, contact support before retrying.",
+        );
+        setBusy(null);
+      });
       checkout.open();
+      opened = true;
     } catch (error) {
       setMsg(error instanceof Error ? error.message : "Checkout unavailable.");
     } finally {
-      setBusy(null);
+      if (!opened) setBusy(null);
     }
   }
 
@@ -89,8 +114,7 @@ export default function Pricing() {
         1 token = 3 generated note pages. One page uses ⅓ token; PDF
         continuation sheets are free. Current balance:{" "}
         <b>
-          {balance === null ? "…" : tokenLabel(balance)} ({balance ?? 0}{" "}
-          pages)
+          {balance === null ? "…" : tokenLabel(balance)} ({balance ?? 0} pages)
         </b>
       </p>
       <p className="small">
@@ -120,7 +144,7 @@ export default function Pricing() {
               <p className="small">{c?.blurb}</p>
               <button
                 className="btn dark"
-                disabled={busy === id}
+                disabled={busy !== null}
                 onClick={() => buy(id)}
                 style={{ marginTop: 12 }}
               >
@@ -148,7 +172,15 @@ export default function Pricing() {
         Payments are credited only after verified capture. Failed generation
         returns unused page units.
       </p>
-      <p style={{ marginTop: 12, padding: "14px 20px", background: "#e8f0df", borderRadius: 14, border: "1px solid #cad8c2" }}>
+      <p
+        style={{
+          marginTop: 12,
+          padding: "14px 20px",
+          background: "#e8f0df",
+          borderRadius: 14,
+          border: "1px solid #cad8c2",
+        }}
+      >
         💳 <b>Prefer UPI?</b>{" "}
         <a href="/pay" style={{ color: "#214b40", fontWeight: 600 }}>
           Pay directly via any UPI app →

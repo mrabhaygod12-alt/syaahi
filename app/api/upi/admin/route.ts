@@ -1,3 +1,4 @@
+import { PaymentError } from "@/lib/billing/upi";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { authError, currentUser } from "@/lib/auth/server";
@@ -20,7 +21,7 @@ async function handleGET(req: NextRequest) {
   if (denied) return denied;
 
   const user = (await currentUser(req))!;
-  if (!isAdmin(user.id))
+  if (!(await isAdmin(user.id)))
     return NextResponse.json(
       { error: "Admin access required." },
       { status: 403 },
@@ -37,6 +38,24 @@ async function handleGET(req: NextRequest) {
   // Default: list payments
   const page = Math.max(1, Number(url.searchParams.get("page") || 1));
   const status = url.searchParams.get("status") as PaymentStatus | undefined;
+  if (
+    !Number.isSafeInteger(page) ||
+    page > 10000 ||
+    (status &&
+      ![
+        "pending",
+        "utr_submitted",
+        "verifying",
+        "approved",
+        "auto_verified",
+        "rejected",
+        "expired",
+      ].includes(status))
+  )
+    return NextResponse.json(
+      { error: "Invalid filter or page." },
+      { status: 400 },
+    );
   const result = await listPendingPayments(page, 20, status || undefined);
 
   return NextResponse.json({
@@ -51,6 +70,7 @@ async function handleGET(req: NextRequest) {
       credits: p.credits,
       pack: p.pack,
       utr: p.utr,
+      upiId: p.upiId,
       method: p.method,
       rejectionReason: p.rejectionReason,
       createdAt: p.createdAt,
@@ -66,7 +86,7 @@ async function handlePOST(req: NextRequest) {
   if (denied) return denied;
 
   const user = (await currentUser(req))!;
-  if (!isAdmin(user.id))
+  if (!(await isAdmin(user.id)))
     return NextResponse.json(
       { error: "Admin access required." },
       { status: 403 },
@@ -84,6 +104,14 @@ async function handlePOST(req: NextRequest) {
 
   try {
     if (action === "approve") {
+      if (body.bankVerified !== true)
+        return NextResponse.json(
+          {
+            error:
+              "Confirm the UTR, exact amount and payee against the bank statement first.",
+          },
+          { status: 400 },
+        );
       const payment = await approvePayment(orderId, user.id);
       return NextResponse.json({
         ok: true,
@@ -110,7 +138,7 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Action failed.",
+        error: error instanceof PaymentError ? error.message : "Action failed.",
       },
       { status: 400 },
     );

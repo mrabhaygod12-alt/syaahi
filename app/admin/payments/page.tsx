@@ -12,6 +12,7 @@ interface Payment {
   credits: number;
   pack: string;
   utr?: string;
+  upiId?: string;
   method: string;
   rejectionReason?: string;
   createdAt: string;
@@ -49,13 +50,12 @@ export default function AdminPayments() {
     async (tab?: string, p?: number) => {
       setLoading(true);
       try {
-        const statusParam = (tab ?? activeTab)
-          ? `&status=${tab ?? activeTab}`
-          : "";
+        const statusParam =
+          (tab ?? activeTab) ? `&status=${tab ?? activeTab}` : "";
         const r = await fetch(
           `/api/upi/admin?action=list${statusParam}&page=${p ?? page}`,
         );
-        if (r.status === 403) {
+        if (r.status === 403 || r.status === 401) {
           setAuthorized(false);
           return;
         }
@@ -98,12 +98,22 @@ export default function AdminPayments() {
   }, [loadPayments, loadStats]);
 
   async function approve(orderId: string) {
+    if (
+      !window.confirm(
+        "Have you matched this UTR, the exact amount, and the receiving account against the actual bank statement? A screenshot alone is insufficient.",
+      )
+    )
+      return;
     setActionBusy(orderId);
     try {
       const r = await fetch("/api/upi/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve", orderId }),
+        body: JSON.stringify({
+          action: "approve",
+          orderId,
+          bankVerified: true,
+        }),
       });
       const j = await r.json();
       if (j.error) {
@@ -152,7 +162,10 @@ export default function AdminPayments() {
   if (authorized === false) {
     return (
       <div className="admin-page">
-        <div className="wrap" style={{ padding: "80px 24px", textAlign: "center" }}>
+        <div
+          className="wrap"
+          style={{ padding: "80px 24px", textAlign: "center" }}
+        >
           <h1>🔒 Access Denied</h1>
           <p>You don't have admin permissions. Contact the site owner.</p>
           <a href="/dashboard" className="btn dark" style={{ marginTop: 16 }}>
@@ -197,7 +210,9 @@ export default function AdminPayments() {
             </div>
             <div className="stat-card revenue">
               <div className="stat-icon">💰</div>
-              <div className="stat-value">₹{stats.totalRevenue.toLocaleString("en-IN")}</div>
+              <div className="stat-value">
+                ₹{stats.totalRevenue.toLocaleString("en-IN")}
+              </div>
               <div className="stat-label">Revenue</div>
             </div>
           </div>
@@ -225,7 +240,9 @@ export default function AdminPayments() {
         {error && (
           <div className="admin-error">
             {error}
-            <button onClick={() => setError("")} className="toast-close">✕</button>
+            <button onClick={() => setError("")} className="toast-close">
+              ✕
+            </button>
           </div>
         )}
 
@@ -243,7 +260,10 @@ export default function AdminPayments() {
         ) : (
           <div className="admin-payments-list">
             {payments.map((p) => (
-              <div key={p.orderId} className={`admin-payment-card status-${p.status}`}>
+              <div
+                key={p.orderId}
+                className={`admin-payment-card status-${p.status}`}
+              >
                 <div className="payment-card-header">
                   <div className="payment-user">
                     <div className="user-avatar">
@@ -252,7 +272,9 @@ export default function AdminPayments() {
                     <div>
                       <b>{p.userName || "Unknown"}</b>
                       <br />
-                      <span className="small">{p.userEmail || p.user.slice(0, 8)}</span>
+                      <span className="small">
+                        {p.userEmail || p.user.slice(0, 8)}
+                      </span>
                     </div>
                   </div>
                   <div className="payment-amount">
@@ -271,8 +293,14 @@ export default function AdminPayments() {
                     <code className="utr-code">{p.utr || "Not submitted"}</code>
                   </div>
                   <div className="payment-detail-row">
+                    <span>Payee UPI</span>
+                    <code>{p.upiId}</code>
+                  </div>
+                  <div className="payment-detail-row">
                     <span>Method</span>
-                    <span>{p.method === "upi_qr" ? "UPI QR" : "Auto Gateway"}</span>
+                    <span>
+                      {p.method === "upi_qr" ? "UPI QR" : "Auto Gateway"}
+                    </span>
                   </div>
                   <div className="payment-detail-row">
                     <span>Time</span>

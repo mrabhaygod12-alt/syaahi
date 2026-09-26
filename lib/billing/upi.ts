@@ -8,21 +8,21 @@
  * All amounts are in paisa (INR × 100).
  */
 
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { useMongo, collection, mongoTransaction } from "@/lib/storage/mongo";
-import { grant } from "@/lib/credits/store";
+
 import { PACKS } from "./packs";
 
 /* ───────────────────── Types ───────────────────── */
 
 export type PaymentMethod = "upi_qr" | "upi_gateway";
 export type PaymentStatus =
-  | "pending"       // created, waiting for user action
+  | "pending" // created, waiting for user action
   | "utr_submitted" // user submitted UTR, awaiting verification
-  | "verifying"     // admin is reviewing
-  | "approved"      // payment confirmed, credits granted
-  | "rejected"      // admin rejected / fraudulent
-  | "expired"       // TTL exceeded (30 min)
+  | "verifying" // admin is reviewing
+  | "approved" // payment confirmed, credits granted
+  | "rejected" // admin rejected / fraudulent
+  | "expired" // TTL exceeded (30 min)
   | "auto_verified"; // gateway confirmed automatically
 
 export interface UpiPayment {
@@ -31,18 +31,18 @@ export interface UpiPayment {
   userName?: string;
   userEmail?: string;
   pack: string;
-  amount: number;         // paisa
+  amount: number; // paisa
   credits: number;
   method: PaymentMethod;
   status: PaymentStatus;
-  upiId: string;          // merchant UPI ID
-  utr?: string;           // submitted by user
-  gatewayRef?: string;    // auto-gateway reference
-  paymentToken: string;   // HMAC-signed token for verification
+  upiId: string; // merchant UPI ID
+  utr?: string; // submitted by user
+  gatewayRef?: string; // auto-gateway reference
+  paymentToken?: string; // Legacy field; never used for authorization
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
-  approvedBy?: string;    // admin ID
+  approvedBy?: string; // admin ID
   rejectionReason?: string;
   creditEventId?: string; // idempotency key for credit grant
 }
@@ -50,22 +50,51 @@ export interface UpiPayment {
 /* ───────────────────── Config ───────────────────── */
 
 const PAYMENT_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const UPI_ID = () => process.env.UPI_MERCHANT_ID || "syaahi@upi";
-const HMAC_SECRET = () =>
-  process.env.UPI_HMAC_SECRET || process.env.BACKEND_PROXY_SECRET || "syaahi-upi-default-secret";
-
-/* ───────────────────── Helpers ───────────────────── */
-
-/** Generate HMAC-signed payment token */
-function signPayment(orderId: string, amount: number): string {
-  return createHmac("sha256", HMAC_SECRET())
-    .update(`${orderId}:${amount}`)
-    .digest("hex");
+export class PaymentError extends Error {}
+export function merchant() {
+  const id = (process.env.UPI_MERCHANT_ID || "8090912278@ybl").trim();
+  const name = (process.env.UPI_MERCHANT_NAME || "CHANDAN PANDEY").trim();
+  if (
+    !/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9.-]{2,64}$/.test(id) ||
+    !name ||
+    name.length > 100 ||
+    /^(yourname|syaahi)@upi$/i.test(id)
+  )
+    throw new PaymentError(
+      "Manual UPI checkout is not configured. Please use automatic checkout or contact support.",
+    );
+  return { id, name };
+}
+export function paymentPage(value: unknown): number {
+  const n = Number(value || 1);
+  if (!Number.isSafeInteger(n) || n < 1 || n > 10000)
+    throw new PaymentError("Invalid page.");
+  return n;
+}
+export async function isAdmin(userId: string): Promise<boolean> {
+  if (
+    (process.env.PAYMENT_ADMIN_IDS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .includes(userId)
+  )
+    return true;
+  return (
+    useMongo() &&
+    !!(await (
+      await collection("payment_admins")
+    ).findOne({ _id: userId, active: true }))
+  );
+}
+async function requireAdmin(id: string) {
+  if (!(await isAdmin(id)))
+    throw new PaymentError("Payment administrator access required.");
 }
 
 /** Validate UTR format (12-digit bank reference) */
 export function isValidUTR(utr: string): boolean {
-  const clean = utr.trim().replace(/\s/g, "");
+  const clean = utr.trim().replace(/\s/g, "").toUpperCase();
   // UTR can be 12-22 chars, alphanumeric
   return /^[A-Za-z0-9]{12,22}$/.test(clean);
 }
@@ -77,9 +106,9 @@ export function upiDeepLink(
   name: string,
 ): string {
   const amountInr = (amount / 100).toFixed(2);
-  const upiId = UPI_ID();
+  const upiId = merchant().id;
   const tn = `Syaahi-${orderId.slice(0, 8)}`;
-  return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amountInr}&cu=INR&tn=${encodeURIComponent(tn)}`;
+  return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amountInr}&cu=INR&tn=${encodeURIComponent(tn)}&tr=${encodeURIComponent(orderId)}`;
 }
 
 /* ───────────── MongoDB index bootstrap ─────────── */
@@ -90,19 +119,48 @@ export async function ensureUpiIndexes(): Promise<void> {
   if (indexesReady) return indexesReady;
   indexesReady = (async () => {
     const col = await collection("upi_payments");
+    // Financial records must never expire. Remove the legacy destructive TTL index.
+    for (const index of await col
+      .listIndexes()
+      .toArray()
+      .catch((e) => {
+        if (e.code === 26) return [];
+        throw e;
+      })) {
+      if (
+        index.key?.expiresAt &&
+        index.expireAfterSeconds !== undefined &&
+        index.name
+      )
+        await col.dropIndex(index.name).catch((e) => {
+          if (e.code !== 27) throw e;
+        });
+    }
     await Promise.all([
       col.createIndex({ user: 1, createdAt: -1 }),
       col.createIndex({ status: 1, createdAt: -1 }),
-      col.createIndex({ utr: 1 }, {
-        unique: true,
-        partialFilterExpression: { utr: { $type: "string" } },
-      }),
       col.createIndex(
-        { expiresAt: 1 },
-        { expireAfterSeconds: 0 },   // auto-cleanup expired docs after TTL
+        { utr: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { utr: { $type: "string" } },
+        },
       ),
+      col.createIndex(
+        { utr: 1 },
+        {
+          name: "utr_case_insensitive",
+          unique: true,
+          collation: { locale: "en", strength: 2 },
+          partialFilterExpression: { utr: { $type: "string" } },
+        },
+      ),
+      col.createIndex({ expiresAt: 1 }),
     ]);
-  })();
+  })().catch((e) => {
+    indexesReady = null;
+    throw e;
+  });
   return indexesReady;
 }
 
@@ -115,18 +173,23 @@ export async function createUpiPayment(
   userInfo?: { name?: string; email?: string },
 ): Promise<UpiPayment> {
   if (!useMongo()) throw new Error("UPI payments require MongoDB backend.");
+  if (method !== "upi_qr")
+    throw new PaymentError("Use Razorpay checkout for automatic payments.");
+  const payee = merchant();
+  if (
+    !(process.env.PAYMENT_ADMIN_IDS || "").trim() &&
+    !(await (await collection("payment_admins")).findOne({ active: true }))
+  )
+    throw new PaymentError(
+      "Manual payment review is not configured yet. Please use automatic checkout or contact support.",
+    );
+  if (!Object.hasOwn(PACKS, packId)) throw new PaymentError("Unknown pack.");
   const pack = PACKS[packId];
-  if (!pack) throw new Error("Unknown pack.");
 
   await ensureUpiIndexes();
 
-  // Expire any pending orders for this user+pack
   const col = await collection("upi_payments");
-  await col.updateMany(
-    { user: userId, pack: packId, status: "pending" },
-    { $set: { status: "expired", updatedAt: new Date() } },
-  );
-
+  await expirePending(userId);
   const orderId = `upi_${randomUUID().replace(/-/g, "")}`;
   const now = new Date();
   const payment: UpiPayment = {
@@ -139,8 +202,7 @@ export async function createUpiPayment(
     credits: pack.credits,
     method,
     status: "pending",
-    upiId: UPI_ID(),
-    paymentToken: signPayment(orderId, pack.inr * 100),
+    upiId: payee.id,
     expiresAt: new Date(now.getTime() + PAYMENT_TTL_MS),
     createdAt: now,
     updatedAt: now,
@@ -160,34 +222,57 @@ export async function submitUTR(
   if (!useMongo()) throw new Error("UPI payments require MongoDB backend.");
   await ensureUpiIndexes();
 
-  const clean = utr.trim().replace(/\s/g, "");
-  if (!isValidUTR(clean)) throw new Error("Invalid UTR format. Enter 12-22 character alphanumeric reference.");
+  const clean = utr.trim().replace(/\s/g, "").toUpperCase();
+  if (!isValidUTR(clean))
+    throw new PaymentError(
+      "Invalid UTR format. Enter 12-22 character alphanumeric reference.",
+    );
 
   const col = await collection("upi_payments");
+  const replay = await col.findOne({ _id: orderId, user: userId, utr: clean });
+  if (
+    replay &&
+    ["utr_submitted", "verifying", "approved"].includes(replay.status)
+  )
+    return replay as UpiPayment;
 
   // Check if UTR is already used
-  const existing = await col.findOne({ utr: clean, status: { $in: ["approved", "auto_verified", "utr_submitted", "verifying"] } });
+  const existing = await col.findOne({ utr: clean, status: { $exists: true } });
   if (existing && existing._id !== orderId)
-    throw new Error("This UTR has already been submitted for another payment.");
+    throw new PaymentError(
+      "This UTR has already been submitted for another payment.",
+    );
 
-  const result = await col.findOneAndUpdate(
-    {
-      _id: orderId,
-      user: userId,
-      status: "pending",
-      expiresAt: { $gt: new Date() },
-    },
-    {
-      $set: {
-        utr: clean,
-        status: "utr_submitted" as PaymentStatus,
-        updatedAt: new Date(),
+  const result = await col
+    .findOneAndUpdate(
+      {
+        _id: orderId,
+        user: userId,
+        method: "upi_qr",
+        status: { $in: ["pending", "expired"] },
+        createdAt: { $gt: new Date(Date.now() - 7 * 86400000) },
       },
-    },
-    { returnDocument: "after" },
-  );
+      {
+        $set: {
+          utr: clean,
+          status: "utr_submitted" as PaymentStatus,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: "after" },
+    )
+    .catch((e) => {
+      if (e.code === 11000)
+        throw new PaymentError(
+          "This UTR is already attached to another payment. Contact support if this is incorrect.",
+        );
+      throw e;
+    });
 
-  if (!result) throw new Error("Payment not found, already processed, or expired.");
+  if (!result)
+    throw new PaymentError(
+      "Payment not found or not eligible. Contact support if you have already paid.",
+    );
   return result as unknown as UpiPayment;
 }
 
@@ -202,6 +287,8 @@ export async function listPendingPayments(
   await ensureUpiIndexes();
 
   const col = await collection("upi_payments");
+  await expirePending();
+  page = paymentPage(page);
   const filter = statusFilter
     ? { status: statusFilter }
     : { status: { $in: ["utr_submitted", "verifying", "pending"] } };
@@ -225,53 +312,75 @@ export async function approvePayment(
   if (!useMongo()) throw new Error("UPI payments require MongoDB backend.");
   await ensureUpiIndexes();
 
+  await requireAdmin(adminId);
   return mongoTransaction(async (d, session) => {
-    const col = d.collection<any>("upi_payments");
-    const payment = await col.findOne(
-      { _id: orderId, status: { $in: ["utr_submitted", "verifying"] } },
-      { session },
-    );
-    if (!payment) throw new Error("Payment not found or not in approvable state.");
-
+    const opts = { session },
+      col = d.collection<any>("upi_payments");
+    const payment = await col.findOne({ _id: orderId, method: "upi_qr" }, opts);
+    if (!payment) throw new PaymentError("Payment not found.");
+    if (payment.status === "approved") return payment as UpiPayment;
+    if (
+      !["utr_submitted", "verifying"].includes(payment.status) ||
+      !payment.utr
+    )
+      throw new PaymentError("A submitted UTR is required before approval.");
     const creditEventId = `upi_credit:${orderId}`;
-    await col.updateOne(
+    // Keep compatibility with any legacy grant already committed outside approval.
+    const ledger = d.collection<any>("ledger");
+    const prior = await ledger.findOne({ _id: creditEventId }, opts);
+    if (
+      prior &&
+      (prior.user !== payment.user || prior.delta !== payment.credits)
+    )
+      throw new Error("Ledger mismatch");
+    if (!prior) {
+      const changed = await d
+        .collection<any>("wallets")
+        .updateOne(
+          { _id: payment.user },
+          { $inc: { balance: payment.credits } },
+          opts,
+        );
+      if (!changed.matchedCount) throw new Error("Unknown wallet");
+      await ledger.insertOne(
+        {
+          _id: creditEventId,
+          user: payment.user,
+          delta: payment.credits,
+          reason: "Verified manual UPI payment",
+          createdAt: new Date(),
+        },
+        opts,
+      );
+    }
+    await d.collection<any>("orders").updateOne(
       { _id: orderId },
       {
-        $set: {
-          status: "approved" as PaymentStatus,
-          approvedBy: adminId,
-          creditEventId,
-          updatedAt: new Date(),
-        },
-      },
-      { session },
-    );
-
-    // Grant credits — uses existing billing infra
-    // grant() internally records in the ledger, so no separate ledger insert needed
-    await grant(payment.user, payment.credits, creditEventId as any);
-
-    // Also record in orders collection for consistency with Razorpay flow
-    const orders = d.collection<any>("orders");
-    const existingOrder = await orders.findOne({ _id: orderId }, { session });
-    if (!existingOrder) {
-      await orders.insertOne(
-        {
-          _id: orderId,
+        $setOnInsert: {
           user: payment.user,
           pack: payment.pack,
           amount: payment.amount,
           credits: payment.credits,
           paid: true,
-          paymentId: `upi:${payment.utr || orderId}`,
+          paymentId: `upi:${payment.utr}`,
           method: "upi_qr",
         },
-        { session },
-      );
-    }
-
-    const updated = await col.findOne({ _id: orderId }, { session });
-    return updated as unknown as UpiPayment;
+      },
+      { ...opts, upsert: true },
+    );
+    const updated = await col.findOneAndUpdate(
+      { _id: orderId },
+      {
+        $set: {
+          status: "approved",
+          approvedBy: adminId,
+          creditEventId,
+          updatedAt: new Date(),
+        },
+      },
+      { ...opts, returnDocument: "after" },
+    );
+    return updated as UpiPayment;
   });
 }
 
@@ -285,6 +394,7 @@ export async function rejectPayment(
   if (!useMongo()) throw new Error("UPI payments require MongoDB backend.");
   await ensureUpiIndexes();
 
+  await requireAdmin(adminId);
   const col = await collection("upi_payments");
   const result = await col.findOneAndUpdate(
     { _id: orderId, status: { $in: ["utr_submitted", "verifying"] } },
@@ -292,14 +402,16 @@ export async function rejectPayment(
       $set: {
         status: "rejected" as PaymentStatus,
         approvedBy: adminId,
-        rejectionReason: reason || "Payment could not be verified.",
+        rejectionReason:
+          reason.trim().slice(0, 500) || "Payment could not be verified.",
         updatedAt: new Date(),
       },
     },
     { returnDocument: "after" },
   );
 
-  if (!result) throw new Error("Payment not found or not in rejectable state.");
+  if (!result)
+    throw new PaymentError("Payment not found or not in rejectable state.");
   return result as unknown as UpiPayment;
 }
 
@@ -312,6 +424,7 @@ export async function getPaymentStatus(
   if (!useMongo()) return null;
   await ensureUpiIndexes();
   const col = await collection("upi_payments");
+  await expirePending(userId);
   const payment = await col.findOne({ _id: orderId, user: userId });
   return payment as unknown as UpiPayment | null;
 }
@@ -327,6 +440,8 @@ export async function listUserPayments(
   await ensureUpiIndexes();
 
   const col = await collection("upi_payments");
+  await expirePending(userId);
+  page = paymentPage(page);
   const filter = { user: userId };
   const total = await col.countDocuments(filter);
   const payments = await col
@@ -339,86 +454,16 @@ export async function listUserPayments(
   return { payments: payments as unknown as UpiPayment[], total };
 }
 
-/* ───────── AUTO-GATEWAY: webhook verification ────── */
-
-export async function gatewayWebhookVerify(
-  orderId: string,
-  gatewayRef: string,
-  amount: number,
-  signature: string,
-  secret: string,
-): Promise<UpiPayment> {
-  if (!useMongo()) throw new Error("UPI payments require MongoDB backend.");
-  await ensureUpiIndexes();
-
-  // Verify signature
-  const expected = createHmac("sha256", secret)
-    .update(`${orderId}|${gatewayRef}|${amount}`)
-    .digest("hex");
-
-  const sigBuf = Buffer.from(signature, "hex");
-  const expBuf = Buffer.from(expected, "hex");
-  if (sigBuf.length !== expBuf.length) throw new Error("Invalid gateway signature.");
-
-  const { timingSafeEqual } = await import("node:crypto");
-  if (!timingSafeEqual(sigBuf, expBuf))
-    throw new Error("Invalid gateway signature.");
-
-  return mongoTransaction(async (d, session) => {
-    const col = d.collection<any>("upi_payments");
-    const payment = await col.findOne(
-      { _id: orderId, status: "pending" },
-      { session },
-    );
-    if (!payment) throw new Error("Payment not found or already processed.");
-
-    if (amount !== payment.amount)
-      throw new Error("Amount mismatch.");
-
-    const creditEventId = `upi_auto:${orderId}`;
-    await col.updateOne(
-      { _id: orderId },
-      {
-        $set: {
-          status: "auto_verified" as PaymentStatus,
-          gatewayRef,
-          creditEventId,
-          updatedAt: new Date(),
-        },
-      },
-      { session },
-    );
-
-    await grant(payment.user, payment.credits, creditEventId as any);
-
-    // Record in orders
-    await d.collection<any>("orders").insertOne(
-      {
-        _id: orderId,
-        user: payment.user,
-        pack: payment.pack,
-        amount: payment.amount,
-        credits: payment.credits,
-        paid: true,
-        paymentId: `gateway:${gatewayRef}`,
-        method: "upi_gateway",
-      },
-      { session },
-    );
-
-    const updated = await col.findOne({ _id: orderId }, { session });
-    return updated as unknown as UpiPayment;
-  });
-}
-
-/* ───────── ADMIN CHECK ───────────────────────────── */
-
-export function isAdmin(userId: string): boolean {
-  const admins = (process.env.SUPPORT_ADMIN_IDS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return admins.includes(userId);
+async function expirePending(user?: string) {
+  const col = await collection("upi_payments");
+  await col.updateMany(
+    {
+      ...(user ? { user } : {}),
+      status: "pending",
+      expiresAt: { $lte: new Date() },
+    },
+    { $set: { status: "expired", updatedAt: new Date() } },
+  );
 }
 
 /* ───────── STATS for admin dashboard ─────────────── */

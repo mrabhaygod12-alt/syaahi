@@ -22,6 +22,13 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setVerifyLink(null);
     try {
       const res = await signIn(name, email, password, mode, accepted);
+      const ref = new URLSearchParams(location.search).get("ref");
+      if (mode === "signup" && ref)
+        await fetch("/api/referrals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: ref }),
+        });
       if (res.requireVerification) {
         setVerifyLink(res.verifyUrl || "/verify-email");
         setMsg(
@@ -30,13 +37,6 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         );
         return;
       }
-      const ref = new URLSearchParams(location.search).get("ref");
-      if (mode === "signup" && ref)
-        await fetch("/api/referrals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: ref }),
-        });
       const next = new URLSearchParams(location.search).get("next");
       window.location.href =
         next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
