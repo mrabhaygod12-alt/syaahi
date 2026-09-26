@@ -107,6 +107,33 @@ export default function DashboardClient() {
           </a>
         </aside>
         <div className="workspace-main">
+          {jobs.some((j) => j.status === "done") && (
+            <section className="continue-study">
+              <div>
+                <p className="eyebrow">PICK UP YOUR STUDY ROUTINE</p>
+                <h2>
+                  {jobs.find((j) => j.status === "done")?.title ||
+                    jobs.find((j) => j.status === "done")?.topics[0] ||
+                    "Your latest lesson"}
+                </h2>
+                <p>Continue learning, or review a few flashcards.</p>
+              </div>
+              <div>
+                <a
+                  className="btn dark"
+                  href={`/lesson/${jobs.find((j) => j.status === "done")!.id}/learn`}
+                >
+                  Open lesson →
+                </a>
+                <a
+                  className="btn light"
+                  href={`/lesson/${jobs.find((j) => j.status === "done")!.id}/flashcards`}
+                >
+                  Review cards
+                </a>
+              </div>
+            </section>
+          )}
           <div
             className="workspace-heading"
             style={{
@@ -130,7 +157,8 @@ export default function DashboardClient() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 10,
-                  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                  background:
+                    "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
                   border: "1.5px solid #fde68a",
                   borderRadius: 24,
                   padding: "6px 16px",
@@ -142,7 +170,13 @@ export default function DashboardClient() {
                 }}
               >
                 <span>⚡ Remaining Balance:</span>
-                <span style={{ fontSize: "1.05rem", fontWeight: 800, color: "#b45309" }}>
+                <span
+                  style={{
+                    fontSize: "1.05rem",
+                    fontWeight: 800,
+                    color: "#b45309",
+                  }}
+                >
                   {balance === null
                     ? "Loading..."
                     : `${Math.floor(balance / 3)} Tokens (${balance} Credits)`}

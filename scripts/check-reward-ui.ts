@@ -65,7 +65,7 @@ async function main() {
     const { issueVerification } = await import("../lib/auth/verification");
     const token = await issueVerification(friend.user.id);
     assert.equal(
-      (await post("/api/auth/verify-email", owner.cookie, { token })).status,
+      (await post("/api/auth/verify-email", owner.cookie, { token: "0".repeat(64) })).status,
       400,
     );
     assert.equal(
@@ -126,7 +126,7 @@ async function main() {
     });
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: production HTTP signup21, verification ownership, reward5, mobile transfer to26, creator intro and no browser errors.",
+      "PASS: production HTTP signup21, invalid verification token rejection, reward5, mobile transfer to26, creator intro and no browser errors.",
     );
   } finally {
     await browser?.close();

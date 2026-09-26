@@ -1,3 +1,4 @@
+import StudyDemo from "@/components/StudyDemo";
 import LandingReveal from "@/components/LandingReveal";
 import { CtaBand, Faq } from "@/components/site";
 export default function Home() {
@@ -7,190 +8,76 @@ export default function Home() {
       <section className="public-hero">
         <div className="wrap hero-grid">
           <div>
-            <span className="eyebrow">LESS CLUTTER. MORE UNDERSTANDING.</span>
+            <p className="eyebrow">YOUR MATERIAL. YOUR WAY OF LEARNING.</p>
             <h1>
-              From information
+              Make room for
               <br />
-              to <em>“I get it.”</em>
+              <em>understanding.</em>
             </h1>
             <p>
-              Turn your lectures, screenshots, and questions into thoughtful
-              notes. Then practise until the ideas stick.
+              Bring a topic, lecture or document. Build notebook-style notes,
+              learn one idea at a time, and practise what matters.
             </p>
             <div className="hero-actions">
               <a className="btn dark" href="/dashboard">
-                Create your first lesson ↗
+                Create a study workspace →
               </a>
-              <a className="btn light" href="/how-it-works">
-                See how it works
+              <a className="btn light" href="#try-demo">
+                Try a sample
               </a>
             </div>
-            <span className="small">
-              21 welcome credits (7 tokens) · Automatic page planning · Keep
-              your PDFs
-            </span>
+            <p className="small">
+              21 welcome credits · Review your plan before generation
+            </p>
           </div>
-          <div className="note-showcase">
-            <div className="note-label">A SMALL IDEA, CLEARLY EXPLAINED</div>
-            <h3>Why does binary search work?</h3>
-            <p>
-              Start with a sorted list. Compare the middle item with your
-              target.
-            </p>
-            <p>
-              Too small? Keep the right half.
-              <br />
-              Too big? Keep the left half.
-            </p>
-            <p>
-              <span className="note-insight">
-                Each step cuts the problem in half.
-              </span>
-            </p>
-            <p>1,024 items → at most 11 comparisons</p>
-            <div className="note-label">
-              ILLUSTRATIVE NOTE · COMPUTER SCIENCE
+          <div
+            className="hero-learning-visual"
+            aria-label="Illustrative study workflow"
+          >
+            <div className="floating-source">▤ Your lecture</div>
+            <div className="hero-paper">
+              <span className="eyebrow">A NOTE WORTH KEEPING</span>
+              <h3>
+                Understand.
+                <br />
+                Recall.
+                <br />
+                Apply.
+              </h3>
+              <div className="paper-lines">
+                <i />
+                <i />
+                <i />
+              </div>
+              <p>One concept at a time.</p>
             </div>
+            <div className="floating-check">✓ Check your understanding</div>
           </div>
         </div>
       </section>
-
-      {/* Curriculum & Board Coverage Strip */}
-      <section
-        className="curriculum-strip"
-        aria-label="Curriculum and exam coverage"
-      >
-        <div className="wrap curriculum-wrap">
-          <span className="curriculum-label">Exam Ready For:</span>
-          <div className="curriculum-tags">
-            <span className="curriculum-tag">
-              <em>🏫</em> CBSE Class 10 & 12
-            </span>
-            <span className="curriculum-tag">
-              <em>🎯</em> JEE Main & Advanced
-            </span>
-            <span className="curriculum-tag">
-              <em>🩺</em> NEET Medical
-            </span>
-            <span className="curriculum-tag">
-              <em>🏛️</em> UPSC Civil Services
-            </span>
-            <span className="curriculum-tag">
-              <em>🎓</em> University Semesters
-            </span>
-            <span className="curriculum-tag">
-              <em>💻</em> B.Tech / BCA / CS
-            </span>
-            <span className="curriculum-tag">
-              <em>💼</em> CA / Commerce
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 4-in-1 Study Ecosystem */}
-      <section className="wrap feature-section" style={{ paddingTop: 48 }}>
-        <span className="eyebrow">YOUR COMPLETE STUDY DESK</span>
-        <h2>Four ways to master any concept.</h2>
-        <p style={{ color: "#6e675f", maxWidth: 640 }}>
-          Move between reading, practice, recall, and listening in one connected
-          lesson workspace.
-        </p>
-        <div className="pillars-grid">
-          <div className="pillar-card">
-            <span className="pillar-icon">📄</span>
-            <h3>Handwritten A4 Notes</h3>
-            <p>
-              Classic blue ink on ruled paper with red margins, golden highlight
-              headers, formula boxes, and key takeaway anchors. Downloadable as
-              high-res printable PDFs.
-            </p>
-            <span className="pillar-tag">Printable PDF</span>
-          </div>
-          <div className="pillar-card">
-            <span className="pillar-icon">📝</span>
-            <h3>Interactive Adaptive Quizzes</h3>
-            <p>
-              Test active recall with multiple-choice questions, hints, and
-              step-by-step reasoning grounded strictly in your syllabus.
-            </p>
-            <span className="pillar-tag">Self-Testing</span>
-          </div>
-          <div className="pillar-card">
-            <span className="pillar-icon">🗂️</span>
-            <h3>Active Recall Flashcards</h3>
-            <p>
-              Flip cards for high-yield definitions, formulas, and historical
-              facts. Review an entire chapter before walking into the exam room.
-            </p>
-            <span className="pillar-tag">Spaced Repetition</span>
-          </div>
-          <div className="pillar-card">
-            <span className="pillar-icon">🎙️</span>
-            <h3>Conversational Audio Podcast</h3>
-            <p>
-              Listen to a spoken explanation built from your lesson notes.
-              Revisit the main ideas while commuting or taking a break.
-            </p>
-            <span className="pillar-tag">Audio Learning</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison: Syaahi vs Generic ChatGPT */}
-      <section className="wrap comparison-section">
-        <span className="eyebrow">WHY SYAAHI</span>
-        <h2>Built for exam retention, not just text generation.</h2>
+      <StudyDemo />
+      <section className="wrap feature-section">
+        <p className="eyebrow">FROM SOURCE TO STUDY SESSION</p>
+        <h2>A clear path through your material.</h2>
         <div className="retention-grid">
           {[
             [
               "01",
-              "Understand the idea",
-              "Follow short explanations and worked examples in your guided lesson. Ask questions when something is unclear.",
+              "Bring your source",
+              "Upload a document, screenshot or audio recording. Public YouTube videos are checked for study suitability; unavailable captions can use a labelled video digest when supported.",
             ],
             [
               "02",
-              "Retrieve it from memory",
-              "Check your understanding with a checkpoint, then revisit ideas through quizzes and flashcards.",
+              "Review before creating",
+              "Check the extracted material, adjust your learning goal and edit the suggested outline. See the credit cost before starting.",
             ],
             [
               "03",
-              "Keep a useful reference",
-              "Return to your source material and export notebook-style PDFs for revision. Check important facts against your course materials.",
-            ],
-          ].map(([n, title, copy]) => (
-            <article className="retention-card" key={n}>
-              <span className="feature-number">{n}</span>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works workflow */}
-      <section className="wrap feature-section">
-        <span className="eyebrow">ONE CONNECTED STUDY LOOP</span>
-        <h2>Good notes are just the beginning.</h2>
-        <div className="feature-grid">
-          {[
-            [
-              "01",
-              "Bring what you have",
-              "A topic, a textbook screenshot, a PDF syllabus, voice lecture audio, or a captioned YouTube video. Review extracted text before starting.",
-            ],
-            [
-              "02",
-              "Shape your understanding",
-              "Review the suggested page count and edit your outline. See whether the plan uses your material, retrieved external sources, or general knowledge.",
-            ],
-            [
-              "03",
-              "Put it into practice",
-              "Open your lesson workspace to read notes, ask questions in AI chat, solve quizzes, and listen to podcasts. Export clean PDFs anytime.",
+              "Learn, then return",
+              "Move through explanations and worked examples. Check your understanding, save progress and revisit flashcards when they are due.",
             ],
           ].map(([n, t, p]) => (
-            <article key={n}>
+            <article key={n} className="retention-card">
               <span className="feature-number">{n}</span>
               <h3>{t}</h3>
               <p>{p}</p>
@@ -198,41 +85,95 @@ export default function Home() {
           ))}
         </div>
       </section>
-
-      {/* Comprehensive FAQs */}
+      <section className="wrap feature-section">
+        <p className="eyebrow">YOUR COMPLETE STUDY DESK</p>
+        <h2>Tools with a place in your routine.</h2>
+        <div className="product-bento">
+          <article className="pillar-card bento-wide">
+            <div>
+              <p className="eyebrow">NOTES YOU CAN KEEP</p>
+              <h3>A notebook, ready to print.</h3>
+              <p>
+                Blue handwriting, clear headings and useful flowcharts. Choose a
+                template and export an A4 PDF, with long sections continuing
+                onto additional sheets.
+              </p>
+              <a href="/examples">Explore note examples →</a>
+            </div>
+            <div className="mini-note" aria-hidden="true">
+              <h4>Algorithms</h4>
+              <p>A finite sequence of steps.</p>
+              <span>Input → Process → Output</span>
+              <p>Clear. Ordered. Useful.</p>
+            </div>
+          </article>
+          {[
+            [
+              "↗",
+              "A tutor beside your lesson",
+              "Ask for a simpler explanation, a worked example or a hint without leaving the current section.",
+              "/features",
+            ],
+            [
+              "↻",
+              "A reason to come back",
+              "Review due flashcards and revisit concepts you find difficult. Your review schedule follows your responses.",
+              "/how-it-works",
+            ],
+            [
+              "♫",
+              "Take the explanation with you",
+              "Generate spoken study audio from your notes. Audio availability depends on the configured service.",
+              "/features",
+            ],
+            [
+              "▤",
+              "Study together",
+              "Invite a classmate to a lesson, discuss ideas and control their viewing or editing access.",
+              "/docs",
+            ],
+          ].map(([icon, title, copy, href]) => (
+            <article className="pillar-card" key={title}>
+              <span className="bento-symbol" aria-hidden="true">
+                {icon}
+              </span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+              <a href={href}>See how it works →</a>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="wrap trust-note">
+        <h2>Useful AI starts with honest limits.</h2>
+        <p>
+          Generated material can contain mistakes. Check important facts against
+          your source, syllabus or teacher. Syaahi labels source material and
+          keeps your original notes available for review.
+        </p>
+        <a href="/about">Meet the people building Syaahi →</a>
+      </section>
       <Faq
         items={[
           {
-            q: "Can I convert YouTube lectures or handwritten class photos into notes?",
-            a: "Yes! Paste any YouTube video link (with captions), upload photos of handwritten notes, lecture recordings, syllabus PDFs, or Word documents. Syaahi transcribes, analyzes, and organizes them automatically.",
+            q: "What can I study from?",
+            a: "Start with a topic, document, screenshot, audio recording or supported public YouTube video. Review extracted material before generation.",
           },
           {
-            q: "Are the generated notes downloadable as high-quality printable PDFs?",
-            a: "Absolutely. Every note is formatted on standard A4 dimensions with real ruled lines, margins, and crisp typography. You can print them on paper or import them into iPad note-taking apps like GoodNotes or Notability.",
+            q: "What if a YouTube video has no captions?",
+            a: "When supported, Syaahi can request an AI-extracted video digest. This is labelled separately from a transcript. If the video cannot be read reliably, upload an audio recording or transcript you can use.",
           },
           {
-            q: "How is Syaahi different from ChatGPT or NotebookLM?",
-            a: "While generic AI tools output long walls of plain text, Syaahi produces a complete exam workspace: authentic handwritten-style notes with topper callouts, interactive quizzes, active recall flashcards, and dual-host audio podcasts.",
+            q: "How are credits used?",
+            a: "New accounts receive 21 credits. One token equals 3 credits. Each generated note section uses one credit; extra PDF continuation sheets do not cost additional credits. Review your outline before starting.",
           },
           {
-            q: "What are Welcome Credits & Tokens? Is Syaahi free to try?",
-            a: "Every new user receives 21 welcome credits (equivalent to 7 full study tokens) immediately upon signup. You can create full lessons, practice quizzes, and download your PDFs without entering a credit card.",
+            q: "Does completing a lesson prove mastery?",
+            a: "Completion records your progress. Repeated recall and independent practice are better evidence that you understand the topic.",
           },
           {
-            q: "Will my notes be cut off if a topic is very long?",
-            a: "Never. Long content automatically continues onto extra A4 continuation sheets without consuming extra credits or tokens. Your token reserve covers the conceptual section; continuation pages are always free.",
-          },
-          {
-            q: "How does the study podcast work?",
-            a: "Syaahi generates a spoken study script from your lesson notes and synthesizes audio so you can revise while traveling or taking a break.",
-          },
-          {
-            q: "Can I ask questions or chat with my notes?",
-            a: "Yes! Every lesson has an integrated AI Study Chat grounded strictly in your generated notes. You can select any text to ask questions, request real-world examples, or get custom quiz questions.",
-          },
-          {
-            q: "Are my uploaded notes, syllabi, and study data private?",
-            a: "Your lessons are private by default unless you share them. Configured AI services process your material to produce study content; their data policies also apply. Read our privacy policy for details.",
+            q: "Are my materials private?",
+            a: "Lessons are private by default unless shared. Configured AI services process supplied material. Read our privacy policy for the details.",
           },
         ]}
       />

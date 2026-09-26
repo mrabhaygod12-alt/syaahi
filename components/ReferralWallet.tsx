@@ -19,18 +19,26 @@ export default function ReferralWallet({
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [code, setCode] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [guest, setGuest] = useState(false);
   const transfer = useRef<{ credits: number; requestId: string } | null>(null);
   const load = useCallback(async () => {
     const r = await fetch("/api/referrals");
-    if (r.status === 401) return;
+    if (r.status === 401) {
+      setGuest(true);
+      setLoading(false);
+      return;
+    }
     const d = await r.json();
     if (!r.ok) throw new Error(d.error);
     setData(d);
+    setLoading(false);
   }, []);
   useEffect(() => {
-    void load().catch(() =>
-      setMessage("Could not load referral wallet. Please refresh."),
-    );
+    void load().catch(() => {
+      setLoading(false);
+      setMessage("Could not load referral wallet. Please retry.");
+    });
   }, [load]);
   async function action(url: string, body: object, success: string) {
     setBusy(true);
@@ -53,17 +61,41 @@ export default function ReferralWallet({
       setBusy(false);
     }
   }
+  if (loading)
+    return (
+      <section className="card" aria-busy="true">
+        <h2>Your referral wallet</h2>
+        <p role="status">Loading your invitation and rewards…</p>
+      </section>
+    );
   if (!data)
     return (
       <section className="card">
         <h2>Invite & earn</h2>
         <p>Earn 5 reward credits for each eligible verified signup.</p>
         {message && <p role="status">{message}</p>}
-        <a href="/login?next=/refer">Sign in to open your referral wallet</a>
+        {guest ? (
+          <a className="btn dark" href="/login?next=/refer">
+            Sign in to open your referral wallet
+          </a>
+        ) : (
+          <button
+            className="btn light"
+            onClick={() => {
+              setLoading(true);
+              void load().catch(() => {
+                setLoading(false);
+                setMessage("Please try again later.");
+              });
+            }}
+          >
+            Retry wallet
+          </button>
+        )}
       </section>
     );
   return (
-    <section className="card" style={{ marginTop: 24 }}>
+    <section className="card referral-wallet" style={{ marginTop: 24 }}>
       <h2>
         {compact ? "Your referral wallet" : "Invite friends. Keep learning."}
       </h2>
@@ -161,6 +193,30 @@ export default function ReferralWallet({
             }}
           >
             Copy invitation
+          </button>
+          <button
+            className="btn light"
+            onClick={async () => {
+              const url = `${location.origin}/signup?ref=${data.code}`;
+              try {
+                if (navigator.share)
+                  await navigator.share({
+                    title: "Study with me on Syaahi",
+                    text: "Create your first lesson with 21 welcome credits.",
+                    url,
+                  });
+                else {
+                  await navigator.clipboard.writeText(url);
+                  setMessage("Invitation copied.");
+                }
+              } catch {
+                setMessage(
+                  "Sharing cancelled or unavailable. You can copy the link instead.",
+                );
+              }
+            }}
+          >
+            Share invitation
           </button>
           <p>
             {data.rewarded} qualified ·{" "}

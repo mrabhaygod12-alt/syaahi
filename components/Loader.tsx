@@ -1,9 +1,4 @@
 "use client";
-
-// Turbo-style staged loader: the message always matches the real phase —
-// planning/reading only before the first page lands, writing while pages
-// stream in, polishing on the last stretch. (The old fraction math showed
-// "Planning page topics…" with 2 of 6 pages already ready.)
 export default function Loader({
   done,
   total,
@@ -13,96 +8,41 @@ export default function Loader({
   total: number;
   currentTopic?: string | null;
 }) {
-  const frac = total ? done / total : 0;
-  const stage =
-    done <= 0
-      ? total > 1
-        ? "Planning page topics…"
-        : "Reading your source…"
-      : frac >= 1
-        ? "Polishing ink…"
-        : currentTopic
-          ? `Writing: ${currentTopic.slice(0, 60)}`
-          : "Writing handwritten pages…";
-
+  const ready = Math.max(0, Math.min(done, total || done));
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #e2dbd2",
-        borderRadius: 16,
-        padding: "40px 24px",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 44,
-          marginBottom: 8,
-          animation: "bob 1.6s ease-in-out infinite",
-        }}
-      >
-        ✒️
+    <section className="generation-loader" aria-busy="true">
+      <div className="loader-notebook" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <i>✦</i>
       </div>
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: ".15em",
-          color: "#7c3aed",
-          marginBottom: 4,
-        }}
-      >
-        <span style={{ animation: "pulse 2s ease-in-out infinite" }}>✦</span>
-        Writing your lesson
-        <span
-          style={{
-            animation: "pulse 2s ease-in-out infinite",
-            animationDelay: ".5s",
-          }}
-        >
-          ✦
-        </span>
-      </div>
-      <h2 style={{ margin: "4px 0 8px", fontSize: 22, fontWeight: 700 }}>
-        {done > 0 ? `${done} of ${total} pages ready` : "Lesson in progress"}
+      <p className="eyebrow">YOUR WORKSPACE IS TAKING SHAPE</p>
+      <h2>
+        {ready
+          ? `${ready} of ${total} sections ready`
+          : "Preparing your first section"}
       </h2>
-      <p className="small" style={{ fontSize: 14 }}>
-        {stage}
+      <p role="status">
+        {currentTopic
+          ? `Working on ${currentTopic}`
+          : ready >= total && total > 0
+            ? "Saving your lesson…"
+            : "Your request is queued or being processed. You can return to your dashboard."}
       </p>
-
-      {/* Progress bar */}
-      <div
-        style={{
-          background: "#f0ebe3",
-          borderRadius: 999,
-          height: 8,
-          marginTop: 16,
-          maxWidth: 400,
-          marginLeft: "auto",
-          marginRight: "auto",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${Math.max(6, frac * 100)}%`,
-            height: "100%",
-            borderRadius: 999,
-            background: "linear-gradient(90deg, #7c3aed, #2563eb)",
-            transition: "width .6s ease",
-          }}
+      {total > 0 ? (
+        <progress
+          max={total}
+          value={ready}
+          aria-label="Completed note sections"
         />
-      </div>
-
-      <style>{`
-        @keyframes bob { 0%,100%{transform:translateY(0) rotate(-6deg)} 50%{transform:translateY(-10px) rotate(6deg)} }
-        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
-      `}</style>
-    </div>
+      ) : (
+        <progress aria-label="Preparing lesson" />
+      )}
+      <p className="small">
+        Progress reflects saved sections. Long sections may produce more than
+        one PDF sheet.
+      </p>
+    </section>
   );
 }

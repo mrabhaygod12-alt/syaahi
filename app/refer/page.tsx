@@ -12,6 +12,31 @@ export default function Refer() {
         verifies their signup earns you 5 reward credits. Transfer rewards into
         your study balance whenever you choose.
       </p>
+      <div className="referral-journey">
+        {[
+          [
+            "1",
+            "Share your link",
+            "Send your personal invitation to a friend.",
+          ],
+          [
+            "2",
+            "They verify their account",
+            "Your friend receives 21 welcome credits. Eligible verified signups earn you 5 reward credits.",
+          ],
+          [
+            "3",
+            "Move rewards into your balance",
+            "Transfer credits when you want to create more notes. No cash withdrawal.",
+          ],
+        ].map(([n, t, p]) => (
+          <article key={n}>
+            <span>{n}</span>
+            <h2>{t}</h2>
+            <p>{p}</p>
+          </article>
+        ))}
+      </div>
       <ReferralWallet />
       <section style={{ marginTop: 32 }}>
         <h2>Clear conditions</h2>

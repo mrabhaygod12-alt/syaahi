@@ -44,7 +44,7 @@ async function handlePOST(req: NextRequest) {
           },
           {
             role: "user",
-            content: `Study request: ${topic}\nSource:\n${context.slice(0, 16000)}`,
+            content: `Study request: ${topic}\nLearning goal: ${["Understand the basics", "Prepare for an exam", "Apply it to a problem"].includes(body.learningGoal) ? body.learningGoal : "Understand the basics"}\nSource:\n${context.slice(0, 16000)}`,
           },
         ],
         { maxTokens: 2500 },

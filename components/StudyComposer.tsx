@@ -23,6 +23,7 @@ export default function StudyComposer({
   const [text, setText] = useState(initialTopic),
     [context, setContext] = useState(""),
     [source, setSource] = useState("");
+  const [learningGoal, setLearningGoal] = useState("Understand the basics");
   const [sourceNotice, setSourceNotice] = useState("");
   const [pages, setPages] = useState(0),
     [language, setLanguage] = useState("english"),
@@ -130,6 +131,7 @@ export default function StudyComposer({
               : studyTitle,
           context: material,
           pages: targetPages || "auto",
+          learningGoal,
           research,
         }),
       });
@@ -170,6 +172,7 @@ export default function StudyComposer({
           sourceUrl,
           sourceKind: sourceUrl ? "youtube" : source ? "upload" : "topic",
           style: detail,
+          brief: `Learning goal: ${learningGoal}`,
           language,
           research: false,
           intelligentPlan: false,
@@ -253,6 +256,26 @@ export default function StudyComposer({
           </button>
         </div>
       </div>
+      <fieldset className="study-goal-cards">
+        <legend>What would help you most?</legend>
+        {[
+          "Understand the basics",
+          "Prepare for an exam",
+          "Apply it to a problem",
+        ].map((g) => (
+          <button
+            type="button"
+            key={g}
+            aria-pressed={learningGoal === g}
+            onClick={() => {
+              setLearningGoal(g);
+              setPlan(null);
+            }}
+          >
+            {g}
+          </button>
+        ))}
+      </fieldset>
       <div className="composer-options">
         <label>
           Target pages

@@ -199,6 +199,14 @@ async function main() {
         "/",
       ]) {
         await page.goto(base + path);
+        if(path==="/") {
+          await page.getByRole("tab",{name:"Quiz",exact:true}).click();
+          await page.getByRole("button",{name:"The list is sorted",exact:true}).click();
+          await page.getByText("Correct. Sorting lets us decide which half can contain the target.",{exact:true}).waitFor();
+          await page.getByRole("tab",{name:"Flashcards",exact:true}).click();
+          await page.getByRole("button",{name:"Reveal answer",exact:true}).click();
+          await page.getByText("O(log n): each comparison roughly halves the remaining search space.",{exact:true}).waitFor();
+        }
         await page.waitForTimeout(500);
         if (
           await page.evaluate(
