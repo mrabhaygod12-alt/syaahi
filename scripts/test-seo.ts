@@ -27,7 +27,11 @@ async function main() {
 
   const facts = await (await llms()).text();
   assert(facts.includes("19 welcome credits after email verification"));
-  assert(facts.includes("https://www.syaahii.in/how-it-works"));
+  assert(
+    facts.includes(
+      "[How it works](https://www.syaahii.in/how-it-works)",
+    ),
+  );
   assert(!facts.includes("/dashboard"));
   console.log(
     "PASS: apex and Vercel aliases permanently redirect; sitemap stays canonical and excludes noindex auth pages; llms.txt lists public pages and current credit facts.",

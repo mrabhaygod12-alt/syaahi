@@ -135,18 +135,20 @@ export default function AboutStory() {
             <em>DevOps &amp; Research.</em>
           </h2>
           <p className="about-lead">
-            I’m Manish Kumar Singh, DevOps Engineer &amp; Academic Researcher at Syaahi.
-            I focus on architecting resilient cloud infrastructure, container
-            orchestration, and researching high-retention learning workflows.
+            I’m Manish Kumar Singh, DevOps Engineer &amp; Academic Researcher at
+            Syaahi. I focus on architecting resilient cloud infrastructure,
+            container orchestration, and researching high-retention learning
+            workflows.
           </p>
           <p className="about-lead">
-            Working alongside Chandan Pandey, my goal is ensuring Syaahi’s study engine
-            runs with zero downtime, instant rendering speeds, and rock-solid reliability.
+            I work alongside Chandan on deployment, infrastructure and
+            operational reliability. We measure performance and improve the
+            system as real usage and feedback show where it needs attention.
           </p>
           <div className="about-tags">
             <span>DevOps Engineer</span>
             <span>Cloud Infrastructure</span>
-            <span>Academic Researcher</span>
+            <span>Research</span>
             <span>CI/CD &amp; Docker</span>
             <span>System Reliability</span>
           </div>
@@ -166,33 +168,39 @@ export default function AboutStory() {
       </section>
       <section className="about-bio card" data-story>
         <p className="eyebrow">ENGINEERING &amp; RESEARCH PHILOSOPHY</p>
-        <h2>Scalable infrastructure for uninterrupted student success.</h2>
+        <h2>Reliable systems, improved with evidence.</h2>
         <p>
-          When students are preparing for semester finals or competitive board exams,
-          every second of focus matters. Downtime or slow note compilation during critical
-          revision periods is unacceptable.
+          Study tools need to respond predictably, especially when learners
+          return to saved work or generate a new study set. Reliability is a
+          product goal that we measure and improve; it is not a promise of zero
+          downtime.
         </p>
         <p>
-          I design and monitor Syaahi’s infrastructure with a defense-in-depth approach:
-          from automated Docker deployments on Render and Vercel frontend delivery and edge routing,
-          to resilient connection pooling with MongoDB Atlas and automated health probes.
+          Syaahi separates its web experience from its API and generation
+          worker. The interface is delivered through Vercel, while Render runs
+          API and background generation services. MongoDB Atlas stores
+          application data, and health checks help us spot service failures.
         </p>
         <p>
-          Alongside infrastructure engineering, I lead academic research on memory encoding,
-          analyzing how handwritten visual anchors and active recall cycles improve long-term
-          retention across CBSE, ICSE, and University syllabi.
+          We explore how explanations, visual notes and active-recall activities
+          can support a learner's study routine. These product choices are not
+          claims of proven learning outcomes; we use feedback and testing to
+          guide improvements.
         </p>
         <div className="about-socials">
-          <span className="btn light" style={{ cursor: "default", fontWeight: 700 }}>
+          <span
+            className="btn light"
+            style={{ cursor: "default", fontWeight: 700 }}
+          >
             ⚡ Infrastructure &amp; DevOps
           </span>
-          <span className="btn light" style={{ cursor: "default", fontWeight: 700 }}>
+          <span
+            className="btn light"
+            style={{ cursor: "default", fontWeight: 700 }}
+          >
             🧠 Cognitive Science Research
           </span>
-          <a
-            className="btn dark"
-            href="/support"
-          >
+          <a className="btn dark" href="/support">
             Connect with Us ↗
           </a>
         </div>

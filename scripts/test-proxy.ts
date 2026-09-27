@@ -18,6 +18,14 @@ assert.equal(
 process.env.APP_ROLE = "frontend";
 process.env.VERCEL = "1";
 process.env.BACKEND_URL = "https://backend.test";
+const page = middleware(new NextRequest("https://frontend.test/login"));
+assert.equal(page.headers.get("x-middleware-next"), "1");
+assert.equal(page.headers.get("x-middleware-rewrite"), null);
+const sitemap = middleware(
+  new NextRequest("https://frontend.test/sitemap.xml"),
+);
+assert.equal(sitemap.headers.get("x-middleware-next"), "1");
+assert.equal(sitemap.headers.get("x-middleware-rewrite"), null);
 const proxied = middleware(
   new NextRequest("https://frontend.test/api/jobs?status=active", {
     headers: {
@@ -51,12 +59,17 @@ assert.equal(
   "unknown",
 );
 delete process.env.BACKEND_PROXY_SECRET;
+const publicPageWithoutApiConfig = middleware(
+  new NextRequest("https://frontend.test/about"),
+);
+assert.equal(publicPageWithoutApiConfig.status, 200);
+assert.equal(publicPageWithoutApiConfig.headers.get("x-middleware-next"), "1");
 assert.equal(
   middleware(new NextRequest("https://frontend.test/api/jobs")).status,
   503,
 );
 console.log(
-  "PASS: protected Render API ingress, Vercel proxy routing, forged headers replaced, missing configuration fails closed.",
+  "PASS: Vercel serves pages and sitemap directly; only API routes proxy to protected Render ingress; forged headers are replaced and missing API configuration fails closed.",
 );
 process.env.VERCEL = "1";
 delete process.env.APP_ROLE;

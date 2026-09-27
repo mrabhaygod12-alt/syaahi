@@ -35,7 +35,24 @@ export async function razorpay(path: string, body?: unknown) {
       return { ...payment, amount: Number(payment.amount) };
     }
     throw new Error("Unsupported payment operation.");
-  } catch {
+  } catch (error) {
+    const failure = error as {
+      statusCode?: unknown;
+      code?: unknown;
+      error?: { code?: unknown };
+    };
+    // Keep merchant credentials and provider response bodies out of logs while
+    // preserving the status/code needed to diagnose a bad key or outage.
+    console.error("Razorpay request failed", {
+      statusCode:
+        typeof failure.statusCode === "number" ? failure.statusCode : undefined,
+      code:
+        typeof failure.error?.code === "string"
+          ? failure.error.code
+          : typeof failure.code === "string"
+            ? failure.code
+            : undefined,
+    });
     throw new Error(
       "Payment provider unavailable. Check server merchant configuration or retry later.",
     );

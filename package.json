@@ -14,8 +14,10 @@
     "format": "prettier --write app components lib scripts docs *.md *.json *.js *.ts",
     "test:study": "tsx scripts/test-study.ts",
     "test:auth": "tsx scripts/test-auth-verification.ts",
+    "test:proxy": "tsx scripts/test-proxy.ts",
     "test:seo": "tsx scripts/test-seo.ts",
-    "test:mongo": "tsx scripts/test-mongo.ts"
+    "test:mongo": "tsx scripts/test-mongo.ts",
+    "make:carousel": "node scripts/build-instagram-carousel.mjs"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",

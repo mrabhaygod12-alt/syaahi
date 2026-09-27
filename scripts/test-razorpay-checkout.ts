@@ -11,6 +11,21 @@ async function main() {
     process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_"),
     "Only test credentials are permitted",
   );
+  // This smoke test uses isolated SQLite state. Keep registration local instead
+  // of asynchronously syncing its reserved test address to hosted Supabase.
+  for (const name of [
+    "SUPABASE_URL",
+    "SUPABASE_URI",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_URI",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_KEY",
+  ])
+    delete process.env[name];
   process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "syaahi-rzp-test-"));
   process.env.MONGODB_URI = "";
   process.env.DATA_BACKEND = "sqlite";
@@ -32,7 +47,11 @@ async function main() {
   const server = spawn(
     process.execPath,
     ["node_modules/next/dist/bin/next", "start", "--port", "3123"],
-    { env: process.env, stdio: "ignore", windowsHide: true },
+    {
+      env: process.env,
+      stdio: ["ignore", "ignore", "inherit"],
+      windowsHide: true,
+    },
   );
   let browser: any;
   try {
@@ -56,8 +75,8 @@ async function main() {
       amount: 1,
       credits: 9999,
     });
-    assert.equal(made.status, 200);
     const order = await made.json();
+    assert.equal(made.status, 200, JSON.stringify(order));
     assert.equal(order.amount, 900);
     assert.equal(order.credits, 3);
     assert.equal(order.testMode, true);

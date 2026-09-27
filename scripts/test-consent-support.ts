@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
+import { markEmailVerified } from "../lib/billing/rewards";
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "syaahi-support-"));
 async function main() {
   const auth = await import("../app/api/auth/route");
@@ -30,11 +31,30 @@ async function main() {
   const created = await auth.POST(
     request({ ...form, acceptTerms: true, termsVersion: "2026-09-24" }),
   );
-  assert.equal(created.status, 200);
-  const learner = (await created.json()).user;
-  const cookie = created.headers.get("set-cookie")!.split(";")[0];
+  assert.equal(created.status, 202);
+  const signup = await created.json();
+  assert.equal(signup.requireVerification, true);
+  assert.equal(created.headers.get("set-cookie"), null);
+  const learner = await server.accountByEmail(form.email);
+  assert.ok(learner);
+  await markEmailVerified(String(learner.id));
+  const cookie = (
+    await server.startSession(
+      {
+        id: String(learner.id),
+        email: form.email,
+        name: String(learner.name),
+        createdAt: String(learner.created_at),
+        verified: true,
+      },
+      request(),
+    )
+  ).headers
+    .get("set-cookie")!
+    .split(";")[0];
   assert.equal(
-    (await readState(learner.id, "terms-consent", { version: "" })).version,
+    (await readState(String(learner.id), "terms-consent", { version: "" }))
+      .version,
     "2026-09-24",
   );
   assert.equal(
@@ -108,7 +128,7 @@ async function main() {
     200,
   );
   console.log(
-    "PASS: consent enforced for password and Google entry, consent version stored, private support ticket, staff reply and resolution.",
+    "PASS: signup requires email verification with no session, consent version is stored, and support ticket privacy/reply/resolution work.",
   );
   process.exit(0);
 }

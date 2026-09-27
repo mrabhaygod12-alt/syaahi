@@ -10,7 +10,11 @@ async function runSecurityAudit() {
   // 1. NoSQL / Object Injection & Input Sanitization
   // @ts-ignore - passing non-string to test type coercion defense
   const nonStringResult = await accountByEmail({ $gt: "" });
-  assert.equal(nonStringResult, null, "Defense: non-string object email must return null immediately");
+  assert.equal(
+    nonStringResult,
+    null,
+    "Defense: non-string object email must return null immediately",
+  );
 
   // @ts-ignore - passing array
   const arrayResult = await accountByEmail(["admin@example.com"]);
@@ -19,26 +23,59 @@ async function runSecurityAudit() {
   // Oversized email
   const oversizedEmail = "a".repeat(300) + "@example.com";
   const oversizedResult = await accountByEmail(oversizedEmail);
-  assert.equal(oversizedResult, null, "Defense: oversized email (>254 chars) must return null");
+  assert.equal(
+    oversizedResult,
+    null,
+    "Defense: oversized email (>254 chars) must return null",
+  );
   console.log("✔ Pass: NoSQL injection & input bounds defenses verified");
 
-  // 2. Supabase typo resilience & type safety
-  delete process.env.SUPABASE_URL;
-  delete process.env.SUPABASE_PUBLISHABLE_KEY;
-  process.env.SUPABASUPABASE_PUBLISHABLE_KEYE_URL = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_jwt";
+  // 2. Supabase credentials are read only from documented variable names.
+  for (const name of [
+    "SUPABASE_URL",
+    "SUPABASE_URI",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_URI",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_KEY",
+  ])
+    delete process.env[name];
+  process.env.SUPABASUPABASE_PUBLISHABLE_KEYE_URL =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_jwt";
   const typoCfg = getSupabaseConfig();
-  assert.equal(typoCfg.key, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_jwt");
-  assert.ok(typoCfg.url.startsWith("http"), "Defense: URL must never be assigned JWT value");
-  console.log("✔ Pass: Supabase typo fuzzy discovery & type segregation verified");
+  assert.equal(typoCfg.key, undefined);
+  assert.equal(typoCfg.url, "");
+  delete process.env.SUPABASUPABASE_PUBLISHABLE_KEYE_URL;
+  console.log(
+    "✔ Pass: unrelated environment variables cannot become Supabase credentials",
+  );
 
   // 3. Timing Attack Resistance in HMAC Signature Verification
   const testSecret = "sec_test_123456789";
   const payload = "order_123|pay_456";
-  const validSig = createHmac("sha256", testSecret).update(payload).digest("hex");
-  
-  assert.equal(verifySignature(payload, validSig, testSecret), true, "Valid HMAC signature passes");
-  assert.equal(verifySignature(payload, "invalid_sig", testSecret), false, "Malformed signature fails regex");
-  assert.equal(verifySignature(payload, validSig.slice(0, 63) + "a", testSecret), false, "Tampered signature rejected");
+  const validSig = createHmac("sha256", testSecret)
+    .update(payload)
+    .digest("hex");
+
+  assert.equal(
+    verifySignature(payload, validSig, testSecret),
+    true,
+    "Valid HMAC signature passes",
+  );
+  assert.equal(
+    verifySignature(payload, "invalid_sig", testSecret),
+    false,
+    "Malformed signature fails regex",
+  );
+  assert.equal(
+    verifySignature(payload, validSig.slice(0, 63) + "a", testSecret),
+    false,
+    "Tampered signature rejected",
+  );
   console.log("✔ Pass: HMAC timingSafeEqual verification verified");
 
   // 4. CSRF / Origin Validation
@@ -48,14 +85,22 @@ async function runSecurityAudit() {
   });
   const originDenial = originError(fakeRequest);
   assert.ok(originDenial, "Defense: untrusted origin must be rejected");
-  assert.equal(originDenial?.status, 403, "Defense: rejected origin must return HTTP 403");
+  assert.equal(
+    originDenial?.status,
+    403,
+    "Defense: rejected origin must return HTTP 403",
+  );
 
   const legitimateRequest = new Request("http://localhost:3000/api/auth", {
     method: "POST",
     headers: { origin: "https://syaahii.in" },
   });
   const legitimateResult = originError(legitimateRequest);
-  assert.equal(legitimateResult, null, "Legitimate frontend origin must be permitted");
+  assert.equal(
+    legitimateResult,
+    null,
+    "Legitimate frontend origin must be permitted",
+  );
   console.log("✔ Pass: CSRF / Origin validation defense verified");
 
   console.log("\nALL DEFENSIVE SECURITY AUDIT TESTS PASSED SUCCESSFULLY!");

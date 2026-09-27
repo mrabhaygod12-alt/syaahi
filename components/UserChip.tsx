@@ -40,7 +40,13 @@ export default function UserChip() {
   }, []);
 
   if (user === undefined) {
-    return <div className="account-skeleton" aria-label="Loading account" />;
+    return (
+      <div
+        className="account-skeleton"
+        role="status"
+        aria-label="Loading account"
+      />
+    );
   }
 
   if (!user) {

@@ -37,13 +37,13 @@ export default function Home() {
             <div className="floating-source">▤ Your lecture</div>
             <div className="hero-paper">
               <span className="eyebrow">A NOTE WORTH KEEPING</span>
-              <h3>
+              <p className="hero-paper-title" aria-hidden="true">
                 Understand.
                 <br />
                 Recall.
                 <br />
                 Apply.
-              </h3>
+              </p>
               <div className="paper-lines">
                 <i />
                 <i />

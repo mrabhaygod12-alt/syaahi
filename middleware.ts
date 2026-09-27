@@ -17,7 +17,11 @@ export function middleware(req: NextRequest) {
     role === "frontend" ||
     process.env.VERCEL === "1" ||
     (!!backend && role !== "backend" && role !== "worker");
-  if (isFrontend) {
+  const isApiRequest = req.nextUrl.pathname.startsWith("/api/");
+
+  // Vercel owns and serves every page, static asset, sitemap and robots file.
+  // Only same-origin API calls should cross the private proxy to Render.
+  if (isFrontend && isApiRequest) {
     const secret = process.env.BACKEND_PROXY_SECRET;
     if (!backend || !secret)
       return NextResponse.json(
@@ -48,6 +52,9 @@ export function middleware(req: NextRequest) {
     headers.delete("x-real-ip");
     return NextResponse.rewrite(target, { request: { headers } });
   }
+
+  if (isFrontend) return NextResponse.next();
+
   if (role === "backend" && req.nextUrl.pathname !== "/api/health") {
     const secret = process.env.BACKEND_PROXY_SECRET;
     if (!secret || req.headers.get("x-syaahi-proxy") !== secret)
