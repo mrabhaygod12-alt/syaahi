@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OrderSummary } from "@/lib/billing/orders";
 import { paymentRequest } from "@/lib/billing/checkout-client";
+import { formatMinorPrice, type BillingCurrency } from "@/lib/billing/packs";
 
 export default function PaymentStatus({ orderId }: { orderId?: string }) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -84,7 +85,13 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
             {item.paid ? "Captured and credited" : "Awaiting confirmation"}
           </span>
           <h2>
-            ₹{(item.amount / 100).toFixed(2)} · {item.pack} pack
+            {formatMinorPrice(
+              item.amount,
+              ["INR", "USD", "EUR"].includes(item.currency)
+                ? (item.currency as BillingCurrency)
+                : "INR",
+            )}{" "}
+            · {item.pack} pack
           </h2>
           <p>
             {item.credits} credits{" "}

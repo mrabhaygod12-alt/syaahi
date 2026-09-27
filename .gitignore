@@ -18,6 +18,7 @@ tsconfig.tsbuildinfo
 test-*.ts
 
 .next-production/
+.next-validation/
 data/*.sqlite*
 tmp/
 output/qa/

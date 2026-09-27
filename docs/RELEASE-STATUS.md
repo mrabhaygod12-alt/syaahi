@@ -21,7 +21,7 @@ Verified locally, 24 September 2026. Working software and external configuration
 - Viewer/editor invitations, revocation, private-source redaction, comments, shared lesson discovery and periodic refresh with stale-write protection.
 - Password accounts, Google OAuth code path, mandatory Terms/Privacy acknowledgement, saved consent version and HttpOnly sessions.
 - Private support tickets, configured staff inbox/replies, resolve/reopen. Email notifications are not enabled.
-- One token covers three generated sections. Integer page-unit accounting preserves existing allowances. Packs: ₹9/1 token, ₹39/5, ₹79/12, ₹179/30. Continuation sheets are free.
+- One token covers three generated sections. Integer page-unit accounting preserves existing allowances. Packs: INR ₹9/₹39/₹79/₹179; fixed international tiers USD $5/$22/$44/$99 and EUR €5/€22/€44/€99. Country-derived Razorpay orders are currency-checked before credit capture; international currencies stay gated until enabled on Render after Razorpay approval. Continuation sheets are free.
 - Verified-capture payment ledger, referral eligibility/replay protection, reward counts and monthly allowance display.
 - SQLite local mode; MongoDB transactions for cloud accounts/jobs/billing/state; cloud request throttles; worker leases; Vercel/Render proxy guard and deployment files.
 - Central API errors with request references and private-response cache prevention. Provider keys stay server-side; six credential slots do not multiply quotas.
@@ -52,6 +52,7 @@ Research covers Turbo’s public pages, not exhaustive private-app testing. Syaa
 ## Security and capacity
 
 Zero attacks cannot be guaranteed. NIST CSF mapping is an assessment, not certification. Capacity for 100,000 simultaneous users is not demonstrated. Cloud upload limits, live checkout, recovery/email verification, backups, monitoring, coordinated provider budgets and incident procedures remain launch gates. The support inbox currently displays the latest 100 tickets; larger operations need pagination and retention policies.
+
 # Vercel frontend cutover — 27 September 2026
 
 Commit `4a22133` makes the frontend build select Next.js's `.next` directory when `APP_ROLE=frontend`, even when Vercel's optional `VERCEL=1` system variable is unavailable. The Render backend continues to use `.next-production`. The 27 September Vercel trace then identified an empty `NEXT_PUBLIC_APP_URL` as the cause of `new URL("")` in root metadata. The site URL now trims, validates and safely falls back to the production canonical origin (localhost in development). `npm run check` and a production build with `APP_ROLE=frontend`, `VERCEL` unset and `NEXT_PUBLIC_APP_URL` explicitly empty passed; all 94 routes built.

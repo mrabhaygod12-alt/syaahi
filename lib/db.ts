@@ -31,11 +31,21 @@ export function db(): DatabaseSync {
     CREATE TABLE IF NOT EXISTS reservations (job_id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
       remaining INTEGER NOT NULL CHECK(remaining >= 0));
     CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, pack TEXT NOT NULL,
-      amount INTEGER NOT NULL, credits INTEGER NOT NULL, payment_id TEXT UNIQUE, paid INTEGER NOT NULL DEFAULT 0);
+      amount INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'INR', credits INTEGER NOT NULL,
+      payment_id TEXT UNIQUE, paid INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS referral_codes (code TEXT PRIMARY KEY, user_id TEXT UNIQUE NOT NULL REFERENCES users(id));
     CREATE TABLE IF NOT EXISTS referrals (referred TEXT PRIMARY KEY REFERENCES users(id), inviter TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, rewarded_at TEXT, payment_id TEXT UNIQUE);
   `);
+  // Existing persistent SQLite installations predate multi-currency orders.
+  // Preserve their INR records while allowing new orders to store their currency.
+  const orderColumns = connection
+    .prepare("PRAGMA table_info(orders)")
+    .all() as Array<{ name: string }>;
+  if (!orderColumns.some((column) => column.name === "currency"))
+    connection.exec(
+      "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR'",
+    );
   state.syaahiDb = connection;
   return connection;
 }

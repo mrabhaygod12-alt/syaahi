@@ -11,6 +11,7 @@ async function main() {
   process.env.DATA_BACKEND = "mongo";
   process.env.MONGODB_DATABASE = "payment_status_test";
   process.env.NEXT_PUBLIC_APP_URL = "https://www.syaahii.in";
+  process.env.RAZORPAY_SUPPORTED_CURRENCIES = "INR,USD,EUR";
   try {
     const { register, startSession } = await import("../lib/auth/server");
     const { saveOrder, userOrders } = await import("../lib/billing/orders");
@@ -77,8 +78,34 @@ async function main() {
     const status = await get("/api/razorpay/orders?order=order_StatusOne");
     assert.equal(status.headers.get("cache-control"), "no-store");
     assert.equal((await status.json()).orders[0].paid, true);
+    await saveOrder("order_StatusUsd", user.id, "try", 500, 3, "USD");
+    await assert.rejects(
+      capturePayment(
+        {
+          id: "pay_StatusUsdWrongCurrency",
+          order_id: "order_StatusUsd",
+          amount: 500,
+          currency: "INR",
+          status: "captured",
+        },
+        user.id,
+      ),
+    );
+    await capturePayment(
+      {
+        id: "pay_StatusUsd",
+        order_id: "order_StatusUsd",
+        amount: 500,
+        currency: "USD",
+        status: "captured",
+      },
+      user.id,
+    );
+    const usdOrder = (await userOrders(user.id, "order_StatusUsd"))[0];
+    assert.equal(usdOrder.currency, "USD");
+    assert.equal(usdOrder.amount, 500);
     console.log(
-      "PASS payment status: authentication, account isolation, no secret fields, captured-only state and replay safety.",
+      "PASS payment status: authentication, account isolation, no secret fields, captured-only state, currency/amount matching and replay safety.",
     );
   } finally {
     const { mongo } = await import("../lib/storage/mongo");

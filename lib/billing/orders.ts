@@ -6,6 +6,7 @@ export async function saveOrder(
   pack: string,
   amount: number,
   credits: number,
+  currency = "INR",
 ) {
   if (useMongo()) {
     await (
@@ -15,6 +16,7 @@ export async function saveOrder(
       user,
       pack,
       amount,
+      currency,
       credits,
       paid: false,
       createdAt: new Date(),
@@ -23,9 +25,9 @@ export async function saveOrder(
   }
   db()
     .prepare(
-      "INSERT INTO orders (id,user_id,pack,amount,credits) VALUES (?,?,?,?,?)",
+      "INSERT INTO orders (id,user_id,pack,amount,currency,credits) VALUES (?,?,?,?,?,?)",
     )
-    .run(id, user, pack, amount, credits);
+    .run(id, user, pack, amount, currency, credits);
 }
 export async function ownsOrder(id: string, user: string) {
   if (useMongo())
@@ -39,6 +41,7 @@ export interface OrderSummary {
   id: string;
   pack: string;
   amount: number;
+  currency: string;
   credits: number;
   paid: boolean;
   paymentId: string | null;
@@ -61,6 +64,7 @@ export async function userOrders(
       id: String(row._id),
       pack: String(row.pack),
       amount: Number(row.amount),
+      currency: typeof row.currency === "string" ? row.currency : "INR",
       credits: Number(row.credits),
       paid: row.paid === true,
       paymentId: typeof row.paymentId === "string" ? row.paymentId : null,
@@ -79,6 +83,7 @@ export async function userOrders(
     id: String(row.id),
     pack: String(row.pack),
     amount: Number(row.amount),
+    currency: typeof row.currency === "string" ? row.currency : "INR",
     credits: Number(row.credits),
     paid: Boolean(row.paid),
     paymentId: typeof row.payment_id === "string" ? row.payment_id : null,

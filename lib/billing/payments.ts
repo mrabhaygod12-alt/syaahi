@@ -77,7 +77,7 @@ export async function capturePayment(
       throw new Error("Unknown payment order.");
     if (
       payment.status !== "captured" ||
-      payment.currency !== "INR" ||
+      payment.currency !== (order.currency || "INR") ||
       payment.amount !== Number(order.amount)
     )
       throw new Error("Payment is not captured or does not match the order.");

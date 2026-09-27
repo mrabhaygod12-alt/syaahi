@@ -165,6 +165,23 @@ credentials or update service dashboard environment variables.
 5. Test using Razorpay's test checkout credentials. Confirm a successful test payment appears as **Captured** in Razorpay and exactly one matching payment/credit entry appears for the same user in Syaahi. Also test cancel/failure, wrong signature, wrong user/order, repeated verify request, and replayed webhook. Test payments never charge real money.
 6. Only after these checks and Razorpay enabling the live account, switch the dashboard to **Live Mode**, generate a new live key pair, replace both Render API key variables, and configure the live webhook with its own secret. Then make one small real purchase and reconcile the captured transaction and settlement in Razorpay before advertising payments as live.
 
+### Country-specific Razorpay prices
+
+The site derives the region from Vercel's `x-vercel-ip-country` request
+header. India sees INR, euro-area countries see EUR, and other countries see
+USD. Pack prices are fixed by currency: ₹9 / ₹39 / ₹79 / ₹179, $5 / $22 / $44 /
+$99, and €5 / €22 / €44 / €99. USD and EUR are separate published prices, not
+live FX conversion. UPI remains INR-only.
+
+On the Render **API service only**, `RAZORPAY_SUPPORTED_CURRENCIES` defaults to
+`INR`. Keep it this way until Razorpay confirms that the merchant can create
+and capture USD/EUR orders. Once approved and successful in test mode, set
+`RAZORPAY_SUPPORTED_CURRENCIES=INR,USD,EUR` and redeploy Render. The pricing
+page can display the regional price before activation, but keeps that currency's
+purchase button disabled. The API independently resolves the country and
+amount; it ignores any currency or price submitted by a browser. Do not put
+payment secrets on Vercel.
+
 The API key pair and webhook secret shared in chat should be rotated before production use. If the API secret was ever configured in a client-visible Vercel variable or committed file, revoke it immediately and issue a replacement.
 
 Test on the custom domain: successful checkout, cancellation, invalid signature rejection, duplicate webhook idempotency, manual UTR review and account-specific wallet history. Only change to live keys after merchant activation and successful test reconciliation.

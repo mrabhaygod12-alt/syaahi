@@ -19,6 +19,7 @@
     "test:razorpay": "tsx scripts/test-razorpay-checkout.ts",
     "test:payment-status": "tsx scripts/test-payment-status.ts",
     "test:payment-pages": "tsx scripts/test-payment-pages.ts",
+    "test:billing-currency": "tsx scripts/test-billing-currency.ts",
     "test:proxy": "tsx scripts/test-proxy.ts",
     "test:seo": "tsx scripts/test-seo.ts",
     "test:mongo": "tsx scripts/test-mongo.ts",

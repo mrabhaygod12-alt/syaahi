@@ -121,7 +121,7 @@ export async function mongoCapture(
       throw new Error("Unknown payment order.");
     if (
       payment.status !== "captured" ||
-      payment.currency !== "INR" ||
+      payment.currency !== (order.currency || "INR") ||
       payment.amount !== order.amount
     )
       throw new Error("Payment does not match the order.");

@@ -44,6 +44,30 @@ Razorpay is selected because this app already uses its server orders, signature 
 5. Deploy the pushed main branch on Vercel and Render. Test successful capture, cancelled checkout, invalid signature, repeated callback and webhook, and a browser close before callback. Check the bank/provider dashboard and Syaahi ledger together.
 6. After test verification, configure live keys and a live webhook, then perform a small authorised live purchase. A passing local test is not proof of settlement or live activation.
 
+### Country-based Razorpay currency and pack prices
+
+The pricing page uses Vercel's `x-vercel-ip-country` request header: India is
+priced in INR, the euro area (including Bulgaria since 2026) in EUR, and other
+countries in USD. The same country is resolved again by the Render API when it
+creates an order; the browser cannot select a currency or send an amount. The
+saved order currency and minor-unit amount must match the captured Razorpay
+payment before credits are granted. UPI stays INR-only.
+
+The fixed price ladder is INR ₹9 / ₹39 / ₹79 / ₹179, USD $5 / $22 / $44 / $99,
+and EUR €5 / €22 / €44 / €99 for Try / Starter / Popular / Pro. USD and EUR are
+separately configured prices, not daily foreign-exchange conversions. Existing
+orders keep their original amount and currency; older database rows default to
+INR.
+
+`RAZORPAY_SUPPORTED_CURRENCIES` is a Render API-service variable. It defaults
+to `INR`, so international prices can be shown while their checkout buttons
+remain disabled. Only after Razorpay confirms that multi-currency Order API
+payments are enabled for this merchant, set it to `INR,USD,EUR` and redeploy
+Render. Run a successful international **test-mode** payment first. KYC or
+international-card approval alone may not mean that currency orders in USD/EUR
+are enabled. Vercel does not need the Razorpay key secret or this server-only
+setting.
+
 Published standard Razorpay pricing checked 26 September 2026 shows 2% platform fees plus applicable GST, with exceptions/account-specific terms. Do not advertise this gateway as universally zero-fee or document-free. Direct UPI does not incur a Razorpay fee because Razorpay is not involved; bank/app/business conditions still apply.
 
 Official references:

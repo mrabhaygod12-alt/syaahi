@@ -6,6 +6,11 @@ import { chromium } from "playwright";
 
 async function main() {
   const base = "http://localhost:3130";
+  const visibleText = (html: string) =>
+    html
+      .replace(/<!--.*?-->/gs, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ");
   const server = spawn(
     process.execPath,
     ["node_modules/next/dist/bin/next", "start", "--port", "3130"],
@@ -33,6 +38,23 @@ async function main() {
       await new Promise((r) => setTimeout(r, 250));
     }
     assert(ready, "Production server must start");
+    const usdPricing = await fetch(base + "/pricing", {
+      headers: { "x-vercel-ip-country": "US" },
+    });
+    const usdHtml = await usdPricing.text();
+    assert.equal(usdPricing.status, 200);
+    assert(usdHtml.includes("$5"), "US pricing should render USD prices");
+    assert(visibleText(usdHtml).includes("Prices are shown in USD"));
+    const euroPricing = await fetch(base + "/pricing", {
+      headers: { "x-vercel-ip-country": "FR" },
+    });
+    const euroHtml = await euroPricing.text();
+    assert.equal(euroPricing.status, 200);
+    assert(
+      /5\s*€/.test(visibleText(euroHtml)),
+      "Euro-area pricing should render EUR",
+    );
+    assert(visibleText(euroHtml).includes("Prices are shown in EUR"));
     browser = await chromium.launch();
     const page = await browser.newPage({
       viewport: { width: 1280, height: 900 },
@@ -44,6 +66,7 @@ async function main() {
       pack: "try",
       amount: 900,
       credits: 3,
+      currency: "INR",
       paid,
       paymentId: paid ? "pay_BrowserTest" : null,
     });
@@ -57,6 +80,8 @@ async function main() {
       const path = new URL(route.request().url()).pathname;
       let body: unknown = {};
       if (path === "/api/credits") body = { balance: 19 };
+      if (path === "/api/billing/region")
+        body = { currency: "INR", checkoutEnabled: true };
       if (path === "/api/razorpay/order") {
         assert.equal(route.request().postDataJSON().pack, "try");
         created++;
@@ -139,7 +164,7 @@ async function main() {
       .getByRole("heading", { name: "Your Razorpay purchases" })
       .waitFor();
     console.log(
-      "PASS browser payment flow: pricing, checkout, dismiss/reuse, verification, server-confirmed status, forged success URL ignored, history and mobile layout.",
+      "PASS browser payment flow: INR/USD/EUR regional pricing, checkout, dismiss/reuse, verification, server-confirmed status, forged success URL ignored, history and mobile layout.",
     );
   } finally {
     await browser?.close();

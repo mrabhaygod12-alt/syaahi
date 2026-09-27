@@ -1,6 +1,11 @@
 "use client";
-import { useRef, useState } from "react";
-import { PACKS } from "@/lib/billing/packs";
+import { useEffect, useRef, useState } from "react";
+import {
+  PACKS,
+  formatMinorPrice,
+  packPrice,
+  type BillingCurrency,
+} from "@/lib/billing/packs";
 import { loadCheckout, paymentRequest } from "@/lib/billing/checkout-client";
 
 type Order = {
@@ -11,16 +16,64 @@ type Order = {
   testMode: boolean;
   credits: number;
 };
-export default function Checkout({ pack }: { pack: string }) {
+export default function Checkout({
+  pack,
+  currency,
+}: {
+  pack: string;
+  currency: BillingCurrency;
+}) {
   const plan = PACKS[pack];
   const [order, setOrder] = useState<Order | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [regionStatus, setRegionStatus] = useState<
+    "loading" | "ready" | "failed"
+  >("loading");
+  const [checkoutEnabled, setCheckoutEnabled] = useState(false);
   const locked = useRef(false);
   const confirming = useRef(false);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const timer = setTimeout(() => controller.abort(), 8000);
+    fetch("/api/billing/region", {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!controller.signal.aborted && data?.currency === currency) {
+          setCheckoutEnabled(data.checkoutEnabled === true);
+          setRegionStatus("ready");
+        } else if (active) {
+          setRegionStatus("failed");
+        }
+      })
+      .catch(() => {
+        if (active) setRegionStatus("failed");
+      })
+      .finally(() => clearTimeout(timer));
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [currency]);
+
   async function pay() {
     if (locked.current) return;
+    if (regionStatus !== "ready" || !checkoutEnabled) {
+      setMessage(
+        regionStatus === "failed"
+          ? "Checkout availability could not be confirmed. Refresh and try again."
+          : currency === "INR"
+            ? "Checkout availability could not be confirmed. Please refresh and try again."
+            : `Razorpay ${currency} checkout is not enabled for this account yet.`,
+      );
+      return;
+    }
     locked.current = true;
     setBusy(true);
     setMessage("");
@@ -105,7 +158,8 @@ export default function Checkout({ pack }: { pack: string }) {
       <div className="payment-panel">
         <p className="payment-eyebrow">{pack} pack · One-time purchase</p>
         <h2>
-          ₹{plan.inr} <span className="small">INR</span>
+          {formatMinorPrice(packPrice(pack, currency) * 100, currency)}{" "}
+          <span className="small">{currency}</span>
         </h2>
         <p>
           <strong>{plan.credits} credits</strong> for {plan.credits} generated
@@ -120,12 +174,35 @@ export default function Checkout({ pack }: { pack: string }) {
             Test checkout: no real money will be charged.
           </p>
         )}
-        <button className="btn dark" disabled={busy} onClick={pay}>
+        {regionStatus === "loading" && (
+          <p className="small" role="status">
+            Checking Razorpay {currency} availability…
+          </p>
+        )}
+        {regionStatus === "failed" && (
+          <p className="payment-notice" role="status">
+            We could not confirm Razorpay {currency} availability. Refresh this
+            page to try again.
+          </p>
+        )}
+        {regionStatus === "ready" && !checkoutEnabled && (
+          <p className="payment-notice" role="status">
+            Razorpay {currency} checkout is not enabled for this account yet.
+            International orders will remain unavailable until Razorpay
+            activation is complete and this currency is enabled on the API
+            service.
+          </p>
+        )}
+        <button
+          className="btn dark"
+          disabled={busy || regionStatus !== "ready" || !checkoutEnabled}
+          onClick={pay}
+        >
           {busy
             ? "Checkout in progress…"
             : order
               ? "Continue payment"
-              : `Pay ₹${plan.inr} with Razorpay`}
+              : `Pay ${formatMinorPrice(packPrice(pack, currency) * 100, currency)} with Razorpay`}
         </button>
         <p role="status" aria-live="polite">
           {message}
@@ -147,9 +224,11 @@ export default function Checkout({ pack }: { pack: string }) {
         <a href="/payments">Payment history</a> ·{" "}
         <a href="/refunds">Refund policy</a> · <a href="/support">Get help</a>
       </p>
-      <p>
-        Prefer UPI? <a href="/pay">Pay directly via any UPI app →</a>
-      </p>
+      {currency === "INR" && (
+        <p>
+          Prefer UPI? <a href="/pay">Pay directly via any UPI app →</a>
+        </p>
+      )}
     </div>
   );
 }
