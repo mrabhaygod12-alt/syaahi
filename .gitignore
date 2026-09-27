@@ -45,3 +45,6 @@ docs/pitch/
 /googlePay.jpeg
 /naviupi.jpeg
 /paytm.jpeg
+
+# Local Instagram carousel exports are user-facing deliverables, not site assets.
+/marketing/instagram/syaahi-study-carousel/
