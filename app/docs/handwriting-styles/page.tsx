@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Handwriting Styles & PDF Export",
+  description:
+    "Choose Caveat, Kalam or Patrick Hand, paper styles and note layouts. Learn how Syaahi exports readable handwritten-style PDFs.",
+  path: "/docs/handwriting-styles",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Privacy Policy",
+  description:
+    "Read how Syaahi handles account details, study material, AI processing, payments and privacy requests.",
+  path: "/privacy",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

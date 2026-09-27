@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "How to Generate Study Notes",
+  description:
+    "Choose source material, edit your outline, review the credit cost and generate handwritten-style notes in Syaahi.",
+  path: "/docs/generating-notes",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

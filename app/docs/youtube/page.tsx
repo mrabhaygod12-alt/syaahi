@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Create Notes from YouTube Lectures",
+  description:
+    "Learn how Syaahi handles supported YouTube lectures, caption availability, source review and alternatives when a video cannot be read.",
+  path: "/docs/youtube",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

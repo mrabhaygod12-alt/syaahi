@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Application API Reference",
+  description:
+    "Read about the Syaahi application API, authentication and study workflows. These endpoints serve the Syaahi web application.",
+  path: "/docs/api",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

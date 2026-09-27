@@ -1,22 +1,54 @@
 import StudyDemo from "@/components/StudyDemo";
 import LandingReveal from "@/components/LandingReveal";
 import { CtaBand, Faq } from "@/components/site";
+import { pageMeta, jsonLd, SITE } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "AI Study Notes, Handwritten PDFs & Flashcards",
+  path: "/",
+  description:
+    "Syaahi at syaahii.in turns topics, PDFs and supported lectures into handwritten-style notes, quizzes and flashcards. Preview the study workflow and create your own notes.",
+});
 export default function Home() {
   return (
     <>
       <LandingReveal />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "@id": `${SITE.url}/#application`,
+            name: "Syaahi",
+            alternateName: "Syaahii",
+            url: `${SITE.url}/`,
+            applicationCategory: "EducationalApplication",
+            operatingSystem: "Web browser",
+            description: SITE.description,
+            publisher: { "@id": `${SITE.url}/#organization` },
+            featureList: [
+              "Handwritten-style study notes",
+              "PDF export",
+              "Lesson quizzes",
+              "Flashcards",
+              "AI lesson tutor",
+            ],
+          }),
+        }}
+      />
       <section className="public-hero">
         <div className="wrap hero-grid">
           <div>
-            <p className="eyebrow">YOUR MATERIAL. YOUR WAY OF LEARNING.</p>
+            <p className="eyebrow">SYAAHI · YOUR AI STUDY WORKSPACE</p>
             <h1>
               Make room for
               <br />
               <em>understanding.</em>
             </h1>
             <p>
-              Bring a topic, lecture or document. Build notebook-style notes,
-              learn one idea at a time, and practise what matters.
+              Syaahi turns your topics, PDFs and supported lectures into
+              handwritten-style notes, quizzes and flashcards. Learn one idea at
+              a time, and practise what matters.
             </p>
             <div className="hero-actions">
               <a className="btn dark" href="/dashboard">
@@ -27,7 +59,8 @@ export default function Home() {
               </a>
             </div>
             <p className="small">
-              19 welcome credits · Review your plan before generation
+              19 welcome credits after email verification · Review your plan
+              before generation
             </p>
           </div>
           <div
@@ -56,6 +89,23 @@ export default function Home() {
         </div>
       </section>
       <StudyDemo />
+      <section className="wrap trust-note" aria-labelledby="about-syaahi">
+        <h2 id="about-syaahi">What is Syaahi?</h2>
+        <p>
+          Syaahi is an AI study workspace at <strong>syaahii.in</strong>. Bring
+          your course material, review an editable outline and create
+          notebook-style notes. Export a PDF, ask questions about a lesson, or
+          practise with quizzes and flashcards. Notes are private by default; AI
+          explanations should be checked against your original sources.
+        </p>
+        <p>
+          <a href="/how-it-works">See the complete workflow</a>
+          {" · "}
+          <a href="/examples">Read a sample note</a>
+          {" · "}
+          <a href="/pricing">Compare credit packs</a>
+        </p>
+      </section>
       <section className="wrap feature-section">
         <p className="eyebrow">FROM SOURCE TO STUDY SESSION</p>
         <h2>A clear path through your material.</h2>
@@ -165,7 +215,7 @@ export default function Home() {
           },
           {
             q: "How are credits used?",
-            a: "New accounts receive 19 credits. One token equals 3 credits. Each generated note section uses one credit; extra PDF continuation sheets do not cost additional credits. Review your outline before starting.",
+            a: "New accounts receive 19 credits after email verification. One token equals 3 credits. Each generated note section uses one credit; extra PDF continuation sheets do not cost additional credits. Review your outline before starting.",
           },
           {
             q: "Does completing a lesson prove mastery?",

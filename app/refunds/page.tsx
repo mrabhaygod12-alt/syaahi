@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Refund & Credit Policy",
+  description:
+    "Read Syaahi policies for payment issues, refund requests and credit returns for unfinished note generation.",
+  path: "/refunds",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Frequently Asked Questions",
+  description:
+    "Answers about Syaahi sources, credits, handwriting fonts, PDF exports, payment verification, refunds and AI limitations.",
+  path: "/faq",
+});
 import { PageHero, Faq, CtaBand } from "@/components/site";
 export default function FAQ() {
   return (

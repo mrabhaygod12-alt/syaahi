@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "AI Interview Practice",
+  description:
+    "Practise interview questions with a timer and AI feedback. Review your reasoning and turn difficult concepts into Syaahi study notes.",
+  path: "/interview",
+});
 import { PageHero, CtaBand } from "@/components/site";
 import InterviewPractice from "@/components/InterviewPractice";
 export default function Interview() {

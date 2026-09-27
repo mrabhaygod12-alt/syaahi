@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "How Study Credits & Billing Work",
+  description:
+    "Understand Syaahi credits, generated sections, payment confirmation and credit returns when generation does not finish.",
+  path: "/docs/credits-billing",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

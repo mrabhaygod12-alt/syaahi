@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Study Workflows for Educators & Teams",
+  description:
+    "Discuss a Syaahi study workflow for your curriculum or team. Explore learning material, access needs and deployment requirements.",
+  path: "/enterprise",
+});
 import { PageHero, Prose, H } from "@/components/site";
 export default function Enterprise() {
   return (

@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Acceptable Use Policy",
+  description:
+    "Read the rules for using Syaahi responsibly, including source permissions, academic integrity and prohibited activities.",
+  path: "/acceptable-use",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

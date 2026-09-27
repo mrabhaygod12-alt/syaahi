@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Study Tools: Notes, Quizzes & Flashcards",
+  description:
+    "Explore Syaahi handwritten-style PDFs, editable lesson outlines, quizzes, flashcards and an AI tutor for questions about your notes.",
+  path: "/features",
+});
 import { PageHero, CtaBand } from "@/components/site";
 const features = [
   [

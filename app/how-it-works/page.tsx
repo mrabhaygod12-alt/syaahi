@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "How Syaahi Works",
+  description:
+    "See how to turn a topic, PDF or supported lecture into a study outline, handwritten-style notes, quizzes and flashcards with Syaahi.",
+  path: "/how-it-works",
+});
 import { PageHero, Faq, CtaBand } from "@/components/site";
 import Walkthrough from "@/components/Walkthrough";
 export default function HowItWorks() {

@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Getting Started with Syaahi",
+  description:
+    "Create an account, verify your email, add a topic or source, review an outline and start your first Syaahi study workspace.",
+  path: "/docs/getting-started",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

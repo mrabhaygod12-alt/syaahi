@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Terms of Use",
+  description:
+    "Read the terms for using Syaahi, including accounts, study content, payments, acceptable use and service limitations.",
+  path: "/terms",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

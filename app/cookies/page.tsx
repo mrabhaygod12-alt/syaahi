@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Cookies & Local Storage",
+  description:
+    "Learn how Syaahi uses cookies and browser storage for login, preferences and the study experience.",
+  path: "/cookies",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

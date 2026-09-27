@@ -47,7 +47,7 @@ export function pageMeta(opts: {
   } = opts;
   const url = `${SITE.url}${path}`;
   return {
-    title: `${title} | ${SITE.name}`,
+    title: { absolute: `${title} | ${SITE.name}` },
     description,
     alternates: { canonical: url },
     openGraph: {
@@ -57,11 +57,20 @@ export function pageMeta(opts: {
       description,
       url,
       locale: SITE.locale,
+      images: [
+        {
+          url: `${SITE.url}/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: "Syaahi — visual notes and active learning",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: `${title} | ${SITE.name}`,
       description,
+      images: [`${SITE.url}/opengraph-image`],
     },
     robots: noindex ? { index: false, follow: true } : undefined,
   };
@@ -75,11 +84,18 @@ export function orgSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${SITE.url}/#organization`,
     name: SITE.name,
+    alternateName: "Syaahii",
     url: SITE.url,
     slogan: SITE.tagline,
     description: SITE.description,
     logo: `${SITE.url}/icon-512.png`,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      url: `${SITE.url}/support`,
+    },
   };
 }
 
@@ -87,11 +103,13 @@ export function websiteSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${SITE.url}/#website`,
     name: SITE.name,
-    alternateName: "Syaahi",
+    alternateName: ["Syaahii", "syaahii.in"],
     url: SITE.url,
     description: SITE.description,
     inLanguage: "en-IN",
+    publisher: { "@id": `${SITE.url}/#organization` },
   };
 }
 

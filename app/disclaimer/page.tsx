@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "AI Accuracy & Service Limitations",
+  description:
+    "Understand Syaahi AI study content limitations and why you should check important information against textbooks and original sources.",
+  path: "/disclaimer",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

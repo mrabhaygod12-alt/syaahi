@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/seo";
 import { SUBJECTS } from "@/lib/study/subjects";
+import { BLOG_POSTS } from "@/lib/blog-data";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -32,9 +33,6 @@ const STATIC = [
   "/docs/api",
   "/about",
   "/blog",
-  "/blog/how-to-create-high-scoring-handwritten-exam-notes-using-ai",
-  "/blog/science-of-handwriting-vs-typing-for-exam-retention",
-  "/blog/cbse-icse-university-exam-revision-strategy-guide",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -53,6 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE.url}${p || "/"}`,
     })),
     ...SUBJECTS.map((s) => ({ url: `${SITE.url}/subjects/${s.slug}` })),
+    ...BLOG_POSTS.map((post) => ({ url: `${SITE.url}/blog/${post.slug}` })),
     ...slugs.map((s) => ({
       url: `${SITE.url}/library/${s}`,
     })),

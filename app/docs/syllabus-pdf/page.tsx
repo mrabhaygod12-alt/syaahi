@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Create Notes from PDFs & Screenshots",
+  description:
+    "Upload a syllabus PDF or screenshot to Syaahi. Review extracted text and use it to plan focused notes for your course.",
+  path: "/docs/syllabus-pdf",
+});
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [

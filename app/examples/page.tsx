@@ -1,3 +1,10 @@
+import { pageMeta } from "@/lib/seo";
+export const metadata = pageMeta({
+  title: "Handwritten Study Notes Example",
+  description:
+    "Read a free, hand-authored binary search note. Preview Syaahi handwriting, diagrams and page layouts before creating your own study notes.",
+  path: "/examples",
+});
 import { PageHero, CtaBand } from "@/components/site";
 import NotePage from "@/components/NotePage";
 import { DEFAULT_STYLE } from "@/lib/handwriting/options";
