@@ -174,13 +174,17 @@ $99, and €5 / €22 / €44 / €99. USD and EUR are separate published prices
 live FX conversion. UPI remains INR-only.
 
 On the Render **API service only**, `RAZORPAY_SUPPORTED_CURRENCIES` defaults to
-`INR`. Keep it this way until Razorpay confirms that the merchant can create
-and capture USD/EUR orders. Once approved and successful in test mode, set
-`RAZORPAY_SUPPORTED_CURRENCIES=INR,USD,EUR` and redeploy Render. The pricing
-page can display the regional price before activation, but keeps that currency's
-purchase button disabled. The API independently resolves the country and
-amount; it ignores any currency or price submitted by a browser. Do not put
-payment secrets on Vercel.
+`INR`. Keep production at `INR` until Razorpay confirms that the live merchant
+can create and capture USD/EUR orders. For testing, use a separate Render
+staging service with Test Mode API keys and webhook secret, set
+`RAZORPAY_SUPPORTED_CURRENCIES=INR,USD,EUR`, redeploy, and complete a successful
+USD/EUR test transaction. If no staging service exists, temporarily replace the
+Render API's keys/webhook secret with Test Mode values, run the test as a
+payment-admin account, then restore the live values; do not expose live
+international orders before approval. The pricing page can display regional
+prices before activation, but keeps that currency's purchase button disabled.
+The API independently resolves the country and amount; it ignores any currency
+or price submitted by a browser. Do not put payment secrets on Vercel.
 
 The API key pair and webhook secret shared in chat should be rotated before production use. If the API secret was ever configured in a client-visible Vercel variable or committed file, revoke it immediately and issue a replacement.
 
