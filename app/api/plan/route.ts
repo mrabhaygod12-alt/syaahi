@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authError } from "@/lib/auth/server";
 import { chatWithFallback } from "@/lib/ai/router";
 import { parsePlanJson } from "@/lib/lesson/plan";
-import { researchTopic } from "@/lib/research";
+import { researchTopic, topicReadingLinks } from "@/lib/research";
 import { rateLimit } from "@/lib/ratelimit";
 async function handlePOST(req: NextRequest) {
   const denied =
@@ -65,6 +65,7 @@ async function handlePOST(req: NextRequest) {
     reason,
     context,
     sources,
+    readingLinks: topicReadingLinks(topic),
     requestedPages: automatic ? null : requested,
     automatic,
     credits: topics.length,

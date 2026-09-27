@@ -102,6 +102,8 @@ async function main() {
     const page = await context.newPage();
     await page.goto(base + "/pricing");
     await page.getByRole("button", { name: "Buy Try", exact: true }).click();
+    await page.waitForURL("**/checkout/try");
+    await page.getByRole("button", { name: "Pay ₹9 with Razorpay", exact: true }).click();
     await page
       .locator("iframe.razorpay-checkout-frame")
       .waitFor({ state: "visible", timeout: 30000 });

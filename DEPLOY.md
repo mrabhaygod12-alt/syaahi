@@ -40,6 +40,12 @@ Set or confirm these in the Render private environment group:
 - `RESEND_API_KEY` and `EMAIL_FROM` for password-account verification email
 - Razorpay key ID, key secret and webhook secret on the API only
 
+Keep exactly one authoritative Supabase project URL. If both `SUPABASE_URL`
+and the legacy `SUPABASE_URI` are present, they must identify the same project.
+For JWT-form anon keys, startup OAuth configuration rejects a URL/key project
+mismatch rather than sending users into a broken Google consent flow. The
+publishable/anon key is public by design; never use a service-role key for OAuth.
+
 The Google-login message `Missing: SUPABASE_PUBLISHABLE_KEY` means the running
 Render API process did not receive a recognized public Supabase key. Add the
 exact variable name `SUPABASE_PUBLISHABLE_KEY` to the **Render API web service**
@@ -128,6 +134,29 @@ Test a new Google signup and an existing account from the final custom domain. A
 Razorpay order creation, capture verification and signed webhooks run through the Vercel `/api` proxy to Render. Update the Razorpay webhook target to `https://www.syaahii.in/api/razorpay/webhook` and verify the webhook secret matches Render. Use test mode first; a Git push does not update the Razorpay dashboard. Direct UPI QR/UTR review remains a separate, operator-approved flow.
 
 ### Razorpay setup, test, and go-live
+
+Pricing opens `/checkout/try`, `/checkout/starter`, `/checkout/popular`, or
+`/checkout/pro` for plan review. Checkout creates a server-priced order and opens
+Razorpay. Its callback submits the signature for verification and sends the
+customer to `/payments/<order_id>`. That page reads the authenticated owner's
+stored order; URL parameters never mark a purchase as paid. `/payments` shows
+the latest 50 Razorpay orders for the signed-in account. Pending orders are
+checked up to 12 times, with a manual refresh and support link afterwards.
+The signed capture webhook can finish confirmation even after the tab closes.
+Direct UPI review continues at `/pay`.
+
+For a test checkout on the production domain, sign in with an account listed in
+`PAYMENT_ADMIN_IDS` or the payment-admin database allowlist. Test keys are
+intentionally restricted to these accounts in production. These packs are
+one-time purchases, not recurring UPI AutoPay mandates or subscriptions.
+
+Run `npm run test:payment-status` for isolated authentication/ownership and
+capture-state checks. Run `npm run test:razorpay` after a production build for a
+real **test-mode** order and checkout-modal smoke check. The latter does not
+submit a payment; finish the captured-payment and webhook test below manually.
+If the gateway returns 401, regenerate a matching test key pair and update both
+values together on the Render API service. A code push cannot repair revoked
+credentials or update service dashboard environment variables.
 
 1. In Razorpay Dashboard, finish the website/app details and payment-method activation. KYC approval alone does not prove that live checkout is enabled.
 2. In **Test Mode → API Keys**, generate a test key pair. Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to the Render API service only. The browser receives the key ID only after the server creates an order; the secret never goes to Vercel or the client.

@@ -34,7 +34,7 @@ const sections = [
   ],
   [
     "External requests",
-    "Topic research sends your search topic to Wikipedia. YouTube intake requests captions for the supplied video. The public interface may request fonts from Google Fonts. Payment checkout loads Razorpay only when you choose to buy credits.",
+    "When Find sources is enabled, the server sends your topic to Wikipedia’s public API and stores the retrieved excerpt and article link with the lesson. Topic-specific GeeksforGeeks or W3Schools reading links open a Google site search only when you click them; Google receives the search phrase, and those pages are not automatically fetched or copied into your notes. YouTube intake requests captions for the supplied video. The public interface may request fonts from Google Fonts. Payment checkout loads Razorpay only when you choose to buy credits.",
   ],
   [
     "Payments and operational data",

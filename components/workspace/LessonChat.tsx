@@ -291,47 +291,59 @@ export default function LessonChat({
     let buf = "";
     let gotToken = false;
     let meta: any = {};
+    let streamError = "";
     const idx = thread.length;
     setThread((t) => [...t, { q: qq, a: "" }]);
-    const pump = async (): Promise<boolean> => {
-      const { done, value } = await reader.read();
-      if (done) return gotToken;
-      buf += dec.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() ?? "";
-      for (const part of parts) {
-        const line = part.trim();
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (payload === "[DONE]") continue;
-        try {
-          const j = JSON.parse(payload);
-          if (j.error && !gotToken) return false;
-          if (j.t) {
-            gotToken = true;
-            const tok: string = j.t;
-            setThread((t) =>
-              t.map((m, k) => (k === idx ? { ...m, a: m.a + tok } : m)),
-            );
-          }
-          if (j.usage || j.model || j.provider) meta = { ...meta, ...j };
-        } catch {
-          /* partial chunk */
+    const consume = (part: string) => {
+      const payload = part
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trim())
+        .join("\n");
+      if (!payload || payload === "[DONE]") return;
+      try {
+        const j = JSON.parse(payload);
+        if (j.error) streamError = String(j.error).slice(0, 240);
+        if (j.t) {
+          gotToken = true;
+          const tok: string = j.t;
+          setThread((t) =>
+            t.map((m, k) => (k === idx ? { ...m, a: m.a + tok } : m)),
+          );
         }
+        if (j.usage || j.model || j.provider || j.cites)
+          meta = { ...meta, ...j };
+      } catch {
+        /* Ignore an incomplete SSE frame; the next network chunk completes it. */
       }
-      return pump();
     };
     try {
-      const ok = await pump();
+      let done = false;
+      while (!done) {
+        const result = await reader.read();
+        done = result.done;
+        if (result.value) buf += dec.decode(result.value, { stream: !done });
+        const parts = buf.split(/\r?\n\r?\n/);
+        buf = parts.pop() ?? "";
+        for (const part of parts) consume(part);
+      }
+      if (buf.trim()) consume(buf);
+      const ok = gotToken;
       if (ok) {
         if (meta.usage)
           bumpTokens(Number(meta.usage.total ?? meta.usage.cost ?? 0));
-        // Fetch cites + exact meta via the sync endpoint? No — re-derive cites locally is wrong.
-        // Instead do one cheap non-stream call ONLY for cites when streaming gave none.
         setThread((t) =>
           t.map((m, k) =>
             k === idx && !m.via
-              ? { ...m, via: meta.provider, model: meta.model }
+              ? {
+                  ...m,
+                  via: meta.provider,
+                  model: meta.model,
+                  cites: Array.isArray(meta.cites) ? meta.cites : undefined,
+                  a: streamError
+                    ? `${m.a}\n\n**${streamError}**`
+                    : m.a,
+                }
               : m,
           ),
         );
@@ -341,9 +353,17 @@ export default function LessonChat({
       return ok;
     } catch (e: any) {
       if (!gotToken) setThread((t) => t.filter((_, k) => k !== idx));
-      if (signal.aborted)
+      if (signal.aborted && !gotToken)
         setThread((t) =>
           t.map((m, k) => (k === idx ? { ...m, a: m.a || "(stopped)" } : m)),
+        );
+      else if (gotToken)
+        setThread((t) =>
+          t.map((m, k) =>
+            k === idx
+              ? { ...m, a: `${m.a}\n\n**Connection stopped; this answer may be incomplete.**` }
+              : m,
+          ),
         );
       return gotToken;
     }
@@ -676,8 +696,25 @@ export default function LessonChat({
         {thread.map((h, i) => (
           <div key={i} className="ws-msg">
             <div className="ws-msg-q">{h.q}</div>
-            <div className="ws-msg-a">
-              {h.a ? <Md text={h.a} /> : <span className="small">…</span>}
+            <div
+              className="ws-msg-a"
+              aria-live={i === thread.length - 1 ? "polite" : "off"}
+              aria-busy={busy && i === thread.length - 1}
+            >
+              {h.a ? (
+                <>
+                  <Md text={h.a} />
+                  {busy && i === thread.length - 1 && (
+                    <span className="ws-stream-cursor" aria-hidden="true" />
+                  )}
+                </>
+              ) : (
+                <span className="small">
+                  {busy && i === thread.length - 1
+                    ? "Thinking through your lesson…"
+                    : "…"}
+                </span>
+              )}
               {h.choices && (
                 <div className="tutor-choice-cards">
                   {h.choices.map((c) => (

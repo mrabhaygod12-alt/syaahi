@@ -12,7 +12,7 @@ async function handleGET() {
       return NextResponse.json(
         {
           ok: false,
-          error: "DATA_BACKEND=mongo and MONGODB_URI are required",
+          error: "The service is temporarily unavailable.",
           role: process.env.APP_ROLE,
         },
         { status: 503 },
@@ -28,15 +28,14 @@ async function handleGET() {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {
-    const errorMsg =
-      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    console.error("Health check failure:", errorMsg);
+    console.error("Health check failure:", {
+      kind: err instanceof Error ? err.name : "unknown",
+    });
     return NextResponse.json(
       {
         ok: false,
-        error: errorMsg,
+        error: "The service is temporarily unavailable.",
         role: process.env.APP_ROLE || "unspecified",
-        hasMongoUri: !!process.env.MONGODB_URI,
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );

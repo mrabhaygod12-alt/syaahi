@@ -1,7 +1,11 @@
 import { QueueCapacityError } from "@/lib/jobs/capacity";
 import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
-import { researchTopic } from "@/lib/research";
+import {
+  researchTopic,
+  topicReadingLinks,
+  wikipediaReferences,
+} from "@/lib/research";
 import { kickWorker } from "@/lib/jobs/worker";
 import { NextRequest, NextResponse } from "next/server";
 import { createJob, listJobs, clearFailed } from "@/lib/jobs/store";
@@ -141,6 +145,10 @@ async function handlePOST(req: NextRequest) {
       sourceName: String(body.sourceName ?? ""),
       planNote,
       language,
+      referenceLinks: [
+        ...wikipediaReferences(body.references),
+        ...topicReadingLinks(rawTopics.join(" ")),
+      ].slice(0, 8),
     });
   } catch (error) {
     if (error instanceof QueueCapacityError)

@@ -54,7 +54,7 @@ export async function razorpay(path: string, body?: unknown) {
             : undefined,
     });
     throw new Error(
-      "Payment provider unavailable. Check server merchant configuration or retry later.",
+      "Payment provider is temporarily unavailable. Please try again shortly.",
     );
   }
 }

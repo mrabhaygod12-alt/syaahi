@@ -8,7 +8,11 @@ export const safeNext = (value: string | null) =>
   value && /^\/(?![\/\\])/.test(value) && !/[\r\n\\]/.test(value)
     ? value
     : "/dashboard";
-export function getSupabaseConfig(): { url: string; key: string | undefined } {
+export function getSupabaseConfig(): {
+  url: string;
+  key: string | undefined;
+  issue?: string;
+} {
   const envValue = (...names: string[]) =>
     names.map((name) => process.env[name]?.trim()).find(Boolean);
   let url = envValue(
@@ -29,32 +33,45 @@ export function getSupabaseConfig(): { url: string; key: string | undefined } {
 
   // Never infer credentials from unrelated environment variables or use service-role secrets for OAuth.
   if (key?.startsWith("sb_secret_")) key = undefined;
-  if (key?.startsWith("ey")) {
-    try {
-      if (
-        JSON.parse(Buffer.from(key.split(".")[1], "base64url").toString())
-          .role === "service_role"
-      )
-        key = undefined;
-    } catch {
-      key = undefined;
-    }
-  }
+  let urlHost = "";
+  let issue: string | undefined;
   if (url) {
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== "https:" && parsed.hostname !== "localhost")
         url = undefined;
-      else url = parsed.origin;
+      else {
+        urlHost = parsed.hostname.toLowerCase();
+        url = parsed.origin;
+      }
     } catch {
       url = undefined;
     }
   }
-  return { url: url || "", key };
+  if (key?.startsWith("ey")) {
+    try {
+      const claims = JSON.parse(
+        Buffer.from(key.split(".")[1], "base64url").toString(),
+      );
+      if (claims.role === "service_role") key = undefined;
+      else if (
+        claims.ref &&
+        urlHost.endsWith(".supabase.co") &&
+        claims.ref !== urlHost.slice(0, -".supabase.co".length)
+      ) {
+        key = undefined;
+        issue = "Supabase URL and publishable key belong to different projects.";
+      }
+    } catch {
+      key = undefined;
+    }
+  }
+  return { url: url || "", key, ...(issue ? { issue } : {}) };
 }
 
 export function oauthClient(req: NextRequest, response: NextResponse) {
-  const { url, key } = getSupabaseConfig();
+  const { url, key, issue } = getSupabaseConfig();
+  if (issue) throw new Error(issue);
   if (!url || !key) {
     throw new Error(
       `Google sign-in is not configured yet. Missing: ${!url ? "SUPABASE_URL " : ""}${!key ? "SUPABASE_PUBLISHABLE_KEY" : ""}. Please add these in your environment variables.`,

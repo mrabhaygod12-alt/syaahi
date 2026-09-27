@@ -23,6 +23,24 @@ process.env.SUPABASE_PUBLISHABLE_KEY =
   Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url") +
   ".signature";
 assert(getSupabaseConfig().key);
+process.env.SUPABASE_PUBLISHABLE_KEY =
+  "eyJheader." +
+  Buffer.from(
+    JSON.stringify({ role: "anon", ref: "wrong-project" }),
+  ).toString("base64url") +
+  ".signature";
+assert.deepEqual(getSupabaseConfig(), {
+  url: "https://example.supabase.co",
+  key: undefined,
+  issue: "Supabase URL and publishable key belong to different projects.",
+});
+process.env.SUPABASE_PUBLISHABLE_KEY =
+  "eyJheader." +
+  Buffer.from(
+    JSON.stringify({ role: "anon", ref: "example" }),
+  ).toString("base64url") +
+  ".signature";
+assert(getSupabaseConfig().key);
 console.log(
-  "PASS explicit Supabase config; unrelated secrets and service-role keys cannot become OAuth keys",
+  "PASS Supabase config rejects unrelated/service-role keys and detects URL/key project mismatches",
 );

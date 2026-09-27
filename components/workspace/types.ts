@@ -29,6 +29,11 @@ export interface LessonJob {
   sourceUrl: string | null;
   sourceKind?: string | null;
   sourceName?: string | null;
+  referenceLinks?: Array<{
+    title: string;
+    url: string;
+    kind: "source" | "search";
+  }>;
   title: string | null;
   practice: {
     quiz: QuizQ[];

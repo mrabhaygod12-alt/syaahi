@@ -7,6 +7,7 @@ interface Plan {
   topics: string[];
   context: string;
   sources: Array<{ title: string; url: string }>;
+  readingLinks: Array<{ title: string; url: string; kind: "source" | "search" }>;
   evidence: string;
   reason: string;
   note: string;
@@ -178,6 +179,7 @@ export default function StudyComposer({
           intelligentPlan: false,
           confirmedPlan: true,
           planNote: plan.reason,
+          references: plan.sources.map(({ title, url }) => ({ title, url })),
         }),
       });
       const data = await response.json();
@@ -412,6 +414,26 @@ export default function StudyComposer({
               {s.title} ↗
             </a>
           ))}
+          {plan.readingLinks.length > 0 && (
+            <div className="reading-links">
+              <span className="small">More technical reading</span>
+              {plan.readingLinks.map((link) => (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                >
+                  {link.title} ↗
+                </a>
+              ))}
+              <span className="small">
+                These open an external Google site search. Those articles are
+                not copied into your notes.
+              </span>
+            </div>
+          )}
           <p className="small">
             {plan.note} 1 token covers 3 pages. Each page uses ⅓ token;
             continuation sheets are free. Check the outline before starting.

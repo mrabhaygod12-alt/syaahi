@@ -6,6 +6,9 @@ export default function SourceView() {
   const { job } = useLesson();
   if (!job) return null;
   const vid = ytId(job.sourceUrl);
+  const researchExcerpt =
+    job.sourceKind === "topic" &&
+    Boolean(job.referenceLinks?.some((reference) => reference.kind === "source"));
   return (
     <div className="source-room">
       <h1>Source</h1>
@@ -52,15 +55,27 @@ export default function SourceView() {
         </div>
       )}
       {job.context ? (
-        <div className="card" style={{ marginTop: 16 }}>
-          <h2>Transcript / document excerpt</h2>
-          <p
-            className="small"
-            style={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}
-          >
-            {job.context}
-          </p>
-        </div>
+        researchExcerpt ? (
+          <details className="card" style={{ marginTop: 16 }}>
+            <summary>Review the research excerpt used for planning</summary>
+            <p
+              className="small"
+              style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, marginTop: 12 }}
+            >
+              {job.context}
+            </p>
+          </details>
+        ) : (
+          <div className="card" style={{ marginTop: 16 }}>
+            <h2>Transcript / document excerpt</h2>
+            <p
+              className="small"
+              style={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}
+            >
+              {job.context}
+            </p>
+          </div>
+        )
       ) : (
         !vid && (
           <div className="card" style={{ marginTop: 16 }}>
@@ -69,6 +84,27 @@ export default function SourceView() {
             </p>
           </div>
         )
+      )}
+      {!!job.referenceLinks?.length && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2>References and further reading</h2>
+          <div className="reference-list">
+            {job.referenceLinks.map((reference) => (
+              <a
+                key={`${reference.kind}:${reference.url}`}
+                href={reference.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {reference.title} ↗
+              </a>
+            ))}
+          </div>
+          <p className="small">
+            Wikipedia excerpts can ground your notes. Further-reading searches
+            open externally and are not ingested into this lesson.
+          </p>
+        </section>
       )}
       <h2 style={{ marginTop: 20 }}>Topics</h2>
       <ol>

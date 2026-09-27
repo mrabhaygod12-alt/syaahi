@@ -7,15 +7,30 @@ import {
   verifySignature,
 } from "@/lib/billing/payments";
 import { ownsOrder } from "@/lib/billing/orders";
+import { rateLimit } from "@/lib/ratelimit";
 async function handlePOST(req: NextRequest) {
-  const denied = await authError(req);
+  const denied =
+    (await authError(req)) ||
+    (await rateLimit(req, "verify-payment", 20, 60000));
   if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const order = String(body.razorpay_order_id || ""),
     payment = String(body.razorpay_payment_id || "");
   const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!order || !payment || typeof body.razorpay_signature !== "string")
+    return NextResponse.json(
+      { error: "Order, payment and signature are required." },
+      { status: 400 },
+    );
+  if (!secret)
+    return NextResponse.json(
+      {
+        error:
+          "Payment confirmation is temporarily unavailable. Please check payment status shortly.",
+      },
+      { status: 503 },
+    );
   if (
-    !secret ||
     !/^order_[a-zA-Z0-9]+$/.test(order) ||
     !/^pay_[a-zA-Z0-9]+$/.test(payment) ||
     !verifySignature(
@@ -43,12 +58,13 @@ async function handlePOST(req: NextRequest) {
       balance: await capturePayment(entity, (await currentUser(req))!.id),
     });
   } catch (error) {
+    console.error("Payment confirmation failed", {
+      kind: error instanceof Error ? error.name : "unknown",
+    });
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Payment verification failed.",
+          "Payment has not been confirmed. Check payment status before paying again.",
       },
       { status: 409 },
     );

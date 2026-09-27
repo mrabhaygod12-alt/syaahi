@@ -47,6 +47,7 @@ async function indexes(d: Db) {
     d.collection("jobs").createIndex({ user: 1, createdAt: -1 }),
     d.collection("jobs").createIndex({ user: 1, status: 1 }),
     d.collection("jobs").createIndex({ status: 1, leaseUntil: 1 }),
+    d.collection("orders").createIndex({ user: 1, createdAt: -1 }),
     d.collection("orders").createIndex(
       { paymentId: 1 },
       {

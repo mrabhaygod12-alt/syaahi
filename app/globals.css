@@ -1261,6 +1261,25 @@ body:has(.ws-gate) footer {
   align-items: center;
   margin-top: 6px;
 }
+.ws-stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 3px;
+  vertical-align: -0.12em;
+  background: #245448;
+  animation: ws-caret 900ms steps(2, end) infinite;
+}
+@keyframes ws-caret {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-stream-cursor {
+    animation: none;
+  }
+}
 .ws-via {
   margin-left: auto;
   background: #f0ede6;
@@ -2583,6 +2602,33 @@ a {
   font-size: 12px;
   margin: 0 12px 8px 0;
 }
+.reading-links {
+  display: flex;
+  align-items: center;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+  padding: 12px;
+  border: 1px solid #e8e3da;
+  border-radius: 12px;
+  background: #faf9f6;
+}
+.reading-links > .small:last-child {
+  flex-basis: 100%;
+}
+.reference-list {
+  display: flex;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.reference-list a {
+  overflow-wrap: anywhere;
+}
+.source-room details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
 .guest-hint {
   text-align: center;
   font-size: 12px;
@@ -3629,3 +3675,13 @@ main > .wrap {width:100%;min-width:0}
 /* Small marketing sections should remain rendered for reliable scrolling and screenshots. */
 .feature-section{content-visibility:visible;contain-intrinsic-size:none}
 .tutor-choice-cards{display:grid;gap:10px;margin:18px 0}.tutor-choice-cards button{display:flex;flex-direction:column;gap:8px;text-align:left;padding:18px;background:#f3f7ed;border:1px solid #cad8c2;border-radius:14px;color:#214b40;cursor:pointer}.tutor-choice-cards span{font-size:12px;color:#687a61}
+.payment-flow { width: 100%; max-width: 760px; margin: 0 auto; padding: 40px 24px 72px; }
+.payment-flow h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.15; }
+.payment-eyebrow { margin-top: 28px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #687a61; }
+.payment-panel { margin: 24px 0; padding: clamp(20px, 4vw, 36px); border: 1px solid #dce3d7; border-radius: 22px; background: #fff; box-shadow: 0 12px 32px #214b4006; }
+.payment-panel code { overflow-wrap: anywhere; }
+.payment-panel .btn { margin-top: 12px; }
+.payment-panel .payment-eyebrow { margin-top: 0; }
+.payment-notice { background: #edf3e8; border: 1px solid #cad8c2; padding: 16px 20px; border-radius: 14px; }
+.payment-badge { display: inline-block; padding: 6px 10px; border-radius: 30px; font-size: 12px; background: #faf0d9; color: #715922; }
+.payment-badge.confirmed { background: #e3f3e9; color: #245f40; }
