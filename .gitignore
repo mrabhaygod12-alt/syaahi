@@ -18,6 +18,7 @@ tsconfig.tsbuildinfo
 test-*.ts
 
 .next-production/
+.next-validation/
 data/*.sqlite*
 tmp/
 output/qa/
@@ -25,12 +26,26 @@ output/qa/
 .env
 .env.*
 !.env.example
-.netlify/
 output/
 *.wav
 *.zip
 chandan.jpeg
+/manish.png
 
 !scripts/test-*.ts
 
 ~$*
+
+# Investor presentations are private deliverables, not repository assets.
+*.pptx
+docs/pitch/
+.chart-data-*/
+
+# Original owner-supplied QR exports; published copies live under public/payments/qr.
+/PhonePay.jpeg
+/googlePay.jpeg
+/naviupi.jpeg
+/paytm.jpeg
+
+# Local Instagram carousel exports are user-facing deliverables, not site assets.
+/marketing/instagram/syaahi-study-carousel/

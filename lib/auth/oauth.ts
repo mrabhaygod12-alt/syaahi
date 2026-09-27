@@ -8,13 +8,75 @@ export const safeNext = (value: string | null) =>
   value && /^\/(?![\/\\])/.test(value) && !/[\r\n\\]/.test(value)
     ? value
     : "/dashboard";
+export function getSupabaseConfig(): {
+  url: string;
+  key: string | undefined;
+  issue?: string;
+} {
+  const envValue = (...names: string[]) =>
+    names.map((name) => process.env[name]?.trim()).find(Boolean);
+  let url = envValue(
+    "SUPABASE_URL",
+    "SUPABASE_URI",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_URI",
+  );
+
+  let key = envValue(
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_KEY",
+  );
+
+  // Never infer credentials from unrelated environment variables or use service-role secrets for OAuth.
+  if (key?.startsWith("sb_secret_")) key = undefined;
+  let urlHost = "";
+  let issue: string | undefined;
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.hostname !== "localhost")
+        url = undefined;
+      else {
+        urlHost = parsed.hostname.toLowerCase();
+        url = parsed.origin;
+      }
+    } catch {
+      url = undefined;
+    }
+  }
+  if (key?.startsWith("ey")) {
+    try {
+      const claims = JSON.parse(
+        Buffer.from(key.split(".")[1], "base64url").toString(),
+      );
+      if (claims.role === "service_role") key = undefined;
+      else if (
+        claims.ref &&
+        urlHost.endsWith(".supabase.co") &&
+        claims.ref !== urlHost.slice(0, -".supabase.co".length)
+      ) {
+        key = undefined;
+        issue = "Supabase URL and publishable key belong to different projects.";
+      }
+    } catch {
+      key = undefined;
+    }
+  }
+  return { url: url || "", key, ...(issue ? { issue } : {}) };
+}
+
 export function oauthClient(req: NextRequest, response: NextResponse) {
-  const url = process.env.SUPABASE_URL,
-    key = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key)
+  const { url, key, issue } = getSupabaseConfig();
+  if (issue) throw new Error(issue);
+  if (!url || !key) {
     throw new Error(
-      "Google sign-in is not configured yet. Email sign-in is available.",
+      `Google sign-in is not configured yet. Missing: ${!url ? "SUPABASE_URL " : ""}${!key ? "SUPABASE_PUBLISHABLE_KEY" : ""}. Please add these in your environment variables.`,
     );
+  }
   return createServerClient(url, key, {
     cookieOptions: {
       httpOnly: true,
@@ -38,14 +100,25 @@ export async function googleAccount(identity: {
   user_metadata?: Record<string, unknown>;
   app_metadata?: Record<string, unknown>;
 }): Promise<Account> {
-  if (
-    !identity.email ||
-    !identity.email_confirmed_at ||
-    !(identity.app_metadata?.providers as string[] | undefined)?.includes(
+  const isGoogle =
+    (identity.app_metadata?.providers as string[] | undefined)?.includes(
       "google",
-    )
-  )
+    ) ||
+    identity.app_metadata?.provider === "google" ||
+    (typeof identity.user_metadata?.iss === "string" &&
+      identity.user_metadata.iss.includes("google"));
+
+  const isConfirmed =
+    Boolean(identity.email_confirmed_at) ||
+    Boolean(identity.user_metadata?.email_verified) ||
+    Boolean(identity.user_metadata?.verified_email);
+
+  if (!identity.email || !isConfirmed || !isGoogle) {
     throw new Error("A verified Google identity is required.");
+  }
+
+  const email = identity.email.trim().toLowerCase();
+
   if (useMongo()) {
     const map = await (
       await collection("oauth_identities")
@@ -60,11 +133,29 @@ export async function googleAccount(identity: {
           createdAt: u.createdAt,
         };
     }
-    const email = identity.email.trim().toLowerCase();
-    if (await (await collection("users")).findOne({ email }))
-      throw new Error(
-        "This email already has an account. Use the original sign-in method.",
+    const existing = await (await collection("users")).findOne({ email });
+    if (existing) {
+      // Securely link verified Google OAuth identity to existing account
+      await (
+        await collection("oauth_identities")
+      ).updateOne(
+        { _id: identity.id },
+        { $set: { user: existing._id } },
+        { upsert: true },
       );
+      await (
+        await collection("users")
+      ).updateOne(
+        { _id: existing._id },
+        { $set: { verified: true, verifiedAt: new Date().toISOString() } },
+      );
+      return {
+        id: existing._id,
+        email: existing.email,
+        name: existing.name,
+        createdAt: existing.createdAt,
+      };
+    }
     const user = await register(
       String(identity.user_metadata?.full_name || email.split("@")[0]).slice(
         0,
@@ -75,6 +166,11 @@ export async function googleAccount(identity: {
       identity.id,
     );
     return user;
+  }
+  if (process.env.APP_ROLE === "frontend" || process.env.VERCEL === "1") {
+    throw new Error(
+      "Frontend database is not configured. Configure BACKEND_URL on Vercel or set MONGODB_URI.",
+    );
   }
   db().exec(
     "CREATE TABLE IF NOT EXISTS oauth_identities (subject TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id))",
@@ -91,11 +187,22 @@ export async function googleAccount(identity: {
       name: String(mapped.name),
       createdAt: String(mapped.created_at),
     };
-  const email = identity.email.trim().toLowerCase();
-  if (db().prepare("SELECT id FROM users WHERE email=?").get(email))
-    throw new Error(
-      "This email already has a password account. Sign in with your password; automatic account linking is disabled.",
-    );
+  const existingLocal = db()
+    .prepare("SELECT * FROM users WHERE email=?")
+    .get(email) as any;
+  if (existingLocal) {
+    db()
+      .prepare(
+        "INSERT INTO oauth_identities VALUES (?,?) ON CONFLICT(subject) DO UPDATE SET user_id=excluded.user_id",
+      )
+      .run(identity.id, existingLocal.id);
+    return {
+      id: String(existingLocal.id),
+      email: String(existingLocal.email),
+      name: String(existingLocal.name),
+      createdAt: String(existingLocal.created_at),
+    };
+  }
   const user = await register(
     String(identity.user_metadata?.full_name || email.split("@")[0]).slice(
       0,

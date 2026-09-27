@@ -11,7 +11,7 @@ async function main() {
   try {
     const auth = await import("../lib/auth/server");
     const jobs = await import("../lib/jobs/store");
-    const { balance } = await import("../lib/credits/store");
+    const { balance, spend } = await import("../lib/credits/store");
     const { saveOrder } = await import("../lib/billing/orders");
     const { capturePayment } = await import("../lib/billing/payments");
     const { referralCode, claimReferral } =
@@ -28,6 +28,30 @@ async function main() {
       "mongo-learner@example.test",
       "long-test-password",
     );
+    const unverifiedSession = await auth.startSession(
+      user,
+      new Request("http://localhost"),
+    );
+    const unverifiedCookie = unverifiedSession.headers
+      .get("set-cookie")!
+      .split(";")[0];
+    assert.equal(
+      await auth.currentUser(
+        new Request("http://localhost", {
+          headers: { cookie: unverifiedCookie },
+        }),
+      ),
+      null,
+      "unverified users cannot authenticate with a session cookie",
+    );
+    assert.equal(
+      await (await mongo()).database.collection("sessions").countDocuments({
+        user: user.id,
+      }),
+      0,
+    );
+    const { markEmailVerified } = await import("../lib/billing/rewards");
+    await markEmailVerified(user.id);
     const response = await auth.startSession(
       user,
       new Request("http://localhost"),
@@ -41,6 +65,8 @@ async function main() {
       )?.id,
       user.id,
     );
+    assert.equal(await balance(user.id), 19);
+    await spend(user.id, 14);
     const results = await Promise.allSettled([
       jobs.createJob(user.id, ["A", "B", "C"], "concise"),
       jobs.createJob(user.id, ["D", "E", "F"], "concise"),
@@ -102,8 +128,8 @@ async function main() {
       capturePayment(payment, user.id),
       capturePayment(payment, user.id),
     ]);
-    assert.equal(await balance(user.id), 8);
-    assert.equal(await balance(owner.id), 8);
+    assert.equal(await balance(user.id), 5);
+    assert.equal(await balance(owner.id), 19);
     await state.mutateState(user.id, "test", { value: 0 }, (s) => ({
       value: s.value + 1,
     }));

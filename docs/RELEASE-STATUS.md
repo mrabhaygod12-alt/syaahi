@@ -1,5 +1,11 @@
 # Syaahi release status
 
+## Latest change: signup and referral wallets
+
+New signup allowance is 19 credits (6⅓ tokens), replacing the historical five-section offer. Existing users retain their balances. An eligible verified signup gives the inviter five reward credits. Password users verify by a one-hour emailed link; Google uses its confirmed identity. Reward credits transfer atomically into study balance; repeated login, verification and transfer retries do not mint extra credits. Both SQLite and MongoDB tests cover these rules and the 20-reward monthly cap. Resend sender/key configuration and actual email delivery still need deployment verification.
+
+Manish Kumar Singh is now visible in the introductory creator section, with the supplied DevOps Engineer & Researcher role. APInex's endpoint and free catalog are corrected; Zen has additional documented chat-compatible free models. Current live access to these gateways remains unverified; see PROVIDERS.md. Historical bullets below describe the earlier release where applicable.
+
 Verified locally, 24 September 2026. Working software and external configuration are distinguished below.
 
 ## Implemented
@@ -15,9 +21,9 @@ Verified locally, 24 September 2026. Working software and external configuration
 - Viewer/editor invitations, revocation, private-source redaction, comments, shared lesson discovery and periodic refresh with stale-write protection.
 - Password accounts, Google OAuth code path, mandatory Terms/Privacy acknowledgement, saved consent version and HttpOnly sessions.
 - Private support tickets, configured staff inbox/replies, resolve/reopen. Email notifications are not enabled.
-- One token covers three generated sections. Integer page-unit accounting preserves existing allowances. Packs: ₹9/1 token, ₹39/5, ₹79/12, ₹179/30. Continuation sheets are free.
+- One token covers three generated sections. Integer page-unit accounting preserves existing allowances. Packs: INR ₹9/₹39/₹79/₹179; fixed international tiers USD $5/$22/$44/$99 and EUR €5/€22/€44/€99. Country-derived Razorpay orders are currency-checked before credit capture; international currencies stay gated until enabled on Render after Razorpay approval. Continuation sheets are free.
 - Verified-capture payment ledger, referral eligibility/replay protection, reward counts and monthly allowance display.
-- SQLite local mode; MongoDB transactions for cloud accounts/jobs/billing/state; cloud request throttles; worker leases; Netlify/Render proxy guard and deployment files.
+- SQLite local mode; MongoDB transactions for cloud accounts/jobs/billing/state; cloud request throttles; worker leases; Vercel/Render proxy guard and deployment files.
 - Central API errors with request references and private-response cache prevention. Provider keys stay server-side; six credential slots do not multiply quotas.
 
 ## Passed checks
@@ -37,7 +43,7 @@ Verified locally, 24 September 2026. Working software and external configuration
 
 ## External configuration required
 
-Google login needs Supabase and Google provider configuration. Razorpay needs merchant credentials and webhook/checkout testing. Atlas, Netlify, Render and Cloudflare have not been deployed from this workstation. Support needs trusted operator account UUIDs and a real commercial contact. Follow DEPLOY.md.
+Google login needs Supabase and Google provider configuration. Razorpay needs merchant credentials and webhook/checkout testing. Atlas, Vercel, Render and Cloudflare provider dashboards are operator managed. Support needs trusted operator account UUIDs and a real commercial contact. Follow DEPLOY.md.
 
 ## Turbo parity limits
 
@@ -46,3 +52,9 @@ Research covers Turbo’s public pages, not exhaustive private-app testing. Syaa
 ## Security and capacity
 
 Zero attacks cannot be guaranteed. NIST CSF mapping is an assessment, not certification. Capacity for 100,000 simultaneous users is not demonstrated. Cloud upload limits, live checkout, recovery/email verification, backups, monitoring, coordinated provider budgets and incident procedures remain launch gates. The support inbox currently displays the latest 100 tickets; larger operations need pagination and retention policies.
+
+# Vercel frontend cutover — 27 September 2026
+
+Commit `4a22133` makes the frontend build select Next.js's `.next` directory when `APP_ROLE=frontend`, even when Vercel's optional `VERCEL=1` system variable is unavailable. The Render backend continues to use `.next-production`. The 27 September Vercel trace then identified an empty `NEXT_PUBLIC_APP_URL` as the cause of `new URL("")` in root metadata. The site URL now trims, validates and safely falls back to the production canonical origin (localhost in development). `npm run check` and a production build with `APP_ROLE=frontend`, `VERCEL` unset and `NEXT_PUBLIC_APP_URL` explicitly empty passed; all 94 routes built.
+
+Latest workspace smoke test: `syaahii.in`, `www.syaahii.in`, `syaahii.vercel.app`, and `/api/health` on all three returned HTTP 200; Mongo health is true. DNS reports Vercel nameservers. GoDaddy's screenshot says DNS is managed at Vercel, so DNS records must be edited through Vercel, not GoDaddy. The latest project Domains screenshot connects apex and `www` to Production with no redirect selected; configure an apex-to-`www` permanent redirect if keeping `www` canonical. The just-pushed invalid-URL fix still needs its own Vercel deployment to finish, then Google login and payment callbacks require smoke tests.

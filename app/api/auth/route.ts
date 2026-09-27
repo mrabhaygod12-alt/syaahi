@@ -57,13 +57,55 @@ async function handlePOST(req: NextRequest) {
         password,
       );
       await recordConsent(user.id);
-      return await startSession(user, req);
-    } catch {
+
+      // Record invite attribution now; the inviter is rewarded only after
+      // this account completes email verification.
+      if (typeof body.referralCode === "string" && body.referralCode) {
+        try {
+          const { claimReferral } = await import("@/lib/billing/referrals");
+          await claimReferral(user.id, body.referralCode);
+        } catch {
+          // A stale or invalid invite should not block signup.
+        }
+      }
+
+      // Issue verification link/token
+      let verificationSent = false;
+      try {
+        const { sendVerification } = await import("@/lib/auth/verification");
+        await sendVerification(user);
+        verificationSent = true;
+      } catch (vErr) {
+        console.warn("Verification delivery unavailable");
+      }
+
       return NextResponse.json(
         {
-          error: "Unable to create this account. If registered, please log in.",
+          ok: true,
+          requireVerification: true,
+          verifyUrl: "/verify-email",
+          message: verificationSent
+            ? "Account created. Open the verification link sent to your email."
+            : "Account created, but the verification email could not be sent. Go to Log in and submit your email and password to retry delivery. You cannot use the account until it is verified.",
         },
-        { status: 409 },
+        { status: 202 },
+      );
+    } catch (err) {
+      const detail =
+        err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      console.error("Signup failed:", detail);
+      const isDuplicate =
+        err instanceof Error &&
+        (err.message.includes("duplicate key") ||
+          err.message.includes("E11000") ||
+          err.message.includes("already registered"));
+      return NextResponse.json(
+        {
+          error: isDuplicate
+            ? "This email is already registered. Please log in instead."
+            : "Unable to create this account. If registered, please log in or contact support.",
+        },
+        { status: isDuplicate ? 409 : 500 },
       );
     }
   }
@@ -73,10 +115,42 @@ async function handlePOST(req: NextRequest) {
       { error: "Incorrect email or password." },
       { status: 401 },
     );
-  await recordConsent(String(row.id));
+
+  // Check email verification for production MongoDB accounts
+  const userId = String(row.id);
+  const { collection, useMongo } = await import("@/lib/storage/mongo");
+  if (useMongo()) {
+    let verified = Boolean((row as any).verified);
+    const vDoc = await (
+      await collection("verified_accounts")
+    ).findOne({ _id: userId });
+    if (vDoc) verified = true;
+
+    if (!verified) {
+      let verificationSent = false;
+      try {
+        const { sendVerification } = await import("@/lib/auth/verification");
+        await sendVerification({ id: userId, email });
+        verificationSent = true;
+      } catch {}
+      return NextResponse.json(
+        {
+          error: verificationSent
+            ? "Email not verified. Open the link sent to your inbox."
+            : "Email verification delivery is unavailable. Please contact support.",
+          requireVerification: true,
+          verifyUrl: "/verify-email",
+          email,
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  await recordConsent(userId);
   return startSession(
     {
-      id: String(row.id),
+      id: userId,
       email,
       name: String(row.name),
       createdAt: String(row.created_at),

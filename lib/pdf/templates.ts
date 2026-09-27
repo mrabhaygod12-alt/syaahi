@@ -1,5 +1,11 @@
 export const PDF_TEMPLATES = [
   {
+    id: "study",
+    label: "Study notebook",
+    blurb:
+      "Blue handwriting, maroon underlined headings and boxed flowcharts — inspired by the Algorithms reference.",
+  },
+  {
     id: "classic",
     label: "Classic notebook",
     blurb: "Ruled feel, gold title highlight, topper callouts.",

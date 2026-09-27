@@ -10,6 +10,7 @@ const links = [
   ["Workspace", "/dashboard"],
   ["Subjects", "/subjects"],
   ["Interview", "/interview"],
+  ["Blog", "/blog"],
   ["How it works", "/how-it-works"],
   ["Pricing", "/pricing"],
 ];
@@ -17,6 +18,7 @@ const links = [
 export default function SiteHeader() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  if (path?.startsWith("/lesson/")) return null;
   return (
     <header className="top site-header">
       <div className="wrap header-row">

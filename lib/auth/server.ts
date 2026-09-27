@@ -1,3 +1,4 @@
+import { SIGNUP_CREDITS } from "@/lib/billing/allowance";
 import { useMongo, collection, mongoTransaction } from "@/lib/storage/mongo";
 import {
   createHash,
@@ -13,6 +14,8 @@ export interface Account {
   email: string;
   name: string;
   createdAt: string;
+  avatar?: string | null;
+  verified?: boolean;
 }
 const COOKIE = "syaahi-session";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -43,14 +46,28 @@ export async function currentUser(req: Request): Promise<Account | null> {
     const user = await (
       await collection("users")
     ).findOne({ _id: session.user });
-    return user
-      ? {
-          id: user._id,
-          email: user.email,
-          name: user.name,
-          createdAt: user.createdAt,
-        }
-      : null;
+    if (!user) return null;
+    const isVerified =
+      Boolean(user.verified) ||
+      Boolean(user.verifiedAt) ||
+      Boolean(
+        await (
+          await collection("verified_accounts")
+        ).findOne({ _id: user._id }),
+      );
+    // Never let an old or pre-verification session authorize a password account.
+    if (!isVerified) {
+      await (await collection("sessions")).deleteOne({ _id: hash(token) });
+      return null;
+    }
+    return {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      avatar: user.avatar || null,
+      verified: true,
+    };
   }
   const row = db()
     .prepare(
@@ -64,17 +81,30 @@ export async function currentUser(req: Request): Promise<Account | null> {
         email: String(row.email),
         name: String(row.name),
         createdAt: String(row.created_at),
+        avatar: null,
+        verified: true,
       }
     : null;
 }
 export function originError(req: Request): NextResponse | null {
   const origin = req.headers.get("origin");
-  if (
-    !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-    origin &&
-    origin !== new URL(req.url).origin &&
-    origin !== process.env.NEXT_PUBLIC_APP_URL
-  ) {
+  if (!origin || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return null;
+
+  // The proxy authenticates infrastructure, not the browser Origin.
+  // Keep CSRF checks when Vercel forwards the request to Render.
+  const normalizedOrigin = origin.replace(/\/+$/, "");
+  const allowed = new Set(
+    [
+      new URL(req.url).origin,
+      (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, ""),
+      "https://syaahii.in",
+      "https://www.syaahii.in",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ].filter(Boolean),
+  );
+
+  if (!allowed.has(normalizedOrigin)) {
     return NextResponse.json(
       { error: "Cross-origin request rejected." },
       { status: 403 },
@@ -107,31 +137,47 @@ export async function register(
   };
   const encoded = passwordHash(password);
   if (useMongo()) {
-    await mongoTransaction(async (d, session) => {
-      await d
-        .collection<any>("users")
-        .insertOne({ _id: user.id, ...user, password: encoded }, { session });
-      if (oauthSubject)
+    const doc = { _id: user.id, ...user, password: encoded };
+    try {
+      await mongoTransaction(async (d, session) => {
+        await d.collection<any>("users").insertOne(doc, { session });
+        if (oauthSubject)
+          await d
+            .collection<any>("oauth_identities")
+            .insertOne({ _id: oauthSubject, user: user.id }, { session });
         await d
-          .collection<any>("oauth_identities")
-          .insertOne({ _id: oauthSubject, user: user.id }, { session });
-      await d
-        .collection<any>("wallets")
-        .insertOne({ _id: user.id, balance: 5 }, { session });
-      await d
-        .collection<any>("ledger")
-        .insertOne(
+          .collection<any>("wallets")
+          .insertOne({ _id: user.id, balance: SIGNUP_CREDITS }, { session });
+        await d.collection<any>("ledger").insertOne(
           {
             _id: `welcome:${user.id}`,
             user: user.id,
-            delta: 5,
+            delta: SIGNUP_CREDITS,
             reason: "Welcome page units",
             createdAt: new Date(),
           },
           { session },
         );
-    });
+      });
+    } catch (txErr) {
+      console.error(
+        "Mongo account transaction failed",
+        txErr instanceof Error ? txErr.name : "unknown",
+      );
+      throw new Error("Account creation could not be completed. Please retry.");
+    }
+
+    // Sync to Supabase Auth in background so user appears in Supabase dashboard
+    import("./supabase-sync")
+      .then((m) => m.syncUserToSupabase(email, password, name))
+      .catch(() => {});
+
     return user;
+  }
+  if (process.env.APP_ROLE === "frontend" || process.env.VERCEL === "1") {
+    throw new Error(
+      "Frontend database is not configured. Configure BACKEND_URL on Vercel or set MONGODB_URI.",
+    );
   }
   transaction(() => {
     db()
@@ -141,16 +187,30 @@ export async function register(
       db()
         .prepare("INSERT INTO oauth_identities VALUES (?,?)")
         .run(oauthSubject, user.id);
-    db().prepare("INSERT INTO wallets VALUES (?,5)").run(user.id);
+    db()
+      .prepare("INSERT INTO wallets VALUES (?,?)")
+      .run(user.id, SIGNUP_CREDITS);
     db()
       .prepare("INSERT INTO ledger VALUES (?,?,?,?,?)")
-      .run(`welcome:${user.id}`, user.id, 5, "Welcome credits", user.createdAt);
+      .run(
+        `welcome:${user.id}`,
+        user.id,
+        SIGNUP_CREDITS,
+        "Welcome credits",
+        user.createdAt,
+      );
   });
+
+  import("./supabase-sync")
+    .then((m) => m.syncUserToSupabase(email, password, name))
+    .catch(() => {});
+
   return user;
 }
 export async function startSession(
   user: Account,
   req: Request,
+  extra: Record<string, unknown> = {},
 ): Promise<NextResponse> {
   const token = randomBytes(32).toString("hex");
   if (useMongo())
@@ -167,7 +227,7 @@ export async function startSession(
       .prepare("INSERT INTO sessions VALUES (?,?,?)")
       .run(hash(token), user.id, Date.now() + 7 * 86400000);
   }
-  const response = NextResponse.json({ user });
+  const response = NextResponse.json({ user, ...extra });
   response.cookies.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -201,8 +261,11 @@ export async function endSession(req: Request): Promise<NextResponse> {
 }
 
 export async function accountByEmail(email: string) {
+  if (typeof email !== "string") return null;
+  const clean = email.trim().toLowerCase();
+  if (!clean || clean.length > 254) return null;
   if (useMongo()) {
-    const user = await (await collection("users")).findOne({ email });
+    const user = await (await collection("users")).findOne({ email: clean });
     return user
       ? {
           id: String(user._id),
@@ -213,5 +276,5 @@ export async function accountByEmail(email: string) {
         }
       : null;
   }
-  return db().prepare("SELECT * FROM users WHERE email=?").get(email);
+  return db().prepare("SELECT * FROM users WHERE email=?").get(clean);
 }

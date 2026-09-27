@@ -75,8 +75,6 @@ async function handlePOST(req: NextRequest) {
     );
     return NextResponse.json({
       answer: r.text,
-      provider: (r as any).provider,
-      model: (r as any).model,
       ms: (r as any).ms ?? 0,
       usage: (r as any).usage ?? {
         prompt: 0,
@@ -88,7 +86,9 @@ async function handlePOST(req: NextRequest) {
     });
   } catch (e: any) {
     return NextResponse.json(
-      { error: e.message },
+      {
+        error: "The study assistant is temporarily unavailable. Please retry.",
+      },
       { status: e.message?.includes("NO_KEYS") ? 402 : 502 },
     );
   }

@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 export function middleware(req: NextRequest) {
+  // Keep one indexable/public origin even if the Vercel alias or apex domain
+  // remains attached without a redirect in the hosting dashboard.
+  const hostname = req.nextUrl.hostname.toLowerCase();
+  if (hostname === "syaahii.in" || hostname === "syaahii.vercel.app") {
+    const canonical = req.nextUrl.clone();
+    canonical.protocol = "https:";
+    canonical.hostname = "www.syaahii.in";
+    canonical.port = "";
+    return NextResponse.redirect(canonical, 308);
+  }
+
   const role = process.env.APP_ROLE;
-  if (role === "frontend") {
-    const backend = process.env.BACKEND_URL,
-      secret = process.env.BACKEND_PROXY_SECRET;
+  const backend = process.env.BACKEND_URL;
+  const isFrontend =
+    role === "frontend" ||
+    process.env.VERCEL === "1" ||
+    (!!backend && role !== "backend" && role !== "worker");
+  const isApiRequest = req.nextUrl.pathname.startsWith("/api/");
+
+  // Vercel owns and serves every page, static asset, sitemap and robots file.
+  // Only same-origin API calls should cross the private proxy to Render.
+  if (isFrontend && isApiRequest) {
+    const secret = process.env.BACKEND_PROXY_SECRET;
     if (!backend || !secret)
       return NextResponse.json(
-        { error: "The study backend is not connected yet." },
+        {
+          error:
+            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in Vercel environment variables.",
+        },
         { status: 503 },
       );
     const target = new URL(req.nextUrl.pathname + req.nextUrl.search, backend);
@@ -22,11 +44,17 @@ export function middleware(req: NextRequest) {
     headers.set("x-syaahi-proxy", secret);
     headers.set(
       "x-forwarded-for",
-      req.headers.get("x-nf-client-connection-ip") || "unknown",
+      // Vercel overwrites x-forwarded-for at its trusted ingress.
+      (process.env.VERCEL === "1"
+        ? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        : undefined) || "unknown",
     );
     headers.delete("x-real-ip");
     return NextResponse.rewrite(target, { request: { headers } });
   }
+
+  if (isFrontend) return NextResponse.next();
+
   if (role === "backend" && req.nextUrl.pathname !== "/api/health") {
     const secret = process.env.BACKEND_PROXY_SECRET;
     if (!secret || req.headers.get("x-syaahi-proxy") !== secret)
@@ -37,4 +65,6 @@ export function middleware(req: NextRequest) {
   }
   return NextResponse.next();
 }
-export const config = { matcher: "/api/:path*" };
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};

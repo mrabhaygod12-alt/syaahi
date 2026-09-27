@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import {videoId} from "../lib/youtube/transcript";
+import {parseStudyAssessment} from "../lib/youtube/study";
+assert.equal(videoId("https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ"),"dQw4w9WgXcQ");
+assert.equal(videoId("https://youtu.be/dQw4w9WgXcQ?t=10"),"dQw4w9WgXcQ");
+for(const url of ["https://evil.test/youtube.com/watch?v=dQw4w9WgXcQ","https://youtube.com.evil.test/watch?v=dQw4w9WgXcQ","https://user@youtube.com/watch?v=dQw4w9WgXcQ","https://youtube.com/watch?v=short","file://youtube.com/watch?v=dQw4w9WgXcQ"])assert.equal(videoId(url),null,url);
+assert.equal(parseStudyAssessment('{"classification":"non_educational","reason":"Music performance only","topics":[]}').classification,"non_educational");
+assert.throws(()=>parseStudyAssessment('{"classification":"yes","reason":"Guess","topics":[]}'));
+assert.throws(()=>parseStudyAssessment("not JSON"));
+console.log("PASS: canonical YouTube URLs, hostile host rejection, assessment schema and non-educational classification parsing.");

@@ -67,7 +67,7 @@ report.push(
   `Real generation: ${current.data.pages[0].provider}/${current.data.pages[0].model}`,
 );
 const credit = await request("/api/credits", null, cookie);
-assert.equal(credit.data.balance, 4);
+assert.equal(credit.data.balance, 20);
 report.push("Wallet charged exactly one credit");
 const second = await request("/api/auth", {
   mode: "signup", acceptTerms:true,termsVersion:"2026-09-24",

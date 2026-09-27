@@ -1,3 +1,4 @@
+import Razorpay from "razorpay";
 import { useMongo } from "@/lib/storage/mongo";
 import { mongoCapture } from "@/lib/storage/mongo-billing";
 import { rewardReferral } from "./referrals";
@@ -19,20 +20,43 @@ export async function razorpay(path: string, body?: unknown) {
     throw new Error(
       "Payments are not configured yet. Your free credits are available after signup.",
     );
-  const response = await fetch(`https://api.razorpay.com/v1/${path}`, {
-    method: body ? "POST" : "GET",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok)
+  const client = new Razorpay({ key_id: id, key_secret: secret });
+  // SDK exposes an Axios transport; bound its request timeout like the previous HTTP adapter.
+  (
+    client as unknown as { api: { rq: { defaults: { timeout: number } } } }
+  ).api.rq.defaults.timeout = 15000;
+  try {
+    if (path === "orders" && body)
+      return await client.orders.create(
+        body as Parameters<typeof client.orders.create>[0],
+      );
+    if (/^payments\/pay_[a-zA-Z0-9]+$/.test(path) && !body) {
+      const payment = await client.payments.fetch(path.split("/")[1]);
+      return { ...payment, amount: Number(payment.amount) };
+    }
+    throw new Error("Unsupported payment operation.");
+  } catch (error) {
+    const failure = error as {
+      statusCode?: unknown;
+      code?: unknown;
+      error?: { code?: unknown };
+    };
+    // Keep merchant credentials and provider response bodies out of logs while
+    // preserving the status/code needed to diagnose a bad key or outage.
+    console.error("Razorpay request failed", {
+      statusCode:
+        typeof failure.statusCode === "number" ? failure.statusCode : undefined,
+      code:
+        typeof failure.error?.code === "string"
+          ? failure.error.code
+          : typeof failure.code === "string"
+            ? failure.code
+            : undefined,
+    });
     throw new Error(
-      `Payment service returned ${response.status}. Please retry.`,
+      "Payment provider is temporarily unavailable. Please try again shortly.",
     );
-  return response.json();
+  }
 }
 export async function capturePayment(
   payment: {
@@ -53,7 +77,7 @@ export async function capturePayment(
       throw new Error("Unknown payment order.");
     if (
       payment.status !== "captured" ||
-      payment.currency !== "INR" ||
+      payment.currency !== (order.currency || "INR") ||
       payment.amount !== Number(order.amount)
     )
       throw new Error("Payment is not captured or does not match the order.");
@@ -61,9 +85,10 @@ export async function capturePayment(
       db()
         .prepare("UPDATE orders SET paid=1,payment_id=? WHERE id=? AND paid=0")
         .run(payment.id, payment.order_id);
-      db()
+      const credited = db()
         .prepare("UPDATE wallets SET balance=balance+? WHERE user_id=?")
         .run(Number(order.credits), String(order.user_id));
+      if (!credited.changes) throw new Error("Unknown payment wallet.");
       db()
         .prepare("INSERT INTO ledger VALUES (?,?,?,?,?)")
         .run(

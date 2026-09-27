@@ -5,5 +5,5 @@ export default async function LessonIndex({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  redirect(`/lesson/${(await params).id}/learn`);
+  redirect(`/lesson/${(await params).id}/notes`);
 }

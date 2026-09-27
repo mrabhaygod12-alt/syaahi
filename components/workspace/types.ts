@@ -29,6 +29,11 @@ export interface LessonJob {
   sourceUrl: string | null;
   sourceKind?: string | null;
   sourceName?: string | null;
+  referenceLinks?: Array<{
+    title: string;
+    url: string;
+    kind: "source" | "search";
+  }>;
   title: string | null;
   practice: {
     quiz: QuizQ[];
@@ -45,9 +50,9 @@ export interface LessonJob {
 }
 
 export const ROOMS = [
-  { id: "learn", label: "Learn", href: "learn" },
   { id: "notes", label: "Notes", href: "notes" },
   { id: "quiz", label: "Quiz", href: "quiz" },
+  { id: "learn", label: "Lesson", href: "learn" },
   { id: "flashcards", label: "Flashcards", href: "flashcards" },
   { id: "podcast", label: "Podcast", href: "podcast" },
   { id: "share", label: "Share & discuss", href: "share" },

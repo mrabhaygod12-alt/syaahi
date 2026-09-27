@@ -28,7 +28,7 @@ export default function NotesView() {
   const [tpl, setTpl] = useState(
     job?.pdfTemplate && isPdfTemplate(job.pdfTemplate)
       ? job.pdfTemplate
-      : "classic",
+      : "study",
   );
   const [dlState, setDlState] = useState<string | null>(null);
   const pages = job?.pages ?? [];

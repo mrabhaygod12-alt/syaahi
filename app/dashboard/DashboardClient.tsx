@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import StudyOrganisation from "@/components/StudyOrganisation";
 import StudyComposer from "@/components/StudyComposer";
 import CmdK from "@/components/CmdK";
+import ReferralWallet from "@/components/ReferralWallet";
 interface Job {
   id: string;
   title: string | null;
@@ -101,14 +102,103 @@ export default function DashboardClient() {
           <a className="wallet-link" href="/pricing">
             {balance === null
               ? "Your study tokens"
-              : `${tokenLabel(balance)} · ${balance} sections`}{" "}
+              : `${tokenLabel(balance)} · ${balance} pages`}{" "}
             <span>＋</span>
           </a>
         </aside>
         <div className="workspace-main">
-          <div className="workspace-heading">
-            <span className="eyebrow">THE STUDY WORKSPACE</span>
-            <span className="badge">Notes · Practice · Recall</span>
+          {jobs.some((j) => j.status === "done") && (
+            <section className="continue-study">
+              <div>
+                <p className="eyebrow">PICK UP YOUR STUDY ROUTINE</p>
+                <h2>
+                  {jobs.find((j) => j.status === "done")?.title ||
+                    jobs.find((j) => j.status === "done")?.topics[0] ||
+                    "Your latest lesson"}
+                </h2>
+                <p>Continue learning, or review a few flashcards.</p>
+              </div>
+              <div>
+                <a
+                  className="btn dark"
+                  href={`/lesson/${jobs.find((j) => j.status === "done")!.id}/learn`}
+                >
+                  Open lesson →
+                </a>
+                <a
+                  className="btn light"
+                  href={`/lesson/${jobs.find((j) => j.status === "done")!.id}/flashcards`}
+                >
+                  Review cards
+                </a>
+              </div>
+            </section>
+          )}
+          <div
+            className="workspace-heading"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <div>
+              <span className="eyebrow">THE STUDY WORKSPACE</span>
+              <span className="badge">Notes · Practice · Recall</span>
+            </div>
+            {!guest && (
+              <a
+                href="/pricing"
+                title="Your available study balance. 1 Token = 3 Pages."
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background:
+                    "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                  border: "1.5px solid #fde68a",
+                  borderRadius: 24,
+                  padding: "6px 16px",
+                  color: "#92400e",
+                  fontWeight: 700,
+                  fontSize: "0.9rem",
+                  textDecoration: "none",
+                  boxShadow: "0 2px 8px rgba(245, 158, 11, 0.15)",
+                }}
+              >
+                <span>⚡ Remaining Balance:</span>
+                <span
+                  style={{
+                    fontSize: "1.05rem",
+                    fontWeight: 800,
+                    color: "#b45309",
+                  }}
+                >
+                  {balance === null
+                    ? "Loading..."
+                    : `${Math.floor(balance / 3)} Tokens (${balance} Credits)`}
+                </span>
+                <span
+                  style={{
+                    background: "#b45309",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: 20,
+                    height: 20,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.85rem",
+                    fontWeight: 800,
+                  }}
+                >
+                  ＋
+                </span>
+              </a>
+            )}
           </div>
           <section className="composer-intro">
             <span className="ink-symbol">✦</span>
@@ -123,10 +213,11 @@ export default function DashboardClient() {
             </p>
           </section>
           <StudyComposer initialTopic={topic} />
+          {!guest && <ReferralWallet compact />}
           {guest && (
             <p className="guest-hint">
               <a href="/signup">Create a free account</a> to save your lessons
-              and get 5 welcome note sections.
+              and get 19 welcome credits (6⅓ tokens).
             </p>
           )}
           <div className="topic-suggestions">

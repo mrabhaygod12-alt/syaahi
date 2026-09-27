@@ -18,11 +18,11 @@ const sections = [
   ],
   [
     "Sharing and referral rewards",
-    "Share only material you have permission to share. An active link reveals generated notes to its holder; editor invitations additionally allow signed-in members to edit. Referral codes must be applied within 24 hours of signup before the first purchase. Each party receives one promotional token after an eligible first captured purchase, with at most 20 inviter rewards per calendar month. Self-referrals, duplicate accounts and abuse are ineligible. Promotional rewards have no cash value and may be reversed after review of fraud or refunds.",
+    "Share only material you have permission to share. An active link reveals generated notes to its holder; editor invitations additionally allow signed-in members to edit. New accounts receive 19 study credits once; signing in again gives no additional signup bonus. Apply a referral code within 24 hours of signup before the first purchase. An eligible verified signup gives the inviter 5 reward credits, transferable one-for-one into study credits. Three credits equal one token. Up to 20 inviter rewards may qualify per calendar month; over-cap pending referrals can be retried later. Prior purchase-based rewards remain unchanged and cannot earn a second reward. Self-referrals, duplicate accounts and abuse are ineligible. Promotional credits have no cash value.",
   ],
   [
     "Payments",
-    "Prices and pack quantities are displayed before checkout. Credits are granted only after verified captured payment. Checkout availability depends on the operator’s configuration. Monetary refund requests are handled separately from generation-credit returns, as described on Refunds.",
+    "Prices and pack quantities are displayed before checkout. Credits are granted after a verified captured gateway payment or administrator verification of a direct UPI bank receipt. Entering a UTR alone does not prove payment. Checkout availability depends on the operator’s configuration. Monetary refund requests are handled separately from generation-credit returns, as described on Refunds.",
   ],
   [
     "Acceptable use and availability",

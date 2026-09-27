@@ -66,7 +66,12 @@ export default function QuizView() {
 
   const items = useMemo(() => {
     if (!shuffle) return quiz;
-    return [...quiz].sort((a, b) => a.q.localeCompare(b.q));
+    const shuffled = [...quiz];
+    for (let n = shuffled.length - 1; n > 0; n--) {
+      const j = Math.floor(Math.random() * (n + 1));
+      [shuffled[n], shuffled[j]] = [shuffled[j], shuffled[n]];
+    }
+    return shuffled;
   }, [quiz, shuffle]);
 
   useEffect(() => {
@@ -292,7 +297,15 @@ export default function QuizView() {
             Review this concept. The expected answer is: {q.answer}
           </p>
         )}
-        {saved&&q.type!=='mcq'&&<div className="card"><b>Expected answer: {q.answer}</b><p>{q.explanation||'Compare your response with the term in the notes. Typed answers are checked as exact text.'}</p></div>}
+        {saved && q.type !== "mcq" && (
+          <div className="card">
+            <b>Expected answer: {q.answer}</b>
+            <p>
+              {q.explanation ||
+                "Compare your response with the term in the notes. Typed answers are checked as exact text."}
+            </p>
+          </div>
+        )}
         <button
           className="btn dark"
           disabled={saved || Object.keys(picked).length < total}
@@ -303,7 +316,7 @@ export default function QuizView() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   action: "quiz-attempt",
-                  questions:quiz.map(item=>item.q),
+                  questions: quiz.map((item) => item.q),
                   lesson: job.id,
                   answers: quiz.map(
                     (item) => picked[items.indexOf(item)] || "",

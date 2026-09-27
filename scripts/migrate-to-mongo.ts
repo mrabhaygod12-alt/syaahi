@@ -16,6 +16,34 @@ async function main() {
   };
   source.exec("BEGIN");
   const sets: Record<string, any[]> = {
+    verified_accounts: rows("verified_accounts").map((r) => ({
+      _id: r.user_id,
+      verifiedAt: new Date(String(r.verified_at)),
+    })),
+    reward_wallets: rows("reward_wallets").map((r) => ({
+      _id: r.user_id,
+      balance: r.balance,
+      earned: r.earned,
+      month: r.month,
+      count: r.count,
+    })),
+    reward_events: rows("reward_events").map((r) => ({
+      _id: r.id,
+      user: r.user_id,
+      credits: r.credits,
+      createdAt: new Date(String(r.created_at)),
+    })),
+    reward_transfers: rows("reward_transfers").map((r) => ({
+      _id: r.id,
+      user: r.user_id,
+      credits: r.credits,
+      createdAt: new Date(String(r.created_at)),
+    })),
+    email_verification: rows("email_verification").map((r) => ({
+      _id: r.user_id,
+      tokenHash: r.token_hash,
+      expires: r.expires,
+    })),
     support_index: rows("support_index").map((r) => ({
       _id: r.id,
       ...JSON.parse(String(r.payload)),

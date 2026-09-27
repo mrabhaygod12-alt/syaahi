@@ -55,7 +55,7 @@ export default function AboutStory() {
     <div ref={root} className="wrap about-page">
       <section className="about-hero">
         <div>
-          <p className="eyebrow">THE PERSON BEHIND THE PAGES</p>
+          <p className="eyebrow">ABOUT THE CREATORS</p>
           <h1>
             Built with curiosity.
             <br />
@@ -65,6 +65,10 @@ export default function AboutStory() {
             I’m Chandan Pandey, the creator of Syaahi. I’m building a study
             space where a difficult idea becomes something you can see, question
             and remember.
+          </p>
+          <p className="about-lead">
+            <strong>Manish Kumar Singh</strong> builds alongside me as a{" "}
+            <strong>DevOps Engineer &amp; Researcher</strong>.
           </p>
           <div className="about-tags">
             <span>Developer</span>
@@ -116,6 +120,89 @@ export default function AboutStory() {
               {name} ↗
             </a>
           ))}
+        </div>
+      </section>
+      <section
+        className="about-hero about-team-profile"
+        aria-labelledby="manish-heading"
+        data-story
+      >
+        <div>
+          <p className="eyebrow">ABOUT THE CO-CREATOR</p>
+          <h2 id="manish-heading">
+            Manish Kumar Singh
+            <br />
+            <em>DevOps &amp; Research.</em>
+          </h2>
+          <p className="about-lead">
+            I’m Manish Kumar Singh, DevOps Engineer &amp; Academic Researcher at
+            Syaahi. I focus on architecting resilient cloud infrastructure,
+            container orchestration, and researching high-retention learning
+            workflows.
+          </p>
+          <p className="about-lead">
+            I work alongside Chandan on deployment, infrastructure and
+            operational reliability. We measure performance and improve the
+            system as real usage and feedback show where it needs attention.
+          </p>
+          <div className="about-tags">
+            <span>DevOps Engineer</span>
+            <span>Cloud Infrastructure</span>
+            <span>Research</span>
+            <span>CI/CD &amp; Docker</span>
+            <span>System Reliability</span>
+          </div>
+        </div>
+        <figure>
+          <Image
+            src="/team/manish-kumar-singh.png"
+            alt="Manish Kumar Singh, DevOps Engineer and Researcher at Syaahi"
+            width={640}
+            height={760}
+            sizes="(max-width: 760px) 100vw, 42vw"
+          />
+          <figcaption>
+            Manish Kumar Singh · DevOps Engineer &amp; Researcher, Syaahi
+          </figcaption>
+        </figure>
+      </section>
+      <section className="about-bio card" data-story>
+        <p className="eyebrow">ENGINEERING &amp; RESEARCH PHILOSOPHY</p>
+        <h2>Reliable systems, improved with evidence.</h2>
+        <p>
+          Study tools need to respond predictably, especially when learners
+          return to saved work or generate a new study set. Reliability is a
+          product goal that we measure and improve; it is not a promise of zero
+          downtime.
+        </p>
+        <p>
+          Syaahi separates its web experience from its API and generation
+          worker. The interface is delivered through Vercel, while Render runs
+          API and background generation services. MongoDB Atlas stores
+          application data, and health checks help us spot service failures.
+        </p>
+        <p>
+          We explore how explanations, visual notes and active-recall activities
+          can support a learner's study routine. These product choices are not
+          claims of proven learning outcomes; we use feedback and testing to
+          guide improvements.
+        </p>
+        <div className="about-socials">
+          <span
+            className="btn light"
+            style={{ cursor: "default", fontWeight: 700 }}
+          >
+            ⚡ Infrastructure &amp; DevOps
+          </span>
+          <span
+            className="btn light"
+            style={{ cursor: "default", fontWeight: 700 }}
+          >
+            🧠 Cognitive Science Research
+          </span>
+          <a className="btn dark" href="/support">
+            Connect with Us ↗
+          </a>
         </div>
       </section>
       <section className="about-journey">

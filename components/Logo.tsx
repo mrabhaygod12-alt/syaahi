@@ -1,4 +1,10 @@
-export default function Logo({ size = 34 }: { size?: number }) {
+export default function Logo({
+  size = 34,
+  showText = true,
+}: {
+  size?: number;
+  showText?: boolean;
+}) {
   return (
     <span className="logo-lockup">
       <svg
@@ -19,9 +25,11 @@ export default function Logo({ size = 34 }: { size?: number }) {
         <path d="M24 18v18" stroke="#f7f2e8" strokeWidth="2" />
         <path d="m29 22 3-5 3 5-3 7Z" fill="#e7b477" />
       </svg>
-      <span>
-        Syaahi<span className="logo-dot">.</span>
-      </span>
+      {showText && (
+        <span>
+          Syaahi<span className="logo-dot">.</span>
+        </span>
+      )}
     </span>
   );
 }

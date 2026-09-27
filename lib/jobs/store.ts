@@ -1,3 +1,4 @@
+import { activeJobLimit, QueueCapacityError } from "./capacity";
 import { useMongo, collection } from "@/lib/storage/mongo";
 import * as cloud from "@/lib/storage/mongo-jobs";
 import { randomUUID } from "node:crypto";
@@ -14,6 +15,11 @@ export interface JobPractice {
   flashcards: Array<{ front: string; back: string }>;
 }
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";
+export interface JobReference {
+  title: string;
+  url: string;
+  kind: "source" | "search";
+}
 
 export interface JobProgress {
   /** 0-based section indices the learner marked complete (Learn room). */
@@ -33,6 +39,7 @@ export interface Job {
   sourceUrl: string | null;
   sourceKind: SourceKind | null;
   sourceName: string | null;
+  referenceLinks?: JobReference[];
   /** AI-written lesson title (short). Falls back to first topic. */
   title: string | null;
   /** Auto-built practice set (quiz + flashcards), generated once at completion. */
@@ -76,6 +83,7 @@ export async function createJob(
     sourceUrl?: string;
     sourceKind?: SourceKind;
     sourceName?: string;
+    referenceLinks?: JobReference[];
     planNote?: string;
     language?: string;
   },
@@ -90,6 +98,7 @@ export async function createJob(
     sourceUrl: extra?.sourceUrl?.slice(0, 500) || null,
     sourceKind: extra?.sourceKind || "topic",
     sourceName: extra?.sourceName?.slice(0, 160) || null,
+    referenceLinks: (extra?.referenceLinks || []).slice(0, 8),
     planNote: extra?.planNote || null,
     language: extra?.language || "english",
     title: null,
@@ -109,6 +118,14 @@ export async function createJob(
   };
   if (useMongo()) return cloud.mongoCreateJob(job);
   transaction(() => {
+    const active = Number(
+      db()
+        .prepare(
+          "SELECT COUNT(*) AS count FROM jobs WHERE user_id=? AND status IN ('queued','working')",
+        )
+        .get(user)?.count || 0,
+    );
+    if (active >= activeJobLimit()) throw new QueueCapacityError();
     const available = Number(
       db().prepare("SELECT balance FROM wallets WHERE user_id=?").get(user)
         ?.balance ?? 0,

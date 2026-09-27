@@ -43,7 +43,7 @@ The differentiation should be earned through source visibility, editable plans, 
 | Payments                                      | Razorpay order, verification, signed webhook, replay-safe wallet                              | Test-mode checkout with actual merchant keys, refund operations, webhook delivery              |
 | Referral rewards                              | Missing                                                                                       | One inviter per new account; reward only after qualifying verified purchase; no self-referrals |
 | About creator                                 | Pending                                                                                       | Supplied biography and image, working social links, reduced-motion support                     |
-| Cloud deployment                              | Local single-host app                                                                         | Netlify frontend, Render API/worker, Atlas transactions, explicit credentials and monitoring   |
+| Cloud deployment                              | Local single-host app                                                                         | Vercel frontend, Render API/worker, Atlas transactions, explicit credentials and monitoring   |
 
 Statuses above are a baseline, not a promise that every missing item has already shipped. Final verification results belong in RELEASE-STATUS.md.
 
@@ -69,9 +69,9 @@ Statuses above are a baseline, not a promise that every missing item has already
 
 ### Stage C — deployment after functional checks
 
-Netlify serves the Next.js frontend and public pages. Browser requests use same-origin /api paths forwarded to Render. Render runs the API and dedicated workers. MongoDB Atlas holds accounts/session mappings, jobs, wallets, reservations, orders, referrals, study state, and collaboration permissions. Supabase supplies Google identity; it does not need to duplicate application records in Postgres. Cloudflare can provide DNS, TLS edge controls, WAF and rate limiting for a custom domain; it is not the application database or worker host.
+Vercel serves the Next.js frontend and public pages. Browser requests use same-origin /api paths forwarded to Render. Render runs the API and dedicated workers. MongoDB Atlas holds accounts/session mappings, jobs, wallets, reservations, orders, referrals, study state, and collaboration permissions. Supabase supplies Google identity; it does not need to duplicate application records in Postgres. Cloudflare can provide DNS, TLS edge controls, WAF and rate limiting for a custom domain; it is not the application database or worker host.
 
-Keep domain code under lib, UI under components/app pages, and route handlers under app/api. Deployment configuration chooses frontend versus backend roles. Heavy Chromium/PDF work runs on Render, not Netlify request functions. A fully independent Express rewrite is unnecessary to establish service separation; boundaries and deployment tests matter more than folder names.
+Keep domain code under lib, UI under components/app pages, and route handlers under app/api. Deployment configuration chooses frontend versus backend roles. Heavy Chromium/PDF work runs on Render, not Vercel request functions. A fully independent Express rewrite is unnecessary to establish service separation; boundaries and deployment tests matter more than folder names.
 
 ## 5. AI provider architecture
 

@@ -1,7 +1,15 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   reactStrictMode: true,
-  distDir: process.env.NODE_ENV === "production" ? ".next-production" : ".next",
+  // Vercel expects Next.js output in .next; the Render container keeps an
+  // isolated production directory for its persistent API and worker services.
+  distDir:
+    process.env.NEXT_DIST_DIR ||
+    (process.env.APP_ROLE === "frontend" || process.env.VERCEL === "1"
+      ? ".next"
+      : process.env.NODE_ENV === "production"
+        ? ".next-production"
+        : ".next"),
   devIndicators: false,
   serverExternalPackages: ["playwright", "playwright-core", "pdf-parse"],
   webpack(config, { isServer }) {
@@ -17,6 +25,10 @@ module.exports = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(self), geolocation=()",

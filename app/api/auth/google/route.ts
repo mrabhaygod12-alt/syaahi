@@ -15,10 +15,26 @@ async function handlePOST(req: NextRequest) {
     );
   const limited = await rateLimit(req, "oauth", 10, 60000);
   if (limited) return limited;
-  const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
+  const origin =
+    (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
+    req.headers.get("origin")?.replace(/\/+$/, "") ||
+    "https://www.syaahii.in";
   const response = NextResponse.redirect(new URL("/login", origin));
   try {
     const client = oauthClient(req, response);
+    response.cookies.set(
+      "syaahi-oauth-ref",
+      typeof body.ref === "string" && /^[a-f0-9]{18}$/.test(body.ref)
+        ? body.ref
+        : "",
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: origin.startsWith("https:"),
+        maxAge: 600,
+        path: "/",
+      },
+    );
     response.cookies.set(
       "syaahi-oauth-next",
       safeNext(typeof body.next === "string" ? body.next : null),
@@ -47,8 +63,15 @@ async function handlePOST(req: NextRequest) {
     for (const cookie of response.cookies.getAll()) result.cookies.set(cookie);
     return result;
   } catch (e) {
+    console.error(
+      "Google OAuth initialization failed:",
+      e instanceof Error ? `${e.name}: ${e.message}` : "unknown error",
+    );
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Google sign-in unavailable." },
+      {
+        error:
+          "Google sign-in is temporarily unavailable. Please use email sign-in or try again later.",
+      },
       { status: 503 },
     );
   }

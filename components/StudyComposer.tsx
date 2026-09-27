@@ -7,6 +7,7 @@ interface Plan {
   topics: string[];
   context: string;
   sources: Array<{ title: string; url: string }>;
+  readingLinks: Array<{ title: string; url: string; kind: "source" | "search" }>;
   evidence: string;
   reason: string;
   note: string;
@@ -23,7 +24,9 @@ export default function StudyComposer({
   const [text, setText] = useState(initialTopic),
     [context, setContext] = useState(""),
     [source, setSource] = useState("");
-  const [pages, setPages] = useState(3),
+  const [learningGoal, setLearningGoal] = useState("Understand the basics");
+  const [sourceNotice, setSourceNotice] = useState("");
+  const [pages, setPages] = useState(0),
     [language, setLanguage] = useState("english"),
     [detail, setDetail] = useState("detailed");
   const [busy, setBusy] = useState(""),
@@ -32,9 +35,31 @@ export default function StudyComposer({
     [outline, setOutline] = useState("");
   const [research, setResearch] = useState(true),
     [sourceUrl, setSourceUrl] = useState("");
+  const planSectionRef = useRef<HTMLElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
+
+  const scrollToTarget = (ref: React.RefObject<HTMLElement | null>) => {
+    if (!ref.current) return;
+    const y = ref.current.getBoundingClientRect().top + window.pageYOffset - 36;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (plan && planSectionRef.current) {
+      const timer = setTimeout(() => {
+        scrollToTarget(planSectionRef);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (busy && statusRef.current) {
+      const timer = setTimeout(() => {
+        scrollToTarget(statusRef);
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [plan, busy]);
   async function upload(file: File) {
     setBusy("Reading your material...");
     setError("");
@@ -67,13 +92,19 @@ export default function StudyComposer({
       setBusy("");
     }
   }
-  async function prepare() {
+  async function prepare(pageOverride?: number) {
+    const targetPages = typeof pageOverride === "number" ? pageOverride : pages;
     setBusy("Finding sources and planning...");
     setError("");
+    setTimeout(() => {
+      scrollToTarget(statusRef);
+    }, 60);
     try {
+      let studyTitle = text;
       let material =
         context || (text.length > 500 ? text.slice(0, 100000) : "");
       if (
+        sourceUrl !== text.trim() &&
         /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(text.trim())
       ) {
         const response = await fetch("/api/youtube", {
@@ -85,6 +116,8 @@ export default function StudyComposer({
         if (!response.ok)
           throw new Error(data.error || "Could not read this lecture.");
         material = data.transcript;
+        studyTitle = data.title || "Study the supplied video";
+        setSourceNotice(data.warning || data.assessment?.reason || "");
         setContext(material);
         setSource(data.title || "YouTube lecture");
         setSourceUrl(text.trim());
@@ -96,9 +129,10 @@ export default function StudyComposer({
           topic:
             text.length > 500
               ? "Create a study guide from the supplied notes"
-              : text,
+              : studyTitle,
           context: material,
-          pages,
+          pages: targetPages || "auto",
+          learningGoal,
           research,
         }),
       });
@@ -110,6 +144,9 @@ export default function StudyComposer({
       if (!response.ok) throw new Error(data.error || "Planning failed.");
       setPlan(data);
       setOutline(data.topics.join("\n"));
+      setTimeout(() => {
+        scrollToTarget(planSectionRef);
+      }, 120);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please retry.");
     } finally {
@@ -136,11 +173,13 @@ export default function StudyComposer({
           sourceUrl,
           sourceKind: sourceUrl ? "youtube" : source ? "upload" : "topic",
           style: detail,
+          brief: `Learning goal: ${learningGoal}`,
           language,
           research: false,
           intelligentPlan: false,
           confirmedPlan: true,
           planNote: plan.reason,
+          references: plan.sources.map(({ title, url }) => ({ title, url })),
         }),
       });
       const data = await response.json();
@@ -169,6 +208,19 @@ export default function StudyComposer({
           onChange={(e) => {
             setText(e.target.value);
             setPlan(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && text.trim()) {
+              if (
+                !text.includes("\n") ||
+                /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(
+                  text.trim(),
+                )
+              ) {
+                e.preventDefault();
+                if (!busy) void prepare();
+              }
+            }
           }}
         />
         <div className="composer-actions">
@@ -200,25 +252,51 @@ export default function StudyComposer({
             className="send-btn"
             aria-label="Plan my notes"
             disabled={!!busy || !text.trim()}
-            onClick={prepare}
+            onClick={() => void prepare()}
           >
             ↗
           </button>
         </div>
       </div>
+      <fieldset className="study-goal-cards">
+        <legend>What would help you most?</legend>
+        {[
+          "Understand the basics",
+          "Prepare for an exam",
+          "Apply it to a problem",
+        ].map((g) => (
+          <button
+            type="button"
+            key={g}
+            aria-pressed={learningGoal === g}
+            onClick={() => {
+              setLearningGoal(g);
+              setPlan(null);
+            }}
+          >
+            {g}
+          </button>
+        ))}
+      </fieldset>
       <div className="composer-options">
         <label>
           Target pages
           <select
             value={pages}
             onChange={(e) => {
-              setPages(Number(e.target.value));
-              setPlan(null);
+              const val = Number(e.target.value);
+              setPages(val);
+              if (text.trim()) {
+                void prepare(val);
+              } else {
+                setPlan(null);
+              }
             }}
           >
+            <option value={0}>Auto · match my topic</option>
             {[1, 2, 3, 5, 8, 12, 16, 24].map((n) => (
               <option key={n} value={n}>
-                {n} pages
+                {n} {n === 1 ? "page" : "pages"}
               </option>
             ))}
           </select>
@@ -259,6 +337,8 @@ export default function StudyComposer({
           <button
             aria-label="Remove attachment"
             onClick={() => {
+              setSourceNotice("");
+              setSourceUrl("");
               setSource("");
               setContext("");
               setPlan(null);
@@ -267,6 +347,11 @@ export default function StudyComposer({
             ×
           </button>
         </div>
+      )}
+      {sourceNotice && (
+        <p className="source-notice" role="status">
+          {sourceNotice}
+        </p>
       )}
       {context && (
         <details className="source-review">
@@ -283,7 +368,7 @@ export default function StudyComposer({
         </details>
       )}
       {busy && (
-        <div role="status" className="composer-status">
+        <div ref={statusRef} role="status" className="composer-status">
           <span className="status-dot" />
           {busy}
         </div>
@@ -294,7 +379,7 @@ export default function StudyComposer({
         </p>
       )}
       {plan && (
-        <section className="plan-review">
+        <section ref={planSectionRef} className="plan-review">
           <div className="section-heading">
             <div>
               <span className="eyebrow">YOUR STUDY PLAN</span>
@@ -306,7 +391,7 @@ export default function StudyComposer({
           </div>
           <p>{plan.reason}</p>
           <textarea
-            aria-label="Edit your note sections, one per line"
+            aria-label="Edit your note pages, one per line"
             value={outline}
             onChange={(e) => setOutline(e.target.value)}
             rows={Math.min(8, plan.topics.length + 1)}
@@ -329,8 +414,28 @@ export default function StudyComposer({
               {s.title} ↗
             </a>
           ))}
+          {plan.readingLinks.length > 0 && (
+            <div className="reading-links">
+              <span className="small">More technical reading</span>
+              {plan.readingLinks.map((link) => (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                >
+                  {link.title} ↗
+                </a>
+              ))}
+              <span className="small">
+                These open an external Google site search. Those articles are
+                not copied into your notes.
+              </span>
+            </div>
+          )}
           <p className="small">
-            {plan.note} 1 token covers 3 sections. Each section uses ⅓ token;
+            {plan.note} 1 token covers 3 pages. Each page uses ⅓ token;
             continuation sheets are free. Check the outline before starting.
           </p>
           <button

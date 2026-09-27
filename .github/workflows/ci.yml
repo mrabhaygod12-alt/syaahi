@@ -17,6 +17,8 @@ jobs:
       - run: npm test
       - run: npx tsx scripts/test-study.ts
       - run: npx tsx scripts/test-referrals.ts
+      - run: npx tsx scripts/test-rewards.ts
+      - run: npx tsx scripts/test-provider-config.ts
       - run: npx tsx scripts/test-consent-support.ts
       - run: npx tsx scripts/test-office.ts
       - run: npx tsx scripts/test-proxy.ts

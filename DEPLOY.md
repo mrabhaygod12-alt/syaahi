@@ -1,140 +1,213 @@
-# Deploy Syaahi: Netlify + Render + Atlas
+# Syaahi production deployment
 
-## Update: consent, support and Gemini audio — 24 September
-
-Set `SUPPORT_ADMIN_IDS` privately on Render to trusted account UUIDs, separated by commas. Create the operator account normally; its authenticated `/api/auth` response contains `user.id`. Operators use `/support` to see the staff inbox. Learners see only their own tickets. Messages persist in the configured database; email notifications are not enabled.
-
-Password login, signup and Google initiation require `acceptTerms: true` and `termsVersion: 2026-09-24`. The interface supplies these after the unchecked consent box is selected. The accepted version/time is saved. Google callbacks also require a short-lived consent cookie.
-
-Gemini supplies both transcription and TTS. Transcription defaults to `gemini-3.8-flash`; speech uses `gemini-3.1-flash-tts-preview`. Audio uploads are limited to 8 MB. A transient 502/503 receives one bounded retry. See [Google audio documentation](https://ai.google.dev/gemini-api/docs/audio).
-
-### Credentials needed
-
-- **Supabase:** project URL and publishable/anon key. No service-role secret is needed. Enter Google OAuth client ID/secret in Supabase and allow the frontend callback URL.
-- **Atlas:** connection URI with a dedicated database user, database name and Render network allowlist. No Atlas organisation admin key is required.
-- **AI:** eligible server keys; Gemini is required for speech and screenshots.
-- **Razorpay:** key ID, key secret and separate webhook secret, initially in test mode.
-- **Netlify/Render:** connect the GitHub repository in their dashboards. Set the shared backend proxy secret privately in both platforms. Provider account passwords do not need to be shared.
-- **Operations:** support contact and trusted support account UUIDs.
-
-Store secrets in the hosting dashboards, not in chat or Git. Render supplies the HTTP ingress/load balancer. Shared Atlas state and worker leases allow multiple instances, but actual sizing and provider capacity still require load tests.
-
-Updated 22 September 2026. These are configuration instructions, not a record of a completed cloud deployment. The included Render blueprint uses paid starter instances; inspect the current provider prices before creating services.
-
-## Architecture
+## Production architecture
 
 ```mermaid
 flowchart LR
-  U[Learner] --> N[Netlify frontend]
-  N -->|Same-origin API proxy over TLS| R[Render API]
+  U[Browser: www.syaahii.in] --> V[Vercel: Next.js app and /api proxy]
+  V -->|private proxy header| R[Render API]
   R --> M[(MongoDB Atlas)]
   W[Render generation worker] --> M
-  W --> A[Configured AI providers]
-  R --> A
-  R --> S[Supabase Google identity]
+  R --> AI[AI providers]
+  W --> AI
+  R --> S[Supabase Google OAuth]
   R --> P[Razorpay]
 ```
 
-Application cookies stay on the frontend domain. Middleware adds a private proxy header when forwarding `/api` to Render; direct backend API calls are rejected except the health probe. Never expose `BACKEND_PROXY_SECRET` through a `NEXT_PUBLIC_` variable. Heavy PDF work runs on Render. Generation runs in the dedicated worker. Native recording and uploads still depend on the browser and hosting request limits.
+Vercel serves the Next.js frontend and its middleware. The middleware forwards same-origin `/api/*` requests to Render. Render runs the API and the separate generation worker. MongoDB Atlas stores accounts, lessons, jobs, wallets and payment records. Supabase supplies Google identity; Razorpay handles gateway checkout. Vercel is capable of running serverless API functions, but this app's production API/worker architecture is configured on Render.
+
+The app requires MongoDB transactions on a replica-set Atlas deployment. Do not put Atlas, AI or Razorpay secrets in Vercel frontend settings or `NEXT_PUBLIC_*` variables.
 
 ## 1. MongoDB Atlas
 
-1. Create a project and an Atlas cluster in an appropriate region. Use a replica-set deployment supporting transactions. Choose capacity after measuring your workload.
-2. Create a dedicated database user with read/write permission only for the `syaahi` database. Use a generated password and store it as a secret.
-3. In Network Access, allow the outbound IP ranges shown for your Render services. Avoid a permanent unrestricted `0.0.0.0/0` rule. Private networking is an option on suitable plans.
-4. Copy the Drivers connection string, URL-encode special password characters, and set it as `MONGODB_URI` in Render. Set `MONGODB_DATABASE=syaahi` and `DATA_BACKEND=mongo`.
-5. Enable suitable backups and test a restore to a separate database. Indexes are created by the application at startup; the application user needs index creation permission.
-
-The implementation stores users, sessions, jobs, wallets, ledger events, reservations, orders, referral records, study state and sharing permissions in Atlas. Do not create a second application database in Supabase unless there is a separate requirement.
-
-### Existing local data
-
-Stop the old API and workers, copy the SQLite database and its WAL safely, then run a dry run:
-
-```sh
-npx tsx scripts/migrate-to-mongo.ts
-```
-
-With `MONGODB_URI` set to an **empty target database**, inspect the counts and run:
-
-```sh
-npx tsx scripts/migrate-to-mongo.ts --apply --source-stopped
-```
-
-The migration refuses nonempty destination collections and uses one transaction. It is intended for this small initial database, not an online large-dataset migration. Keep the source backup. Never run old and new writers simultaneously. Legacy JSON lesson imports are separate and require explicit account assignment using `scripts/import-legacy.ts`.
+1. Keep the existing cluster and database so existing users, lessons, wallets and admin roles remain available.
+2. Keep a restricted database user with read/write access to the Syaahi database. The database name must match Render's `MONGODB_DATABASE`.
+3. Retain the Render network access configuration. Avoid permanent unrestricted access unless a temporary, time-boxed troubleshooting step requires it.
+4. Keep backups and test restore separately. Atlas must support transactions.
 
 ## 2. Render API and worker
 
-Create an environment group named `syaahi-private` with:
+Keep the existing Render API and worker services. They deploy from the same GitHub `main` branch and use the `Dockerfile`/`render.yaml` configuration. The API uses `APP_ROLE=backend`, `DATA_BACKEND=mongo`, `WORKER_MODE=external`; the worker uses `APP_ROLE=worker`, `DATA_BACKEND=mongo`, `WORKER_MODE=embedded`.
 
-| Variable | Purpose |
-|---|---|
-| `MONGODB_URI`, `MONGODB_DATABASE` | Shared application database |
-| `NEXT_PUBLIC_APP_URL` | Exact frontend origin, no trailing slash |
-| `BACKEND_PROXY_SECRET` | A random secret of at least 32 bytes, also set privately on Netlify |
-| `GROQ_API_KEY` and/or `GEMINI_API_KEY` | Eligible AI credentials |
-| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Optional Google login |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Optional checkout |
-| `SUPPORT_EMAIL` | Real monitored support address |
+Set or confirm these in the Render private environment group:
 
-Generate a proxy secret locally, store it directly in the two provider dashboards, and do not commit it. Import `render.yaml` as a Blueprint. The API uses `APP_ROLE=backend`, `WORKER_MODE=external`; the worker uses `APP_ROLE=worker`, `WORKER_MODE=embedded`. Both use Atlas. The Docker image includes Chromium and local print fonts.
+- `MONGODB_URI`, `MONGODB_DATABASE=syaahi`
+- `BACKEND_PROXY_SECRET` — must exactly match Vercel's private value
+- `NEXT_PUBLIC_APP_URL=https://www.syaahii.in` after the domain points to Vercel
+- `SUPABASE_URL=https://eoybbxevqenijbglhsog.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY` — the project's anon/publishable key
+- AI provider keys needed by API/worker
+- `RESEND_API_KEY` and `EMAIL_FROM` for password-account verification email
+- Razorpay key ID, key secret and webhook secret on the API only
 
-Check `/api/health` on the Render URL; it should return 200 only when MongoDB is reachable. Record the API URL for the next step. Direct `/api/jobs` requests to Render should return 403 because the frontend proxy header is missing.
+Keep exactly one authoritative Supabase project URL. If both `SUPABASE_URL`
+and the legacy `SUPABASE_URI` are present, they must identify the same project.
+For JWT-form anon keys, startup OAuth configuration rejects a URL/key project
+mismatch rather than sending users into a broken Google consent flow. The
+publishable/anon key is public by design; never use a service-role key for OAuth.
 
-## 3. Netlify frontend
+The Google-login message `Missing: SUPABASE_PUBLISHABLE_KEY` means the running
+Render API process did not receive a recognized public Supabase key. Add the
+exact variable name `SUPABASE_PUBLISHABLE_KEY` to the **Render API web service**
+(not only Vercel, and not only a local `.env` file), alongside
+`SUPABASE_URL=https://eoybbxevqenijbglhsog.supabase.co`, then save and redeploy
+the API. A valid Supabase anon key is accepted too, but use the current key shown
+in Supabase Project Settings → API Keys; never use a `service_role` or secret
+key here. Check the Render deploy logs for a successful restart, then test
+`/api/auth/google` on the production domain. Do not paste the key into chat,
+GitHub, or a `NEXT_PUBLIC_*` variable.
 
-Connect the GitHub repository. The included `netlify.toml` sets Node 24, the build command, output directory and frontend role. Set:
+If the key is already visible in Render, confirm the API service is linked to
+the environment group containing it, that the service is the one receiving the
+Vercel proxy requests, and that you saved and completed a fresh deploy. The
+public `/api/health` endpoint checks Mongo status only; it does not prove the
+OAuth key is available. The Google button shows a generic error to visitors;
+the missing-variable detail is written to Render logs.
 
-- `APP_ROLE=frontend`
-- `BACKEND_URL=https://your-api.onrender.com`
-- `BACKEND_PROXY_SECRET` with the same private value as Render
-- `NEXT_PUBLIC_APP_URL=https://your-frontend-domain`
+Password accounts are not issued an application session until their verification
+link is confirmed. Set `RESEND_API_KEY`, a verified `EMAIL_FROM`, and
+`NEXT_PUBLIC_APP_URL=https://www.syaahii.in` on Render so signup can send the
+one-hour verification link. If delivery fails, signup still creates the account
+but protected features remain unavailable; attempting login retries delivery.
 
-Give runtime middleware access to these private environment variables in Netlify. **Do not add MongoDB, AI or Razorpay secrets to Netlify.** Use the current supported Next.js adapter; Netlify documents its automatic framework integration. If an adapter changes custom dist-directory behaviour, validate build/output settings against that version.
+The Render API health check is `/api/health`. Direct protected API requests should be rejected; the Vercel proxy attaches the private header. Deploy the API and worker after pushing code. A missing worker can leave generation queued even when the frontend and health check respond.
 
-After deployment, test signup/login, cookie persistence, a saved lesson, generation across a worker restart, PDF export, large uploads and audio download. Specifically measure proxy upload/response limits and timeouts: local success does not establish the deployed platform limits. Larger files may require direct signed object uploads in a later scaling step.
+## 3. Vercel frontend
 
-## 4. Google login through Supabase
+Import `mrabhaygod12-alt/syaahi`, production branch `main`, repository root. Select the Next.js framework preset, Node `24.x`, `npm ci` installation and `npm run build`. Leave the Output Directory override disabled. The code selects `.next` on Vercel, which is the Next.js output Vercel expects. Render keeps its separate `.next-production` output. Do not configure a static export.
 
-1. Create a Supabase project. Copy its project URL and publishable key into Render secrets.
-2. In Google Cloud, create OAuth credentials for your app and consent screen. Supply the Google client ID/secret inside Supabase’s Google provider settings, not in the frontend repository.
-3. Set Google’s authorised redirect URI to the callback shown by Supabase, generally `https://PROJECT.supabase.co/auth/v1/callback`.
-4. In Supabase URL Configuration, set the Site URL to your frontend origin and allow `https://YOUR-FRONTEND/api/auth/callback`. Add localhost explicitly for development if needed.
-5. Test Continue with Google, cancellation, expired callback, logout and duplicate-email behaviour. Syaahi uses PKCE and server-side identity verification before creating its own session. It deliberately rejects automatic merging into an existing password account.
+Set environment variables:
 
-## 5. Razorpay
+| Variable               | Scope                  | Value                                                               |
+| ---------------------- | ---------------------- | ------------------------------------------------------------------- |
+| `APP_ROLE`             | Production and Preview | `frontend` (Preview fails closed if backend credentials are absent) |
+| `BACKEND_URL`          | Production only        | Existing Render API HTTPS origin, without `/api`                    |
+| `BACKEND_PROXY_SECRET` | Production only        | Same private value as Render                                        |
+| `NEXT_PUBLIC_APP_URL`  | Production             | `https://www.syaahii.in`                                            |
 
-Configure test-mode merchant keys on Render first. Register a webhook at `https://YOUR-FRONTEND/api/razorpay/webhook`, using a separate webhook secret. Enable the captured-payment event supported by the handler (`payment.captured`). The server owns prices, verifies HMAC signatures, fetches payment status and checks order ownership/amount/currency. Wallet grants are transactional and idempotent.
+Do not expose provider credentials, Atlas URI or proxy secret to browser code. Avoid giving production backend secrets to untrusted Preview deployments. The app remains on its current frontend host until DNS is changed; a Vercel deployment URL can be smoke-tested first.
 
-Test successful capture, duplicate callbacks, failed payment, invalid amount/signature and the first-purchase referral reward. Merchant activation, settlement/KYC, tax/legal details and a real support contact are operator tasks. Bank refunds are an operator-reviewed process; automatic bank-refund tooling is not implemented.
+## 4. GoDaddy domain and Vercel DNS
 
-## 6. What Cloudflare does
+1. In Vercel **Project → Settings → Domains**, add `syaahii.in` and `www.syaahii.in`.
+2. Vercel will show the DNS records required for this project. In GoDaddy, edit the active DNS records to match those exact targets. Remove stale website A/CNAME values from the previous host; preserve mail and verification TXT/MX records.
+3. Keep the current nameservers unless you intentionally move DNS hosting. If GoDaddy is no longer authoritative, edit records at the provider named by the active nameservers.
+4. Set `www.syaahii.in` as primary in Vercel and configure the apex as a permanent redirect to `www`. The app also redirects the production apex and exact Vercel alias to the canonical domain. Verify DNS and HTTPS before testing login or payments.
+5. Do not delete GoDaddy registration. The domain stays registered there even while Vercel serves the app.
 
-Cloudflare can manage your domain’s DNS and provide an optional reverse proxy, TLS edge controls, WAF and rate limiting. It does not replace Atlas, Netlify or the Render worker.
+## 5. Supabase and Google OAuth
 
-1. Add your domain in Cloudflare and review the imported DNS records, especially mail records.
-2. Change nameservers at your registrar to the pair Cloudflare supplies.
-3. Add your custom domain in Netlify. Create the exact CNAME/A records Netlify instructs; begin with DNS-only records while domain verification and certificates complete.
-4. After HTTPS works, consider Cloudflare proxying where compatible with Netlify’s documented setup. Use Full (strict) TLS. Do not use Flexible TLS.
-5. Never cache `/api/*`, `/lesson/*`, `/share/*`, account pages, or any response with session cookies. Do not enable Cache Everything across the app.
-6. Add measured abuse controls for login, anonymous sharing and uploads. Ensure edge rules allow Razorpay webhook delivery and OAuth callbacks without browser challenges.
-7. Verify forwarding headers in the deployed environment. `TRUST_PROXY_HEADERS=true` belongs only on the backend protected by the secret-bearing proxy, which overwrites the forwarded IP. Keep it false for a directly exposed local server.
+The correct Supabase project is `eoybbxevqenijbglhsog`; its Auth settings endpoint responded successfully and Google was enabled during the setup check. The Supabase **OAuth Server** consent page is separate from Google sign-in configuration.
 
-## 7. Six keys per provider
+After `https://www.syaahii.in` resolves to Vercel with HTTPS:
 
-Use the base variable or numbered slots `_1` through `_6`, for example `GEMINI_API_KEY_1` or `MISTRAL_API_KEY_6`. Text routing tries another credential only for authentication/permission failure, then moves providers for quota/service failures. A 429 cools down the provider family. Numbered keys do not multiply project or organisation quotas. Image/transcription/speech select a configured slot per request; they do not promise unlimited capacity.
+- Supabase Authentication → URL Configuration: Site URL `https://www.syaahii.in`.
+- Allow redirect URL `https://www.syaahii.in/api/auth/callback`. The apex may redirect to www; keep its callback only if you explicitly need it. Remove obsolete frontend callback origins.
+- Supabase Authentication → Sign In / Providers → Google: keep the existing Google web client ID/secret configured.
+- Google OAuth authorized JavaScript origin: `https://www.syaahii.in` (add the apex only if it is used directly). Remove obsolete frontend origins.
+- Google's authorized redirect URI remains the Supabase callback: `https://eoybbxevqenijbglhsog.supabase.co/auth/v1/callback`.
 
-## 8. Scaling and release gates
+Test a new Google signup and an existing account from the final custom domain. Application accounts, passwords, sessions and balances stay in Atlas. New signup allowance is 19 credits; existing balances are not reduced.
 
-100,000 registered accounts and 100,000 simultaneous AI jobs are very different workloads. This code has transactional reservations, worker leases, database-backed cloud throttling, bounded provider retries and two concurrent PDF contexts per API process. It has not been load-tested for 100,000 users.
+## Search indexing and discovery
 
-Measure API p95 latency, queue age, token throughput, provider 429s, Mongo pool utilisation, PDF memory, error rates and recovery time. Increase worker replicas only within paid/contracted provider capacity. Benchmark on the actual service sizes and set alerts/budgets. Add object storage for large files, durable provider-wide quota coordination, operational dashboards, backups/restore drills and incident procedures before a large public launch.
+- The application emits canonical URLs, a sitemap, robots rules, `WebSite` and
+  `Organization` JSON-LD, and `/llms.txt`. The apex and exact production Vercel
+  alias permanently redirect to `https://www.syaahii.in`.
+- In Google Search Console, add a **Domain** property for `syaahii.in`. Add its
+  TXT verification record at the active DNS provider (currently Vercel DNS,
+  not GoDaddy), wait for DNS propagation, then verify ownership. Submit
+  `https://www.syaahii.in/sitemap.xml` in the Sitemaps report.
+- Use URL Inspection on the homepage, `/about`, `/subjects`, and selected
+  subject, library, and blog pages. If Google reports the URL is crawlable and
+  the canonical is correct, request indexing for important pages. Monitor the
+  Page indexing report for crawl blocks, duplicate canonical selection, and
+  server errors.
+- Search appearance is not guaranteed by metadata, structured data, a sitemap,
+  or a code push. For a branded query such as “Syaahi”, keep the product name
+  and description consistent on the homepage and About page, and earn
+  legitimate references from public profiles and useful original study
+  material. Avoid mass-publishing thin pages to chase keywords.
 
-## Official references
+## 6. Razorpay and UPI
 
-- [Netlify Next.js](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/)
-- [Render Blueprint specification](https://render.com/docs/blueprint-spec)
-- [MongoDB transactions](https://www.mongodb.com/docs/drivers/node/current/crud/transactions/)
+Razorpay order creation, capture verification and signed webhooks run through the Vercel `/api` proxy to Render. Update the Razorpay webhook target to `https://www.syaahii.in/api/razorpay/webhook` and verify the webhook secret matches Render. Use test mode first; a Git push does not update the Razorpay dashboard. Direct UPI QR/UTR review remains a separate, operator-approved flow.
+
+### Razorpay setup, test, and go-live
+
+Pricing opens `/checkout/try`, `/checkout/starter`, `/checkout/popular`, or
+`/checkout/pro` for plan review. Checkout creates a server-priced order and opens
+Razorpay. Its callback submits the signature for verification and sends the
+customer to `/payments/<order_id>`. That page reads the authenticated owner's
+stored order; URL parameters never mark a purchase as paid. `/payments` shows
+the latest 50 Razorpay orders for the signed-in account. Pending orders are
+checked up to 12 times, with a manual refresh and support link afterwards.
+The signed capture webhook can finish confirmation even after the tab closes.
+Direct UPI review continues at `/pay`.
+
+For a test checkout on the production domain, sign in with an account listed in
+`PAYMENT_ADMIN_IDS` or the payment-admin database allowlist. Test keys are
+intentionally restricted to these accounts in production. These packs are
+one-time purchases, not recurring UPI AutoPay mandates or subscriptions.
+
+Run `npm run test:payment-status` for isolated authentication/ownership and
+capture-state checks. Run `npm run test:razorpay` after a production build for a
+real **test-mode** order and checkout-modal smoke check. The latter does not
+submit a payment; finish the captured-payment and webhook test below manually.
+If the gateway returns 401, regenerate a matching test key pair and update both
+values together on the Render API service. A code push cannot repair revoked
+credentials or update service dashboard environment variables.
+
+1. In Razorpay Dashboard, finish the website/app details and payment-method activation. KYC approval alone does not prove that live checkout is enabled.
+2. In **Test Mode → API Keys**, generate a test key pair. Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to the Render API service only. The browser receives the key ID only after the server creates an order; the secret never goes to Vercel or the client.
+3. In **Test Mode → Webhooks**, add `https://www.syaahii.in/api/razorpay/webhook`, create a separate webhook signing secret, and subscribe to `payment.captured`. Put that value in Render as `RAZORPAY_WEBHOOK_SECRET`. It is distinct from the API key secret.
+4. Confirm automatic capture is enabled in Razorpay. The app credits only a captured payment that matches its saved order's owner, amount, currency, and payment ID. A signed checkout response is checked on the server, then the payment is fetched from Razorpay; the signed webhook safely recovers a callback interrupted by a closed tab.
+5. Test using Razorpay's test checkout credentials. Confirm a successful test payment appears as **Captured** in Razorpay and exactly one matching payment/credit entry appears for the same user in Syaahi. Also test cancel/failure, wrong signature, wrong user/order, repeated verify request, and replayed webhook. Test payments never charge real money.
+6. Only after these checks and Razorpay enabling the live account, switch the dashboard to **Live Mode**, generate a new live key pair, replace both Render API key variables, and configure the live webhook with its own secret. Then make one small real purchase and reconcile the captured transaction and settlement in Razorpay before advertising payments as live.
+
+### Country-specific Razorpay prices
+
+The site derives the region from Vercel's `x-vercel-ip-country` request
+header. India sees INR, euro-area countries see EUR, and other countries see
+USD. Pack prices are fixed by currency: ₹9 / ₹39 / ₹79 / ₹179, $5 / $22 / $44 /
+$99, and €5 / €22 / €44 / €99. USD and EUR are separate published prices, not
+live FX conversion. UPI remains INR-only.
+
+On the Render **API service only**, `RAZORPAY_SUPPORTED_CURRENCIES` defaults to
+`INR`. Keep production at `INR` until Razorpay confirms that the live merchant
+can create and capture USD/EUR orders. For testing, use a separate Render
+staging service with Test Mode API keys and webhook secret, set
+`RAZORPAY_SUPPORTED_CURRENCIES=INR,USD,EUR`, redeploy, and complete a successful
+USD/EUR test transaction. If no staging service exists, temporarily replace the
+Render API's keys/webhook secret with Test Mode values, run the test as a
+payment-admin account, then restore the live values; do not expose live
+international orders before approval. The pricing page can display regional
+prices before activation, but keeps that currency's purchase button disabled.
+The API independently resolves the country and amount; it ignores any currency
+or price submitted by a browser. Do not put payment secrets on Vercel.
+
+The API key pair and webhook secret shared in chat should be rotated before production use. If the API secret was ever configured in a client-visible Vercel variable or committed file, revoke it immediately and issue a replacement.
+
+Test on the custom domain: successful checkout, cancellation, invalid signature rejection, duplicate webhook idempotency, manual UTR review and account-specific wallet history. Only change to live keys after merchant activation and successful test reconciliation.
+
+## 7. Cutover checks
+
+- Latest `main` commit deployed successfully to Vercel; `/api/health` works through the Vercel proxy.
+- Render API and worker are healthy and connected to the existing Atlas database.
+- Vercel has production `APP_ROLE`, `BACKEND_URL`, `BACKEND_PROXY_SECRET` and canonical app URL.
+- Custom domain DNS and HTTPS are active.
+- Google login and password verification callback return on `www.syaahii.in`.
+- Lesson generation completes through the Render worker; PDF export works.
+- Razorpay webhook and payment history update the correct user's wallet once.
+
+Keep the old deployment out of service after cutover, but do not delete the Vercel project or Atlas data during debugging. Provider dashboards must be configured by their account owner; pushing code does not change them.
+
+## References
+
+- [Vercel Next.js deployment](https://vercel.com/docs/frameworks/nextjs)
+- [Vercel domains](https://vercel.com/docs/domains/working-with-domains/add-a-domain)
+- [Render deploys](https://render.com/docs/deploys)
+- [MongoDB Node driver transactions](https://www.mongodb.com/docs/drivers/node/current/crud/transactions/)
 - [Supabase Google login](https://supabase.com/docs/guides/auth/social-login/auth-google)
-- [Razorpay web checkout](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/)
-- [Cloudflare domain setup](https://developers.cloudflare.com/fundamentals/manage-domains/add-site/)
+- [Supabase redirects](https://supabase.com/docs/guides/auth/redirect-urls)
+- [Razorpay Standard Checkout](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/)

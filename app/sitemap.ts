@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/seo";
+import { SUBJECTS } from "@/lib/study/subjects";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -15,9 +16,6 @@ const STATIC = [
   "/faq",
   "/support",
   "/enterprise",
-  "/login",
-  "/signup",
-  "/forgot-password",
   "/terms",
   "/privacy",
   "/refunds",
@@ -33,6 +31,10 @@ const STATIC = [
   "/docs/credits-billing",
   "/docs/api",
   "/about",
+  "/blog",
+  "/blog/how-to-create-high-scoring-handwritten-exam-notes-using-ai",
+  "/blog/science-of-handwriting-vs-typing-for-exam-retention",
+  "/blog/cbse-icse-university-exam-revision-strategy-guide",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -46,15 +48,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     /* unseeded */
   }
-  const now = new Date();
   const urls = [
     ...STATIC.map((p) => ({
       url: `${SITE.url}${p || "/"}`,
-      lastModified: now,
     })),
+    ...SUBJECTS.map((s) => ({ url: `${SITE.url}/subjects/${s.slug}` })),
     ...slugs.map((s) => ({
       url: `${SITE.url}/library/${s}`,
-      lastModified: now,
     })),
   ];
   return urls;

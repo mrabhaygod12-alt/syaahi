@@ -14,7 +14,7 @@ export default function NotePage({
   style: StyleOpts;
   footer: string;
   seedKey?: string;
-  template?: "classic" | "poster" | "lab" | "magazine";
+  template?: "classic" | "poster" | "lab" | "magazine" | "study";
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(1123);

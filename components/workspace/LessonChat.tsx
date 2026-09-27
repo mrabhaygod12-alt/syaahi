@@ -8,14 +8,6 @@ import { useLesson } from "./LessonProvider";
 import { touchStudyDay } from "@/lib/study/streak";
 import { useToast } from "@/components/Toasts";
 
-function prettyModel(m?: string): string {
-  if (!m) return "";
-  return m
-    .replace(/^free\//, "")
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 // Tiny markdown renderer for answers: headings, bullets, numbered,
 // **bold**, `code`, tables. Raw asterisks never leak to the student.
 function Md({ text }: { text: string }) {
@@ -136,6 +128,7 @@ function Inline({ t }: { t: string }) {
 }
 
 interface Msg {
+  choices?: Array<{ label: string; question: string }>;
   q: string;
   a: string;
   via?: string;
@@ -152,22 +145,29 @@ export default function LessonChat({
   job,
   variant = "panel",
   onClose,
+  currentWidth,
+  onSetWidth,
 }: {
   job: LessonJob;
   variant?: "panel" | "overlay";
   onClose?: () => void;
+  currentWidth?: number;
+  onSetWidth?: (width: number) => void;
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { chatPrefill, refresh } = useLesson();
+  const { chatPrefill, refresh, tutorContext } = useLesson();
+  const conversationId = tutorContext
+    ? `${job.id}:tutor:${tutorContext.version}:${tutorContext.index}`
+    : job.id;
   const pages: JobPage[] = job.pages;
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [thread, setThread] = useState<Msg[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(chatKey(job.id)) ?? "[]").slice(
-        -20,
-      );
+      return JSON.parse(
+        localStorage.getItem(chatKey(conversationId)) ?? "[]",
+      ).slice(-20);
     } catch {
       return [];
     }
@@ -175,7 +175,7 @@ export default function LessonChat({
   const [copied, setCopied] = useState<number | null>(null);
   const [voted, setVoted] = useState<Record<number, string>>({});
   const [tokens, setTokens] = useState<number>(
-    () => Number(localStorage.getItem(useKey(job.id)) ?? 0) || 0,
+    () => Number(localStorage.getItem(useKey(conversationId)) ?? 0) || 0,
   );
   const [exported, setExported] = useState(false);
   const voiceAudio = useRef<HTMLAudioElement | null>(null);
@@ -195,14 +195,17 @@ export default function LessonChat({
   // Persist thread + token meter across drawer closes and refreshes.
   useEffect(() => {
     try {
-      localStorage.setItem(chatKey(job.id), JSON.stringify(thread.slice(-20)));
+      localStorage.setItem(
+        chatKey(conversationId),
+        JSON.stringify(thread.slice(-20)),
+      );
     } catch {
       /* full */
     }
   }, [thread, job.id]);
   useEffect(() => {
     try {
-      localStorage.setItem(useKey(job.id), String(tokens));
+      localStorage.setItem(useKey(conversationId), String(tokens));
     } catch {
       /* noop */
     }
@@ -242,13 +245,15 @@ export default function LessonChat({
     const flush = () => {
       let box: string[] = [];
       try {
-        box = JSON.parse(localStorage.getItem(outboxKey(job.id)) ?? "[]");
+        box = JSON.parse(
+          localStorage.getItem(outboxKey(conversationId)) ?? "[]",
+        );
       } catch {
         /* noop */
       }
       if (!box.length || busy) return;
       try {
-        localStorage.setItem(outboxKey(job.id), "[]");
+        localStorage.setItem(outboxKey(conversationId), "[]");
       } catch {
         /* noop */
       }
@@ -268,12 +273,13 @@ export default function LessonChat({
     hist: Msg[],
     signal: AbortSignal,
   ): Promise<boolean> {
+    if (tutorContext) return false;
     const r = await fetch("/api/ask-stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pages: pages.map((p) => ({ topic: p.topic, markdown: p.markdown })),
-        question: `Lesson: ${lessonTitle(job)}. ${qq}`,
+        question: tutorContext ? qq : `Lesson: ${lessonTitle(job)}. ${qq}`,
         language: job.language ?? "english",
         history: hist.slice(-4).map((h) => ({ q: h.q, a: h.a.slice(0, 600) })),
       }),
@@ -285,47 +291,59 @@ export default function LessonChat({
     let buf = "";
     let gotToken = false;
     let meta: any = {};
+    let streamError = "";
     const idx = thread.length;
     setThread((t) => [...t, { q: qq, a: "" }]);
-    const pump = async (): Promise<boolean> => {
-      const { done, value } = await reader.read();
-      if (done) return gotToken;
-      buf += dec.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() ?? "";
-      for (const part of parts) {
-        const line = part.trim();
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (payload === "[DONE]") continue;
-        try {
-          const j = JSON.parse(payload);
-          if (j.error && !gotToken) return false;
-          if (j.t) {
-            gotToken = true;
-            const tok: string = j.t;
-            setThread((t) =>
-              t.map((m, k) => (k === idx ? { ...m, a: m.a + tok } : m)),
-            );
-          }
-          if (j.usage || j.model || j.provider) meta = { ...meta, ...j };
-        } catch {
-          /* partial chunk */
+    const consume = (part: string) => {
+      const payload = part
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trim())
+        .join("\n");
+      if (!payload || payload === "[DONE]") return;
+      try {
+        const j = JSON.parse(payload);
+        if (j.error) streamError = String(j.error).slice(0, 240);
+        if (j.t) {
+          gotToken = true;
+          const tok: string = j.t;
+          setThread((t) =>
+            t.map((m, k) => (k === idx ? { ...m, a: m.a + tok } : m)),
+          );
         }
+        if (j.usage || j.model || j.provider || j.cites)
+          meta = { ...meta, ...j };
+      } catch {
+        /* Ignore an incomplete SSE frame; the next network chunk completes it. */
       }
-      return pump();
     };
     try {
-      const ok = await pump();
+      let done = false;
+      while (!done) {
+        const result = await reader.read();
+        done = result.done;
+        if (result.value) buf += dec.decode(result.value, { stream: !done });
+        const parts = buf.split(/\r?\n\r?\n/);
+        buf = parts.pop() ?? "";
+        for (const part of parts) consume(part);
+      }
+      if (buf.trim()) consume(buf);
+      const ok = gotToken;
       if (ok) {
         if (meta.usage)
           bumpTokens(Number(meta.usage.total ?? meta.usage.cost ?? 0));
-        // Fetch cites + exact meta via the sync endpoint? No — re-derive cites locally is wrong.
-        // Instead do one cheap non-stream call ONLY for cites when streaming gave none.
         setThread((t) =>
           t.map((m, k) =>
             k === idx && !m.via
-              ? { ...m, via: meta.provider, model: meta.model }
+              ? {
+                  ...m,
+                  via: meta.provider,
+                  model: meta.model,
+                  cites: Array.isArray(meta.cites) ? meta.cites : undefined,
+                  a: streamError
+                    ? `${m.a}\n\n**${streamError}**`
+                    : m.a,
+                }
               : m,
           ),
         );
@@ -335,21 +353,32 @@ export default function LessonChat({
       return ok;
     } catch (e: any) {
       if (!gotToken) setThread((t) => t.filter((_, k) => k !== idx));
-      if (signal.aborted)
+      if (signal.aborted && !gotToken)
         setThread((t) =>
           t.map((m, k) => (k === idx ? { ...m, a: m.a || "(stopped)" } : m)),
+        );
+      else if (gotToken)
+        setThread((t) =>
+          t.map((m, k) =>
+            k === idx
+              ? { ...m, a: `${m.a}\n\n**Connection stopped; this answer may be incomplete.**` }
+              : m,
+          ),
         );
       return gotToken;
     }
   }
 
   async function askSync(qq: string, hist: Msg[]): Promise<boolean> {
-    const r = await fetch("/api/ask", {
+    const r = await fetch(tutorContext ? "/api/learn" : "/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(tutorContext
+          ? { ...tutorContext, lesson: job.id, action: "tutor" }
+          : {}),
         pages: pages.map((p) => ({ topic: p.topic, markdown: p.markdown })),
-        question: `Lesson: ${lessonTitle(job)}. ${qq}`,
+        question: tutorContext ? qq : `Lesson: ${lessonTitle(job)}. ${qq}`,
         language: job.language ?? "english",
         history: hist.slice(-4).map((h) => ({ q: h.q, a: h.a.slice(0, 600) })),
       }),
@@ -369,6 +398,14 @@ export default function LessonChat({
         via: j.provider,
         model: j.model,
         cites: j.cites,
+        choices: Array.isArray(j.choices)
+          ? j.choices
+              .slice(0, 3)
+              .filter(
+                (c: any) =>
+                  typeof c.label === "string" && typeof c.question === "string",
+              )
+          : undefined,
       },
     ]);
     return true;
@@ -381,9 +418,11 @@ export default function LessonChat({
     // Offline → queue, auto-send on reconnect.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
-        const box = JSON.parse(localStorage.getItem(outboxKey(job.id)) ?? "[]");
+        const box = JSON.parse(
+          localStorage.getItem(outboxKey(conversationId)) ?? "[]",
+        );
         localStorage.setItem(
-          outboxKey(job.id),
+          outboxKey(conversationId),
           JSON.stringify([...box, qq].slice(-10)),
         );
       } catch {
@@ -538,21 +577,59 @@ export default function LessonChat({
 
   return (
     <aside
-      className={`ws-chat ${variant === "overlay" ? "ws-chat-overlay" : ""}`}
+      className={`ws-chat ${tutorContext ? "ws-lesson-tutor" : ""} ${variant === "overlay" ? "ws-chat-overlay" : ""}`}
     >
       <div className="ws-chat-head">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="ws-chat-dot" />
-          <b>Chat</b>
-          <span className="small">grounded in this lesson</span>
+          <b>{tutorContext ? "Lesson tutor" : "Chat"}</b>
+          <span className="small">
+            {tutorContext
+              ? "Reading along with you"
+              : "grounded in this lesson"}
+          </span>
         </div>
-        {onClose && (
-          <button className="ws-icon-btn" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {onSetWidth && (
+            <div className="ws-chat-size-presets" title="Adjust chat width">
+              <button
+                type="button"
+                className={`ws-size-pill ${currentWidth && currentWidth <= 400 ? "active" : ""}`}
+                onClick={() => onSetWidth(380)}
+                title="Compact (380px)"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                className={`ws-size-pill ${currentWidth && currentWidth > 400 && currentWidth <= 540 ? "active" : ""}`}
+                onClick={() => onSetWidth(480)}
+                title="Standard (480px)"
+              >
+                M
+              </button>
+              <button
+                type="button"
+                className={`ws-size-pill ${currentWidth && currentWidth > 540 ? "active" : ""}`}
+                onClick={() => onSetWidth(640)}
+                title="Wide (640px)"
+              >
+                L
+              </button>
+            </div>
+          )}
+          {onClose && (
+            <button
+              className="ws-icon-btn"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
-      <div className="ws-chat-shortcuts">
+      <div className="ws-chat-shortcuts" hidden={!!tutorContext}>
         <button
           className="ws-shortcut popular"
           onClick={() => router.push(`${base}/quiz`)}
@@ -581,10 +658,21 @@ export default function LessonChat({
       <div className="ws-chat-thread" ref={threadRef}>
         {!thread.length && (
           <div className="ws-chat-empty">
-            <h2>Hey, I&apos;m Syaahi</h2>
-            <p>I can work with you on this lesson and answer any questions.</p>
+            <div className="tutor-emblem" aria-hidden="true">
+              ✦
+            </div>
+            <h2>
+              {tutorContext
+                ? "Let’s work through this together."
+                : "Hey, I’m Syaahi"}
+            </h2>
+            <p>
+              {tutorContext
+                ? `You’re studying ${tutorContext.topic}. Ask for a simpler explanation, an example, or a hint.`
+                : "I can work with you on this lesson and answer any questions."}
+            </p>
             <div className="ws-chips">
-              {topics.map((t) => (
+              {(tutorContext ? [tutorContext.topic] : topics).map((t) => (
                 <button
                   key={t}
                   className="ws-chip"
@@ -608,8 +696,39 @@ export default function LessonChat({
         {thread.map((h, i) => (
           <div key={i} className="ws-msg">
             <div className="ws-msg-q">{h.q}</div>
-            <div className="ws-msg-a">
-              {h.a ? <Md text={h.a} /> : <span className="small">…</span>}
+            <div
+              className="ws-msg-a"
+              aria-live={i === thread.length - 1 ? "polite" : "off"}
+              aria-busy={busy && i === thread.length - 1}
+            >
+              {h.a ? (
+                <>
+                  <Md text={h.a} />
+                  {busy && i === thread.length - 1 && (
+                    <span className="ws-stream-cursor" aria-hidden="true" />
+                  )}
+                </>
+              ) : (
+                <span className="small">
+                  {busy && i === thread.length - 1
+                    ? "Thinking through your lesson…"
+                    : "…"}
+                </span>
+              )}
+              {h.choices && (
+                <div className="tutor-choice-cards">
+                  {h.choices.map((c) => (
+                    <button
+                      key={c.label}
+                      disabled={busy}
+                      onClick={() => ask(c.question)}
+                    >
+                      <strong>{c.label}</strong>
+                      <span>Continue with this →</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {h.cites && h.cites.length > 0 && (
                 <div className="ws-cites">
                   {h.cites.map((c) => (
@@ -640,7 +759,7 @@ export default function LessonChat({
                     className="ws-tiny"
                     disabled={busy}
                     onClick={() => regenerate(i)}
-                    title="Try another model"
+                    title="Explain again"
                   >
                     ↻
                   </button>
@@ -658,12 +777,6 @@ export default function LessonChat({
                   >
                     👎
                   </button>
-                  {(h.model || h.via) && (
-                    <span className="small ws-via" title={h.via}>
-                      {prettyModel(h.model ?? h.via)}
-                      {h.ms ? ` · ${(h.ms / 1000).toFixed(1)}s` : ""}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
@@ -712,47 +825,69 @@ export default function LessonChat({
           </div>
         )}
       </div>
-      <form
-        className="ws-chat-input"
-        onSubmit={(e) => {
-          e.preventDefault();
-          ask();
-        }}
-      >
-        <textarea
-          ref={inputRef}
-          autoFocus
-          value={q}
-          rows={1}
-          onChange={(e) => setQ(e.target.value.slice(0, 500))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              ask();
-            }
+      <div className="ws-prompt-wrap">
+        <form
+          className="ws-prompt-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            ask();
           }}
-          placeholder="Ask anything about this lesson…"
-          maxLength={500}
-        />
-        <span className="small ws-count">{q.length}/500</span>
-        <LectureRecorder
-          onFile={(file) => void transcribe(file)}
-          disabled={busy || voiceBusy}
-        />
-        {voiceBusy && (
-          <span role="status" className="small">
-            Gemini audio…
-          </span>
-        )}
-        <button
-          type="submit"
-          className="ws-send"
-          disabled={busy || !q.trim()}
-          aria-label="Send"
         >
-          ↑
-        </button>
-      </form>
+          <textarea
+            ref={inputRef}
+            className="ws-prompt-textarea"
+            autoFocus
+            value={q}
+            rows={2}
+            onChange={(e) => setQ(e.target.value.slice(0, 500))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                ask();
+              }
+            }}
+            placeholder="Ask anything about this lesson or paste questions…"
+            maxLength={500}
+          />
+          <div className="ws-prompt-footer">
+            <div className="ws-prompt-tools">
+              <LectureRecorder
+                onFile={(file) => void transcribe(file)}
+                disabled={busy || voiceBusy}
+              />
+              {voiceBusy && (
+                <span role="status" className="small ws-voice-pill">
+                  <span className="pulsing-mic" /> Listening…
+                </span>
+              )}
+            </div>
+            <div className="ws-prompt-actions">
+              <span className="ws-prompt-counter">{q.length}/500</span>
+              <button
+                type="submit"
+                className="ws-prompt-send-btn"
+                disabled={busy || !q.trim()}
+                aria-label="Send message"
+                title="Send (Enter)"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
       {tokens > 0 && (
         <div
           className="small"

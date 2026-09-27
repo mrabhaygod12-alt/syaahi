@@ -10,7 +10,16 @@ import {
 import type { LessonJob } from "./types";
 import { touchStudyDay } from "@/lib/study/streak";
 
+export interface TutorContext {
+  goal: string;
+  version: string;
+  index: number;
+  phase: number;
+  topic: string;
+}
 interface Ctx {
+  tutorContext: TutorContext | null;
+  openTutor: (context: TutorContext) => void;
   id: string;
   job: LessonJob | null;
   loading: boolean;
@@ -45,12 +54,19 @@ export default function LessonProvider({
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [tutorContext, setTutorContext] = useState<TutorContext | null>(null);
+  const openTutor = useCallback((context: TutorContext) => {
+    setTutorContext(context);
+    setChatPrefill(null);
+    setChatOpen(true);
+  }, []);
   const [chatPrefill, setChatPrefill] = useState<{
     text: string;
     nonce: number;
   } | null>(null);
 
   const openChat = useCallback((prefill?: string) => {
+    setTutorContext(null);
     if (prefill?.trim())
       setChatPrefill({ text: prefill.trim().slice(0, 500), nonce: Date.now() });
     setChatOpen(true);
@@ -189,6 +205,8 @@ export default function LessonProvider({
       markComplete,
       setTemplate,
       chatOpen,
+      tutorContext,
+      openTutor,
       chatPrefill,
       openChat,
       closeChat,
@@ -202,6 +220,8 @@ export default function LessonProvider({
       markComplete,
       setTemplate,
       chatOpen,
+      tutorContext,
+      openTutor,
       chatPrefill,
       openChat,
       closeChat,

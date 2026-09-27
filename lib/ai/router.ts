@@ -72,6 +72,7 @@ async function callOne(
     const client = new OpenAI({
       apiKey: key,
       baseURL: PROVIDER_BASE_URL[p.type],
+      fetch: globalThis.fetch,
       maxRetries: 0,
       timeout,
     });
@@ -129,7 +130,7 @@ export async function chatWithFallback(
   ];
   let attempts = 0;
   for (const p of queue) {
-    if (++attempts > 5 || Date.now() - start > 90000) break;
+    if (attempts >= 5 || Date.now() - start > 90000) break;
     if ((breaker.get(p.type)?.until || 0) > Date.now()) continue;
     const budget = opts?.maxTokens || 2500;
     // Conservative estimate for multilingual text; reserve output room as well.
@@ -138,6 +139,7 @@ export async function chatWithFallback(
       p.maxCtx
     )
       continue;
+    attempts++;
     active.set(p.type, (active.get(p.type) || 0) + 1);
     try {
       const response = await callOne(
@@ -182,4 +184,158 @@ export async function chatWithFallback(
   throw new Error(
     `AI providers unavailable. ${errors.join("; ") || "Quotas are cooling down; retry shortly."}`,
   );
+}
+
+export type ChatStreamEvent = {
+  t?: string;
+  provider?: string;
+  model?: string;
+  error?: string;
+};
+
+/**
+ * Stream answer tokens as the selected provider produces them. Provider
+ * fallback is attempted only before the first token; switching models after
+ * partial output would duplicate or contradict the answer already shown.
+ */
+export async function* chatStreamWithFallback(
+  messages: ChatMsg[],
+  opts?: { maxTokens?: number; signal?: AbortSignal },
+): AsyncGenerator<ChatStreamEvent> {
+  const candidates = eligibleProviders().sort(
+    (a, b) => a.priority - b.priority,
+  );
+  if (!candidates.length) {
+    yield {
+      error:
+        "The study assistant is temporarily unavailable. Please try again shortly.",
+    };
+    return;
+  }
+
+  const started = Date.now();
+  const errors: string[] = [];
+  const queue = [
+    ...candidates.filter((p) => (active.get(p.type) || 0) < 1),
+    ...candidates.filter((p) => (active.get(p.type) || 0) >= 1),
+  ];
+  let attempts = 0;
+
+  for (const p of queue) {
+    if (opts?.signal?.aborted) return;
+    if (attempts >= 5 || Date.now() - started > 90000) break;
+    if ((breaker.get(p.type)?.until || 0) > Date.now()) continue;
+    const maxTokens = opts?.maxTokens || 1500;
+    if (
+      messages.reduce((n, m) => n + m.content.length, 0) / 2 + maxTokens >
+      p.maxCtx
+    )
+      continue;
+
+    attempts++;
+    active.set(p.type, (active.get(p.type) || 0) + 1);
+    let emitted = false;
+    try {
+      let lastError: unknown;
+      for (const key of orderedKeys(providerEnvKey(p.type))) {
+        const client = new OpenAI({
+          apiKey: key,
+          baseURL: PROVIDER_BASE_URL[p.type],
+          fetch: globalThis.fetch,
+          maxRetries: 0,
+          timeout: Math.max(
+            1000,
+            Math.min(30000, 90000 - (Date.now() - started)),
+          ),
+        });
+        try {
+          const stream = await client.chat.completions.create(
+            {
+              model: p.model,
+              messages,
+              max_tokens: Math.min(8000, maxTokens),
+              temperature: 0.25,
+              stream: true,
+            },
+            { signal: opts?.signal },
+          );
+
+          let model = p.model;
+          let truncated = false;
+          for await (const chunk of stream) {
+            if (opts?.signal?.aborted) return;
+            if (chunk.model) model = chunk.model;
+            if (chunk.choices?.[0]?.finish_reason === "length")
+              truncated = true;
+            const text = chunk.choices?.[0]?.delta?.content;
+            if (typeof text !== "string" || !text) continue;
+            const first = !emitted;
+            emitted = true;
+            yield first ? { t: text, provider: p.id, model } : { t: text };
+          }
+
+          if (!emitted) throw new Error("EMPTY_OUTPUT");
+          breaker.delete(p.type);
+          if (truncated) {
+            yield {
+              error:
+                "The answer reached the model’s length limit. Ask for a shorter explanation to finish it.",
+            };
+          }
+          return;
+        } catch (error) {
+          lastError = error;
+          const status = Number((error as { status?: number })?.status) || 0;
+          if (emitted || ![401, 403].includes(status)) throw error;
+        }
+      }
+      throw lastError || new Error("NO_KEYS");
+    } catch (error) {
+      if (opts?.signal?.aborted) return;
+      const status = Number((error as { status?: number })?.status) || 0;
+      const message =
+        error instanceof Error ? error.message : "Provider failed";
+      const kind = message.includes("TRUNCATED")
+        ? "truncated"
+        : message.includes("EMPTY")
+          ? "empty"
+          : status
+            ? `HTTP ${status}`
+            : "timeout or network";
+      errors.push(`${p.id}: ${kind}`);
+      const failures = (breaker.get(p.type)?.fails || 0) + 1;
+      const retryHeader = (
+        error as { headers?: { get?: (name: string) => string | null } }
+      ).headers?.get?.("retry-after");
+      const retrySeconds = Number(retryHeader);
+      const cooldown =
+        status === 429
+          ? Math.max(
+              30000,
+              Number.isFinite(retrySeconds) ? retrySeconds * 1000 : 0,
+            )
+          : [401, 403].includes(status)
+            ? 300000
+            : Math.min(30000 * failures, 120000);
+      breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
+
+      // Once text is visible, finish with a clear interruption marker rather
+      // than silently switching providers or replaying the user's prompt.
+      if (emitted) {
+        yield {
+          error:
+            "The connection ended before the answer finished. The text above may be incomplete.",
+        };
+        return;
+      }
+    } finally {
+      active.set(p.type, Math.max(0, (active.get(p.type) || 1) - 1));
+    }
+  }
+
+  console.warn("Study chat unavailable", { attempts, failures: errors });
+  yield {
+    error:
+      "The study assistant is temporarily unavailable. Please try again shortly.",
+  };
 }

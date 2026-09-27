@@ -13,7 +13,17 @@
     "audit:providers": "node scripts/audit-providers.mjs",
     "format": "prettier --write app components lib scripts docs *.md *.json *.js *.ts",
     "test:study": "tsx scripts/test-study.ts",
-    "test:mongo": "tsx scripts/test-mongo.ts"
+    "test:auth": "tsx scripts/test-auth-verification.ts",
+    "test:chat-stream": "tsx scripts/test-chat-stream.ts",
+    "test:research-references": "tsx scripts/test-research-references.ts",
+    "test:razorpay": "tsx scripts/test-razorpay-checkout.ts",
+    "test:payment-status": "tsx scripts/test-payment-status.ts",
+    "test:payment-pages": "tsx scripts/test-payment-pages.ts",
+    "test:billing-currency": "tsx scripts/test-billing-currency.ts",
+    "test:proxy": "tsx scripts/test-proxy.ts",
+    "test:seo": "tsx scripts/test-seo.ts",
+    "test:mongo": "tsx scripts/test-mongo.ts",
+    "make:carousel": "node scripts/build-instagram-carousel.mjs"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",
@@ -21,6 +31,7 @@
     "@fontsource/patrick-hand": "^5.3.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "@vercel/analytics": "^2.0.1",
     "gsap": "^3.15.0",
     "katex": "^0.18.7",
     "mongodb": "^7.6.0",
@@ -28,6 +39,8 @@
     "openai": "^4.67.3",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.63.0",
+    "qrcode": "^1.5.4",
+    "razorpay": "^2.9.8",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "yauzl": "^3.4.0",
@@ -36,6 +49,7 @@
   "devDependencies": {
     "@types/katex": "^0.16.8",
     "@types/node": "^24.13.6",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/yauzl": "^3.4.0",
@@ -48,6 +62,6 @@
     "postcss": "^8.5.23"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": "24.x"
   }
 }

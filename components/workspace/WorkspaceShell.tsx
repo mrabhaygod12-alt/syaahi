@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Logo from "@/components/Logo";
 import Loader from "@/components/Loader";
+import WorkspaceSkeleton from "./WorkspaceSkeleton";
 import { useLesson } from "./LessonProvider";
 import { ROOMS, lessonTitle, type RoomId } from "./types";
 const LessonChat = dynamic(() => import("./LessonChat"), {
@@ -72,20 +73,91 @@ export default function WorkspaceShell({
   const { job, loading, balance, chatOpen, openChat, closeChat } = useLesson();
   const pathname = usePathname();
   const router = useRouter();
+
+  // Manageable & resizable chat width
+  const [chatWidth, setChatWidth] = useState(420);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("syaahi_chat_width");
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (parsed >= 320 && parsed <= 900) setChatWidth(parsed);
+      }
+    } catch {}
+  }, []);
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const onMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(
+        Math.max(320, window.innerWidth - e.clientX),
+        Math.min(900, Math.floor(window.innerWidth * 0.88)),
+      );
+      setChatWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      setIsResizing(false);
+      try {
+        localStorage.setItem("syaahi_chat_width", String(chatWidth));
+      } catch {}
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizing, chatWidth]);
+
+  const drawerRef = useRef<HTMLDivElement>(null);
   // AI chat lives behind the hamburger — never auto-open, same drawer on every room.
   // Escape closes it like any ChatGPT-style panel.
   useEffect(() => {
     if (!chatOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const timer = setTimeout(() => drawerRef.current?.focus(), 0);
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        const controls = Array.from(
+          drawerRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]),textarea:not([disabled]),input:not([disabled]),a[href],[tabindex="0"]',
+          ) || [],
+        ).filter((el) => el.getClientRects().length);
+        const first = controls[0],
+          last = controls[controls.length - 1];
+        if (
+          e.shiftKey &&
+          (document.activeElement === first ||
+            document.activeElement === drawerRef.current)
+        ) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
       if (e.key === "Escape") closeChat();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", onKey);
+      previous?.focus();
+    };
   }, [chatOpen, closeChat]);
-  const room = (pathname.split("/").pop() || "learn") as RoomId;
+
+  const room = (pathname.split("/").pop() || "notes") as RoomId;
 
   if (loading && !job) {
-    return <div className="ws-loading">Loading lesson…</div>;
+    return <WorkspaceSkeleton />;
   }
   if (!job) {
     return (
@@ -186,8 +258,8 @@ export default function WorkspaceShell({
   return (
     <div className="ws-app">
       <aside className="ws-rail">
-        <Link href="/dashboard" className="ws-brand">
-          <Logo size={28} />
+        <Link href="/dashboard" className="ws-brand" title="Syaahi Home">
+          <Logo size={34} showText={false} />
         </Link>
         <nav className="ws-nav">
           {ROOMS.map((r) => {
@@ -213,7 +285,7 @@ export default function WorkspaceShell({
             <span>{title}</span>
           </nav>
           <div className="ws-top-actions">
-            <span className="small">
+            <span className="small ws-balance-badge">
               Balance <b>{balance ?? "…"}</b>
             </span>
             <a className="btn dark ws-upgrade" href="/pricing">
@@ -232,6 +304,7 @@ export default function WorkspaceShell({
             </button>
           </div>
         </header>
+
         <div className="ws-stage">
           <div className="ws-main">
             {job.status === "error" && (
@@ -263,8 +336,37 @@ export default function WorkspaceShell({
       </div>
       {chatOpen && (
         <div className="ws-overlay" onClick={closeChat}>
-          <div className="ws-drawer" onClick={(e) => e.stopPropagation()}>
-            <LessonChat job={job} variant="overlay" onClose={closeChat} />
+          <div
+            ref={drawerRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Syaahi study assistant"
+            className={`ws-drawer ${isResizing ? "resizing" : ""}`}
+            style={{ width: chatWidth, maxWidth: "90vw" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Draggable manual resize handle on left edge */}
+            <div
+              className="ws-drawer-resizer"
+              onMouseDown={startResizing}
+              title="Drag to resize chat panel"
+              aria-label="Drag to resize chat panel"
+            >
+              <div className="resizer-handle-grip" />
+            </div>
+            <LessonChat
+              job={job}
+              variant="overlay"
+              onClose={closeChat}
+              currentWidth={chatWidth}
+              onSetWidth={(w) => {
+                setChatWidth(w);
+                try {
+                  localStorage.setItem("syaahi_chat_width", String(w));
+                } catch {}
+              }}
+            />
           </div>
         </div>
       )}
