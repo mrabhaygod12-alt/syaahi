@@ -12,6 +12,7 @@ async function handleGET() {
       body: story.body,
       tags: story.tags,
       authorName: story.authorName,
+      creatorSlug: story.creatorSlug,
       publishedAt: story.publishedAt,
     })),
   }, { headers: { "Cache-Control": "public, max-age=300" } });

@@ -11,6 +11,7 @@ export interface Story {
   id: string;
   user: string;
   authorName: string;
+  creatorSlug: string;
   title: string;
   summary: string;
   body: string;
@@ -80,6 +81,15 @@ export async function listPublicStories(): Promise<Story[]> {
     .filter((s): s is Story => !!s);
 }
 
+export async function listPublicStoriesByCreator(
+  creatorSlug: string,
+): Promise<Story[]> {
+  const normalized = creatorSlug.trim().toLowerCase().slice(0, 120);
+  return (await listPublicStories()).filter(
+    (story) => story.creatorSlug === normalized,
+  );
+}
+
 const toSlug = (title: string, id: string) =>
   `${title
     .toLowerCase()
@@ -87,6 +97,14 @@ const toSlug = (title: string, id: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 72) || "study-guide"}-${id.slice(0, 8)}`;
+
+const toCreatorSlug = (name: string, id: string) =>
+  `${name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 56) || "syaahi-creator"}-${id.slice(0, 8)}`;
 
 export async function saveStory(
   user: string,
@@ -119,6 +137,7 @@ export async function saveStory(
       throw new Error("This submission is under editorial review.");
     const story: Story = {
       ...existing,
+      creatorSlug: existing.creatorSlug || toCreatorSlug(existing.authorName, user),
       title,
       summary,
       body,
@@ -142,6 +161,7 @@ export async function saveStory(
     id: randomUUID(),
     user,
     authorName: input.authorName.trim().slice(0, 80) || "Syaahi creator",
+    creatorSlug: toCreatorSlug(input.authorName.trim() || "Syaahi creator", user),
     title,
     summary,
     body,

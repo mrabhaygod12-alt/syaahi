@@ -4,6 +4,7 @@ import { SUBJECTS } from "@/lib/study/subjects";
 import { BLOG_POSTS } from "@/lib/blog-data";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { listPublicStories } from "@/lib/writing/stories";
 
 const STATIC = [
   "",
@@ -38,6 +39,7 @@ const STATIC = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let slugs: string[] = [];
+  let creatorSlugs: string[] = [];
   try {
     const raw = await readFile(
       join(process.cwd(), "data", "library.json"),
@@ -47,6 +49,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     /* unseeded */
   }
+  try {
+    creatorSlugs = [...new Set(
+      (await listPublicStories())
+        .map((story) => story.creatorSlug)
+        .filter(Boolean),
+    )];
+  } catch {
+    /* publishing storage can be temporarily unavailable during a build */
+  }
   const urls = [
     ...STATIC.map((p) => ({
       url: `${SITE.url}${p || "/"}`,
@@ -55,6 +66,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...BLOG_POSTS.map((post) => ({ url: `${SITE.url}/blog/${post.slug}` })),
     ...slugs.map((s) => ({
       url: `${SITE.url}/library/${s}`,
+    })),
+    ...creatorSlugs.map((slug) => ({
+      url: `${SITE.url}/creators/${slug}`,
     })),
   ];
   return urls;
