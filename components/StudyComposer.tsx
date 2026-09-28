@@ -31,7 +31,13 @@ export default function StudyComposer({
   const [learningGoal, setLearningGoal] = useState("Understand the basics");
   const [sourceNotice, setSourceNotice] = useState("");
   const [pages, setPages] = useState(0),
-    [language, setLanguage] = useState("english"),
+    [language, setLanguage] = useState(() => {
+      if (typeof window === "undefined") return "english";
+      const saved = localStorage.getItem("syaahi-note-language");
+      return ["english", "hindi", "hinglish", "german", "french", "spanish"].includes(saved || "")
+        ? saved!
+        : "english";
+    }),
     [detail, setDetail] = useState("detailed");
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -44,6 +50,13 @@ export default function StudyComposer({
   useEffect(() => {
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("syaahi-note-language", language);
+    } catch {
+      /* Browser storage can be unavailable in private contexts. */
+    }
+  }, [language]);
 
   const scrollToTarget = (ref: React.RefObject<HTMLElement | null>) => {
     if (!ref.current) return;

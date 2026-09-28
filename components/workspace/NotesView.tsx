@@ -31,6 +31,7 @@ export default function NotesView() {
       : "study",
   );
   const [dlState, setDlState] = useState<string | null>(null);
+  const [resuming, setResuming] = useState(false);
   const pages = job?.pages ?? [];
   const planned = job?.plannedTotal ?? job?.total ?? pages.length;
 
@@ -38,6 +39,14 @@ export default function NotesView() {
     () => `${pages.length} of ${planned} pages`,
     [pages.length, planned],
   );
+  const languageLabel: Record<string, string> = {
+    english: "English",
+    hindi: "हिंदी",
+    hinglish: "Hinglish",
+    german: "Deutsch",
+    french: "Français",
+    spanish: "Español",
+  };
 
   // Deep-link from chat citations: /notes#page-3 scrolls to that page.
   useEffect(() => {
@@ -61,11 +70,7 @@ export default function NotesView() {
           <span className="small">
             {" "}
             · {footerBase} generated ·{" "}
-            {job.language === "hindi"
-              ? "हिंदी"
-              : job.language === "hinglish"
-                ? "Hinglish"
-                : "English"}
+            {languageLabel[job.language || "english"] || "English"}
           </span>
         </div>
         <div className="notes-tools">
@@ -131,12 +136,55 @@ export default function NotesView() {
         continue onto extra sheets.
       </p>
 
+      {(job.status === "working" || job.status === "queued") && (
+        <div className="card" role="status" style={{ marginBottom: 16 }}>
+          <b>{job.status === "queued" ? "Generation is queued" : "Generating your lesson"}</b>
+          <p className="small">
+            Section {Math.min(pages.length + 1, planned)} of {planned} is next.
+            {pages.at(-1)?.provider && ` Last completed section used ${pages.at(-1)?.provider}.`}
+          </p>
+        </div>
+      )}
+      {job.status === "error" && pages.length < planned && (
+        <div className="card" role="alert" style={{ marginBottom: 16 }}>
+          <b>Generation paused after section {pages.length} of {planned}.</b>
+          <p className="small">
+            Your completed sections are saved. Resume continues with section {pages.length + 1}; it does not recreate or charge completed work.
+          </p>
+          {job.error && <p className="small">Last provider response: {job.error}</p>}
+          <button
+            className="btn dark"
+            disabled={resuming}
+            onClick={async () => {
+              setResuming(true);
+              try {
+                const response = await fetch(`/api/jobs/${job.id}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "resume" }),
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Could not resume generation.");
+                toast(`Continuing from section ${data.resumeFrom + 1}.`);
+                await refresh();
+              } catch (error) {
+                toast(error instanceof Error ? error.message : "Could not resume generation.", true);
+              } finally {
+                setResuming(false);
+              }
+            }}
+          >
+            {resuming ? "Resuming…" : `Resume from section ${pages.length + 1}`}
+          </button>
+        </div>
+      )}
+
       <div ref={printRef} className={`pages-col tpl-${tpl}`}>
         {pages.map((p, i) => (
           <div key={i} id={`page-${i}`} className="note-anchor">
             <div className="section-heading" style={{ margin: "16px 0" }}>
               <span className="small">
-                Section {i + 1} · {p.topic}
+                Section {i + 1} · {p.topic} · {p.provider}
               </span>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
