@@ -11,6 +11,7 @@ interface Story {
   status: "draft" | "submitted" | "changes_requested" | "published";
   updatedAt: string;
   reviewNote?: string | null;
+  versions?: Array<{ savedAt: string; title: string; summary: string; body: string; tags: string[] }>;
 }
 
 export default function WriterStudio() {
@@ -95,6 +96,7 @@ export default function WriterStudio() {
         <label>Story (Markdown supported)<textarea disabled={locked || busy} rows={18} value={body} maxLength={50000} onChange={(e) => setBody(e.target.value)} placeholder="# Your idea\n\nWrite a useful, original guide…" /></label>
         {message && <p className={message.includes("saved") || message.includes("Submitted") ? "small" : "inline-error"} role="status">{message}</p>}
         {active?.reviewNote && <p className="card"><b>Editorial note</b><br />{active.reviewNote}</p>}
+        {!!active?.versions?.length && <details className="card"><summary>Private revision history ({active.versions.length})</summary><p className="small">Saved copies are private. Selecting one restores it into the editor; save it to make it the current draft.</p>{active.versions.slice().reverse().map((version, index) => <button key={`${version.savedAt}-${index}`} className="btn light" disabled={locked || busy} onClick={() => { setTitle(version.title); setSummary(version.summary); setBody(version.body); setTags(version.tags.join(", ")); }}>Restore {new Date(version.savedAt).toLocaleString()}</button>)}</details>}
         {!locked && <div className="hero-actions"><button className="btn light" disabled={busy} onClick={() => void save("save")}>{busy ? "Saving…" : "Save draft"}</button><button className="btn dark" disabled={busy} onClick={() => void save("submit")}>Submit for review</button></div>}
         {locked && <p className="small">This story is locked while editorial review is pending. An editor can request changes before anything becomes public.</p>}
       </section>

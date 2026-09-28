@@ -21,10 +21,21 @@ async function main() {
     summary: "A short and useful plan for spaced revision.",
     body: "# Start small\n\nCreate one focused revision block, then review errors before scheduling the next block. Keep the plan realistic and record what worked.",
     tags: ["study skills", "revision"],
+    submit: false,
+  });
+  assert.equal(created.status, "draft");
+  assert.match(created.creatorSlug, /^ava-learner-/);
+  const revised = await stories.saveStory(user.id, {
+    id: created.id,
+    authorName: "Ava Learner",
+    title: "A practical guide to exam revision",
+    summary: "A short and useful plan for spaced revision.",
+    body: "# Start small\n\nCreate one focused revision block, then review errors before scheduling the next block. Keep the plan realistic, record what worked, and improve it during the next session.",
+    tags: ["study skills", "revision"],
     submit: true,
   });
-  assert.equal(created.status, "submitted");
-  assert.match(created.creatorSlug, /^ava-learner-/);
+  assert.equal(revised.status, "submitted");
+  assert.equal(revised.versions?.length, 1);
   const published = await stories.reviewStory(created.id, "publish", "Clear and useful.");
   assert.equal(published.status, "published");
   const profile = await stories.listPublicStoriesByCreator(created.creatorSlug);

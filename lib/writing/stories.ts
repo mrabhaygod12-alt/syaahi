@@ -24,6 +24,7 @@ export interface Story {
   publishedAt: string | null;
   reviewNote: string | null;
   slug: string | null;
+  versions?: Array<{ savedAt: string; title: string; summary: string; body: string; tags: string[] }>;
 }
 
 function clean(value: unknown): Story | null {
@@ -163,6 +164,10 @@ export async function saveStory(
       submittedAt: input.submit ? now : null,
       reviewedAt: input.submit ? null : existing.reviewedAt,
       reviewNote: input.submit ? null : existing.reviewNote,
+      versions: [
+        ...(existing.versions || []),
+        { savedAt: existing.updatedAt, title: existing.title, summary: existing.summary, body: existing.body, tags: existing.tags },
+      ].slice(-10),
     };
     if (useMongo())
       await (await collection("stories")).updateOne({ _id: story.id, user }, { $set: { ...story, _id: story.id } });
