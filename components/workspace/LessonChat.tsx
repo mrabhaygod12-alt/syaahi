@@ -582,11 +582,11 @@ export default function LessonChat({
       <div className="ws-chat-head">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="ws-chat-dot" />
-          <b>{tutorContext ? "Lesson tutor" : "Chat"}</b>
+          <b>{tutorContext ? "Lesson tutor" : "Syaahi AI"}</b>
           <span className="small">
             {tutorContext
               ? "Reading along with you"
-              : "grounded in this lesson"}
+              : "answers only from this lesson"}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

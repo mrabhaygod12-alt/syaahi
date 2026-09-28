@@ -9,6 +9,12 @@ export default function SourceView() {
   const researchExcerpt =
     job.sourceKind === "topic" &&
     Boolean(job.referenceLinks?.some((reference) => reference.kind === "source"));
+  const retrievedReferences = job.referenceLinks?.filter(
+    (reference) => reference.kind === "source",
+  ) ?? [];
+  const suggestedReading = job.referenceLinks?.filter(
+    (reference) => reference.kind === "search",
+  ) ?? [];
   return (
     <div className="source-room">
       <h1>Source</h1>
@@ -36,6 +42,12 @@ export default function SourceView() {
             <b>Student brief:</b> {job.brief}
           </p>
         )}
+        <p className="small">
+          <b>Evidence:</b> {retrievedReferences.length} retrieved reference
+          {retrievedReferences.length === 1 ? "" : "s"} used for planning ·{" "}
+          {suggestedReading.length} external reading suggestion
+          {suggestedReading.length === 1 ? "" : "s"} not ingested into this lesson.
+        </p>
       </div>
       {vid && (
         <div style={{ marginTop: 16 }}>
@@ -85,11 +97,11 @@ export default function SourceView() {
           </div>
         )
       )}
-      {!!job.referenceLinks?.length && (
+      {!!retrievedReferences.length && (
         <section className="card" style={{ marginTop: 16 }}>
-          <h2>References and further reading</h2>
+          <h2>Retrieved references</h2>
           <div className="reference-list">
-            {job.referenceLinks.map((reference) => (
+            {retrievedReferences.map((reference) => (
               <a
                 key={`${reference.kind}:${reference.url}`}
                 href={reference.url}
@@ -101,9 +113,25 @@ export default function SourceView() {
             ))}
           </div>
           <p className="small">
-            Wikipedia excerpts can ground your notes. Further-reading searches
-            open externally and are not ingested into this lesson.
+            These public references supplied context while the lesson was planned.
+            Check them alongside your prescribed material for important work.
           </p>
+        </section>
+      )}
+      {!!suggestedReading.length && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2>Suggested further reading</h2>
+          <p className="small">
+            These are topic-specific searches. Syaahi did not fetch or train on
+            their pages for this lesson.
+          </p>
+          <div className="reference-list">
+            {suggestedReading.map((reference) => (
+              <a key={`${reference.kind}:${reference.url}`} href={reference.url} target="_blank" rel="noopener noreferrer">
+                {reference.title} ↗
+              </a>
+            ))}
+          </div>
         </section>
       )}
       <h2 style={{ marginTop: 20 }}>Topics</h2>

@@ -78,6 +78,27 @@ export default function FlashcardsView() {
     );
   const current = queue[Math.min(index, queue.length - 1)];
   const card = cards[current];
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement
+      )
+        return;
+      if (!card || busy || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        setFlip((value) => !value);
+      }
+      if (flip && ["1", "2", "3", "4"].includes(event.key)) {
+        const ratings = ["again", "hard", "good", "easy"];
+        void rate(ratings[Number(event.key) - 1]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [card, busy, flip, current]);
   async function rate(rating: string) {
     setBusy(true);
     setError("");
@@ -159,20 +180,21 @@ export default function FlashcardsView() {
           <button
             className={`flip-card ${flip ? "flipped" : ""}`}
             onClick={() => setFlip(!flip)}
+            aria-label={flip ? "Show question" : "Show answer"}
           >
             <span>{flip ? card.back : card.front}</span>
-            <small>{flip ? "Answer" : "Question"} · tap to flip</small>
+            <small>{flip ? "Answer" : "Question"} · tap, Enter, or Space to flip</small>
           </button>
           {flip && (
             <div className="review-ratings">
-              {["again", "hard", "good", "easy"].map((r) => (
+              {["again", "hard", "good", "easy"].map((r, ratingIndex) => (
                 <button
                   className="btn light"
                   disabled={busy}
                   key={r}
                   onClick={() => rate(r)}
                 >
-                  {r}
+                  {r} <small>({ratingIndex + 1})</small>
                 </button>
               ))}
             </div>
