@@ -90,6 +90,22 @@ export async function listPublicStoriesByCreator(
   );
 }
 
+export async function getPublicStory(slug: string): Promise<Story | null> {
+  const normalized = slug.trim().toLowerCase().slice(0, 160);
+  if (!normalized) return null;
+  if (useMongo())
+    return clean(
+      await (await collection("stories")).findOne({
+        status: "published",
+        slug: normalized,
+      }),
+    );
+  return (
+    (await listPublicStories()).find((story) => story.slug === normalized) ??
+    null
+  );
+}
+
 const toSlug = (title: string, id: string) =>
   `${title
     .toLowerCase()

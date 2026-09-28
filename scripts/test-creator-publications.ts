@@ -31,6 +31,9 @@ async function main() {
   assert.equal(profile.length, 1);
   assert.equal(profile[0].authorName, "Ava Learner");
   assert.equal(profile[0].body.includes("focused revision"), true);
+  const guide = await stories.getPublicStory(published.slug!);
+  assert.equal(guide?.id, published.id);
+  assert.equal(await stories.getPublicStory("unpublished-guide"), null);
   console.log("PASS: approved guides create a privacy-preserving public creator profile.");
 }
 

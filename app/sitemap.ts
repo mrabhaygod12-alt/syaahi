@@ -40,6 +40,7 @@ const STATIC = [
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let slugs: string[] = [];
   let creatorSlugs: string[] = [];
+  let guideSlugs: string[] = [];
   try {
     const raw = await readFile(
       join(process.cwd(), "data", "library.json"),
@@ -50,11 +51,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* unseeded */
   }
   try {
+    const published = await listPublicStories();
     creatorSlugs = [...new Set(
-      (await listPublicStories())
+      published
         .map((story) => story.creatorSlug)
         .filter(Boolean),
     )];
+    guideSlugs = published.map((story) => story.slug).filter((slug): slug is string => !!slug);
   } catch {
     /* publishing storage can be temporarily unavailable during a build */
   }
@@ -70,6 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...creatorSlugs.map((slug) => ({
       url: `${SITE.url}/creators/${slug}`,
     })),
+    ...guideSlugs.map((slug) => ({ url: `${SITE.url}/guides/${slug}` })),
   ];
   return urls;
 }
