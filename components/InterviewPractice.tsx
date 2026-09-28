@@ -26,6 +26,11 @@ const tracks: Track[] = [
   "Data & analytics",
   "Behavioural",
 ];
+const roleTemplates: Record<Track, string[]> = {
+  "Software engineering": ["Frontend developer", "Backend developer", "Software engineering intern"],
+  "Data & analytics": ["Data analyst", "Business analyst", "Junior data scientist"],
+  Behavioural: ["Graduate trainee", "Product intern", "Operations associate"],
+};
 
 function errorMessage(value: unknown) {
   return value && typeof value === "object" && "error" in value
@@ -101,6 +106,47 @@ export default function InterviewPractice() {
     }
   }
 
+  async function reopen(id: string) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/interview?session=${encodeURIComponent(id)}`, { cache: "no-store" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.session) throw new Error(errorMessage(data));
+      setSession(data.session);
+      setTrack(data.session.track);
+      setTargetRole(data.session.targetRole || "");
+      setIndex(0);
+      resetQuestion();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not reopen this practice session.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function downloadReport() {
+    if (!session) return;
+    const lines = [
+      `# Syaahi interview practice report`,
+      `Track: ${session.track}`,
+      `Target role: ${session.targetRole || "Not specified"}`,
+      `Created: ${new Date(session.createdAt).toLocaleString()}`,
+      "",
+      ...session.questions.flatMap((question, index) => {
+        const review = session.reviews.find((item) => item.question === question.question);
+        return [`## ${index + 1}. ${question.question}`, `Competency: ${question.competency}`, `Guidance: ${question.guidance}`, review ? `\nCoaching:\n${review.feedback}` : "\nNot reviewed yet.", ""];
+      }),
+      "This report is study practice feedback, not a hiring assessment.",
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "syaahi-interview-practice.md";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function review() {
     if (!current || !session) return;
     setBusy(true);
@@ -168,6 +214,9 @@ export default function InterviewPractice() {
             Add the role and only relevant, non-confidential requirements. Your
             private plan is saved to your account so you can return to it later.
           </p>
+          <div className="about-tags">
+            {roleTemplates[track].map((role) => <button key={role} type="button" onClick={() => setTargetRole(role)}>{role}</button>)}
+          </div>
           <label className="small">
             Target role (optional)
             <input
@@ -224,6 +273,7 @@ export default function InterviewPractice() {
               <button className="btn light" onClick={() => { setSession(null); resetQuestion(); }}>
                 New plan
               </button>
+              <button className="btn light" onClick={downloadReport}>Download report</button>
             </div>
             <p className="small">
               This is private practice feedback, not a hiring assessment or a human interview.
@@ -261,6 +311,7 @@ export default function InterviewPractice() {
             {history.slice(0, 5).map((item) => (
               <li key={item.id}>
                 {item.track}{item.targetRole ? ` · ${item.targetRole}` : ""} — {item.completed}/{item.total} answers reviewed
+                <button className="btn light" disabled={busy} onClick={() => void reopen(item.id)} style={{ marginLeft: 8 }}>Reopen</button>
               </li>
             ))}
           </ul>

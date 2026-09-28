@@ -50,6 +50,13 @@ async function main() {
   assert.equal(saved.sessions.length, 1);
   assert.equal(saved.sessions[0].total, 5);
   assert.equal(saved.sessions[0].completed, 0);
+  const reopened = await interview.GET(
+    new NextRequest(`http://localhost:3101/api/interview?session=${data.session.id}`, {
+      headers: { cookie },
+    }),
+  );
+  assert.equal(reopened.status, 200);
+  assert.equal((await reopened.json()).session.id, data.session.id);
   console.log("PASS: authenticated role plan is saved with five safe fallback questions and history.");
 }
 

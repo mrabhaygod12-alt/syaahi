@@ -48,6 +48,13 @@ function questions(value: unknown): Question[] | null {
 async function handleGET(req: Request) {
   const denied = await authError(req); if (denied) return denied;
   const state = await readState((await currentUser(req))!.id, "interviews", fresh());
+  const sessionId = new URL(req.url).searchParams.get("session");
+  if (sessionId) {
+    const session = state.sessions.find((item) => item.id === sessionId);
+    if (!session)
+      return NextResponse.json({ error: "Interview session not found." }, { status: 404 });
+    return NextResponse.json({ session });
+  }
   return NextResponse.json({ sessions: state.sessions.map(({ id, track, targetRole, createdAt, questions, reviews }) => ({ id, track, targetRole, createdAt, total: questions.length, completed: reviews.length })) });
 }
 async function handlePOST(req: Request) {

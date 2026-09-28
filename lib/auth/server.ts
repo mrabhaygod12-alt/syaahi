@@ -184,7 +184,7 @@ export async function register(
   }
   transaction(() => {
     db()
-      .prepare("INSERT INTO users VALUES (?,?,?,?,?)")
+      .prepare("INSERT INTO users (id,email,name,password,created_at) VALUES (?,?,?,?,?)")
       .run(user.id, email, name, encoded, user.createdAt);
     if (oauthSubject)
       db()
