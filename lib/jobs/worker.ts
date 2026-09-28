@@ -1,6 +1,7 @@
 import { workerConcurrency } from "./capacity";
 import { pendingJobs } from "./store";
 import { processJob } from "./runner";
+import { collection, useMongo } from "@/lib/storage/mongo";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
@@ -11,6 +12,21 @@ export function kickWorker(standalone = false) {
     if (state.syaahiTick) return;
     state.syaahiTick = true;
     try {
+      // A separate worker can fail while the web service keeps answering
+      // requests. Record a cheap heartbeat so monitors can detect that split.
+      if (standalone && useMongo()) {
+        try {
+          await (
+            await collection("system_state")
+          ).updateOne(
+            { _id: "generation_worker" },
+            { $set: { seenAt: new Date(), role: "worker" } },
+            { upsert: true },
+          );
+        } catch {
+          // Processing still gets a chance when the diagnostic write fails.
+        }
+      }
       await Promise.all(
         (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
       );
