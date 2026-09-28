@@ -33,6 +33,7 @@ const STATIC = [
   "/docs/api",
   "/about",
   "/blog",
+  "/community",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
