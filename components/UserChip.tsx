@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { refreshUser, signOut, type DemoUser } from "@/lib/auth/session";
+import {
+  getUser,
+  refreshUser,
+  signOut,
+  type DemoUser,
+} from "@/lib/auth/session";
 import { getAnimeAvatar } from "@/lib/avatars";
 
 export default function UserChip() {
@@ -9,24 +14,41 @@ export default function UserChip() {
   const [open, setOpen] = useState(false);
   const [signOutError, setSignOutError] = useState("");
   const [tokens, setTokens] = useState<number | null>(null);
+  const [sessionCheck, setSessionCheck] = useState<
+    "checking" | "ready" | "unavailable"
+  >("checking");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    refreshUser()
-      .then((u) => {
-        setUser(u);
-        if (u) {
-          fetch("/api/credits")
-            .then((r) => r.json())
-            .then((d) =>
-              setTokens(
-                Number(Number(d.tokens ?? (d.balance ?? 0) / 3).toFixed(2)),
-              ),
-            )
-            .catch(() => {});
-        }
-      })
-      .catch(() => setUser(null));
+    // Keep the last identity for display while a sleeping/temporarily
+    // unreachable backend wakes up. This cache never authorizes API access.
+    setUser(getUser());
+    const checkSession = () =>
+      refreshUser()
+        .then((u) => {
+          setUser(u);
+          setSessionCheck("ready");
+          if (u) {
+            fetch("/api/credits")
+              .then((r) => (r.ok ? r.json() : null))
+              .then((d) => {
+                if (d)
+                  setTokens(
+                    Number(Number(d.tokens ?? (d.balance ?? 0) / 3).toFixed(2)),
+                  );
+              })
+              .catch(() => {});
+          }
+        })
+        .catch(() => setSessionCheck("unavailable"));
+    void checkSession();
+
+    const retryOnFocus = () => {
+      if (document.visibilityState === "visible") void checkSession();
+    };
+    window.addEventListener("focus", retryOnFocus);
+    document.addEventListener("visibilitychange", retryOnFocus);
+    window.addEventListener("online", retryOnFocus);
 
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -37,10 +59,15 @@ export default function UserChip() {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("focus", retryOnFocus);
+      document.removeEventListener("visibilitychange", retryOnFocus);
+      window.removeEventListener("online", retryOnFocus);
+    };
   }, []);
 
-  if (user === undefined) {
+  if (user === undefined && sessionCheck === "checking") {
     return (
       <div
         className="account-skeleton"
@@ -52,7 +79,32 @@ export default function UserChip() {
 
   if (!user) {
     return (
-      <div style={{ display: "flex", gap: 8, whiteSpace: "nowrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          whiteSpace: "nowrap",
+          alignItems: "center",
+        }}
+      >
+        {sessionCheck === "unavailable" && (
+          <button
+            type="button"
+            className="btn light"
+            title="The server did not respond. Your saved session may still be valid."
+            onClick={() => {
+              setSessionCheck("checking");
+              refreshUser()
+                .then((u) => {
+                  setUser(u);
+                  setSessionCheck("ready");
+                })
+                .catch(() => setSessionCheck("unavailable"));
+            }}
+          >
+            Retry session
+          </button>
+        )}
         <a className="btn light" href="/login">
           Log in
         </a>
@@ -105,6 +157,20 @@ export default function UserChip() {
           </span>
         )}
       </a>
+      {sessionCheck === "unavailable" && (
+        <span
+          role="status"
+          title="The server could not be reached. Your saved session may still be valid."
+          style={{
+            color: "#92400e",
+            fontSize: 12,
+            whiteSpace: "normal",
+            maxWidth: 150,
+          }}
+        >
+          Reconnecting to your account…
+        </span>
+      )}
 
       {/* Avatar Button triggers dropdown */}
       <button

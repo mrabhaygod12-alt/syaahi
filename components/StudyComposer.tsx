@@ -7,7 +7,11 @@ interface Plan {
   topics: string[];
   context: string;
   sources: Array<{ title: string; url: string }>;
-  readingLinks: Array<{ title: string; url: string; kind: "source" | "search" }>;
+  readingLinks: Array<{
+    title: string;
+    url: string;
+    kind: "source" | "search";
+  }>;
   evidence: string;
   reason: string;
   note: string;
@@ -397,11 +401,13 @@ export default function StudyComposer({
             rows={Math.min(8, plan.topics.length + 1)}
           />
           <div className="evidence-label">
-            {plan.evidence === "retrieved"
-              ? "Sources found"
-              : plan.evidence === "supplied"
-                ? "Grounded in your material"
-                : "General knowledge · no external sources retrieved"}
+            {plan.evidence === "mixed"
+              ? "Web references plus your supplied material"
+              : plan.evidence === "retrieved"
+                ? "Wikipedia references retrieved"
+                : plan.evidence === "supplied"
+                  ? "Grounded in your supplied material"
+                  : "General knowledge · no external sources retrieved"}
           </div>
           {plan.sources.map((s) => (
             <a
@@ -429,8 +435,8 @@ export default function StudyComposer({
                 </a>
               ))}
               <span className="small">
-                These open an external Google site search. Those articles are
-                not copied into your notes.
+                GeeksforGeeks and W3Schools links open an external search. Their
+                article text is not fetched or used to generate these notes.
               </span>
             </div>
           )}

@@ -99,7 +99,11 @@ async function main() {
       }),
     );
     assert.equal(confirmation.status, 200);
-    const cookie = confirmation.headers.get("set-cookie")?.split(";")[0];
+    const sessionCookie = confirmation.headers.get("set-cookie") || "";
+    assert.match(sessionCookie, /Max-Age=604800/i);
+    assert.match(sessionCookie, /HttpOnly/i);
+    assert.match(sessionCookie, /SameSite=lax/i);
+    const cookie = sessionCookie.split(";")[0];
     if (!cookie?.startsWith("syaahi-session="))
       throw new Error(
         "Verified confirmation did not set the application session.",
@@ -115,7 +119,7 @@ async function main() {
       "verified-learner@example.test",
     );
     console.log(
-      "PASS: missing Google config returns a generic public error; signup has no session before verification; verified token creates an authenticated session.",
+      "PASS: missing Google config returns a generic public error; signup has no session before verification; verified login issues a seven-day HttpOnly cookie that authenticates on a later request.",
     );
   } finally {
     globalThis.fetch = originalFetch;

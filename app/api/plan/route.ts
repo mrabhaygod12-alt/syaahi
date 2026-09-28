@@ -3,7 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { authError } from "@/lib/auth/server";
 import { chatWithFallback } from "@/lib/ai/router";
 import { parsePlanJson } from "@/lib/lesson/plan";
-import { researchTopic, topicReadingLinks } from "@/lib/research";
+import {
+  researchContext,
+  researchTopic,
+  topicReadingLinks,
+} from "@/lib/research";
 import { rateLimit } from "@/lib/ratelimit";
 async function handlePOST(req: NextRequest) {
   const denied =
@@ -25,13 +29,19 @@ async function handlePOST(req: NextRequest) {
       { error: "Choose 1-24 planned pages." },
       { status: 400 },
     );
-  let context = String(body.context || "").slice(0, 100000);
-  const sources =
-    !context && body.research !== false ? await researchTopic(topic) : [];
-  if (sources.length)
-    context = sources
-      .map((s) => `[${s.id}] ${s.title}\nURL: ${s.url}\n${s.excerpt}`)
-      .join("\n\n");
+  const suppliedContext = String(body.context || "").slice(0, 100000);
+  const query =
+    /^create (?:a )?study guide from (?:the )?supplied notes$/i.test(topic) &&
+    suppliedContext
+      ? suppliedContext
+          .split(/\r?\n/)
+          .map((line) => line.replace(/^#+\s*/, "").trim())
+          .find((line) => line.length >= 12 && line.length <= 180) || topic
+      : topic;
+  // Add independent reference material even when the learner also supplied
+  // notes/transcripts; the two evidence types remain separately labelled.
+  const sources = body.research !== false ? await researchTopic(query) : [];
+  const context = researchContext(sources, suppliedContext);
   let topics = [topic.slice(0, 160)],
     reason = "1 focused page. You can edit the outline below.";
   try {
@@ -69,7 +79,14 @@ async function handlePOST(req: NextRequest) {
     requestedPages: automatic ? null : requested,
     automatic,
     credits: topics.length,
-    evidence: context ? (sources.length ? "retrieved" : "supplied") : "general",
+    evidence:
+      sources.length && suppliedContext
+        ? "mixed"
+        : sources.length
+          ? "retrieved"
+          : suppliedContext
+            ? "supplied"
+            : "general",
     note: "Page count is a target. Long content continues onto extra PDF sheets without extra credits.",
   });
 }

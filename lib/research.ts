@@ -5,6 +5,25 @@ export interface ResearchSource {
   excerpt: string;
   retrievedAt: string;
 }
+
+/** Build a compact evidence bundle with stable citation IDs and separate user input. */
+export function researchContext(
+  sources: ResearchSource[],
+  supplied: string,
+): string {
+  const retrieved = sources
+    .slice(0, 4)
+    .map(
+      (source) =>
+        `[${source.id}] ${source.title}\nURL: ${source.url}\n${source.excerpt}`,
+    );
+  const material = supplied.trim()
+    ? [
+        `[USER MATERIAL] Student-provided notes or transcript (not a web citation):\n${supplied.slice(0, 100000)}`,
+      ]
+    : [];
+  return [...retrieved, ...material].join("\n\n").slice(0, 100000);
+}
 export interface ReadingLink {
   title: string;
   url: string;
@@ -48,34 +67,32 @@ export function topicReadingLinks(topic: string): ReadingLink[] {
 /** Accept only actual Wikipedia article links returned by the research step. */
 export function wikipediaReferences(value: unknown): ReadingLink[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .slice(0, 4)
-    .flatMap((item, i) => {
-      if (!item || typeof item !== "object") return [];
-      const candidate = item as { title?: unknown; url?: unknown };
-      if (typeof candidate.url !== "string") return [];
-      try {
-        const url = new URL(candidate.url);
-        if (
-          url.protocol !== "https:" ||
-          url.hostname !== "en.wikipedia.org" ||
-          !url.pathname.startsWith("/wiki/")
-        )
-          return [];
-        return [
-          {
-            title:
-              typeof candidate.title === "string"
-                ? candidate.title.slice(0, 160)
-                : `Wikipedia source ${i + 1}`,
-            url: url.href,
-            kind: "source" as const,
-          },
-        ];
-      } catch {
+  return value.slice(0, 4).flatMap((item, i) => {
+    if (!item || typeof item !== "object") return [];
+    const candidate = item as { title?: unknown; url?: unknown };
+    if (typeof candidate.url !== "string") return [];
+    try {
+      const url = new URL(candidate.url);
+      if (
+        url.protocol !== "https:" ||
+        url.hostname !== "en.wikipedia.org" ||
+        !url.pathname.startsWith("/wiki/")
+      )
         return [];
-      }
-    });
+      return [
+        {
+          title:
+            typeof candidate.title === "string"
+              ? candidate.title.slice(0, 160)
+              : `Wikipedia source ${i + 1}`,
+          url: url.href,
+          kind: "source" as const,
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
 }
 
 // Public, fixed-domain retrieval. Never turn arbitrary model output into a URL fetch.
@@ -86,10 +103,10 @@ export async function researchTopic(topic: string): Promise<ResearchSource[]> {
     format: "json",
     generator: "search",
     gsrsearch: topic.slice(0, 160),
-    gsrlimit: "2",
+    gsrlimit: "4",
     prop: "extracts|info",
     explaintext: "1",
-    exchars: "10000",
+    exchars: "4500",
     inprop: "url",
     redirects: "1",
   }).toString();

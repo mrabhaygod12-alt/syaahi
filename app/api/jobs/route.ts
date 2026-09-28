@@ -2,6 +2,7 @@ import { QueueCapacityError } from "@/lib/jobs/capacity";
 import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import {
+  researchContext,
   researchTopic,
   topicReadingLinks,
   wikipediaReferences,
@@ -57,20 +58,18 @@ async function handlePOST(req: NextRequest) {
   const sourceKind = asKind(body.sourceKind);
   const skipAi = body.intelligentPlan === false;
   const language = normalizeLang(body.language);
-  let sourceContext = String(body.context ?? "").slice(0, 100000);
+  const suppliedContext = String(body.context ?? "").slice(0, 100000);
   const sources =
-    !sourceContext && body.research !== false
-      ? await researchTopic(rawTopics.join(" "))
-      : [];
-  if (sources.length)
-    sourceContext = sources
-      .map((s) => `[${s.id}] ${s.title}\nURL: ${s.url}\n${s.excerpt}`)
-      .join("\n\n");
-  const researchNote = sources.length
-    ? `Sources retrieved: ${sources.length}. `
-    : sourceContext
-      ? "Based on supplied material. "
-      : "No external evidence retrieved; general-knowledge notes. ";
+    body.research !== false ? await researchTopic(rawTopics.join(" ")) : [];
+  const sourceContext = researchContext(sources, suppliedContext);
+  const researchNote =
+    sources.length && suppliedContext
+      ? `Retrieved ${sources.length} Wikipedia references and combined them with your supplied material. `
+      : sources.length
+        ? `Retrieved ${sources.length} Wikipedia references. `
+        : suppliedContext
+          ? "Based on material you supplied. "
+          : "No external evidence retrieved; general-knowledge notes. ";
   const planInput = {
     rawTopics,
     sourceKind,
