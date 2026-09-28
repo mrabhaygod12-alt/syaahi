@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { requestJson } from "@/lib/http-client";
 interface Ticket {
   id: string;
   subject: string;
@@ -16,36 +17,71 @@ export default function SupportDesk() {
     [reply, setReply] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
+    [loaded, setLoaded] = useState(false),
     [guest, setGuest] = useState(false),
     [admin, setAdmin] = useState(false);
   async function load() {
-    const r = await fetch("/api/support");
+    const { response: r, data: d } = await requestJson("/api/support");
     if (r.status === 401) {
       setGuest(true);
+      setCurrent(null);
+      setTickets([]);
+      setAdmin(false);
+      setLoaded(false);
       return;
     }
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error);
+    if (!r.ok)
+      throw new Error(d.error || "Could not load your inbox. Please retry.");
+    if (!Array.isArray(d.tickets))
+      throw new Error("Could not load your inbox. Please retry.");
+    setGuest(false);
+    setLoaded(true);
     setTickets(d.tickets);
-    setAdmin(d.admin);
+    setAdmin(!!d.admin);
+  }
+  async function openTicket(id: string) {
+    const { response, data } = await requestJson(
+      "/api/support?id=" + encodeURIComponent(id),
+    );
+    if (!response.ok || !data.ticket)
+      throw new Error(
+        data.error || "Could not open this ticket. Please retry.",
+      );
+    setCurrent(data.ticket);
+  }
+  async function refresh() {
+    setLoading(true);
+    setError("");
+    try {
+      await load();
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not load your inbox. Please retry.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
-    load().catch(() => setError("Could not load your support inbox."));
+    void refresh();
   }, []);
   async function act(body: unknown) {
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/support", {
+      const { response: r, data: d } = await requestJson("/api/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setCurrent(d.ticket);
       setReply("");
-      await load();
+      // Saving succeeded even if the following inbox refresh is interrupted.
+      await refresh();
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save ticket.");
@@ -65,13 +101,18 @@ export default function SupportDesk() {
         </div>
         <button
           className="btn light"
-          onClick={() => {
-            load().catch(() => setError("Refresh failed."));
-            if (current)
-              fetch("/api/support?id=" + current.id)
-                .then((r) => r.json())
-                .then((d) => d.ticket && setCurrent(d.ticket))
-                .catch(() => {});
+          disabled={loading || busy}
+          onClick={async () => {
+            await refresh();
+            if (current) {
+              try {
+                await openTicket(current.id);
+              } catch (e) {
+                setError(
+                  e instanceof Error ? e.message : "Could not refresh ticket.",
+                );
+              }
+            }
           }}
         >
           Refresh inbox
@@ -87,11 +128,12 @@ export default function SupportDesk() {
           {error}
         </p>
       )}
+      {loading && <p role="status">Loading your support inbox…</p>}
       {guest ? (
         <a className="btn dark" href="/login?next=/support">
           Sign in to contact support
         </a>
-      ) : (
+      ) : loaded ? (
         <div className="support-grid">
           <aside className="card">
             <h3>Your tickets</h3>
@@ -101,10 +143,14 @@ export default function SupportDesk() {
                 className="ticket-row"
                 key={t.id}
                 onClick={async () => {
-                  const r = await fetch("/api/support?id=" + t.id);
-                  const d = await r.json();
-                  if (r.ok) setCurrent(d.ticket);
-                  else setError(d.error);
+                  setError("");
+                  try {
+                    await openTicket(t.id);
+                  } catch (e) {
+                    setError(
+                      e instanceof Error ? e.message : "Could not open ticket.",
+                    );
+                  }
                 }}
               >
                 <b>{t.subject}</b>
@@ -237,7 +283,7 @@ export default function SupportDesk() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

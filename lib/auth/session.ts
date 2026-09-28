@@ -1,3 +1,4 @@
+import { requestJson } from "@/lib/http-client";
 // This cache is for header display only. The server authenticates every API call.
 export interface DemoUser {
   id: string;
@@ -32,7 +33,7 @@ export async function signIn(
   acceptTerms = false,
   referralCode?: string | null,
 ): Promise<SignInResult> {
-  const response = await fetch("/api/auth", {
+  const { response, data } = await requestJson("/api/auth", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -45,7 +46,6 @@ export async function signIn(
       termsVersion: "2026-09-24",
     }),
   });
-  const data = await response.json();
   if (!response.ok) {
     const err = new Error(data.error || "Sign-in failed.") as Error & {
       requireVerification?: boolean;
@@ -61,13 +61,19 @@ export async function signIn(
   return data;
 }
 export async function refreshUser(): Promise<DemoUser | null> {
-  const response = await fetch("/api/auth");
-  const { user } = await response.json();
+  const { response, data } = await requestJson("/api/auth");
+  if (!response.ok)
+    throw new Error(data.error || "Could not check your session.");
+  const { user } = data;
   if (user) localStorage.setItem(KEY, JSON.stringify(user));
   else localStorage.removeItem(KEY);
   return user;
 }
 export async function signOut() {
-  await fetch("/api/auth", { method: "DELETE" });
+  const { response, data } = await requestJson("/api/auth", {
+    method: "DELETE",
+  });
+  if (!response.ok)
+    throw new Error(data.error || "Could not sign out. Please retry.");
   localStorage.removeItem(KEY);
 }

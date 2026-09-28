@@ -31,6 +31,7 @@ export default function Checkout({
     "loading" | "ready" | "failed"
   >("loading");
   const [checkoutEnabled, setCheckoutEnabled] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("");
   const locked = useRef(false);
   const confirming = useRef(false);
 
@@ -46,6 +47,7 @@ export default function Checkout({
       .then((data) => {
         if (!controller.signal.aborted && data?.currency === currency) {
           setCheckoutEnabled(data.checkoutEnabled === true);
+          setPaymentMode(data.paymentMode || "");
           setRegionStatus("ready");
         } else if (active) {
           setRegionStatus("failed");
@@ -169,7 +171,7 @@ export default function Checkout({
           One credit covers one generated section. Additional PDF continuation
           sheets are free. No recurring subscription.
         </p>
-        {order?.testMode && (
+        {(order?.testMode || paymentMode === "test") && (
           <p className="payment-notice">
             Test checkout: no real money will be charged.
           </p>
@@ -187,10 +189,8 @@ export default function Checkout({
         )}
         {regionStatus === "ready" && !checkoutEnabled && (
           <p className="payment-notice" role="status">
-            Razorpay {currency} checkout is not enabled for this account yet.
-            International orders will remain unavailable until Razorpay
-            activation is complete and this currency is enabled on the API
-            service.
+            Checkout is currently unavailable for {currency}. Please try again
+            later or contact support before making a payment.
           </p>
         )}
         <button

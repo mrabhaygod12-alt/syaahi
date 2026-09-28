@@ -12,7 +12,7 @@ export function middleware(req: NextRequest) {
   }
 
   const role = process.env.APP_ROLE;
-  const backend = process.env.BACKEND_URL;
+  const backend = process.env.BACKEND_URL?.trim();
   const isFrontend =
     role === "frontend" ||
     process.env.VERCEL === "1" ||
@@ -27,17 +27,37 @@ export function middleware(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "The study backend is not connected yet. Please set BACKEND_URL and BACKEND_PROXY_SECRET in Vercel environment variables.",
+            "The study service is temporarily unavailable. Please try again shortly.",
         },
         { status: 503 },
       );
-    const target = new URL(req.nextUrl.pathname + req.nextUrl.search, backend);
+    let target: URL;
+    try {
+      const base = new URL(backend);
+      if (base.username || base.password || base.hostname === hostname)
+        throw new Error("Invalid backend origin");
+      target = new URL(req.nextUrl.pathname + req.nextUrl.search, base);
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "The study service is temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503 },
+      );
+    }
     if (
       target.protocol !== "https:" &&
-      !["localhost", "127.0.0.1"].includes(target.hostname)
+      !(
+        target.protocol === "http:" &&
+        ["localhost", "127.0.0.1"].includes(target.hostname)
+      )
     )
       return NextResponse.json(
-        { error: "Backend must use HTTPS." },
+        {
+          error:
+            "The study service is temporarily unavailable. Please try again shortly.",
+        },
         { status: 503 },
       );
     const headers = new Headers(req.headers);

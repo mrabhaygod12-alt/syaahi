@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { signIn } from "@/lib/auth/session";
+import { requestJson } from "@/lib/http-client";
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [accepted, setAccepted] = useState(false);
   const [name, setName] = useState("");
@@ -90,19 +91,27 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           const next =
             new URLSearchParams(location.search).get("next") || "/dashboard";
           setBusy(true);
+          setMsg("");
+          setVerifyLink(null);
           try {
-            const r = await fetch("/api/auth/google", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                next,
-                ref: new URLSearchParams(location.search).get("ref"),
-                acceptTerms: accepted,
-                termsVersion: "2026-09-24",
-              }),
-            });
-            const d = await r.json();
+            const { response: r, data: d } = await requestJson(
+              "/api/auth/google",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  next,
+                  ref: new URLSearchParams(location.search).get("ref"),
+                  acceptTerms: accepted,
+                  termsVersion: "2026-09-24",
+                }),
+              },
+            );
             if (!r.ok) throw new Error(d.error);
+            if (typeof d.url !== "string" || !d.url.startsWith("https://"))
+              throw new Error(
+                "Google sign-in could not start. Please try again.",
+              );
             location.assign(d.url);
           } catch (e) {
             setMsg(e instanceof Error ? e.message : "Google sign-in failed.");

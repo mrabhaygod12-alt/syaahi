@@ -16,7 +16,7 @@ async function handlePOST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const order = String(body.razorpay_order_id || ""),
     payment = String(body.razorpay_payment_id || "");
-  const secret = process.env.RAZORPAY_KEY_SECRET;
+  const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
   if (!order || !payment || typeof body.razorpay_signature !== "string")
     return NextResponse.json(
       { error: "Order, payment and signature are required." },

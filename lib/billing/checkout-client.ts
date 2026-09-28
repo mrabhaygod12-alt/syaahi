@@ -1,3 +1,4 @@
+import { requestJson } from "@/lib/http-client";
 /** One bounded loader shared by retries; a failed load can be retried. */
 let loading: Promise<void> | undefined;
 export function loadCheckout(): Promise<void> {
@@ -30,14 +31,22 @@ export function loadCheckout(): Promise<void> {
 }
 
 export async function paymentRequest(path: string, body?: unknown) {
-  const response = await fetch(path, {
-    method: body === undefined ? "GET" : "POST",
-    headers:
-      body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(25000),
-    cache: "no-store",
-  });
-  const data = await response.json().catch(() => ({}));
-  return { response, data };
+  try {
+    return await requestJson(
+      path,
+      {
+        method: body === undefined ? "GET" : "POST",
+        headers:
+          body === undefined
+            ? undefined
+            : { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      25000,
+    );
+  } catch (error) {
+    throw new Error(
+      `${error instanceof Error ? error.message : "Payment request failed."} Check payment history before starting another payment.`,
+    );
+  }
 }

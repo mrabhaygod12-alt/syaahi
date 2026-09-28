@@ -6,6 +6,7 @@ import { authError, currentUser } from "@/lib/auth/server";
 import { PACKS, packAmountMinor } from "@/lib/billing/packs";
 import { razorpay } from "@/lib/billing/payments";
 import { saveOrder } from "@/lib/billing/orders";
+import { paymentConfiguration } from "@/lib/billing/configuration";
 import { rateLimit } from "@/lib/ratelimit";
 import {
   currencyForCountry,
@@ -31,7 +32,15 @@ async function handlePOST(req: NextRequest) {
       { status: 409 },
     );
   const amount = packAmountMinor(pack, currency);
-  const testMode = (process.env.RAZORPAY_KEY_ID || "").startsWith("rzp_test_");
+  const payment = paymentConfiguration();
+  if (!payment.configured)
+    return NextResponse.json(
+      {
+        error: "Payments are temporarily unavailable. Please try again later.",
+      },
+      { status: 503 },
+    );
+  const testMode = payment.mode === "test";
   if (
     testMode &&
     process.env.NODE_ENV === "production" &&
@@ -61,7 +70,7 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({
       orderId: order.id,
       testMode,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: process.env.RAZORPAY_KEY_ID?.trim(),
       amount,
       currency,
       pack,

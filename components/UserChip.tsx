@@ -7,6 +7,7 @@ import { getAnimeAvatar } from "@/lib/avatars";
 export default function UserChip() {
   const [user, setUser] = useState<DemoUser | null | undefined>(undefined);
   const [open, setOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
   const [tokens, setTokens] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -365,12 +366,25 @@ export default function UserChip() {
           <div style={{ height: 1, background: "#f3f4f6", margin: "2px 0" }} />
 
           {/* Sign Out Button */}
+          {signOutError && (
+            <p role="alert" className="inline-error">
+              {signOutError}
+            </p>
+          )}
           <button
             type="button"
             onClick={async () => {
-              setOpen(false);
-              await signOut();
-              window.location.href = "/";
+              setSignOutError("");
+              try {
+                await signOut();
+                window.location.href = "/";
+              } catch (e) {
+                setSignOutError(
+                  e instanceof Error
+                    ? e.message
+                    : "Could not sign out. Please retry.",
+                );
+              }
             }}
             style={{
               display: "flex",

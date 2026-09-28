@@ -14,8 +14,8 @@ export function verifySignature(
   return timingSafeEqual(expected, Buffer.from(signature, "hex"));
 }
 export async function razorpay(path: string, body?: unknown) {
-  const id = process.env.RAZORPAY_KEY_ID,
-    secret = process.env.RAZORPAY_KEY_SECRET;
+  const id = process.env.RAZORPAY_KEY_ID?.trim(),
+    secret = process.env.RAZORPAY_KEY_SECRET?.trim();
   if (!id || !secret)
     throw new Error(
       "Payments are not configured yet. Your free credits are available after signup.",

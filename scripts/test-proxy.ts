@@ -78,3 +78,16 @@ assert.equal(
   middleware(new NextRequest("https://frontend.test/api/jobs")).status,
   503,
 );
+process.env.BACKEND_PROXY_SECRET = "fixture-only-secret";
+for (const invalid of [
+  "not-a-url",
+  "https://frontend.test",
+  "ftp://localhost",
+  "https://user:pass@backend.test",
+]) {
+  process.env.BACKEND_URL = invalid;
+  assert.equal(
+    middleware(new NextRequest("https://frontend.test/api/auth")).status,
+    503,
+  );
+}

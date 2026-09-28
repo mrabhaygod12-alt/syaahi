@@ -2,7 +2,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { capturePayment, verifySignature } from "@/lib/billing/payments";
 async function handlePOST(req: NextRequest) {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
   if (!secret)
     return NextResponse.json(
       { error: "Webhook not configured." },

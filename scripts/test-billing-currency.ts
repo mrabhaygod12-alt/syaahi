@@ -10,6 +10,9 @@ import {
 import { PACKS, formatMinorPrice, packAmountMinor } from "../lib/billing/packs";
 
 async function main() {
+  process.env.RAZORPAY_KEY_ID = "rzp_live_fixture";
+  process.env.RAZORPAY_KEY_SECRET = "fixture-only-secret";
+  process.env.RAZORPAY_WEBHOOK_SECRET = "fixture-only-webhook";
   assert.equal(currencyForCountry("IN"), "INR");
   assert.equal(currencyForCountry("FR"), "EUR");
   assert.equal(currencyForCountry("GP"), "EUR");
