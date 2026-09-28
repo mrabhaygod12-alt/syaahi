@@ -16,6 +16,10 @@ const sections = [
     "Use notes and practice to improve understanding. Follow your institution’s rules for assignments and exams. Do not represent AI-generated work as independently completed work where disclosure or independent work is required.",
   ],
   [
+    "Publish responsibly",
+    "Creator guides must be original or properly permitted, useful to learners, and accurately attributed where attribution is required. Do not impersonate a creator, manufacture endorsements, manipulate ranking, publish unsafe instructions, or use the community area for advertising, spam, or personal data collection.",
+  ],
+  [
     "Respect the service",
     "Do not bypass access controls, forge payment events, scrape other accounts, attack infrastructure, or use multiple keys or identities to evade provider limits. Research and generation requests must remain within configured usage limits.",
   ],
@@ -34,7 +38,7 @@ export default function Policy() {
       />
       <Prose>
         <p className="small">
-          Updated 21 September 2026 · Current installation
+          Updated 28 September 2026 · Current installation
         </p>
         {sections.map(([title, body], i) => (
           <section key={title}>

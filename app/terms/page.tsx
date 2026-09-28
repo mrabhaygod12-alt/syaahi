@@ -28,6 +28,14 @@ const sections = [
     "Share only material you have permission to share. An active link reveals generated notes to its holder; editor invitations additionally allow signed-in members to edit. New accounts receive 19 study credits once; signing in again gives no additional signup bonus. Apply a referral code within 24 hours of signup before the first purchase. An eligible verified signup gives the inviter 5 reward credits, transferable one-for-one into study credits. Three credits equal one token. Up to 20 inviter rewards may qualify per calendar month; over-cap pending referrals can be retried later. Prior purchase-based rewards remain unchanged and cannot earn a second reward. Self-referrals, duplicate accounts and abuse are ineligible. Promotional credits have no cash value.",
   ],
   [
+    "Creator drafts and reviewed publications",
+    "Writer Studio drafts are private to their author until they are submitted and approved for publication. Submitting a guide authorises editorial review for clarity, safety, originality, and relevance. The operator may request changes, decline publication, remove a published guide, or correct its presentation. Publication is not a promise of earnings, reach, endorsement, or factual accuracy. Do not publish private, unlawful, infringing, deceptive, harmful, or exam-cheating material.",
+  ],
+  [
+    "Interview practice",
+    "AI mock interview feedback is educational practice. It does not verify skills, assess a candidate for an employer, guarantee an interview outcome, or create a relationship with a recruiter. When you paste a job description, submit only information you may share and remove confidential employer material. Human interviews are not offered unless a separately described, verified booking service is made available.",
+  ],
+  [
     "Payments",
     "Prices and pack quantities are displayed before checkout. Credits are granted after a verified captured gateway payment or administrator verification of a direct UPI bank receipt. Entering a UTR alone does not prove payment. Checkout availability depends on the operator’s configuration. Monetary refund requests are handled separately from generation-credit returns, as described on Refunds.",
   ],
@@ -50,7 +58,7 @@ export default function Policy() {
       />
       <Prose>
         <p className="small">
-          Updated 22 September 2026 · Current installation
+          Updated 28 September 2026 · Current installation
         </p>
         {sections.map(([title, body], i) => (
           <section key={title}>

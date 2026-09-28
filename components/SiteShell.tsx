@@ -29,6 +29,8 @@ export function SiteFooter() {
           [
             "Resources",
             ["Study Blog", "/blog"],
+            ["Reviewed guides", "/community"],
+            ["Writer Studio", "/write"],
             ["About the creator", "/about"],
             ["How it works", "/how-it-works"],
             ["Documentation", "/docs"],

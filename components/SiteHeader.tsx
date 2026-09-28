@@ -11,6 +11,7 @@ const links = [
   ["Subjects", "/subjects"],
   ["Interview", "/interview"],
   ["Blog", "/blog"],
+  ["Community", "/community"],
   ["Write", "/write"],
   ["How it works", "/how-it-works"],
   ["Pricing", "/pricing"],

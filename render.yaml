@@ -33,3 +33,5 @@ services:
 # BACKEND_PROXY_SECRET, GROQ_API_KEY and/or GEMINI_API_KEY.
 # Optional integrations: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY,
 # RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, SUPPORT_EMAIL.
+# Set ADMIN_EMAILS to a comma-separated list of trusted editor email addresses
+# before using /admin/publications to approve community guides.

@@ -24,6 +24,10 @@ const sections = [
     "Quizzes, flashcards, and interview coaching support revision. They do not measure intelligence, guarantee examination coverage, or predict a hiring decision. Use them to identify topics to revisit.",
   ],
   [
+    "Community publications",
+    "Editorial review checks a guide for publication suitability; it is not a guarantee that every statement is complete, current, safe, or correct. Reader and creator views should verify important claims against primary material, textbooks, and official guidance.",
+  ],
+  [
     "Professional decisions",
     "The application is not a medical, legal, financial, or safety-critical advisory service. Seek a qualified professional for decisions that require one. Availability and output speed depend on configured infrastructure and provider capacity.",
   ],
@@ -38,7 +42,7 @@ export default function Policy() {
       />
       <Prose>
         <p className="small">
-          Updated 21 September 2026 · Current installation
+          Updated 28 September 2026 · Current installation
         </p>
         {sections.map(([title, body], i) => (
           <section key={title}>

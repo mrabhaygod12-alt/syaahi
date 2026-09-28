@@ -8,8 +8,9 @@ interface Story {
   summary: string;
   body: string;
   tags: string[];
-  status: "draft" | "submitted";
+  status: "draft" | "submitted" | "changes_requested" | "published";
   updatedAt: string;
+  reviewNote?: string | null;
 }
 
 export default function WriterStudio() {
@@ -71,7 +72,7 @@ export default function WriterStudio() {
     }
   }
 
-  const locked = active?.status === "submitted";
+  const locked = active?.status === "submitted" || active?.status === "published";
   return (
     <div className="steps-grid" style={{ alignItems: "start" }}>
       <aside className="interactive-panel">
@@ -80,7 +81,7 @@ export default function WriterStudio() {
         <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
           {stories.map((story) => (
             <button key={story.id} className="btn light" style={{ textAlign: "left" }} onClick={() => choose(story)}>
-              <b>{story.title}</b><br /><small>{story.status === "submitted" ? "In editorial review" : "Draft"} · {new Date(story.updatedAt).toLocaleDateString()}</small>
+              <b>{story.title}</b><br /><small>{story.status === "submitted" ? "In editorial review" : story.status === "changes_requested" ? "Changes requested" : story.status === "published" ? "Published" : "Draft"} · {new Date(story.updatedAt).toLocaleDateString()}</small>
             </button>
           ))}
         </div>
@@ -93,6 +94,7 @@ export default function WriterStudio() {
         <label>Tags (up to five, comma separated)<input disabled={locked || busy} value={tags} maxLength={180} onChange={(e) => setTags(e.target.value)} placeholder="study skills, chemistry" /></label>
         <label>Story (Markdown supported)<textarea disabled={locked || busy} rows={18} value={body} maxLength={50000} onChange={(e) => setBody(e.target.value)} placeholder="# Your idea\n\nWrite a useful, original guide…" /></label>
         {message && <p className={message.includes("saved") || message.includes("Submitted") ? "small" : "inline-error"} role="status">{message}</p>}
+        {active?.reviewNote && <p className="card"><b>Editorial note</b><br />{active.reviewNote}</p>}
         {!locked && <div className="hero-actions"><button className="btn light" disabled={busy} onClick={() => void save("save")}>{busy ? "Saving…" : "Save draft"}</button><button className="btn dark" disabled={busy} onClick={() => void save("submit")}>Submit for review</button></div>}
         {locked && <p className="small">This story is locked while editorial review is pending. An editor can request changes before anything becomes public.</p>}
       </section>

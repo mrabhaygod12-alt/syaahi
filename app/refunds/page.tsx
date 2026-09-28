@@ -38,7 +38,7 @@ export default function Policy() {
       />
       <Prose>
         <p className="small">
-          Updated 21 September 2026 · Current installation
+          Updated 28 September 2026 · Current installation
         </p>
         {sections.map(([title, body], i) => (
           <section key={title}>

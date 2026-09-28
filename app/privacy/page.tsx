@@ -36,6 +36,14 @@ const sections = [
     "The app stores lesson topics, extracted source text, source links, generated sections, selected language, and study progress. Uploaded files are processed for extraction; the original uploaded file is not intentionally retained by the application. Extracted text is retained inside a saved lesson until that lesson is deleted.",
   ],
   [
+    "Writer Studio and community guides",
+    "Writer Studio stores a draft’s title, summary, body, tags, review status, review note, and publication date. Drafts and guides awaiting review are visible to their author and authorised editors. A guide made public displays the submitted author name, title, text, tags, and publication date. Do not put private personal information, credentials, or confidential material in a guide intended for publication.",
+  ],
+  [
+    "Interview practice context",
+    "AI interview practice can process an answer, optional target role, and optional job requirements to produce feedback. This context is sent to the configured AI provider for that request and should not contain confidential interview questions, passwords, identity documents, or sensitive personal information.",
+  ],
+  [
     "AI processing",
     "Relevant note prompts and excerpts are sent to configured AI providers. Groq and Gemini are the default supported route; additional providers can be enabled by the operator. Screenshot extraction uses Gemini; audio transcription uses Gemini when configured. Downloadable study speech uses Gemini; chat voice playback also uses Gemini. Providers apply their own retention and training terms, and free tiers may differ from paid tiers. Do not submit confidential material without checking those terms.",
   ],
@@ -70,7 +78,7 @@ export default function Policy() {
       />
       <Prose>
         <p className="small">
-          Updated 24 September 2026 · Current installation
+          Updated 28 September 2026 · Current installation
         </p>
         {sections.map(([title, body], i) => (
           <section key={title}>

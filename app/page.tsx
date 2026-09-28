@@ -203,6 +203,30 @@ export default function Home() {
         </p>
         <a href="/about">Meet the people building Syaahi →</a>
       </section>
+      <section className="wrap feature-section">
+        <p className="eyebrow">LEARN WITH PEOPLE, NOT JUST PROMPTS</p>
+        <h2>Practice your explanation. Share what you learn.</h2>
+        <div className="retention-grid">
+          <article className="retention-card">
+            <span className="feature-number">↗</span>
+            <h3>Role-aware interview practice</h3>
+            <p>Add an optional target role and job requirements, then receive structured AI coaching on your answer. It remains practice, not a hiring decision.</p>
+            <a href="/interview">Start a mock interview →</a>
+          </article>
+          <article className="retention-card">
+            <span className="feature-number">✎</span>
+            <h3>Write a guide students can use</h3>
+            <p>Create a private draft, submit it to the editorial queue, and publish only after review. This keeps community guides useful and trustworthy.</p>
+            <a href="/write">Open Writer Studio →</a>
+          </article>
+          <article className="retention-card">
+            <span className="feature-number">◎</span>
+            <h3>Discover reviewed guides</h3>
+            <p>Read study guides that have passed editorial review, alongside your own private lesson workspace.</p>
+            <a href="/community">Browse the community →</a>
+          </article>
+        </div>
+      </section>
       <Faq
         items={[
           {

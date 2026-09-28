@@ -15,7 +15,8 @@ async function handlePOST(req: NextRequest) {
   if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   try {
-    const story = await saveStory((await currentUser(req))!.id, {
+    const user = (await currentUser(req))!;
+    const story = await saveStory(user.id, {
       id: typeof body.id === "string" ? body.id : undefined,
       title: typeof body.title === "string" ? body.title : "",
       summary: typeof body.summary === "string" ? body.summary : "",
@@ -24,6 +25,7 @@ async function handlePOST(req: NextRequest) {
         ? body.tags.filter((tag: unknown): tag is string => typeof tag === "string")
         : [],
       submit: body.action === "submit",
+      authorName: user.name,
     });
     return NextResponse.json({ story });
   } catch (error) {
