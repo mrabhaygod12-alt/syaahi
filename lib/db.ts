@@ -48,6 +48,9 @@ export function db(): DatabaseSync {
     connection.exec(
       "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR'",
     );
+  const userColumns = connection.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+  if (!userColumns.some((column) => column.name === "locale"))
+    connection.exec("ALTER TABLE users ADD COLUMN locale TEXT");
   state.syaahiDb = connection;
   return connection;
 }

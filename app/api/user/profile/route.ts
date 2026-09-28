@@ -53,6 +53,12 @@ async function handlePATCH(req: NextRequest) {
   if (typeof body.name === "string" && body.name.trim().length > 0) {
     updates.name = body.name.trim().slice(0, 80);
   }
+  if (typeof body.locale === "string") {
+    const locale = body.locale.trim().toLowerCase();
+    if (!["english", "hindi", "hinglish", "german", "french", "spanish"].includes(locale))
+      return NextResponse.json({ error: "Unsupported language preference." }, { status: 400 });
+    updates.locale = locale;
+  }
 
   if (typeof body.avatar === "string") {
     const raw = body.avatar.trim();
@@ -96,6 +102,8 @@ async function handlePATCH(req: NextRequest) {
       }
       const nameVal = typeof updates.name === "string" ? updates.name : null;
       const avatarVal = typeof updates.avatar === "string" ? updates.avatar : null;
+      const localeVal = typeof updates.locale === "string" ? updates.locale : null;
+      if (localeVal) db().prepare("UPDATE users SET locale=? WHERE id=?").run(localeVal, user.id);
       if (nameVal && updates.avatar !== undefined) {
         db().prepare("UPDATE users SET name=?, avatar=? WHERE id=?").run(nameVal, avatarVal, user.id);
       } else if (nameVal) {

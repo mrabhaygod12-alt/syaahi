@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Logo from "./Logo";
 import UserChip from "./UserChip";
+import LanguageControl from "./LanguageControl";
 
 const links = [
   ["Workspace", "/dashboard"],
@@ -43,6 +44,7 @@ export default function SiteHeader() {
           ))}
         </nav>
         <div className="header-account">
+          <LanguageControl />
           <InstallApp />
           <UserChip />
           <button

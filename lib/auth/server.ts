@@ -16,6 +16,7 @@ export interface Account {
   createdAt: string;
   avatar?: string | null;
   verified?: boolean;
+  locale?: string | null;
 }
 const COOKIE = "syaahi-session";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -67,11 +68,12 @@ export async function currentUser(req: Request): Promise<Account | null> {
       createdAt: user.createdAt,
       avatar: user.avatar || null,
       verified: true,
+      locale: typeof user.locale === "string" ? user.locale : null,
     };
   }
   const row = db()
     .prepare(
-      `SELECT u.id,u.email,u.name,u.created_at FROM sessions s
+      `SELECT u.id,u.email,u.name,u.created_at,u.locale FROM sessions s
     JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?`,
     )
     .get(hash(token), Date.now());
@@ -83,6 +85,7 @@ export async function currentUser(req: Request): Promise<Account | null> {
         createdAt: String(row.created_at),
         avatar: null,
         verified: true,
+        locale: typeof row.locale === "string" ? row.locale : null,
       }
     : null;
 }
