@@ -29,10 +29,31 @@ async function makeOnePage(
   // APInex models are heavy reasoners (~800-1500 thinking tokens before
   // the answer). 900/500 budgets truncate them to EMPTY. Use 3500/2500.
   const budget = style === "detailed" ? 3500 : 2500;
-  let r = await chat(pagePrompt(topic, style, extra) as ChatMsg[], {
-    maxTokens: budget,
-    rotateBy,
-  });
+  // A transient upstream timeout or rate limit must not make a learner restart
+  // (and pay for) an entire lesson. Retry the individual page before giving
+  // the queue a real error, rotating to another provider lane each time.
+  let r: { text: string; provider?: string; model?: string } | null = null;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const candidate = await chat(pagePrompt(topic, style, extra) as ChatMsg[], {
+        maxTokens: budget,
+        rotateBy: rotateBy + attempt,
+      });
+      if (candidate.text.trim().length < 120)
+        throw new Error("The writing provider returned an incomplete page.");
+      r = candidate;
+      break;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2)
+        await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
+    }
+  }
+  if (!r)
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("The writing provider could not generate this page.");
   // Autonomous self-revise loop (bounded: max 1 repair call per page).
   const wantsVisual =
     /process|cycle|algorithm|search|sort|system|network|forensic|chain|photosynthesis|loop|architecture|workflow|layer|division|circulat/i.test(
@@ -70,8 +91,8 @@ async function makeOnePage(
   return {
     topic,
     markdown: r.text,
-    provider: (r as any).provider ?? "unknown",
-    model: (r as any).model ?? "unknown",
+    provider: r.provider ?? "unknown",
+    model: r.model ?? "unknown",
   };
 }
 

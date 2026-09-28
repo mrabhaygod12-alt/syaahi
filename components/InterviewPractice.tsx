@@ -24,7 +24,9 @@ export default function InterviewPractice() {
     [feedback, setFeedback] = useState(""),
     [busy, setBusy] = useState(false),
     [seconds, setSeconds] = useState(0),
-    [running, setRunning] = useState(false);
+    [running, setRunning] = useState(false),
+    [targetRole, setTargetRole] = useState(""),
+    [jobDescription, setJobDescription] = useState("");
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -38,7 +40,13 @@ export default function InterviewPractice() {
       const r = await fetch("/api/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: tracks[track][index], answer, track }),
+        body: JSON.stringify({
+          question: tracks[track][index],
+          answer,
+          track,
+          targetRole,
+          jobDescription,
+        }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
@@ -72,6 +80,25 @@ export default function InterviewPractice() {
       </div>
       <div className="steps-grid">
         <section className="interactive-panel">
+          <label className="small">
+            Target role (optional)
+            <input
+              value={targetRole}
+              maxLength={160}
+              placeholder="e.g. Junior frontend developer"
+              onChange={(e) => setTargetRole(e.target.value)}
+            />
+          </label>
+          <label className="small">
+            Job requirements (optional, never shared publicly)
+            <textarea
+              rows={3}
+              maxLength={4000}
+              placeholder="Paste the relevant responsibilities or skills…"
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+            />
+          </label>
           <div className="section-heading">
             <span className="eyebrow">
               QUESTION {index + 1} OF {tracks[track].length}
@@ -117,8 +144,8 @@ export default function InterviewPractice() {
             </button>
           </div>
           <p className="small">
-            AI coaching requires an account. It is practice feedback, not a
-            hiring assessment.
+            AI coaching uses the role details only for this response. It is
+            practice feedback, not a hiring assessment or a human interview.
           </p>
         </section>
         <aside className="interactive-panel">

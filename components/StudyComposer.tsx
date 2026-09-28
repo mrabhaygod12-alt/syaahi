@@ -314,6 +314,9 @@ export default function StudyComposer({
             <option value="english">English</option>
             <option value="hindi">हिंदी</option>
             <option value="hinglish">Hinglish</option>
+            <option value="german">Deutsch</option>
+            <option value="french">Français</option>
+            <option value="spanish">Español</option>
           </select>
         </label>
         <label>

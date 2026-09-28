@@ -1,13 +1,24 @@
 import { relevantSource } from "@/lib/research";
-export type Lang = "english" | "hindi" | "hinglish";
+export type Lang =
+  | "english"
+  | "hindi"
+  | "hinglish"
+  | "german"
+  | "french"
+  | "spanish";
 
-/** Normalize any user-supplied language value to the 3 supported options. */
+/** Normalize any user-supplied language value to the supported note languages. */
 export function normalizeLang(v: unknown): Lang {
   const s = String(v ?? "")
     .trim()
     .toLowerCase();
   if (s === "hindi" || s === "hi") return "hindi";
   if (s === "hinglish" || s === "hing" || s === "roman") return "hinglish";
+  if (s === "german" || s === "de" || s === "deutsch") return "german";
+  if (s === "french" || s === "fr" || s === "francais" || s === "français")
+    return "french";
+  if (s === "spanish" || s === "es" || s === "espanol" || s === "español")
+    return "spanish";
   return "english";
 }
 
@@ -18,6 +29,15 @@ export function languageLine(lang: Lang): string {
   }
   if (lang === "hinglish") {
     return "LANGUAGE: Write in Hinglish — Hindi in Roman script mixed naturally with English, the way Indian students speak and revise. Keep technical terms in English.";
+  }
+  if (lang === "german") {
+    return "LANGUAGE: Write all notes in clear German (Deutsch). Keep internationally standard technical terms in English in brackets on first use when useful.";
+  }
+  if (lang === "french") {
+    return "LANGUAGE: Write all notes in clear French (français). Keep internationally standard technical terms in English in brackets on first use when useful.";
+  }
+  if (lang === "spanish") {
+    return "LANGUAGE: Write all notes in clear Spanish (español). Keep internationally standard technical terms in English in brackets on first use when useful.";
   }
   return "LANGUAGE: Write in simple exam-ready English.";
 }

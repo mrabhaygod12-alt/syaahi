@@ -199,7 +199,16 @@ export function renderDocument(
       )
         ? note.style!.paper
         : "cream";
-      return `<section class="source" data-paper="${paper} template-${["classic", "poster", "lab", "magazine", "study"].includes(note.template || "") ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${parseNote(note.markdown).map(block).join("")}</section>`;
+      const jitter = Math.max(0, Math.min(3, Number(note.style?.jitter ?? 1)));
+      // The variation is deterministic: the same saved lesson keeps the same
+      // appearance in preview and PDF, while still looking less typeset.
+      const rendered = parseNote(note.markdown)
+        .map((item, index) => {
+          const variation = jitter ? ` hand-${(index * 7 + item.kind.length) % 5}` : "";
+          return block(item).replace(/class="block\b/g, `class="block${variation}`);
+        })
+        .join("");
+      return `<section class="source" data-paper="${paper} template-${["classic", "poster", "lab", "magazine", "study"].includes(note.template || "") ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${rendered}</section>`;
     })
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -208,6 +217,10 @@ export function renderDocument(
   .sheet:last-child{break-after:auto;page-break-after:auto}.sheet-body{flex:1;min-height:0;display:flow-root}footer{flex-shrink:0;padding-top:4mm;height:10mm;font:10px/1.5 Arial,sans-serif;color:#82776a;border-top:1px solid #ddd2c3;margin-top:4mm}
   .cream{background:#fffdf6}.ruled{background:repeating-linear-gradient(#fff 0 31px,#e8edf5 31px 32px)}.grid{background-color:#fff;background-image:linear-gradient(#edf1f6 1px,transparent 1px),linear-gradient(90deg,#edf1f6 1px,transparent 1px);background-size:24px 24px}
   .block{margin:0 0 8px;overflow-wrap:anywhere;break-inside:avoid}h1{font-size:34px;line-height:1.15;color:#132f4c;padding-bottom:9px;border-bottom:3px solid #e1ac59;margin-bottom:14px!important}h2{font-size:25px;line-height:1.25;color:#966328;margin-top:12px!important}h3{font-size:25px;margin:6px 0 10px}strong{color:#ac3a3a}b{font-weight:700}.definition,.alert,.summary,.tip{padding:8px 12px;background:#eef3f8;border-left:3px solid #52799c;border-radius:3px}.alert{background:#fff1ed;border-color:#c36d55}.summary{background:#edf5ed;border-color:#6d9470}.tip{background:#fff5dd;border-color:#bfa268}.bullet{padding-left:20px;position:relative}.bullet-dot{position:absolute;left:0;color:#c59c55}.step b{color:#966328}
+  /* Deliberately subtle, print-safe handwritten variation. Text remains
+     selectable, searchable and accessible unlike a rasterized canvas export. */
+  .hand-0{transform:translateX(-.35px) rotate(-.08deg)}.hand-1{transform:translateX(.3px) rotate(.06deg)}.hand-2{transform:translateX(-.18px) rotate(.03deg)}.hand-3{transform:translateX(.22px) rotate(-.05deg)}.hand-4{transform:translateX(-.1px) rotate(.04deg)}
+  h1.hand-0,h1.hand-1,h1.hand-2,h1.hand-3,h1.hand-4,h2.hand-0,h2.hand-1,h2.hand-2,h2.hand-3,h2.hand-4,.visual.hand-0,.visual.hand-1,.visual.hand-2,.visual.hand-3,.visual.hand-4{transform:none}
   table{border-collapse:collapse;width:100%;font-size:.85em;table-layout:fixed}td,th{border:1px solid #c9d4de;padding:8px 10px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#edf2f6;color:#264661}tr:nth-child(even){background:#faf8f3}
   code{font-family:Consolas,'Courier New',monospace;font-size:.64em;background:#f0efed;padding:2px 4px;color:#263646;white-space:pre-wrap}.code{padding:14px 16px;background:#f3f4f6;border:1px solid #d9dce0;border-radius:6px;white-space:pre-wrap;font-family:Consolas,'Courier New',monospace;font-size:14px;line-height:1.6;tab-size:4}.code code{font-size:inherit;padding:0;background:none}
   .visual{padding:12px 14px;border:1px solid #ccd7df;border-radius:8px;background:#f8fbfc}.visual-label{font:10px Arial,sans-serif;text-transform:uppercase;letter-spacing:1.4px;color:#658095;margin-bottom:10px}.diagram{display:flex;flex-direction:column;gap:8px}.diagram-node{display:flex;align-items:center;gap:12px;border-left:3px solid #7c9caa;background:white;padding:6px 10px;font-size:22px}.diagram-node span{font:12px Arial,sans-serif;color:#917039}.concepts{display:flex;gap:8px;flex-wrap:wrap}.concepts span{background:#edf3ed;border:1px solid #b9cebb;border-radius:6px;padding:5px 12px;font-size:21px}.katex{font-size:.85em}.katex-display{margin:8px 0}.term{border-bottom:1px solid #e5e3db;padding-bottom:8px}

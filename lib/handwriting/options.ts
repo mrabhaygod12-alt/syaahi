@@ -47,5 +47,6 @@ export const DEFAULT_STYLE: StyleOpts = {
   ink: "#1a2a6b",
   paper: "ruled",
   size: 24,
-  jitter: 0,
+  // Kept restrained so exported notes remain readable and printable.
+  jitter: 1,
 };
