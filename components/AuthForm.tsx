@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signIn } from "@/lib/auth/session";
 import { requestJson } from "@/lib/http-client";
+import { waitForService } from "@/lib/service-ready";
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [accepted, setAccepted] = useState(false);
   const [name, setName] = useState("");
@@ -9,19 +10,35 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const activeAttempt = useRef<AbortController | null>(null);
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
 
   useEffect(() => {
     const error = new URLSearchParams(location.search).get("error");
     if (error) setMsg(error.slice(0, 300));
+    return () => activeAttempt.current?.abort();
   }, []);
+
+  async function prepareSignIn() {
+    activeAttempt.current?.abort();
+    const controller = new AbortController();
+    activeAttempt.current = controller;
+    setProgress(
+      "Connecting securely… This can take up to 90 seconds while the service starts.",
+    );
+    await waitForService(controller.signal);
+    setProgress("Service connected. Signing you in…");
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (activeAttempt.current) return;
     setBusy(true);
     setMsg("");
     setVerifyLink(null);
     try {
+      await prepareSignIn();
       const ref = new URLSearchParams(location.search).get("ref");
       const res = await signIn(
         name,
@@ -48,6 +65,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       }
       setMsg(error instanceof Error ? error.message : "Please retry.");
     } finally {
+      activeAttempt.current = null;
+      setProgress("");
       setBusy(false);
     }
   }
@@ -88,12 +107,14 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         className="btn light"
         style={{ marginTop: 16, width: "100%" }}
         onClick={async () => {
+          if (activeAttempt.current) return;
           const next =
             new URLSearchParams(location.search).get("next") || "/dashboard";
           setBusy(true);
           setMsg("");
           setVerifyLink(null);
           try {
+            await prepareSignIn();
             const { response: r, data: d } = await requestJson(
               "/api/auth/google",
               {
@@ -116,11 +137,19 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
           } catch (e) {
             setMsg(e instanceof Error ? e.message : "Google sign-in failed.");
             setBusy(false);
+          } finally {
+            activeAttempt.current = null;
+            setProgress("");
           }
         }}
       >
         Continue with Google
       </button>
+      {progress && (
+        <p role="status" aria-live="polite">
+          {progress}
+        </p>
+      )}
       <form
         className="card"
         style={{ display: "grid", gap: 16, marginTop: 24 }}
