@@ -17,6 +17,7 @@
     "test:chat-stream": "tsx scripts/test-chat-stream.ts",
     "test:research-references": "tsx scripts/test-research-references.ts",
     "test:generation-recovery": "tsx scripts/test-generation-recovery.ts",
+    "test:interview": "tsx scripts/test-interview.ts",
     "test:razorpay": "tsx scripts/test-razorpay-checkout.ts",
     "test:payment-status": "tsx scripts/test-payment-status.ts",
     "test:payment-pages": "tsx scripts/test-payment-pages.ts",
