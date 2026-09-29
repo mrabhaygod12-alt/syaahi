@@ -1,5 +1,6 @@
 import StudyDemo from "@/components/StudyDemo";
 import LandingReveal from "@/components/LandingReveal";
+import FeatureJourney from "@/components/FeatureJourney";
 import { CtaBand, Faq } from "@/components/site";
 import { pageMeta, jsonLd, SITE } from "@/lib/seo";
 export const metadata = pageMeta({
@@ -89,6 +90,7 @@ export default function Home() {
         </div>
       </section>
       <StudyDemo />
+      <FeatureJourney />
       <section className="wrap trust-note" aria-labelledby="about-syaahi">
         <h2 id="about-syaahi">What is Syaahi?</h2>
         <p>
@@ -210,19 +212,30 @@ export default function Home() {
           <article className="retention-card">
             <span className="feature-number">↗</span>
             <h3>Role-aware interview practice</h3>
-            <p>Add an optional target role and job requirements, then receive structured AI coaching on your answer. It remains practice, not a hiring decision.</p>
+            <p>
+              Add an optional target role and job requirements, then receive
+              structured AI coaching on your answer. It remains practice, not a
+              hiring decision.
+            </p>
             <a href="/interview">Start a mock interview →</a>
           </article>
           <article className="retention-card">
             <span className="feature-number">✎</span>
             <h3>Write a guide students can use</h3>
-            <p>Create a private draft, submit it to the editorial queue, and publish only after review. This keeps community guides useful and trustworthy.</p>
+            <p>
+              Create a private draft, submit it to the editorial queue, and
+              publish only after review. This keeps community guides useful and
+              trustworthy.
+            </p>
             <a href="/write">Open Writer Studio →</a>
           </article>
           <article className="retention-card">
             <span className="feature-number">◎</span>
             <h3>Discover reviewed guides</h3>
-            <p>Read study guides that have passed editorial review, alongside your own private lesson workspace.</p>
+            <p>
+              Read study guides that have passed editorial review, alongside
+              your own private lesson workspace.
+            </p>
             <a href="/community">Browse the community →</a>
           </article>
         </div>
