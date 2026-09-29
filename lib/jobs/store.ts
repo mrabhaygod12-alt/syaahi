@@ -15,8 +15,9 @@ export interface JobPractice {
   flashcards: Array<{
     front: string;
     back: string;
-    type?: "basic" | "cloze";
+    type?: "basic" | "cloze" | "ordering";
     topic?: string;
+    items?: string[];
   }>;
 }
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";

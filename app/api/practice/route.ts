@@ -25,8 +25,9 @@ export interface QuizQ {
 export interface Flash {
   front: string;
   back: string;
-  type?: "basic" | "cloze";
+  type?: "basic" | "cloze" | "ordering";
   topic?: string;
+  items?: string[];
 }
 
 async function handlePOST(req: NextRequest) {
@@ -130,8 +131,8 @@ async function handlePOST(req: NextRequest) {
           content:
             `You write exam practice from the notes. ${languageLine(lang)} STRICT JSON only, no fences:\n` +
             '{"quiz":[{"q":"...","type":"mcq","options":["option text","...","...","..."],"answer":"option text","hint":"...","topic":"...","explanation":"why the correct option follows from the notes"}],' +
-            '"flashcards":[{"front":"...","back":"...","type":"basic|cloze","topic":"..."}]}\n' +
-            `Exactly ${size} quiz items in format ${format} + ${cardCount} flashcards. Each flashcard must test a single meaningful idea; distribute cards across all supplied topics and avoid duplicate or trivial cards. Make roughly one third of flashcards type cloze: front has exactly one {{c1::answer}} marker in a meaningful sentence and back explains the answer. The remaining cards are basic question/answer cards. Mixed means a balance of mcq, blank, and short. For mcq use 4 options and answer MUST equal an option. For blank include ___ in the question and a brief exact answer, with no options. For short ask for a precise term, not an essay, and omit options. ` +
+            '"flashcards":[{"front":"...","back":"...","type":"basic|cloze|ordering","topic":"...","items":["..."]}]}\n' +
+            `Exactly ${size} quiz items in format ${format} + ${cardCount} flashcards. Each flashcard must test a single meaningful idea; distribute cards across all supplied topics and avoid duplicate or trivial cards. Make roughly one third type cloze: front has exactly one {{c1::answer}} marker. Make one or two type ordering: front asks for a process order, items contains 3-6 ordered short steps, and back explains the sequence. Remaining cards are basic question/answer cards. Mixed means a balance of mcq, blank, and short. For mcq use 4 options and answer MUST equal an option. For blank include ___ in the question and a brief exact answer, with no options. For short ask for a precise term, not an essay, and omit options. ` +
             `Answerable ONLY from the notes. Difficulty: ${difficulty}. Focus: ${focus || "all supplied topics"}. Include a clear explanation for every answer. Hints nudge, they do not leak the answer.`,
         },
         { role: "user", content: material },
@@ -185,7 +186,15 @@ async function handlePOST(req: NextRequest) {
           f.front.trim().length > 5 &&
           typeof f.back === "string" &&
           f.back.trim().length > 2 &&
-          (f.type !== "cloze" || /\{\{c1::[^{}]{2,120}\}\}/.test(f.front)),
+          (f.type !== "cloze" || /\{\{c1::[^{}]{2,120}\}\}/.test(f.front)) &&
+          (f.type !== "ordering" ||
+            (Array.isArray(f.items) &&
+              f.items.length >= 3 &&
+              f.items.length <= 6 &&
+              f.items.every(
+                (item: unknown) =>
+                  typeof item === "string" && item.trim().length > 1,
+              ))),
       )
       .filter(
         (f: Flash, i: number, all: Flash[]) =>

@@ -9,8 +9,9 @@ interface Review {
 type Flashcard = {
   front: string;
   back: string;
-  type?: "basic" | "cloze";
+  type?: "basic" | "cloze" | "ordering";
   topic?: string;
+  items?: string[];
 };
 
 function clozePrompt(front: string) {
@@ -28,7 +29,8 @@ export default function FlashcardsView() {
     [flip, setFlip] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [dueOnly, setDueOnly] = useState(true);
+    [dueOnly, setDueOnly] = useState(true),
+    [order, setOrder] = useState<string[]>([]);
   useEffect(() => {
     if (job?.practice?.flashcards) setCards(job.practice.flashcards);
   }, [job?.practice?.flashcards]);
@@ -91,6 +93,18 @@ export default function FlashcardsView() {
     );
   const current = queue[Math.min(index, queue.length - 1)];
   const card = cards[current];
+  useEffect(() => {
+    const items = card?.type === "ordering" ? [...(card.items || [])] : [];
+    items.sort(() => Math.random() - 0.5);
+    // Do not present an already solved sequence unless there is only one item.
+    if (
+      items.length > 1 &&
+      items.every((item, itemIndex) => item === card?.items?.[itemIndex])
+    ) {
+      [items[0], items[1]] = [items[1], items[0]];
+    }
+    setOrder(items);
+  }, [card]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (
@@ -191,27 +205,85 @@ export default function FlashcardsView() {
               {dueOnly ? "due cards" : "cards"}
             </span>
           </div>
-          <button
-            className={`flip-card ${flip ? "flipped" : ""}`}
-            onClick={() => setFlip(!flip)}
-            aria-label={flip ? "Show question" : "Show answer"}
-          >
-            <span>
-              {flip
-                ? card.back
-                : card.type === "cloze"
-                  ? clozePrompt(card.front)
-                  : card.front}
-            </span>
-            <small>
-              {flip
-                ? "Explanation"
-                : card.type === "cloze"
-                  ? "Fill the missing idea"
-                  : "Question"}{" "}
-              · tap, Enter, or Space to flip
-            </small>
-          </button>
+          {card.type === "ordering" && !flip ? (
+            <div className="ordering-card">
+              <h2>{card.front}</h2>
+              <p className="small">
+                Put the steps in the correct order, then reveal the sequence.
+              </p>
+              {order.map((item, itemIndex) => (
+                <div className="ordering-step" key={`${item}-${itemIndex}`}>
+                  <span>{itemIndex + 1}</span>
+                  <b>{item}</b>
+                  <button
+                    type="button"
+                    aria-label={`Move ${item} up`}
+                    disabled={itemIndex === 0}
+                    onClick={() =>
+                      setOrder((currentOrder) => {
+                        const next = [...currentOrder];
+                        [next[itemIndex - 1], next[itemIndex]] = [
+                          next[itemIndex],
+                          next[itemIndex - 1],
+                        ];
+                        return next;
+                      })
+                    }
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${item} down`}
+                    disabled={itemIndex === order.length - 1}
+                    onClick={() =>
+                      setOrder((currentOrder) => {
+                        const next = [...currentOrder];
+                        [next[itemIndex + 1], next[itemIndex]] = [
+                          next[itemIndex],
+                          next[itemIndex + 1],
+                        ];
+                        return next;
+                      })
+                    }
+                  >
+                    ↓
+                  </button>
+                </div>
+              ))}
+              <button
+                className="btn dark"
+                type="button"
+                onClick={() => setFlip(true)}
+              >
+                Reveal sequence
+              </button>
+            </div>
+          ) : (
+            <button
+              className={`flip-card ${flip ? "flipped" : ""}`}
+              onClick={() => setFlip(!flip)}
+              aria-label={flip ? "Show question" : "Show answer"}
+            >
+              <span>
+                {flip
+                  ? card.type === "ordering"
+                    ? `Correct order: ${(card.items || []).join(" → ")}\n\n${card.back}`
+                    : card.back
+                  : card.type === "cloze"
+                    ? clozePrompt(card.front)
+                    : card.front}
+              </span>
+              <small>
+                {flip
+                  ? "Explanation"
+                  : card.type === "cloze"
+                    ? "Fill the missing idea"
+                    : "Question"}{" "}
+                · tap, Enter, or Space to flip
+              </small>
+            </button>
+          )}
           {flip && (
             <div className="review-ratings">
               {["again", "hard", "good", "easy"].map((r, ratingIndex) => (
