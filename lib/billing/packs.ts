@@ -7,12 +7,26 @@ export type BillingCurrency = "INR" | "USD" | "EUR";
 /** Fixed merchant price points; foreign prices are not live FX conversions. */
 export const PACKS: Record<
   string,
-  { credits: number; inr: number; usd: number; eur: number }
+  {
+    credits: number;
+    inr: number;
+    usd: number;
+    eur: number;
+    /** Informational study window; this is a one-time bulk-credit purchase. */
+    durationDays?: number;
+  }
 > = {
   try: { credits: 3, inr: 9, usd: 5, eur: 5 },
   starter: { credits: 15, inr: 39, usd: 22, eur: 22 },
   popular: { credits: 36, inr: 79, usd: 44, eur: 44 },
   pro: { credits: 90, inr: 179, usd: 99, eur: 99 },
+  semester: {
+    credits: 360,
+    inr: 399,
+    usd: 149,
+    eur: 139,
+    durationDays: 183,
+  },
 };
 
 export function packPrice(pack: string, currency: BillingCurrency): number {

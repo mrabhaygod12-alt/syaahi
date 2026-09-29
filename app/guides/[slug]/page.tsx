@@ -3,6 +3,7 @@ import { getPublicStory } from "@/lib/writing/stories";
 import { pageMeta } from "@/lib/seo";
 import ReportPublication from "@/components/ReportPublication";
 import PublicationEngagement from "@/components/PublicationEngagement";
+import PublicationActions from "@/components/PublicationActions";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function GuidePage({
         >
           {story.body}
         </div>
+        <PublicationActions slug={story.slug!} />
         <ReportPublication slug={story.slug!} />
       </article>
     </main>

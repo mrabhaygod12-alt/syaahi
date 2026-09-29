@@ -20,6 +20,11 @@ const COPY: Record<
     featured: true,
   },
   pro: { label: "Pro", blurb: "Long syllabi and YouTube lectures." },
+  semester: {
+    label: "Semester Pass",
+    blurb: "A six-month bulk study budget for one semester.",
+    featured: true,
+  },
 };
 
 export default function PricingClient({
@@ -129,12 +134,12 @@ export default function PricingClient({
             key={id}
             className={"pricing-card " + (COPY[id]?.featured ? "featured" : "")}
           >
-            {COPY[id]?.featured && (
+              {COPY[id]?.featured && (
               <div
                 className="small"
                 style={{ color: "#214b40", fontWeight: 700 }}
               >
-                Suggested pack
+                {id === "semester" ? "Semester value" : "Suggested pack"}
               </div>
             )}
             <h2 style={{ margin: "4px 0" }}>
@@ -144,6 +149,12 @@ export default function PricingClient({
               {plan.credits} credits · {plan.credits} note sections
             </b>
             <p className="small">{COPY[id]?.blurb}</p>
+            {plan.durationDays && (
+              <p className="small">
+                Plan your study over {plan.durationDays} days. One payment;
+                no automatic renewal.
+              </p>
+            )}
             <button
               className="btn dark"
               disabled={regionStatus !== "ready" || !checkoutEnabled}

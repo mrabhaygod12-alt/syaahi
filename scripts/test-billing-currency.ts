@@ -61,6 +61,7 @@ async function main() {
       starter: [39, 22, 22],
       popular: [79, 44, 44],
       pro: [179, 99, 99],
+      semester: [399, 149, 139],
     },
   );
   assert.equal(packAmountMinor("try", "INR"), 900);

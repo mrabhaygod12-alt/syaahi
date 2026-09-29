@@ -40,6 +40,10 @@ export function db(): DatabaseSync {
     CREATE INDEX IF NOT EXISTS stories_user_updated ON stories(user_id, updated_at DESC);
     CREATE TABLE IF NOT EXISTS content_reports (id TEXT PRIMARY KEY, story_id TEXT NOT NULL, reporter TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS content_reports_story_status ON content_reports(story_id, status, created_at DESC);
+    CREATE TABLE IF NOT EXISTS story_engagement (story_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      upvoted INTEGER NOT NULL DEFAULT 0, bookmarked INTEGER NOT NULL DEFAULT 0, tips INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL, PRIMARY KEY (story_id, user_id));
+    CREATE INDEX IF NOT EXISTS story_engagement_story ON story_engagement(story_id);
   `);
   // Existing persistent SQLite installations predate multi-currency orders.
   // Preserve their INR records while allowing new orders to store their currency.

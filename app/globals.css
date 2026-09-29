@@ -2576,6 +2576,12 @@ a {
 .source-review textarea {
   margin-top: 10px;
 }
+.course-pack-picker{margin-top:14px}
+.course-pack-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:12px 0}
+.course-pack-options button{text-align:left;background:#fff;border:1px solid #d8e1d6;border-radius:10px;padding:12px;color:#173b30;cursor:pointer}
+.course-pack-options button:hover,.course-pack-options button:focus-visible{border-color:#214b40;background:#f1f7f1}
+.course-pack-options span{font-size:.82rem;color:#617069}
+.publication-actions{border-top:1px solid #d8e1d6;margin-top:28px;padding-top:18px}.publication-actions>div{display:flex;flex-wrap:wrap;gap:8px}.publication-actions .btn{padding:8px 12px}
 .composer-status {
   padding: 14px 0;
   font-size: 13px;

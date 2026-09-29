@@ -84,6 +84,17 @@ async function main() {
     "Citation issue resolved after review.",
   );
   assert.equal(restored.status, "published");
+  const engagement = await import("../lib/writing/engagement");
+  await engagement.setGuideReaction(reporter.id, published.slug!, "upvote", true);
+  await engagement.setGuideReaction(reporter.id, published.slug!, "bookmark", true);
+  const tipped = await engagement.tipGuideCreator(reporter.id, published.slug!, 2);
+  assert.equal(tipped.upvotes, 1);
+  assert.equal(tipped.bookmarks, 1);
+  assert.equal(tipped.tippedCredits, 2);
+  await assert.rejects(
+    () => engagement.tipGuideCreator(user.id, published.slug!, 1),
+    /cannot tip your own guide/,
+  );
   await stories.recordPublicStoryView(published.slug!);
   const analytics = await stories.creatorAnalytics(user.id);
   assert.equal(analytics.published, 1);

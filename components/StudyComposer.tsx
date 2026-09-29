@@ -3,6 +3,7 @@ import { tokenLabel } from "@/lib/billing/packs";
 import { useEffect, useRef, useState } from "react";
 import LectureRecorder from "./LectureRecorder";
 import { useRouter } from "next/navigation";
+import { COURSE_PACKS } from "@/lib/course-packs";
 interface Plan {
   topics: string[];
   context: string;
@@ -61,6 +62,15 @@ export default function StudyComposer({
   useEffect(() => {
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
+  useEffect(() => {
+    const selected = new URLSearchParams(window.location.search).get("coursePack");
+    const pack = COURSE_PACKS.find((item) => item.slug === selected);
+    if (!pack) return;
+    setText(`${pack.institution} · ${pack.programme}: ${pack.title}`);
+    setContext(pack.topics.map((topic, index) => `Unit ${index + 1}: ${topic}`).join("\n"));
+    setSource(`${pack.institution} course-pack starter`);
+    setPlan(null);
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem("syaahi-note-language", language);
@@ -313,6 +323,24 @@ export default function StudyComposer({
           </button>
         ))}
       </fieldset>
+      <details className="source-review course-pack-picker">
+        <summary>Start from a university course-pack outline</summary>
+        <p className="small">These starters are not official syllabi. Confirm the current university outline before generating.</p>
+        <div className="course-pack-options">
+          {COURSE_PACKS.map((pack) => (
+            <button key={pack.slug} type="button" onClick={() => {
+              setText(`${pack.institution} · ${pack.programme}: ${pack.title}`);
+              setContext(pack.topics.map((topic, index) => `Unit ${index + 1}: ${topic}`).join("\n"));
+              setSource(`${pack.institution} course-pack starter`);
+              setSourceUrl("");
+              setPlan(null);
+            }}>
+              <b>{pack.title}</b><br /><span>{pack.institution} · {pack.term}</span>
+            </button>
+          ))}
+        </div>
+        <a className="small" href="/course-packs">Browse all course-pack starters →</a>
+      </details>
       <div className="composer-options">
         <label>
           Target pages

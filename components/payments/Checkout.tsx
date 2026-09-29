@@ -158,7 +158,9 @@ export default function Checkout({
       <p className="payment-eyebrow">SECURE CHECKOUT</p>
       <h1>Your next study session starts here.</h1>
       <div className="payment-panel">
-        <p className="payment-eyebrow">{pack} pack · One-time purchase</p>
+        <p className="payment-eyebrow">
+          {pack === "semester" ? "Semester Pass" : `${pack} pack`} · One-time purchase
+        </p>
         <h2>
           {formatMinorPrice(packPrice(pack, currency) * 100, currency)}{" "}
           <span className="small">{currency}</span>
@@ -171,6 +173,12 @@ export default function Checkout({
           One credit covers one generated section. Additional PDF continuation
           sheets are free. No recurring subscription.
         </p>
+        {plan.durationDays && (
+          <p className="small">
+            This is a bulk credit budget designed for a {plan.durationDays}-day
+            semester. It does not renew automatically.
+          </p>
+        )}
         {(order?.testMode || paymentMode === "test") && (
           <p className="payment-notice">
             Test checkout: no real money will be charged.

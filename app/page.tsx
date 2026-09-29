@@ -243,6 +243,12 @@ export default function Home() {
               "/dashboard",
             ],
             [
+              "▦",
+              "Course-pack starters",
+              "Begin from a private university-course outline, then verify it against your current syllabus before generating notes.",
+              "/course-packs",
+            ],
+            [
               "↗",
               "Interview practice",
               "Reopen a mock interview, respond to follow-ups, and download a preparation report.",
