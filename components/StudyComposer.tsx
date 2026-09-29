@@ -34,16 +34,20 @@ export default function StudyComposer({
     [language, setLanguage] = useState(() => {
       if (typeof window === "undefined") return "english";
       const saved = localStorage.getItem("syaahi-note-language");
-      return [
+      if ([
         "english",
         "hindi",
         "hinglish",
         "german",
         "french",
         "spanish",
-      ].includes(saved || "")
-        ? saved!
-        : "english";
+      ].includes(saved || "")) return saved!;
+      const browserLanguage = navigator.language.toLowerCase();
+      if (browserLanguage.startsWith("hi")) return "hindi";
+      if (browserLanguage.startsWith("de")) return "german";
+      if (browserLanguage.startsWith("fr")) return "french";
+      if (browserLanguage.startsWith("es")) return "spanish";
+      return "english";
     }),
     [detail, setDetail] = useState("detailed");
   const [busy, setBusy] = useState(""),
@@ -63,6 +67,13 @@ export default function StudyComposer({
     } catch {
       /* Browser storage can be unavailable in private contexts. */
     }
+    // A missing session is harmless here: signed-in users get a durable
+    // preference and guests still retain the browser choice for this device.
+    fetch("/api/user/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locale: language }),
+    }).catch(() => {});
   }, [language]);
 
   const scrollToTarget = (ref: React.RefObject<HTMLElement | null>) => {
