@@ -34,7 +34,14 @@ export default function StudyComposer({
     [language, setLanguage] = useState(() => {
       if (typeof window === "undefined") return "english";
       const saved = localStorage.getItem("syaahi-note-language");
-      return ["english", "hindi", "hinglish", "german", "french", "spanish"].includes(saved || "")
+      return [
+        "english",
+        "hindi",
+        "hinglish",
+        "german",
+        "french",
+        "spanish",
+      ].includes(saved || "")
         ? saved!
         : "english";
     }),
@@ -318,8 +325,8 @@ export default function StudyComposer({
             ))}
           </select>
         </label>
-        <label>
-          Language
+        <label className="generation-language-control">
+          Note language
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -331,6 +338,7 @@ export default function StudyComposer({
             <option value="french">Français</option>
             <option value="spanish">Español</option>
           </select>
+          <small>Applies to this lesson and future note creation.</small>
         </label>
         <label>
           Depth

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
 import UserChip from "./UserChip";
-import LanguageControl from "./LanguageControl";
 
 type NavItem = { label: string; detail: string; href: string };
 type NavGroup = { label: string; items: NavItem[] };
@@ -125,6 +124,7 @@ export default function SiteHeader() {
         </a>
         <nav
           ref={navigationRef}
+          id="site-navigation"
           className={mobileOpen ? "site-nav open" : "site-nav"}
           aria-label="Main navigation"
         >
@@ -181,13 +181,13 @@ export default function SiteHeader() {
           ))}
         </nav>
         <div className="header-account">
-          <LanguageControl />
           <InstallApp />
           <UserChip />
           <button
             className="mobile-menu"
             type="button"
             aria-expanded={mobileOpen}
+            aria-controls="site-navigation"
             aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
             onClick={() => setMobileOpen((value) => !value)}
           >

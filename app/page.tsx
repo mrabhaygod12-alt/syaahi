@@ -196,6 +196,82 @@ export default function Home() {
           ))}
         </div>
       </section>
+      <section
+        className="wrap all-tools-section"
+        aria-labelledby="all-tools-title"
+      >
+        <div className="all-tools-heading">
+          <div>
+            <p className="eyebrow">EXPLORE THE FULL WORKSPACE</p>
+            <h2 id="all-tools-title">More than a note generator.</h2>
+          </div>
+          <p>
+            Each feature has a clear purpose: help you understand material,
+            practise it, and return to it with the original context intact.
+          </p>
+        </div>
+        <div className="all-tools-grid">
+          {[
+            [
+              "✦",
+              "Syaahi AI tutor",
+              "Ask a lesson-specific question, request a simpler explanation, or work through an example.",
+              "/features",
+            ],
+            [
+              "▤",
+              "Source transparency",
+              "Review the original material and labels that distinguish supplied text from researched context.",
+              "/docs/getting-started",
+            ],
+            [
+              "↻",
+              "Adaptive recall",
+              "Use quizzes and flashcards to identify weak concepts and plan another review.",
+              "/how-it-works",
+            ],
+            [
+              "⇩",
+              "Notebook-style PDFs",
+              "Choose a note template, keep long content readable, and export a printable A4 PDF.",
+              "/examples",
+            ],
+            [
+              "◌",
+              "Study languages",
+              "Choose English, Hindi, Hinglish, German, French, or Spanish when you create notes.",
+              "/dashboard",
+            ],
+            [
+              "↗",
+              "Interview practice",
+              "Reopen a mock interview, respond to follow-ups, and download a preparation report.",
+              "/interview",
+            ],
+            [
+              "◎",
+              "Private collaboration",
+              "Keep lessons private by default and decide when classmates can view or edit them.",
+              "/docs",
+            ],
+            [
+              "✎",
+              "Reviewed study guides",
+              "Write privately, submit for editorial review, and discover community guides after approval.",
+              "/community",
+            ],
+          ].map(([icon, title, copy, href]) => (
+            <a className="all-tools-card" href={href} key={title}>
+              <span aria-hidden="true">{icon}</span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+              <b>
+                Explore <i aria-hidden="true">→</i>
+              </b>
+            </a>
+          ))}
+        </div>
+      </section>
       <section className="wrap trust-note">
         <h2>Useful AI starts with honest limits.</h2>
         <p>
@@ -261,6 +337,26 @@ export default function Home() {
           {
             q: "Are my materials private?",
             a: "Lessons are private by default unless shared. Configured AI services process supplied material. Read our privacy policy for the details.",
+          },
+          {
+            q: "Can I choose the language for my notes?",
+            a: "Yes. Choose a language while creating a lesson: English, Hindi, Hinglish, German, French, or Spanish. Your selected study language is saved as a preference for your next lesson.",
+          },
+          {
+            q: "Can I return after closing my browser?",
+            a: "After you sign in, your lessons and account are stored in your workspace. Keep your browser session active and use the same account to reopen saved lessons on another device.",
+          },
+          {
+            q: "What happens if note generation is interrupted?",
+            a: "The workspace shows the generation status and lets you resume or retry a partially completed lesson. You can continue from the failed section instead of starting the whole lesson again.",
+          },
+          {
+            q: "Can I share or publish my work?",
+            a: "Lessons stay private unless you share them. Study guides begin as private drafts; guides become public only after they are submitted and pass editorial review.",
+          },
+          {
+            q: "Does Syaahi replace a teacher or original source?",
+            a: "No. It helps organise and practise material. Check important claims against your syllabus, teacher, and original sources before relying on them.",
           },
         ]}
       />
