@@ -29,6 +29,7 @@ export interface Flash {
   topic?: string;
   items?: string[];
   imageAlt?: string;
+  imageData?: string;
 }
 
 async function handlePOST(req: NextRequest) {
@@ -69,6 +70,19 @@ async function handlePOST(req: NextRequest) {
       { error: "Ask the lesson owner to generate or rebuild practice." },
       { status: 403 },
     );
+  if (body.action === "attach-image") {
+    const cardIndex = Number(body.cardIndex);
+    const imageData = typeof body.imageData === "string" ? body.imageData : "";
+    if (!owned || !Number.isInteger(cardIndex) || !owned.practice?.flashcards?.[cardIndex])
+      return NextResponse.json({ error: "Choose an existing flashcard." }, { status: 400 });
+    if (!/^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(imageData) || imageData.length > 700_000)
+      return NextResponse.json({ error: "Use a PNG, JPEG, WebP, or GIF under 500 KB." }, { status: 400 });
+    const flashcards = owned.practice.flashcards.map((card, index) =>
+      index === cardIndex ? { ...card, type: "image" as const, imageData } : card,
+    );
+    await updateJob(owned.id, { practice: { ...owned.practice, flashcards } });
+    return NextResponse.json({ flashcards });
+  }
   if (owned) pages.splice(0, pages.length, ...owned.pages);
   const lang = normalizeLang(body.language);
   if (!pages.length)

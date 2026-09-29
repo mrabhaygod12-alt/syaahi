@@ -44,6 +44,7 @@ export interface LessonJob {
       topic?: string;
       items?: string[];
       imageAlt?: string;
+      imageData?: string;
     }>;
   } | null;
   error: string | null;

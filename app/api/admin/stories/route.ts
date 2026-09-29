@@ -24,7 +24,13 @@ async function handlePOST(req: NextRequest) {
   if (typeof body.id !== "string" || !["publish", "changes"].includes(body.action))
     return NextResponse.json({ error: "Choose a submitted story and review action." }, { status: 400 });
   try {
-    const story = await reviewStory(body.id, body.action, typeof body.note === "string" ? body.note : "");
+    const user = (await currentUser(req))!;
+    const story = await reviewStory(
+      body.id,
+      body.action,
+      typeof body.note === "string" ? body.note : "",
+      user.id,
+    );
     return NextResponse.json({ story });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not review story." }, { status: 400 });

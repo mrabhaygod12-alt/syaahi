@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 
 type Track = "Software engineering" | "Data & analytics" | "Behavioural";
 type Question = { question: string; competency: string; guidance: string };
+type Rubric = { structure: number; relevance: number; clarity: number; evidence: number };
 type InterviewSession = {
   id: string;
   track: Track;
   targetRole: string;
   createdAt: string;
   questions: Question[];
-  reviews: Array<{ question: string; feedback: string; at: string }>;
+  reviews: Array<{ question: string; answer: string; feedback: string; rubric: Rubric; followUp: string; at: string }>;
 };
 type SessionSummary = {
   id: string;
@@ -47,6 +48,8 @@ export default function InterviewPractice() {
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [rubric, setRubric] = useState<Rubric | null>(null);
+  const [followUp, setFollowUp] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -73,6 +76,8 @@ export default function InterviewPractice() {
   function resetQuestion() {
     setAnswer("");
     setFeedback("");
+    setRubric(null);
+    setFollowUp("");
     setMessage("");
     setSeconds(0);
     setRunning(false);
@@ -135,7 +140,7 @@ export default function InterviewPractice() {
       "",
       ...session.questions.flatMap((question, index) => {
         const review = session.reviews.find((item) => item.question === question.question);
-        return [`## ${index + 1}. ${question.question}`, `Competency: ${question.competency}`, `Guidance: ${question.guidance}`, review ? `\nCoaching:\n${review.feedback}` : "\nNot reviewed yet.", ""];
+        return [`## ${index + 1}. ${question.question}`, `Competency: ${question.competency}`, `Guidance: ${question.guidance}`, review ? `\nYour answer:\n${review.answer}\n\nCoaching:\n${review.feedback}\n\nPractice rubric (1–4): structure ${review.rubric.structure}, relevance ${review.rubric.relevance}, clarity ${review.rubric.clarity}, evidence ${review.rubric.evidence}\nFollow-up: ${review.followUp}` : "\nNot reviewed yet.", ""];
       }),
       "This report is study practice feedback, not a hiring assessment.",
     ];
@@ -173,6 +178,8 @@ export default function InterviewPractice() {
       }
       if (!response.ok) throw new Error(errorMessage(data));
       setFeedback(data.feedback);
+      setRubric(data.rubric || null);
+      setFollowUp(data.followUp || "");
       await loadHistory();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Feedback is unavailable.");
@@ -185,6 +192,21 @@ export default function InterviewPractice() {
     if (!session) return;
     setIndex((value) => (value + 1) % session.questions.length);
     resetQuestion();
+  }
+
+  function printReport() {
+    if (!session) return;
+    const escape = (value: string) => value.replace(/[&<>]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[char]!);
+    const sections = session.questions.map((question, itemIndex) => {
+      const review = session.reviews.find((item) => item.question === question.question);
+      return `<section><h2>${itemIndex + 1}. ${escape(question.question)}</h2><p><b>${escape(question.competency)}</b> · ${escape(question.guidance)}</p>${review ? `<h3>Your answer</h3><p>${escape(review.answer)}</p><h3>Coaching</h3><p>${escape(review.feedback)}</p><p><b>Practice rubric (1–4):</b> Structure ${review.rubric.structure}, relevance ${review.rubric.relevance}, clarity ${review.rubric.clarity}, evidence ${review.rubric.evidence}.</p><p><b>Follow-up:</b> ${escape(review.followUp)}</p>` : "<p>Not reviewed yet.</p>"}</section>`;
+    }).join("");
+    const popup = window.open("", "_blank", "noopener,noreferrer");
+    if (!popup) { setMessage("Allow pop-ups to print or save your report as a PDF."); return; }
+    popup.document.write(`<!doctype html><title>Syaahi interview practice report</title><style>body{font:15px/1.55 Arial,sans-serif;max-width:760px;margin:40px auto;color:#173b30}section{break-inside:avoid;border-top:1px solid #d8e1d6;padding:18px 0}h1,h2{color:#205641}h3{margin-bottom:0}p{white-space:pre-wrap}</style><h1>Syaahi interview practice report</h1><p>${escape(session.track)} · ${escape(session.targetRole || "General practice")} · ${escape(new Date(session.createdAt).toLocaleString())}</p>${sections}<p><small>Private practice feedback only. It is not a hiring assessment.</small></p>`);
+    popup.document.close();
+    popup.focus();
+    popup.print();
   }
 
   return (
@@ -274,6 +296,7 @@ export default function InterviewPractice() {
                 New plan
               </button>
               <button className="btn light" onClick={downloadReport}>Download report</button>
+              <button className="btn light" onClick={printReport}>Print / save PDF</button>
             </div>
             <p className="small">
               This is private practice feedback, not a hiring assessment or a human interview.
@@ -283,7 +306,11 @@ export default function InterviewPractice() {
           <aside className="interactive-panel">
             <span className="eyebrow">YOUR COACHING NOTES</span>
             {feedback ? (
-              <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }} aria-live="polite">{feedback}</div>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 14 }} aria-live="polite">
+                {feedback}
+                {rubric && <p className="interview-rubric"><b>Practice rubric (1–4)</b><br />Structure {rubric.structure} · Relevance {rubric.relevance} · Clarity {rubric.clarity} · Evidence {rubric.evidence}</p>}
+                {followUp && <p><b>Follow-up simulation:</b> {followUp}</p>}
+              </div>
             ) : (
               <>
                 <h2>A stronger answer has structure.</h2>

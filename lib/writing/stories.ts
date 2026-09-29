@@ -49,6 +49,12 @@ export interface Story {
     body: string;
     tags: string[];
   }>;
+  moderationEvents?: Array<{
+    action: "submitted" | "published" | "changes_requested" | "removed" | "restored";
+    at: string;
+    actor: string | null;
+    note: string | null;
+  }>;
 }
 
 function clean(value: unknown): Story | null {
@@ -299,6 +305,9 @@ export async function saveStory(
     restoredAt: null,
     restoredBy: null,
     analytics: { views: 0, lastViewedAt: null },
+    moderationEvents: input.submit
+      ? [{ action: "submitted", at: now, actor: user, note: null }]
+      : [],
   };
   if (useMongo())
     await (await collection("stories")).insertOne({ _id: story.id, ...story });
@@ -323,6 +332,7 @@ export async function reviewStory(
   id: string,
   action: "publish" | "changes",
   note: string,
+  moderator: string | null = null,
 ): Promise<Story> {
   const now = new Date().toISOString();
   const existing = useMongo()
@@ -345,6 +355,17 @@ export async function reviewStory(
     reviewNote: note.trim().slice(0, 1000) || null,
     slug: action === "publish" ? toSlug(existing.title, existing.id) : null,
     updatedAt: now,
+    moderationEvents: [
+      ...(existing.moderationEvents || []),
+      {
+        action: (action === "publish" ? "published" : "changes_requested") as
+          | "published"
+          | "changes_requested",
+        at: now,
+        actor: moderator,
+        note: note.trim().slice(0, 1000) || null,
+      },
+    ].slice(-50),
   };
   if (useMongo())
     await (
@@ -404,6 +425,10 @@ export async function removeStory(
     restoredBy: null,
     removalNote: note.trim().slice(0, 1000) || "Removed by Syaahi moderation.",
     updatedAt: now,
+    moderationEvents: [
+      ...(existing.moderationEvents || []),
+      { action: "removed" as const, at: now, actor: moderator, note: note.trim().slice(0, 1000) },
+    ].slice(-50),
   };
   await persistStory(story);
   return story;
@@ -428,6 +453,10 @@ export async function restoreStory(
     restoredBy: moderator,
     reviewedAt: now,
     updatedAt: now,
+    moderationEvents: [
+      ...(existing.moderationEvents || []),
+      { action: "restored" as const, at: now, actor: moderator, note: note.trim().slice(0, 1000) || null },
+    ].slice(-50),
   };
   await persistStory(story);
   return story;

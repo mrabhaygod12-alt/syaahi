@@ -13,6 +13,7 @@ type Flashcard = {
   topic?: string;
   items?: string[];
   imageAlt?: string;
+  imageData?: string;
 };
 
 function clozePrompt(front: string) {
@@ -175,6 +176,36 @@ export default function FlashcardsView() {
       setBusy(false);
     }
   }
+  async function attachImage(file: File) {
+    if (!job || !card) return;
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type) || file.size > 500_000) {
+      setError("Choose a PNG, JPEG, WebP, or GIF under 500 KB.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const imageData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("The image could not be read."));
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsDataURL(file);
+      });
+      const response = await fetch("/api/practice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "attach-image", jobId: job.id, cardIndex: current, imageData }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The image could not be saved.");
+      setCards(data.flashcards);
+      await refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "The image could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="quiz-room">
       <div className="section-heading">
@@ -287,8 +318,10 @@ export default function FlashcardsView() {
               onClick={() => setFlip(!flip)}
               aria-label={flip ? "Show question" : "Show answer"}
             >
-              {!flip && card.type === "image" && card.imageAlt && (
-                <VisualMnemonic label={card.imageAlt} />
+              {!flip && card.type === "image" && (
+                card.imageData ? (
+                  <img className="flashcard-visual flashcard-upload" src={card.imageData} alt={card.imageAlt || "Flashcard study image"} />
+                ) : card.imageAlt ? <VisualMnemonic label={card.imageAlt} /> : null
               )}
               <span>
                 {flip
@@ -308,6 +341,21 @@ export default function FlashcardsView() {
                 · tap, Enter, or Space to flip
               </small>
             </button>
+          )}
+          {!flip && (
+            <label className="btn light flashcard-upload-control">
+              {busy ? "Saving image…" : card.imageData ? "Replace study image" : "Attach study image"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                disabled={busy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void attachImage(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
           )}
           {flip && (
             <div className="review-ratings">

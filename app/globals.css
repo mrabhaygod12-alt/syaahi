@@ -3237,6 +3237,9 @@ input:not([type]) {
   margin: 0 auto 20px;
   border-radius: 18px;
 }
+.flashcard-upload { max-height: 280px; object-fit: contain; background: #f4f6f1; }
+.flashcard-upload-control { display: inline-flex; margin: 0 auto 12px; cursor: pointer; }
+.flashcard-upload-control input { display: none; }
 .study-dashboard {
   display: flex;
   justify-content: space-between;

@@ -20,6 +20,8 @@ export interface JobPractice {
     items?: string[];
     /** Short, safe description rendered as an inline visual mnemonic. */
     imageAlt?: string;
+    /** Learner-provided image stored with the private lesson; never public by default. */
+    imageData?: string;
   }>;
 }
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";
