@@ -37,7 +37,12 @@ export interface LessonJob {
   title: string | null;
   practice: {
     quiz: QuizQ[];
-    flashcards: Array<{ front: string; back: string }>;
+    flashcards: Array<{
+      front: string;
+      back: string;
+      type?: "basic" | "cloze";
+      topic?: string;
+    }>;
   } | null;
   error: string | null;
   createdAt: string;

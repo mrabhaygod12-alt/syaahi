@@ -6,9 +6,22 @@ interface Review {
   interval: number;
   repetitions: number;
 }
+type Flashcard = {
+  front: string;
+  back: string;
+  type?: "basic" | "cloze";
+  topic?: string;
+};
+
+function clozePrompt(front: string) {
+  return front.replace(/\{\{c1::([^{}]+)\}\}/g, "_____");
+}
+
 export default function FlashcardsView() {
   const { job, refresh } = useLesson();
-  const [cards, setCards] = useState(job?.practice?.flashcards ?? []),
+  const [cards, setCards] = useState<Flashcard[]>(
+      job?.practice?.flashcards ?? [],
+    ),
     [ids, setIds] = useState<string[]>([]),
     [reviews, setReviews] = useState<Record<string, Review>>({}),
     [index, setIndex] = useState(0),
@@ -86,7 +99,8 @@ export default function FlashcardsView() {
         event.target instanceof HTMLSelectElement
       )
         return;
-      if (!card || busy || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!card || busy || event.metaKey || event.ctrlKey || event.altKey)
+        return;
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
         setFlip((value) => !value);
@@ -182,8 +196,21 @@ export default function FlashcardsView() {
             onClick={() => setFlip(!flip)}
             aria-label={flip ? "Show question" : "Show answer"}
           >
-            <span>{flip ? card.back : card.front}</span>
-            <small>{flip ? "Answer" : "Question"} · tap, Enter, or Space to flip</small>
+            <span>
+              {flip
+                ? card.back
+                : card.type === "cloze"
+                  ? clozePrompt(card.front)
+                  : card.front}
+            </span>
+            <small>
+              {flip
+                ? "Explanation"
+                : card.type === "cloze"
+                  ? "Fill the missing idea"
+                  : "Question"}{" "}
+              · tap, Enter, or Space to flip
+            </small>
           </button>
           {flip && (
             <div className="review-ratings">

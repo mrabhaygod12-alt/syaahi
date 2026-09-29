@@ -12,7 +12,12 @@ export interface JobPage {
 }
 export interface JobPractice {
   quiz: Array<{ q: string; type: string; options?: string[]; answer: string }>;
-  flashcards: Array<{ front: string; back: string }>;
+  flashcards: Array<{
+    front: string;
+    back: string;
+    type?: "basic" | "cloze";
+    topic?: string;
+  }>;
 }
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";
 export interface JobReference {
