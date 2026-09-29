@@ -4,12 +4,14 @@ export async function downloadPdfFromElement(
   el: HTMLElement,
   filename = "syaahi-notes.pdf",
   onProgress?: (done: number, total: number) => void,
+  appendix?: PrintNote,
 ) {
   const nodes = Array.from(
     el.querySelectorAll<HTMLElement>("[data-print-note]"),
   );
   if (!nodes.length) throw new Error("No notes to export.");
   const notes: PrintNote[] = nodes.map((n) => JSON.parse(n.dataset.printNote!));
+  if (appendix) notes.push(appendix);
   onProgress?.(0, notes.length);
   const response = await fetch("/api/export", {
     method: "POST",

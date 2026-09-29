@@ -27,8 +27,17 @@ interface Study {
     at: string;
     weak: string[];
   }>;
+  reminder: {
+    enabled: boolean;
+    hour: number;
+  };
 }
-const fresh = (): Study => ({ folders: [], reviews: {}, attempts: [] });
+const fresh = (): Study => ({
+  folders: [],
+  reviews: {},
+  attempts: [],
+  reminder: { enabled: false, hour: 19 },
+});
 const cardId = (f: { front: string; back: string }) =>
   createHash("sha256")
     .update(f.front + "\n" + f.back)
@@ -37,8 +46,13 @@ const cardId = (f: { front: string; back: string }) =>
 async function handleGET(req: Request) {
   const denied = await authError(req);
   if (denied) return denied;
+  const state = await readState((await currentUser(req))!.id, "learning", fresh());
+  // Older saved study records predate reminders. Fill defaults on read so the
+  // client never has to guess at a malformed preference.
+  if (!state.reminder || typeof state.reminder !== "object")
+    state.reminder = { enabled: false, hour: 19 };
   return NextResponse.json(
-    await readState((await currentUser(req))!.id, "learning", fresh()),
+    state,
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -128,6 +142,11 @@ async function handlePOST(req: Request) {
           },
           ...s.attempts,
         ].slice(0, 100);
+      } else if (b.action === "reminder") {
+        const hour = Number(b.hour);
+        if (!Number.isInteger(hour) || hour < 0 || hour > 23)
+          throw new Error("Choose a reminder hour between 0 and 23.");
+        s.reminder = { enabled: b.enabled === true, hour };
       } else throw new Error("Unknown study action.");
       return s;
     });

@@ -25,6 +25,16 @@ export const PDF_TEMPLATES = [
     label: "Magazine spread",
     blurb: "Editorial serif titles, pull-quotes, two-tone tables.",
   },
+  {
+    id: "exam",
+    label: "Exam revision",
+    blurb: "Ruled paper, highlighter marks and generous margins for last-minute revision.",
+  },
+  {
+    id: "annotated",
+    label: "Annotated notebook",
+    blurb: "Margin-note prompts, warm paper and visual emphasis for deeper review.",
+  },
 ] as const;
 
 export type PdfTemplateId = (typeof PDF_TEMPLATES)[number]["id"];

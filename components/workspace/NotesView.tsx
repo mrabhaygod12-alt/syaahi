@@ -47,6 +47,22 @@ export default function NotesView() {
     french: "Français",
     spanish: "Español",
   };
+  const citationAppendix = useMemo(() => {
+    const references = job?.referenceLinks || [];
+    const items = [
+      job?.sourceUrl
+        ? `- Original input: [${job.sourceName || job.sourceUrl}](${job.sourceUrl})`
+        : "- Original input: learner-selected topic or supplied material.",
+      ...references.map((reference) => `- ${reference.kind === "source" ? "Retrieved reference" : "Further reading"}: [${reference.title}](${reference.url})`),
+    ];
+    return {
+      topic: "Sources & citation appendix",
+      markdown: `# Sources & citation appendix\n\nThis appendix records the lesson inputs and links shown in the Source room. Verify important claims against the original material.\n\n${items.join("\n")}`,
+      style: { font: "Kalam", paper: "plain" as const, size: 22 },
+      template: "classic" as const,
+      footer: "Syaahi · Sources & citation appendix",
+    };
+  }, [job?.referenceLinks, job?.sourceName, job?.sourceUrl]);
 
   // Deep-link from chat citations: /notes#page-3 scrolls to that page.
   useEffect(() => {
@@ -118,6 +134,7 @@ export default function NotesView() {
                   printRef.current,
                   `syaahi-${job.id}.pdf`,
                   (d, t) => setDlState(`Page ${d}/${t}…`),
+                  citationAppendix,
                 );
                 setDlState(null);
               } catch (e: any) {
@@ -133,7 +150,8 @@ export default function NotesView() {
       </div>
       <p className="small notes-tpl-blurb">
         {PDF_TEMPLATES.find((t) => t.id === tpl)?.blurb} · Long sections
-        continue onto extra sheets.
+        continue onto extra sheets. Downloads include a sources and citation
+        appendix.
       </p>
 
       {(job.status === "working" || job.status === "queued") && (

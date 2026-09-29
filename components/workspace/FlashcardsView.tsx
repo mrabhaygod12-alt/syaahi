@@ -9,13 +9,35 @@ interface Review {
 type Flashcard = {
   front: string;
   back: string;
-  type?: "basic" | "cloze" | "ordering";
+  type?: "basic" | "cloze" | "ordering" | "image";
   topic?: string;
   items?: string[];
+  imageAlt?: string;
 };
 
 function clozePrompt(front: string) {
   return front.replace(/\{\{c1::([^{}]+)\}\}/g, "_____");
+}
+
+function VisualMnemonic({ label }: { label: string }) {
+  const safe = label.slice(0, 140);
+  return (
+    <svg className="flashcard-visual" viewBox="0 0 600 230" role="img" aria-label={safe}>
+      <defs>
+        <linearGradient id="flashcard-gradient" x1="0" x2="1" y1="0" y2="1">
+          <stop stopColor="#eff6ee" />
+          <stop offset="1" stopColor="#d9ece0" />
+        </linearGradient>
+      </defs>
+      <rect x="8" y="8" width="584" height="214" rx="28" fill="url(#flashcard-gradient)" stroke="#b7d0be" strokeWidth="3" />
+      <circle cx="92" cy="110" r="48" fill="#205641" opacity=".92" />
+      <path d="M76 110h32M92 94v32" stroke="white" strokeWidth="8" strokeLinecap="round" />
+      <path d="M164 160 C235 70, 345 200, 438 84" fill="none" stroke="#719b79" strokeWidth="7" strokeLinecap="round" strokeDasharray="8 13" />
+      <circle cx="460" cy="80" r="18" fill="#be8a42" />
+      <text x="164" y="118" fill="#173b30" fontSize="28" fontFamily="Arial, sans-serif" fontWeight="700">{safe}</text>
+      <text x="164" y="154" fill="#466356" fontSize="17" fontFamily="Arial, sans-serif">Visual recall cue</text>
+    </svg>
+  );
 }
 
 export default function FlashcardsView() {
@@ -265,6 +287,9 @@ export default function FlashcardsView() {
               onClick={() => setFlip(!flip)}
               aria-label={flip ? "Show question" : "Show answer"}
             >
+              {!flip && card.type === "image" && card.imageAlt && (
+                <VisualMnemonic label={card.imageAlt} />
+              )}
               <span>
                 {flip
                   ? card.type === "ordering"

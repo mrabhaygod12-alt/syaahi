@@ -14,7 +14,14 @@ export default function NotePage({
   style: StyleOpts;
   footer: string;
   seedKey?: string;
-  template?: "classic" | "poster" | "lab" | "magazine" | "study";
+  template?:
+    | "classic"
+    | "poster"
+    | "lab"
+    | "magazine"
+    | "study"
+    | "exam"
+    | "annotated";
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(1123);

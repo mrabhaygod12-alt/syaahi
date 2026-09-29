@@ -40,9 +40,10 @@ export interface LessonJob {
     flashcards: Array<{
       front: string;
       back: string;
-      type?: "basic" | "cloze" | "ordering";
+      type?: "basic" | "cloze" | "ordering" | "image";
       topic?: string;
       items?: string[];
+      imageAlt?: string;
     }>;
   } | null;
   error: string | null;

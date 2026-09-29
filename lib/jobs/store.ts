@@ -15,9 +15,11 @@ export interface JobPractice {
   flashcards: Array<{
     front: string;
     back: string;
-    type?: "basic" | "cloze" | "ordering";
+    type?: "basic" | "cloze" | "ordering" | "image";
     topic?: string;
     items?: string[];
+    /** Short, safe description rendered as an inline visual mnemonic. */
+    imageAlt?: string;
   }>;
 }
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";
@@ -63,7 +65,15 @@ export interface Job {
   plannedTotal: number;
   planNote: string | null;
   progress: JobProgress | null;
-  pdfTemplate: "classic" | "poster" | "lab" | "magazine" | null;
+  pdfTemplate:
+    | "classic"
+    | "poster"
+    | "lab"
+    | "magazine"
+    | "study"
+    | "exam"
+    | "annotated"
+    | null;
   podcastScript: string | null;
   error: string | null;
   creditsSpent: number;

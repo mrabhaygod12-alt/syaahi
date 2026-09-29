@@ -208,7 +208,7 @@ export function renderDocument(
           return block(item).replace(/class="block\b/g, `class="block${variation}`);
         })
         .join("");
-      return `<section class="source" data-paper="${paper} template-${["classic", "poster", "lab", "magazine", "study"].includes(note.template || "") ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${rendered}</section>`;
+      return `<section class="source" data-paper="${paper} template-${["classic", "poster", "lab", "magazine", "study", "exam", "annotated"].includes(note.template || "") ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${rendered}</section>`;
     })
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -239,6 +239,7 @@ export function renderDocument(
   .template-study .diagram-node:first-child,.template-study .diagram-node:last-child{border-radius:30px;max-width:55%;border-color:#437359}
   .template-study .flow-arrow{color:#437359}.template-study .diagram-node span{display:none}
   .template-study th{background:#f4edf1;color:#8c3159}.template-study tr:nth-child(even){background:transparent}
+  .template-exam{background:repeating-linear-gradient(#fffef8 0 30px,#dce6f2 30px 31px)!important;padding-left:24mm}.template-exam:before{content:'';position:absolute;left:18mm;top:0;bottom:0;border-left:1.5px solid #e5a6a6}.template-exam h1{color:#193d70;border-bottom:3px double #193d70}.template-exam h2{color:#9a3e55}.template-exam strong{background:#fff0a6;padding:0 3px}.template-annotated{background:#fffdf5!important;padding-right:30mm}.template-annotated:after{content:'REVIEW\A ? Clarify\A ✓ Recall\A → Connect';white-space:pre;position:absolute;right:7mm;top:28mm;width:17mm;color:#8c7060;font:11px/1.8 Arial,sans-serif;border-left:1px solid #dac7b9;padding-left:3mm}.template-annotated h1{color:#70415a;border-bottom-color:#d39b69}.template-annotated .definition,.template-annotated .summary{background:#fff2d9;border-left-color:#c68149}.template-annotated strong{color:#8e3849;text-decoration:underline;text-decoration-color:#d39b69;text-underline-offset:3px}
   @page{size:A4;margin:0}@media print{html,body{background:white!important;height:auto!important}#pages{transform:none!important}.sheet{margin:0!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
   </style></head><body><main id="pages"></main><div id="sources">${sources}</div><script>${paginate}</script></body></html>`;
 }

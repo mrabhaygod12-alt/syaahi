@@ -3230,6 +3230,33 @@ input:not([type]) {
   cursor: pointer;
 }
 .ordering-step button:disabled { opacity: 0.35; cursor: not-allowed; }
+.flashcard-visual {
+  display: block;
+  width: min(100%, 600px);
+  height: auto;
+  margin: 0 auto 20px;
+  border-radius: 18px;
+}
+.study-dashboard {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+.study-dashboard h2 { margin: 5px 0; }
+.study-reminder {
+  min-width: 225px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.study-reminder label { font-weight: 700; }
+.study-reminder select { width: 120px; }
+.study-reminder p { margin: 0; }
+@media (max-width: 640px) {
+  .study-dashboard { flex-direction: column; }
+  .study-reminder { min-width: 0; }
+}
 @media (max-width: 520px) {
   .ordering-card { padding: 20px; }
   .ordering-step {

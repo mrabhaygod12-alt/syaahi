@@ -171,6 +171,16 @@ async function main() {
   assert(Object.values<any>(state.reviews[job.id])[0].due > Date.now());
   assert.equal(
     (
+      await study.POST(
+        req(ownerCookie, { action: "reminder", enabled: true, hour: 18 }),
+      )
+    ).status,
+    200,
+  );
+  const reminderState = await (await study.GET(req(ownerCookie))).json();
+  assert.deepEqual(reminderState.reminder, { enabled: true, hour: 18 });
+  assert.equal(
+    (
       await collaboration.POST(
         req(memberCookie, {
           action: "comment",
