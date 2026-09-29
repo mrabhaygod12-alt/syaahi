@@ -14,6 +14,7 @@ import { chatWithFallback } from "@/lib/ai/router";
 import { normalizeLang } from "@/lib/ai/prompts";
 import { balance } from "@/lib/credits/store";
 import { rateLimit } from "@/lib/ratelimit";
+import { getDocument } from "@/lib/documents/store";
 import {
   heuristicLessonPlan,
   parsePlanJson,
@@ -56,6 +57,31 @@ async function handlePOST(req: NextRequest) {
     );
 
   const sourceKind = asKind(body.sourceKind);
+  const documentId =
+    typeof body.documentId === "string" ? body.documentId : undefined;
+  let documentRange: { from: number; to: number } | undefined;
+  if (documentId) {
+    const doc = await getDocument(user, documentId);
+    if (!doc)
+      return NextResponse.json(
+        { error: "Textbook not found." },
+        { status: 404 },
+      );
+    const from = Number(body.documentRange?.from || 1),
+      to = Number(body.documentRange?.to || doc.pageCount);
+    if (
+      !Number.isInteger(from) ||
+      !Number.isInteger(to) ||
+      from < 1 ||
+      to > doc.pageCount ||
+      from > to
+    )
+      return NextResponse.json(
+        { error: "Choose a valid textbook page range." },
+        { status: 400 },
+      );
+    documentRange = { from, to };
+  }
   const skipAi = body.intelligentPlan === false;
   const language = normalizeLang(body.language);
   const suppliedContext = String(body.context ?? "").slice(0, 100000);
@@ -137,6 +163,8 @@ async function handlePOST(req: NextRequest) {
   let job;
   try {
     job = await createJob(user, topics, style, {
+      documentId,
+      documentRange,
       context: sourceContext,
       brief: String(body.brief ?? ""),
       sourceUrl: String(body.sourceUrl ?? ""),

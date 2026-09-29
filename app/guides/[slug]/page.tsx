@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { getPublicStory } from "@/lib/writing/stories";
+import { publicGuides } from "@/lib/writing/public";
+const getPublicStory = async (slug: string) =>
+  (await publicGuides("slug", slug))[0];
 import { pageMeta } from "@/lib/seo";
 import ReportPublication from "@/components/ReportPublication";
 import PublicationEngagement from "@/components/PublicationEngagement";

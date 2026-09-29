@@ -4,7 +4,8 @@ import { SUBJECTS } from "@/lib/study/subjects";
 import { BLOG_POSTS } from "@/lib/blog-data";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { listPublicStories } from "@/lib/writing/stories";
+import { publicGuides } from "@/lib/writing/public";
+export const dynamic = "force-dynamic";
 
 const STATIC = [
   "",
@@ -36,6 +37,7 @@ const STATIC = [
   "/blog",
   "/community",
   "/course-packs",
+  "/campus",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -52,13 +54,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* unseeded */
   }
   try {
-    const published = await listPublicStories();
-    creatorSlugs = [...new Set(
-      published
-        .map((story) => story.creatorSlug)
-        .filter(Boolean),
-    )];
-    guideSlugs = published.map((story) => story.slug).filter((slug): slug is string => !!slug);
+    const published = await publicGuides();
+    creatorSlugs = [
+      ...new Set(published.map((story) => story.creatorSlug).filter(Boolean)),
+    ];
+    guideSlugs = published
+      .map((story) => story.slug)
+      .filter((slug): slug is string => !!slug);
   } catch {
     /* publishing storage can be temporarily unavailable during a build */
   }

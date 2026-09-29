@@ -8,6 +8,14 @@ export const metadata = pageMeta({
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
+    "Textbook retrieval and voice practice",
+    "Textbook uploads store extracted page text and page numbers privately under your account. When vector search is enabled, excerpts are sent to Gemini for embeddings; Qdrant stores vectors and account/document identifiers for account-scoped retrieval. Deleting a textbook immediately revokes access and clears extracted text; vector deletion is retried by the background worker. Live interview practice streams microphone audio directly to Gemini only during the session. This voice interface displays a temporary transcript and does not save raw recordings in Syaahi.",
+  ],
+  [
+    "Campus and institution applications",
+    "Applications store your account name and email, institution, programme, proposal, requested seat count, consent and review status. Authorised administrators can review these details and retain an internal decision history. Contact Support to request correction or deletion. Submission or acceptance does not itself create an employment relationship or an institutional partnership.",
+  ],
+  [
     "Email verification and rewards",
     "Email verification stores a hashed, one-hour token and your verification time. When email delivery is configured, Resend processes the recipient address and verification message. Google accounts are verified using the confirmed Google identity. Referral reward balances and transfer events are stored separately from the study wallet; verification can qualify the inviter for a promotional reward. Neither verification tokens nor reward credits are cash.",
   ],

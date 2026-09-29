@@ -38,6 +38,8 @@ export interface JobProgress {
 }
 
 export interface Job {
+  documentId?: string;
+  documentRange?: { from: number; to: number };
   revision?: number;
   id: string;
   user: string;
@@ -96,6 +98,8 @@ export async function createJob(
   topics: string[],
   style: "detailed" | "concise",
   extra?: {
+    documentId?: string;
+    documentRange?: { from: number; to: number };
     context?: string;
     brief?: string;
     sourceUrl?: string;
@@ -107,6 +111,8 @@ export async function createJob(
   },
 ): Promise<Job> {
   const job: Job = {
+    documentId: extra?.documentId,
+    documentRange: extra?.documentRange,
     id: randomUUID(),
     user,
     topics,

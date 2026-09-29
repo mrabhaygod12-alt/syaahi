@@ -25,6 +25,28 @@ export default function StudyComposer({
   onCreated?: () => void;
 }) {
   const router = useRouter();
+  const [document, setDocument] = useState<{
+    id: string;
+    name: string;
+    pageCount: number;
+  } | null>(null);
+  const [documentRange, setDocumentRange] = useState({ from: 1, to: 1 });
+  const [savedDocuments, setSavedDocuments] = useState<
+    Array<{ id: string; name: string; pageCount: number }>
+  >([]);
+  async function loadDocuments() {
+    try {
+      const response = await fetch("/api/documents");
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error || "Could not load textbooks.");
+      setSavedDocuments(data.documents);
+    } catch {
+      setError(
+        "Could not load saved textbooks. Open this section again to retry.",
+      );
+    }
+  }
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(initialTopic),
     [context, setContext] = useState(""),
@@ -35,14 +57,17 @@ export default function StudyComposer({
     [language, setLanguage] = useState(() => {
       if (typeof window === "undefined") return "english";
       const saved = localStorage.getItem("syaahi-note-language");
-      if ([
-        "english",
-        "hindi",
-        "hinglish",
-        "german",
-        "french",
-        "spanish",
-      ].includes(saved || "")) return saved!;
+      if (
+        [
+          "english",
+          "hindi",
+          "hinglish",
+          "german",
+          "french",
+          "spanish",
+        ].includes(saved || "")
+      )
+        return saved!;
       const browserLanguage = navigator.language.toLowerCase();
       if (browserLanguage.startsWith("hi")) return "hindi";
       if (browserLanguage.startsWith("de")) return "german";
@@ -63,11 +88,17 @@ export default function StudyComposer({
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
   useEffect(() => {
-    const selected = new URLSearchParams(window.location.search).get("coursePack");
+    const selected = new URLSearchParams(window.location.search).get(
+      "coursePack",
+    );
     const pack = COURSE_PACKS.find((item) => item.slug === selected);
     if (!pack) return;
     setText(`${pack.institution} · ${pack.programme}: ${pack.title}`);
-    setContext(pack.topics.map((topic, index) => `Unit ${index + 1}: ${topic}`).join("\n"));
+    setContext(
+      pack.topics
+        .map((topic, index) => `Unit ${index + 1}: ${topic}`)
+        .join("\n"),
+    );
     setSource(`${pack.institution} course-pack starter`);
     setPlan(null);
   }, []);
@@ -106,6 +137,7 @@ export default function StudyComposer({
     }
   }, [plan, busy]);
   async function upload(file: File) {
+    setDocument(null);
     setBusy("Reading your material...");
     setError("");
     setPlan(null);
@@ -137,6 +169,38 @@ export default function StudyComposer({
       setBusy("");
     }
   }
+  async function uploadTextbook(file: File) {
+    setBusy("Indexing textbook pages…");
+    setError("");
+    setPlan(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        body: form,
+      });
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error || "Textbook could not be indexed.");
+      setDocument(data);
+      setDocumentRange({ from: 1, to: data.pageCount });
+      setSavedDocuments((items) => [
+        data,
+        ...items.filter((item) => item.id !== data.id),
+      ]);
+      setContext("");
+      setSource(data.name);
+      setSourceUrl("");
+      setSourceNotice(
+        "Enter a chapter topic and select its physical PDF page range. Notes will cite matching passages.",
+      );
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setBusy("");
+    }
+  }
   async function prepare(pageOverride?: number) {
     const targetPages = typeof pageOverride === "number" ? pageOverride : pages;
     setBusy("Finding sources and planning...");
@@ -146,6 +210,7 @@ export default function StudyComposer({
     }, 60);
     try {
       let studyTitle = text;
+      let selectedDocument = document;
       let material =
         context || (text.length > 500 ? text.slice(0, 100000) : "");
       if (
@@ -161,6 +226,8 @@ export default function StudyComposer({
         if (!response.ok)
           throw new Error(data.error || "Could not read this lecture.");
         material = data.transcript;
+        selectedDocument = null;
+        setDocument(null);
         studyTitle = data.title || "Study the supplied video";
         setSourceNotice(data.warning || data.assessment?.reason || "");
         setContext(material);
@@ -179,6 +246,8 @@ export default function StudyComposer({
           pages: targetPages || "auto",
           learningGoal,
           research,
+          documentId: selectedDocument?.id,
+          documentRange,
         }),
       });
       const data = await response.json();
@@ -213,6 +282,8 @@ export default function StudyComposer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topics,
+          documentId: document?.id,
+          documentRange,
           context: plan.context,
           sourceName: source || text.slice(0, 120),
           sourceUrl,
@@ -323,23 +394,162 @@ export default function StudyComposer({
           </button>
         ))}
       </fieldset>
+      <details
+        className="source-review"
+        onToggle={(event) => {
+          if (event.currentTarget.open) void loadDocuments();
+        }}
+      >
+        <summary>Study a textbook chapter with page citations</summary>
+        <p className="small">
+          Upload a text PDF up to 10 MB, 500 pages, and 3 million extracted
+          characters. Scanned books need OCR first. Extracted pages are stored
+          privately for retrieval.
+        </p>
+        <input
+          type="file"
+          accept=".pdf"
+          aria-label="Upload textbook PDF"
+          disabled={!!busy}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void uploadTextbook(file);
+            e.target.value = "";
+          }}
+        />
+        <label>
+          Saved textbook
+          <select
+            disabled={!!busy}
+            value={document?.id || ""}
+            onChange={(event) => {
+              const selected =
+                savedDocuments.find((item) => item.id === event.target.value) ||
+                null;
+              setDocument(selected);
+              setDocumentRange({ from: 1, to: selected?.pageCount || 1 });
+              setPlan(null);
+              setContext("");
+              setSource(selected?.name || "");
+              setSourceUrl("");
+            }}
+          >
+            <option value="">Select a private textbook</option>
+            {savedDocuments.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} ({item.pageCount} pages)
+              </option>
+            ))}
+          </select>
+        </label>
+        {document && (
+          <div>
+            <p>
+              {document.name} · {document.pageCount} pages
+            </p>
+            <label>
+              First PDF page{" "}
+              <input
+                type="number"
+                min={1}
+                max={document.pageCount}
+                value={documentRange.from}
+                onChange={(e) => {
+                  setDocumentRange((r) => ({
+                    ...r,
+                    from: Number(e.target.value),
+                  }));
+                  setPlan(null);
+                }}
+              />
+            </label>
+            <label>
+              Last PDF page{" "}
+              <input
+                type="number"
+                min={documentRange.from}
+                max={document.pageCount}
+                value={documentRange.to}
+                onChange={(e) => {
+                  setDocumentRange((r) => ({
+                    ...r,
+                    to: Number(e.target.value),
+                  }));
+                  setPlan(null);
+                }}
+              />
+            </label>
+            <button
+              className="btn light"
+              disabled={!!busy}
+              onClick={async () => {
+                setBusy("Deleting textbook…");
+                try {
+                  const response = await fetch(
+                    `/api/documents/${document.id}`,
+                    { method: "DELETE" },
+                  );
+                  if (response.ok) {
+                    setSavedDocuments((items) =>
+                      items.filter((item) => item.id !== document.id),
+                    );
+                    setDocument(null);
+                    setSource("");
+                    setPlan(null);
+                    setSourceNotice("");
+                  } else
+                    setError("Could not delete this textbook. Please retry.");
+                } catch {
+                  setError(
+                    "Could not reach the service. Please retry deleting this textbook.",
+                  );
+                } finally {
+                  setBusy("");
+                }
+              }}
+            >
+              Delete stored textbook
+            </button>
+          </div>
+        )}
+      </details>
       <details className="source-review course-pack-picker">
         <summary>Start from a university course-pack outline</summary>
-        <p className="small">These starters are not official syllabi. Confirm the current university outline before generating.</p>
+        <p className="small">
+          These starters are not official syllabi. Confirm the current
+          university outline before generating.
+        </p>
         <div className="course-pack-options">
           {COURSE_PACKS.map((pack) => (
-            <button key={pack.slug} type="button" onClick={() => {
-              setText(`${pack.institution} · ${pack.programme}: ${pack.title}`);
-              setContext(pack.topics.map((topic, index) => `Unit ${index + 1}: ${topic}`).join("\n"));
-              setSource(`${pack.institution} course-pack starter`);
-              setSourceUrl("");
-              setPlan(null);
-            }}>
-              <b>{pack.title}</b><br /><span>{pack.institution} · {pack.term}</span>
+            <button
+              key={pack.slug}
+              type="button"
+              onClick={() => {
+                setText(
+                  `${pack.institution} · ${pack.programme}: ${pack.title}`,
+                );
+                setContext(
+                  pack.topics
+                    .map((topic, index) => `Unit ${index + 1}: ${topic}`)
+                    .join("\n"),
+                );
+                setSource(`${pack.institution} course-pack starter`);
+                setSourceUrl("");
+                setDocument(null);
+                setPlan(null);
+              }}
+            >
+              <b>{pack.title}</b>
+              <br />
+              <span>
+                {pack.institution} · {pack.term}
+              </span>
             </button>
           ))}
         </div>
-        <a className="small" href="/course-packs">Browse all course-pack starters →</a>
+        <a className="small" href="/course-packs">
+          Browse all course-pack starters →
+        </a>
       </details>
       <div className="composer-options">
         <label>
@@ -405,6 +615,7 @@ export default function StudyComposer({
             aria-label="Remove attachment"
             onClick={() => {
               setSourceNotice("");
+              setDocument(null);
               setSourceUrl("");
               setSource("");
               setContext("");

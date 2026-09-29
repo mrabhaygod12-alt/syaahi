@@ -14,6 +14,8 @@ export interface QuizQ {
   explanation?: string;
 }
 export interface LessonJob {
+  documentId?: string;
+  documentRange?: { from: number; to: number };
   revision?: number;
   accessRole?: "owner" | "editor" | "viewer";
   id: string;

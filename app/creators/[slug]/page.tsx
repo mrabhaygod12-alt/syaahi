@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { listPublicStoriesByCreator } from "@/lib/writing/stories";
+import { publicGuides } from "@/lib/writing/public";
+const listPublicStoriesByCreator = (slug: string) =>
+  publicGuides("creator", slug);
 import { pageMeta } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -43,8 +45,9 @@ export default async function CreatorPage({
         <span className="eyebrow">VERIFIED SYAAHI CREATOR</span>
         <h1>{creator.authorName}</h1>
         <p className="small">
-          This profile is created only from guides approved by Syaahi’s editorial
-          review. It does not disclose the creator’s email or private drafts.
+          This profile is created only from guides approved by Syaahi’s
+          editorial review. It does not disclose the creator’s email or private
+          drafts.
         </p>
         <p className="small">
           First published {new Date(firstPublished).toLocaleDateString()}
@@ -63,12 +66,19 @@ export default async function CreatorPage({
               <h3>{story.title}</h3>
               <p>{story.summary}</p>
               <div className="about-tags">
-                {story.tags.map((tag) => <span key={tag}>{tag}</span>)}
+                {story.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
               </div>
               <p className="small">
-                Published {new Date(story.publishedAt || story.createdAt).toLocaleDateString()}
+                Published{" "}
+                {new Date(
+                  story.publishedAt || story.createdAt,
+                ).toLocaleDateString()}
               </p>
-              <a className="btn dark" href="/community">Browse reviewed guides →</a>
+              <a className="btn dark" href={`/guides/${story.slug}`}>
+                Read guide →
+              </a>
             </article>
           ))}
         </div>

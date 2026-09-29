@@ -137,6 +137,150 @@ async function main() {
       (await state.readState(user.id, "test", { value: 0 })).value,
       1,
     );
+    const stories = await import("../lib/writing/stories");
+    const engagement = await import("../lib/writing/engagement");
+    const draft = await stories.saveStory(owner.id, {
+      authorName: "Owner",
+      title: "Mongo study guide regression",
+      summary: "A practical revision guide for students.",
+      body: "# Review your mistakes\n\nKeep a short record of incorrect answers and practise the underlying concept again. Review your record after each focused study session.",
+      tags: ["revision"],
+      submit: true,
+    });
+    const published = await stories.reviewStory(
+      draft.id,
+      "publish",
+      "Reviewed for test publication.",
+    );
+    await engagement.setGuideReaction(user.id, published.slug!, "upvote", true);
+    const bookmarked = await engagement.setGuideReaction(
+      user.id,
+      published.slug!,
+      "bookmark",
+      true,
+    );
+    assert.equal(bookmarked.viewer?.upvoted, true);
+    assert.equal(bookmarked.viewer?.bookmarked, true);
+    const requestId = "01900000-0000-4000-8000-000000000001";
+    await Promise.all([
+      engagement.tipGuideCreator(user.id, published.slug!, 1, requestId),
+      engagement.tipGuideCreator(user.id, published.slug!, 1, requestId),
+    ]);
+    assert.equal(
+      await balance(user.id),
+      4,
+      "concurrent tip replay debits only once",
+    );
+    assert.equal(await balance(owner.id), 20);
+    await assert.rejects(() =>
+      engagement.tipGuideCreator(user.id, published.slug!, 2, requestId),
+    );
+    const docs = await import("../lib/documents/store");
+    const textbook = await docs.saveDocument(user.id, "Test.pdf", 1, [
+      { num: 1, text: "Dijkstra shortest path algorithm" },
+    ]);
+    assert.equal(await docs.getDocument(owner.id, textbook.id), null);
+    assert.equal(
+      (await docs.documentEvidence(user.id, textbook.id, "Dijkstra")).matches
+        .length,
+      1,
+    );
+    assert.equal(await docs.deleteDocument(user.id, textbook.id), true);
+    assert.equal(await docs.getDocument(user.id, textbook.id), null);
+    const vectorBook = await docs.saveDocument(
+      user.id,
+      "Vector.pdf",
+      17,
+      Array.from({ length: 17 }, (_, i) => ({
+        num: i + 1,
+        text: `Chapter ${i + 1} Dijkstra paths`,
+      })),
+    );
+    process.env.QDRANT_URL = "https://vectors.example.test";
+    process.env.GEMINI_EMBEDDING_API_KEY = "test-only-embedding-key";
+    const originalFetch = globalThis.fetch;
+    let indexedPoints = 0,
+      deletedVectors = false;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      if (url.hostname === "generativelanguage.googleapis.com")
+        return Response.json({
+          embeddings: body.requests.map(() => ({
+            values: Array(768).fill(0.01),
+          })),
+        });
+      assert.equal(
+        url.hostname,
+        "vectors.example.test",
+        "no unintended external calls",
+      );
+      if (url.pathname.endsWith("/points")) {
+        indexedPoints += body.points.length;
+        assert.equal(body.points[0].payload.owner, user.id);
+        assert.equal(body.points[0].payload.text, undefined);
+      }
+      if (url.pathname.endsWith("/points/query")) {
+        assert.deepEqual(body.filter.must, [
+          { key: "owner", match: { value: user.id } },
+          { key: "documentId", match: { value: vectorBook.id } },
+          { key: "page", range: { gte: 2, lte: 5 } },
+        ]);
+        return Response.json({
+          result: {
+            points: [
+              { payload: { chunkId: "P3C1" } },
+              { payload: { chunkId: "foreign-chunk" } },
+            ],
+          },
+        });
+      }
+      if (url.pathname.endsWith("/points/delete")) {
+        assert.equal(body.filter.must[0].match.value, user.id);
+        deletedVectors = true;
+      }
+      return Response.json({ result: {} });
+    };
+    try {
+      const vectors = await import("../lib/documents/vectors");
+      await vectors.indexDocumentBatch();
+      assert.equal(
+        (await docs.getDocument(user.id, vectorBook.id))?.vectorOffset,
+        16,
+      );
+      await vectors.indexDocumentBatch();
+      assert.equal(indexedPoints, 17);
+      assert.equal(
+        (await docs.getDocument(user.id, vectorBook.id))?.vectorReady,
+        true,
+      );
+      const hybrid = await docs.documentEvidence(
+        user.id,
+        vectorBook.id,
+        "different terminology",
+        { from: 2, to: 5 },
+      );
+      assert.equal(hybrid.method, "BM25 + semantic retrieval");
+      assert.deepEqual(
+        hybrid.matches.map((chunk) => chunk.id),
+        ["P3C1"],
+      );
+      await docs.deleteDocument(user.id, vectorBook.id);
+      await (
+        await mongo()
+      ).database
+        .collection("study_documents")
+        .updateOne(
+          { _id: vectorBook.id as any },
+          { $set: { deletedAt: Date.now() - 180000 } },
+        );
+      await vectors.indexDocumentBatch();
+      assert.equal(deletedVectors, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.QDRANT_URL;
+      delete process.env.GEMINI_EMBEDDING_API_KEY;
+    }
     await auth.endSession(
       new Request("http://localhost", { headers: { cookie } }),
     );

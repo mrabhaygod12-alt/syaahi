@@ -1,4 +1,5 @@
 import { pageConcurrency } from "./capacity";
+import { documentEvidence } from "@/lib/documents/store";
 import { chatWithFallback, type ChatMsg } from "@/lib/ai/router";
 import { pagePrompt, normalizeLang, type PageBrief } from "@/lib/ai/prompts";
 import { parseNote } from "@/lib/notes/parse";
@@ -36,10 +37,13 @@ async function makeOnePage(
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const candidate = await chat(pagePrompt(topic, style, extra) as ChatMsg[], {
-        maxTokens: budget,
-        rotateBy: rotateBy + attempt,
-      });
+      const candidate = await chat(
+        pagePrompt(topic, style, extra) as ChatMsg[],
+        {
+          maxTokens: budget,
+          rotateBy: rotateBy + attempt,
+        },
+      );
       if (candidate.text.trim().length < 120)
         throw new Error("The writing provider returned an incomplete page.");
       r = candidate;
@@ -47,7 +51,9 @@ async function makeOnePage(
     } catch (error) {
       lastError = error;
       if (attempt < 2)
-        await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 750 * (attempt + 1)),
+        );
     }
   }
   if (!r)
@@ -144,6 +150,7 @@ export async function generatePages(
   onPage?: (page: JobPage, index: number) => Promise<void> | void,
   chat: ChatFn = chatWithFallback as ChatFn,
   extra?: PageBrief,
+  retrieve?: (topic: string) => Promise<string>,
 ): Promise<{ pages: JobPage[]; errors: string[] }> {
   const slots: (JobPage | null)[] = new Array(topics.length).fill(null);
   const errors: string[] = [];
@@ -169,7 +176,14 @@ export async function generatePages(
       const i = next++;
       if (i >= topics.length) return;
       try {
-        slots[i] = await makeOnePage(topics[i], style, extra, chat, i);
+        const context = retrieve ? await retrieve(topics[i]) : extra?.context;
+        slots[i] = await makeOnePage(
+          topics[i],
+          style,
+          { ...extra, context },
+          chat,
+          i,
+        );
         await commit();
       } catch (e: any) {
         // Stop dispatching new topics, but keep pages other lanes finished.
@@ -213,6 +227,21 @@ export async function processJob(id: string): Promise<void> {
         brief: job.brief || undefined,
         language: normalizeLang(job.language),
       },
+      job.documentId
+        ? async (topic) => {
+            const result = await documentEvidence(
+              job.user,
+              job.documentId!,
+              topic,
+              job.documentRange,
+            );
+            if (!result.matches.length)
+              throw new Error(
+                "No relevant textbook passages found for this section. Review the topic or source range.",
+              );
+            return result.context;
+          }
+        : undefined,
     );
     await finishJob(id, token, result.errors[0]);
   } catch (error) {

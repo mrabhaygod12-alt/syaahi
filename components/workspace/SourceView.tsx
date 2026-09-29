@@ -8,16 +8,25 @@ export default function SourceView() {
   const vid = ytId(job.sourceUrl);
   const researchExcerpt =
     job.sourceKind === "topic" &&
-    Boolean(job.referenceLinks?.some((reference) => reference.kind === "source"));
-  const retrievedReferences = job.referenceLinks?.filter(
-    (reference) => reference.kind === "source",
-  ) ?? [];
-  const suggestedReading = job.referenceLinks?.filter(
-    (reference) => reference.kind === "search",
-  ) ?? [];
+    Boolean(
+      job.referenceLinks?.some((reference) => reference.kind === "source"),
+    );
+  const retrievedReferences =
+    job.referenceLinks?.filter((reference) => reference.kind === "source") ??
+    [];
+  const suggestedReading =
+    job.referenceLinks?.filter((reference) => reference.kind === "search") ??
+    [];
   return (
     <div className="source-room">
       <h1>Source</h1>
+      {job.documentId && (
+        <p>
+          <a href={`/documents/${job.documentId}`}>
+            Open private textbook pages and verify citations →
+          </a>
+        </p>
+      )}
       <p className="small">
         Original inputs for <b>{lessonTitle(job)}</b>
       </p>
@@ -46,7 +55,8 @@ export default function SourceView() {
           <b>Evidence:</b> {retrievedReferences.length} retrieved reference
           {retrievedReferences.length === 1 ? "" : "s"} used for planning ·{" "}
           {suggestedReading.length} external reading suggestion
-          {suggestedReading.length === 1 ? "" : "s"} not ingested into this lesson.
+          {suggestedReading.length === 1 ? "" : "s"} not ingested into this
+          lesson.
         </p>
       </div>
       {vid && (
@@ -113,8 +123,9 @@ export default function SourceView() {
             ))}
           </div>
           <p className="small">
-            These public references supplied context while the lesson was planned.
-            Check them alongside your prescribed material for important work.
+            These public references supplied context while the lesson was
+            planned. Check them alongside your prescribed material for important
+            work.
           </p>
         </section>
       )}
@@ -127,7 +138,12 @@ export default function SourceView() {
           </p>
           <div className="reference-list">
             {suggestedReading.map((reference) => (
-              <a key={`${reference.kind}:${reference.url}`} href={reference.url} target="_blank" rel="noopener noreferrer">
+              <a
+                key={`${reference.kind}:${reference.url}`}
+                href={reference.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {reference.title} ↗
               </a>
             ))}

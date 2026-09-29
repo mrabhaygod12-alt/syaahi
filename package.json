@@ -26,6 +26,9 @@
     "test:proxy": "tsx scripts/test-proxy.ts",
     "test:seo": "tsx scripts/test-seo.ts",
     "test:mongo": "tsx scripts/test-mongo.ts",
+    "test:textbooks": "tsx scripts/test-textbook-campus.ts",
+    "test:voice-browser": "tsx scripts/test-voice-browser.ts",
+    "test:public-guides": "tsx scripts/test-public-guides.ts",
     "make:carousel": "node scripts/build-instagram-carousel.mjs"
   },
   "dependencies": {

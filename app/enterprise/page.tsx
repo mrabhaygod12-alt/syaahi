@@ -6,6 +6,7 @@ export const metadata = pageMeta({
   path: "/enterprise",
 });
 import { PageHero, Prose, H } from "@/components/site";
+import CampusApplication from "@/components/CampusApplication";
 export default function Enterprise() {
   return (
     <>
@@ -41,6 +42,9 @@ export default function Enterprise() {
           Discuss your requirements →
         </a>
       </Prose>
+      <div className="wrap feature-section">
+        <CampusApplication kind="institution" />
+      </div>
     </>
   );
 }

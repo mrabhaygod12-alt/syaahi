@@ -33,6 +33,11 @@ const groups: NavGroup[] = [
         detail: "Preview the note format",
         href: "/examples",
       },
+      {
+        label: "Course packs",
+        detail: "University study-outline starters",
+        href: "/course-packs",
+      },
     ],
   },
   {
@@ -72,6 +77,16 @@ const groups: NavGroup[] = [
         label: "Study blog",
         detail: "Read practical study ideas",
         href: "/blog",
+      },
+      {
+        label: "Campus pilots",
+        detail: "Apply as a campus ambassador",
+        href: "/campus",
+      },
+      {
+        label: "For institutions",
+        detail: "Discuss a student pilot",
+        href: "/enterprise",
       },
     ],
   },

@@ -85,14 +85,41 @@ async function main() {
   );
   assert.equal(restored.status, "published");
   const engagement = await import("../lib/writing/engagement");
-  await engagement.setGuideReaction(reporter.id, published.slug!, "upvote", true);
-  await engagement.setGuideReaction(reporter.id, published.slug!, "bookmark", true);
-  const tipped = await engagement.tipGuideCreator(reporter.id, published.slug!, 2);
+  await engagement.setGuideReaction(
+    reporter.id,
+    published.slug!,
+    "upvote",
+    true,
+  );
+  await engagement.setGuideReaction(
+    reporter.id,
+    published.slug!,
+    "bookmark",
+    true,
+  );
+  const tipId = "00000000-0000-4000-8000-000000000001";
+  const tipped = await engagement.tipGuideCreator(
+    reporter.id,
+    published.slug!,
+    2,
+    tipId,
+  );
+  const replay = await engagement.tipGuideCreator(
+    reporter.id,
+    published.slug!,
+    2,
+    tipId,
+  );
+  assert.equal(replay.tippedCredits, 2, "Retried request must not debit twice");
+  await assert.rejects(
+    () => engagement.tipGuideCreator(reporter.id, published.slug!, 3, tipId),
+    /already used/,
+  );
   assert.equal(tipped.upvotes, 1);
   assert.equal(tipped.bookmarks, 1);
   assert.equal(tipped.tippedCredits, 2);
   await assert.rejects(
-    () => engagement.tipGuideCreator(user.id, published.slug!, 1),
+    () => engagement.tipGuideCreator(user.id, published.slug!, 1, tipId),
     /cannot tip your own guide/,
   );
   await stories.recordPublicStoryView(published.slug!);

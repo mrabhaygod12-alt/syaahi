@@ -1,6 +1,7 @@
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
-import { authError } from "@/lib/auth/server";
+import { authError, currentUser } from "@/lib/auth/server";
+import { documentEvidence } from "@/lib/documents/store";
 import { chatWithFallback } from "@/lib/ai/router";
 import { parsePlanJson } from "@/lib/lesson/plan";
 import {
@@ -29,7 +30,36 @@ async function handlePOST(req: NextRequest) {
       { error: "Choose 1-24 planned pages." },
       { status: 400 },
     );
-  const suppliedContext = String(body.context || "").slice(0, 100000);
+  let suppliedContext = String(body.context || "").slice(0, 100000);
+  if (typeof body.documentId === "string") {
+    const range = body.documentRange;
+    if (
+      !Number.isInteger(range?.from) ||
+      !Number.isInteger(range?.to) ||
+      range.from < 1 ||
+      range.to < range.from ||
+      range.to > 500
+    )
+      return NextResponse.json(
+        { error: "Choose a valid page range." },
+        { status: 400 },
+      );
+    const found = await documentEvidence(
+      (await currentUser(req))!.id,
+      body.documentId,
+      topic,
+      range,
+    );
+    if (!found.matches.length)
+      return NextResponse.json(
+        {
+          error:
+            "No matching textbook passages found. Enter a more specific chapter topic or change the page range.",
+        },
+        { status: 422 },
+      );
+    suppliedContext = found.context;
+  }
   const query =
     /^create (?:a )?study guide from (?:the )?supplied notes$/i.test(topic) &&
     suppliedContext

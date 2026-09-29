@@ -22,7 +22,8 @@ export interface ContentReport {
 export interface ModerationEvent {
   storyId: string;
   title: string;
-  action: "submitted" | "published" | "changes_requested" | "removed" | "restored";
+  action:
+    "submitted" | "published" | "changes_requested" | "removed" | "restored";
   at: string;
   actor: string | null;
   note: string | null;
@@ -58,7 +59,8 @@ export interface Story {
     tags: string[];
   }>;
   moderationEvents?: Array<{
-    action: "submitted" | "published" | "changes_requested" | "removed" | "restored";
+    action:
+      "submitted" | "published" | "changes_requested" | "removed" | "restored";
     at: string;
     actor: string | null;
     note: string | null;
@@ -160,9 +162,25 @@ export async function listPublicStoriesByCreator(
   creatorSlug: string,
 ): Promise<Story[]> {
   const normalized = creatorSlug.trim().toLowerCase().slice(0, 120);
-  return (await listPublicStories()).filter(
-    (story) => story.creatorSlug === normalized,
-  );
+  if (useMongo())
+    return (
+      await (
+        await collection("stories")
+      )
+        .find({ status: "published", creatorSlug: normalized })
+        .sort({ publishedAt: -1 })
+        .limit(100)
+        .toArray()
+    )
+      .map(clean)
+      .filter((s): s is Story => !!s);
+  return db()
+    .prepare(
+      "SELECT payload FROM stories WHERE status='published' AND json_extract(payload,'$.creatorSlug')=? ORDER BY updated_at DESC LIMIT 100",
+    )
+    .all(normalized)
+    .map((row) => clean(JSON.parse(String(row.payload))))
+    .filter((s): s is Story => !!s);
 }
 
 export async function getPublicStory(slug: string): Promise<Story | null> {
@@ -177,10 +195,12 @@ export async function getPublicStory(slug: string): Promise<Story | null> {
         slug: normalized,
       }),
     );
-  return (
-    (await listPublicStories()).find((story) => story.slug === normalized) ??
-    null
-  );
+  const row = db()
+    .prepare(
+      "SELECT payload FROM stories WHERE status='published' AND json_extract(payload,'$.slug')=? LIMIT 1",
+    )
+    .get(normalized);
+  return row ? clean(JSON.parse(String(row.payload))) : null;
 }
 
 const toSlug = (title: string, id: string) =>
@@ -367,8 +387,7 @@ export async function reviewStory(
       ...(existing.moderationEvents || []),
       {
         action: (action === "publish" ? "published" : "changes_requested") as
-          | "published"
-          | "changes_requested",
+          "published" | "changes_requested",
         at: now,
         actor: moderator,
         note: note.trim().slice(0, 1000) || null,
@@ -435,7 +454,12 @@ export async function removeStory(
     updatedAt: now,
     moderationEvents: [
       ...(existing.moderationEvents || []),
-      { action: "removed" as const, at: now, actor: moderator, note: note.trim().slice(0, 1000) },
+      {
+        action: "removed" as const,
+        at: now,
+        actor: moderator,
+        note: note.trim().slice(0, 1000),
+      },
     ].slice(-50),
   };
   await persistStory(story);
@@ -463,7 +487,12 @@ export async function restoreStory(
     updatedAt: now,
     moderationEvents: [
       ...(existing.moderationEvents || []),
-      { action: "restored" as const, at: now, actor: moderator, note: note.trim().slice(0, 1000) || null },
+      {
+        action: "restored" as const,
+        at: now,
+        actor: moderator,
+        note: note.trim().slice(0, 1000) || null,
+      },
     ].slice(-50),
   };
   await persistStory(story);
@@ -565,10 +594,28 @@ export async function listContentReports(): Promise<ContentReport[]> {
     .filter((report): report is ContentReport => !!report);
 }
 
-export async function listModerationEvents(limit = 200): Promise<ModerationEvent[]> {
+export async function listModerationEvents(
+  limit = 200,
+): Promise<ModerationEvent[]> {
   const stories = useMongo()
-    ? (await (await collection("stories")).find({}).sort({ updatedAt: -1 }).limit(200).toArray()).map(clean).filter((story): story is Story => !!story)
-    : db().prepare("SELECT payload FROM stories ORDER BY updated_at DESC LIMIT 200").all().map((row: any) => clean(JSON.parse(String(row.payload)))).filter((story): story is Story => !!story);
+    ? (
+        await (
+          await collection("stories")
+        )
+          .find({})
+          .sort({ updatedAt: -1 })
+          .limit(200)
+          .toArray()
+      )
+        .map(clean)
+        .filter((story): story is Story => !!story)
+    : db()
+        .prepare(
+          "SELECT payload FROM stories ORDER BY updated_at DESC LIMIT 200",
+        )
+        .all()
+        .map((row: any) => clean(JSON.parse(String(row.payload))))
+        .filter((story): story is Story => !!story);
   return stories
     .flatMap((story) =>
       (story.moderationEvents || []).map((event) => ({

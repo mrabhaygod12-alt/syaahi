@@ -3,6 +3,7 @@ import { pendingJobs } from "./store";
 import { processJob } from "./runner";
 import { collection, useMongo } from "@/lib/storage/mongo";
 import { deliverStudyReminders } from "@/lib/study/reminders";
+import { indexDocumentBatch } from "@/lib/documents/vectors";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
@@ -32,11 +33,16 @@ export function kickWorker(standalone = false) {
       await Promise.all(
         (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
       );
+      if (standalone) await indexDocumentBatch();
       // Email reminders are deliberately throttled; generation keeps priority.
-      if (standalone && Date.now() - (state.syaahiReminderTick || 0) > 15 * 60_000) {
+      if (
+        standalone &&
+        Date.now() - (state.syaahiReminderTick || 0) > 15 * 60_000
+      ) {
         state.syaahiReminderTick = Date.now();
         const result = await deliverStudyReminders();
-        if (result.delivered) console.info(`Delivered ${result.delivered} study reminder(s).`);
+        if (result.delivered)
+          console.info(`Delivered ${result.delivered} study reminder(s).`);
       }
     } catch (error) {
       console.error(

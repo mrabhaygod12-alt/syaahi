@@ -1,21 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
-import { listPublicStories } from "@/lib/writing/stories";
+import {
+  listPublicStories,
+  getPublicStory,
+  listPublicStoriesByCreator,
+} from "@/lib/writing/stories";
+import { publicGuide } from "@/lib/writing/public";
 
-async function handleGET() {
-  const stories = await listPublicStories();
-  return NextResponse.json({
-    stories: stories.map((story) => ({
-      slug: story.slug,
-      title: story.title,
-      summary: story.summary,
-      body: story.body,
-      tags: story.tags,
-      authorName: story.authorName,
-      creatorSlug: story.creatorSlug,
-      publishedAt: story.publishedAt,
-    })),
-  }, { headers: { "Cache-Control": "public, max-age=300" } });
+async function handleGET(req: NextRequest) {
+  const slug = req.nextUrl.searchParams.get("slug"),
+    creator = req.nextUrl.searchParams.get("creator");
+  const story = slug ? await getPublicStory(slug) : null;
+  const stories = slug
+    ? story
+      ? [story]
+      : []
+    : creator
+      ? await listPublicStoriesByCreator(creator)
+      : await listPublicStories();
+  return NextResponse.json(
+    {
+      stories: stories.map(publicGuide),
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export const GET = apiHandler(handleGET);
