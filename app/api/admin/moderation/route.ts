@@ -5,6 +5,7 @@ import { isAdmin } from "@/lib/auth/admin";
 import { rateLimit } from "@/lib/ratelimit";
 import {
   listContentReports,
+  listModerationEvents,
   removeStory,
   resolveContentReport,
   restoreStory,
@@ -24,7 +25,10 @@ async function guard(req: NextRequest) {
 async function handleGET(req: NextRequest) {
   const denied = await guard(req);
   if (denied) return denied;
-  return NextResponse.json({ reports: await listContentReports() });
+  return NextResponse.json({
+    reports: await listContentReports(),
+    audit: await listModerationEvents(),
+  });
 }
 
 async function handlePOST(req: NextRequest) {

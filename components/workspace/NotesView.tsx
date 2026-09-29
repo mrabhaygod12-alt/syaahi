@@ -153,6 +153,29 @@ export default function NotesView() {
         continue onto extra sheets. Downloads include a sources and citation
         appendix.
       </p>
+      <div className="note-template-picker" role="list" aria-label="PDF template previews">
+        {PDF_TEMPLATES.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            role="listitem"
+            className={tpl === template.id ? "selected" : ""}
+            aria-pressed={tpl === template.id}
+            onClick={() => {
+              setTpl(template.id);
+              setTemplate(template.id);
+            }}
+          >
+            <span className={`note-template-thumb template-${template.id}`} aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            <b>{template.label}</b>
+            <small>{template.blurb}</small>
+          </button>
+        ))}
+      </div>
 
       {(job.status === "working" || job.status === "queued") && (
         <div className="card" role="status" style={{ marginBottom: 16 }}>

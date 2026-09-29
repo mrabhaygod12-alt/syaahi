@@ -30,13 +30,14 @@ interface Study {
   reminder: {
     enabled: boolean;
     hour: number;
+    timezone: string;
   };
 }
 const fresh = (): Study => ({
   folders: [],
   reviews: {},
   attempts: [],
-  reminder: { enabled: false, hour: 19 },
+  reminder: { enabled: false, hour: 19, timezone: "UTC" },
 });
 const cardId = (f: { front: string; back: string }) =>
   createHash("sha256")
@@ -50,7 +51,7 @@ async function handleGET(req: Request) {
   // Older saved study records predate reminders. Fill defaults on read so the
   // client never has to guess at a malformed preference.
   if (!state.reminder || typeof state.reminder !== "object")
-    state.reminder = { enabled: false, hour: 19 };
+    state.reminder = { enabled: false, hour: 19, timezone: "UTC" };
   return NextResponse.json(
     state,
     { headers: { "Cache-Control": "no-store" } },
@@ -144,9 +145,11 @@ async function handlePOST(req: Request) {
         ].slice(0, 100);
       } else if (b.action === "reminder") {
         const hour = Number(b.hour);
+        const timezone = typeof b.timezone === "string" ? b.timezone.slice(0, 80) : "UTC";
         if (!Number.isInteger(hour) || hour < 0 || hour > 23)
           throw new Error("Choose a reminder hour between 0 and 23.");
-        s.reminder = { enabled: b.enabled === true, hour };
+        try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }); } catch { throw new Error("Choose a valid reminder time zone."); }
+        s.reminder = { enabled: b.enabled === true, hour, timezone };
       } else throw new Error("Unknown study action.");
       return s;
     });

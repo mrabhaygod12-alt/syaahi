@@ -178,7 +178,11 @@ async function main() {
     200,
   );
   const reminderState = await (await study.GET(req(ownerCookie))).json();
-  assert.deepEqual(reminderState.reminder, { enabled: true, hour: 18 });
+  assert.deepEqual(reminderState.reminder, {
+    enabled: true,
+    hour: 18,
+    timezone: "UTC",
+  });
   assert.equal(
     (
       await collaboration.POST(

@@ -19,10 +19,20 @@ interface Report {
   createdAt: string;
   resolutionNote?: string | null;
 }
+interface ModerationEvent {
+  storyId: string;
+  title: string;
+  action: string;
+  at: string;
+  actor: string | null;
+  note: string | null;
+}
 
 export default function PublicationReview() {
   const [stories, setStories] = useState<Story[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [audit, setAudit] = useState<ModerationEvent[]>([]);
+  const [reportFilter, setReportFilter] = useState("open");
   const [note, setNote] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
@@ -41,6 +51,7 @@ export default function PublicationReview() {
         throw new Error(moderation.error || "Could not load moderation queue.");
       setStories(review.stories || []);
       setReports(moderation.reports || []);
+      setAudit(moderation.audit || []);
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Could not load review queue.",
@@ -104,6 +115,9 @@ export default function PublicationReview() {
   }
 
   const openReports = reports.filter((report) => report.status === "open");
+  const filteredReports = reports.filter((report) =>
+    reportFilter === "all" ? true : report.status === reportFilter,
+  );
   return (
     <main className="wrap feature-section publication-review">
       <header>
@@ -166,7 +180,8 @@ export default function PublicationReview() {
       <section className="moderation-queue" aria-labelledby="report-queue">
         <p className="eyebrow">COMMUNITY REPORTS</p>
         <h2 id="report-queue">Open reports ({openReports.length})</h2>
-        {openReports.map((report) => (
+        <label className="small">Filter reports <select value={reportFilter} onChange={(event) => setReportFilter(event.target.value)}><option value="open">Open</option><option value="dismissed">Dismissed</option><option value="actioned">Actioned</option><option value="all">All reports</option></select></label>
+        {filteredReports.filter((report) => report.status === "open").map((report) => (
           <article className="interactive-panel" key={report.id}>
             <p className="eyebrow">
               {report.reason.toUpperCase()} ·{" "}
@@ -230,6 +245,17 @@ export default function PublicationReview() {
                 )}
               </div>
             ))}
+        </details>
+        <details className="card moderation-audit">
+          <summary>Formal moderation audit log ({audit.length})</summary>
+          <p className="small">Records action, time, administrator ID, and the decision note. This log is retained with the guide record.</p>
+          {audit.map((event) => (
+            <div className="resolved-report" key={`${event.storyId}:${event.at}:${event.action}`}>
+              <b>{event.action.replaceAll("_", " ")}</b> · {event.title} · {new Date(event.at).toLocaleString()}
+              {event.note ? ` — ${event.note}` : ""}
+            </div>
+          ))}
+          {!audit.length && <p className="small">No editorial or moderation events yet.</p>}
         </details>
       </section>
     </main>

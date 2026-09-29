@@ -19,6 +19,14 @@ export interface ContentReport {
   moderator: string | null;
   resolutionNote: string | null;
 }
+export interface ModerationEvent {
+  storyId: string;
+  title: string;
+  action: "submitted" | "published" | "changes_requested" | "removed" | "restored";
+  at: string;
+  actor: string | null;
+  note: string | null;
+}
 export interface Story {
   id: string;
   user: string;
@@ -555,6 +563,22 @@ export async function listContentReports(): Promise<ContentReport[]> {
     .all()
     .map((row: any) => cleanReport(JSON.parse(String(row.payload))))
     .filter((report): report is ContentReport => !!report);
+}
+
+export async function listModerationEvents(limit = 200): Promise<ModerationEvent[]> {
+  const stories = useMongo()
+    ? (await (await collection("stories")).find({}).sort({ updatedAt: -1 }).limit(200).toArray()).map(clean).filter((story): story is Story => !!story)
+    : db().prepare("SELECT payload FROM stories ORDER BY updated_at DESC LIMIT 200").all().map((row: any) => clean(JSON.parse(String(row.payload)))).filter((story): story is Story => !!story);
+  return stories
+    .flatMap((story) =>
+      (story.moderationEvents || []).map((event) => ({
+        storyId: story.id,
+        title: story.title,
+        ...event,
+      })),
+    )
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, Math.max(1, Math.min(limit, 500)));
 }
 
 export async function resolveContentReport(

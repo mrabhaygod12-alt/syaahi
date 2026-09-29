@@ -14,6 +14,7 @@ interface Attempt {
 interface Reminder {
   enabled: boolean;
   hour: number;
+  timezone: string;
 }
 export default function StudyOrganisation({
   lessons,
@@ -29,7 +30,7 @@ export default function StudyOrganisation({
     [error, setError] = useState(""),
     [weak, setWeak] = useState<string[]>([]),
     [attempts, setAttempts] = useState<Attempt[]>([]),
-    [reminder, setReminder] = useState<Reminder>({ enabled: false, hour: 19 }),
+    [reminder, setReminder] = useState<Reminder>({ enabled: false, hour: 19, timezone: "UTC" }),
     [busy, setBusy] = useState(false);
   useEffect(() => {
     fetch("/api/study")
@@ -99,7 +100,7 @@ export default function StudyOrganisation({
         return;
       }
     }
-    await change({ action: "reminder", ...next });
+    await change({ action: "reminder", ...next, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" });
   }
   return (
     <div className="study-organisation">
