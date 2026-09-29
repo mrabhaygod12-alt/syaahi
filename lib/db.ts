@@ -38,6 +38,8 @@ export function db(): DatabaseSync {
     CREATE TABLE IF NOT EXISTS referrals (referred TEXT PRIMARY KEY REFERENCES users(id), inviter TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, rewarded_at TEXT, payment_id TEXT UNIQUE);
     CREATE TABLE IF NOT EXISTS stories (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), status TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS stories_user_updated ON stories(user_id, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS content_reports (id TEXT PRIMARY KEY, story_id TEXT NOT NULL, reporter TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS content_reports_story_status ON content_reports(story_id, status, created_at DESC);
   `);
   // Existing persistent SQLite installations predate multi-currency orders.
   // Preserve their INR records while allowing new orders to store their currency.
@@ -48,7 +50,9 @@ export function db(): DatabaseSync {
     connection.exec(
       "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR'",
     );
-  const userColumns = connection.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+  const userColumns = connection
+    .prepare("PRAGMA table_info(users)")
+    .all() as Array<{ name: string }>;
   if (!userColumns.some((column) => column.name === "locale"))
     connection.exec("ALTER TABLE users ADD COLUMN locale TEXT");
   state.syaahiDb = connection;

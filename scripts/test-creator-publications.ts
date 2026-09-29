@@ -36,7 +36,11 @@ async function main() {
   });
   assert.equal(revised.status, "submitted");
   assert.equal(revised.versions?.length, 1);
-  const published = await stories.reviewStory(created.id, "publish", "Clear and useful.");
+  const published = await stories.reviewStory(
+    created.id,
+    "publish",
+    "Clear and useful.",
+  );
   assert.equal(published.status, "published");
   const profile = await stories.listPublicStoriesByCreator(created.creatorSlug);
   assert.equal(profile.length, 1);
@@ -44,8 +48,50 @@ async function main() {
   assert.equal(profile[0].body.includes("focused revision"), true);
   const guide = await stories.getPublicStory(published.slug!);
   assert.equal(guide?.id, published.id);
+  const reporter = await auth.register(
+    "Noah Reader",
+    "noah@example.test",
+    "another-long-password",
+  );
+  const report = await stories.reportPublicStory(
+    reporter.id,
+    published.slug!,
+    "misleading",
+    "The worked example needs a clearer source citation before readers rely on it.",
+  );
+  assert.equal(report.status, "open");
+  await assert.rejects(
+    () =>
+      stories.reportPublicStory(
+        reporter.id,
+        published.slug!,
+        "misleading",
+        "This is the same unresolved concern submitted twice.",
+      ),
+    /already have an open report/,
+  );
+  const actioned = await stories.resolveContentReport(
+    report.id,
+    "takedown",
+    "moderator-1",
+    "Removed while the source citation concern is reviewed.",
+  );
+  assert.equal(actioned.status, "actioned");
+  assert.equal(await stories.getPublicStory(published.slug!), null);
+  const restored = await stories.restoreStory(
+    published.id,
+    "moderator-1",
+    "Citation issue resolved after review.",
+  );
+  assert.equal(restored.status, "published");
+  await stories.recordPublicStoryView(published.slug!);
+  const analytics = await stories.creatorAnalytics(user.id);
+  assert.equal(analytics.published, 1);
+  assert.equal(analytics.approximateGuideOpens, 1);
   assert.equal(await stories.getPublicStory("unpublished-guide"), null);
-  console.log("PASS: approved guides create a privacy-preserving public creator profile.");
+  console.log(
+    "PASS: reviewed guides support creator metrics, community reports, takedown, and restoration.",
+  );
 }
 
 main().catch((error) => {

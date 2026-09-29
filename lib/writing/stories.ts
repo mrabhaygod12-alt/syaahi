@@ -3,10 +3,22 @@ import { db, transaction } from "@/lib/db";
 import { collection, useMongo } from "@/lib/storage/mongo";
 
 export type StoryStatus =
-  | "draft"
-  | "submitted"
-  | "changes_requested"
-  | "published";
+  "draft" | "submitted" | "changes_requested" | "published" | "removed";
+export type ReportReason =
+  "spam" | "harmful" | "misleading" | "copyright" | "privacy" | "other";
+export interface ContentReport {
+  id: string;
+  storyId: string;
+  storySlug: string;
+  reporter: string;
+  reason: ReportReason;
+  details: string;
+  status: "open" | "dismissed" | "actioned";
+  createdAt: string;
+  resolvedAt: string | null;
+  moderator: string | null;
+  resolutionNote: string | null;
+}
 export interface Story {
   id: string;
   user: string;
@@ -24,27 +36,63 @@ export interface Story {
   publishedAt: string | null;
   reviewNote: string | null;
   slug: string | null;
-  versions?: Array<{ savedAt: string; title: string; summary: string; body: string; tags: string[] }>;
+  removedAt?: string | null;
+  removalNote?: string | null;
+  removedBy?: string | null;
+  restoredAt?: string | null;
+  restoredBy?: string | null;
+  analytics?: { views: number; lastViewedAt: string | null };
+  versions?: Array<{
+    savedAt: string;
+    title: string;
+    summary: string;
+    body: string;
+    tags: string[];
+  }>;
 }
 
 function clean(value: unknown): Story | null {
   if (!value || typeof value !== "object") return null;
   const s = value as Partial<Story>;
   if (typeof s.id !== "string" || typeof s.user !== "string") return null;
-  return s as Story;
+  return {
+    ...s,
+    analytics: {
+      views: Math.max(0, Number(s.analytics?.views || 0)),
+      lastViewedAt: s.analytics?.lastViewedAt || null,
+    },
+  } as Story;
+}
+
+function cleanReport(value: unknown): ContentReport | null {
+  if (!value || typeof value !== "object") return null;
+  const report = value as Partial<ContentReport>;
+  if (
+    typeof report.id !== "string" ||
+    typeof report.storyId !== "string" ||
+    typeof report.reporter !== "string"
+  )
+    return null;
+  return report as ContentReport;
 }
 
 export async function listStories(user: string): Promise<Story[]> {
   if (useMongo())
-    return (await (await collection("stories"))
-      .find({ user })
-      .sort({ updatedAt: -1 })
-      .limit(50)
-      .toArray())
+    return (
+      await (
+        await collection("stories")
+      )
+        .find({ user })
+        .sort({ updatedAt: -1 })
+        .limit(50)
+        .toArray()
+    )
       .map(clean)
       .filter((s): s is Story => !!s);
   return db()
-    .prepare("SELECT payload FROM stories WHERE user_id=? ORDER BY updated_at DESC LIMIT 50")
+    .prepare(
+      "SELECT payload FROM stories WHERE user_id=? ORDER BY updated_at DESC LIMIT 50",
+    )
     .all(user)
     .map((row: any) => clean(JSON.parse(String(row.payload))))
     .filter((s): s is Story => !!s);
@@ -52,15 +100,21 @@ export async function listStories(user: string): Promise<Story[]> {
 
 export async function listReviewStories(): Promise<Story[]> {
   if (useMongo())
-    return (await (await collection("stories"))
-      .find({ status: { $in: ["submitted", "changes_requested"] } })
-      .sort({ submittedAt: 1 })
-      .limit(100)
-      .toArray())
+    return (
+      await (
+        await collection("stories")
+      )
+        .find({ status: "submitted" })
+        .sort({ submittedAt: 1 })
+        .limit(100)
+        .toArray()
+    )
       .map(clean)
       .filter((s): s is Story => !!s);
   return db()
-    .prepare("SELECT payload FROM stories WHERE status IN ('submitted','changes_requested') ORDER BY updated_at ASC LIMIT 100")
+    .prepare(
+      "SELECT payload FROM stories WHERE status='submitted' ORDER BY updated_at ASC LIMIT 100",
+    )
     .all()
     .map((row: any) => clean(JSON.parse(String(row.payload))))
     .filter((s): s is Story => !!s);
@@ -68,15 +122,21 @@ export async function listReviewStories(): Promise<Story[]> {
 
 export async function listPublicStories(): Promise<Story[]> {
   if (useMongo())
-    return (await (await collection("stories"))
-      .find({ status: "published" })
-      .sort({ publishedAt: -1 })
-      .limit(48)
-      .toArray())
+    return (
+      await (
+        await collection("stories")
+      )
+        .find({ status: "published" })
+        .sort({ publishedAt: -1 })
+        .limit(48)
+        .toArray()
+    )
       .map(clean)
       .filter((s): s is Story => !!s);
   return db()
-    .prepare("SELECT payload FROM stories WHERE status='published' ORDER BY updated_at DESC LIMIT 48")
+    .prepare(
+      "SELECT payload FROM stories WHERE status='published' ORDER BY updated_at DESC LIMIT 48",
+    )
     .all()
     .map((row: any) => clean(JSON.parse(String(row.payload))))
     .filter((s): s is Story => !!s);
@@ -96,7 +156,9 @@ export async function getPublicStory(slug: string): Promise<Story | null> {
   if (!normalized) return null;
   if (useMongo())
     return clean(
-      await (await collection("stories")).findOne({
+      await (
+        await collection("stories")
+      ).findOne({
         status: "published",
         slug: normalized,
       }),
@@ -108,20 +170,24 @@ export async function getPublicStory(slug: string): Promise<Story | null> {
 }
 
 const toSlug = (title: string, id: string) =>
-  `${title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 72) || "study-guide"}-${id.slice(0, 8)}`;
+  `${
+    title
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 72) || "study-guide"
+  }-${id.slice(0, 8)}`;
 
 const toCreatorSlug = (name: string, id: string) =>
-  `${name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 56) || "syaahi-creator"}-${id.slice(0, 8)}`;
+  `${
+    name
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 56) || "syaahi-creator"
+  }-${id.slice(0, 8)}`;
 
 export async function saveStory(
   user: string,
@@ -135,17 +201,25 @@ export async function saveStory(
   const title = input.title.trim().slice(0, 140);
   const summary = input.summary.trim().slice(0, 320);
   const body = input.body.trim().slice(0, 50000);
-  const tags = [...new Set(input.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))]
+  const tags = [
+    ...new Set(
+      input.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean),
+    ),
+  ]
     .slice(0, 5)
     .map((tag) => tag.slice(0, 32));
   if (title.length < 5 || body.length < 80)
     throw new Error("Add a title and at least 80 characters before saving.");
   if (input.id) {
     const existing = useMongo()
-      ? clean(await (await collection("stories")).findOne({ _id: input.id, user }))
+      ? clean(
+          await (await collection("stories")).findOne({ _id: input.id, user }),
+        )
       : clean(
           (() => {
-            const row = db().prepare("SELECT payload FROM stories WHERE id=? AND user_id=?").get(input.id, user) as any;
+            const row = db()
+              .prepare("SELECT payload FROM stories WHERE id=? AND user_id=?")
+              .get(input.id, user) as any;
             return row ? JSON.parse(String(row.payload)) : null;
           })(),
         );
@@ -154,7 +228,8 @@ export async function saveStory(
       throw new Error("This submission is under editorial review.");
     const story: Story = {
       ...existing,
-      creatorSlug: existing.creatorSlug || toCreatorSlug(existing.authorName, user),
+      creatorSlug:
+        existing.creatorSlug || toCreatorSlug(existing.authorName, user),
       title,
       summary,
       body,
@@ -166,15 +241,35 @@ export async function saveStory(
       reviewNote: input.submit ? null : existing.reviewNote,
       versions: [
         ...(existing.versions || []),
-        { savedAt: existing.updatedAt, title: existing.title, summary: existing.summary, body: existing.body, tags: existing.tags },
+        {
+          savedAt: existing.updatedAt,
+          title: existing.title,
+          summary: existing.summary,
+          body: existing.body,
+          tags: existing.tags,
+        },
       ].slice(-10),
     };
     if (useMongo())
-      await (await collection("stories")).updateOne({ _id: story.id, user }, { $set: { ...story, _id: story.id } });
+      await (
+        await collection("stories")
+      ).updateOne(
+        { _id: story.id, user },
+        { $set: { ...story, _id: story.id } },
+      );
     else
       transaction(() =>
-        db().prepare("UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=? AND user_id=?")
-          .run(story.status, story.updatedAt, JSON.stringify(story), story.id, user),
+        db()
+          .prepare(
+            "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=? AND user_id=?",
+          )
+          .run(
+            story.status,
+            story.updatedAt,
+            JSON.stringify(story),
+            story.id,
+            user,
+          ),
       );
     return story;
   }
@@ -182,7 +277,10 @@ export async function saveStory(
     id: randomUUID(),
     user,
     authorName: input.authorName.trim().slice(0, 80) || "Syaahi creator",
-    creatorSlug: toCreatorSlug(input.authorName.trim() || "Syaahi creator", user),
+    creatorSlug: toCreatorSlug(
+      input.authorName.trim() || "Syaahi creator",
+      user,
+    ),
     title,
     summary,
     body,
@@ -195,12 +293,28 @@ export async function saveStory(
     publishedAt: null,
     reviewNote: null,
     slug: null,
+    removedAt: null,
+    removalNote: null,
+    removedBy: null,
+    restoredAt: null,
+    restoredBy: null,
+    analytics: { views: 0, lastViewedAt: null },
   };
-  if (useMongo()) await (await collection("stories")).insertOne({ _id: story.id, ...story });
+  if (useMongo())
+    await (await collection("stories")).insertOne({ _id: story.id, ...story });
   else
     transaction(() =>
-      db().prepare("INSERT INTO stories (id,user_id,status,updated_at,payload) VALUES (?,?,?,?,?)")
-        .run(story.id, user, story.status, story.updatedAt, JSON.stringify(story)),
+      db()
+        .prepare(
+          "INSERT INTO stories (id,user_id,status,updated_at,payload) VALUES (?,?,?,?,?)",
+        )
+        .run(
+          story.id,
+          user,
+          story.status,
+          story.updatedAt,
+          JSON.stringify(story),
+        ),
     );
   return story;
 }
@@ -215,7 +329,9 @@ export async function reviewStory(
     ? clean(await (await collection("stories")).findOne({ _id: id }))
     : clean(
         (() => {
-          const row = db().prepare("SELECT payload FROM stories WHERE id=?").get(id) as any;
+          const row = db()
+            .prepare("SELECT payload FROM stories WHERE id=?")
+            .get(id) as any;
           return row ? JSON.parse(String(row.payload)) : null;
         })(),
       );
@@ -231,11 +347,274 @@ export async function reviewStory(
     updatedAt: now,
   };
   if (useMongo())
-    await (await collection("stories")).updateOne({ _id: id }, { $set: { ...story, _id: id } });
+    await (
+      await collection("stories")
+    ).updateOne({ _id: id }, { $set: { ...story, _id: id } });
   else
     transaction(() =>
-      db().prepare("UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=?")
+      db()
+        .prepare(
+          "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=?",
+        )
         .run(story.status, story.updatedAt, JSON.stringify(story), id),
     );
   return story;
+}
+
+async function getStoryById(id: string): Promise<Story | null> {
+  if (useMongo())
+    return clean(await (await collection("stories")).findOne({ _id: id }));
+  const row = db()
+    .prepare("SELECT payload FROM stories WHERE id=?")
+    .get(id) as any;
+  return row ? clean(JSON.parse(String(row.payload))) : null;
+}
+
+async function persistStory(story: Story): Promise<void> {
+  if (useMongo()) {
+    await (
+      await collection("stories")
+    ).updateOne({ _id: story.id }, { $set: { ...story, _id: story.id } });
+    return;
+  }
+  transaction(() =>
+    db()
+      .prepare("UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=?")
+      .run(story.status, story.updatedAt, JSON.stringify(story), story.id),
+  );
+}
+
+export async function removeStory(
+  id: string,
+  moderator: string,
+  note: string,
+): Promise<Story> {
+  if (note.trim().length < 12)
+    throw new Error("Add a clear moderation note before taking down a guide.");
+  const existing = await getStoryById(id);
+  if (!existing || existing.status !== "published")
+    throw new Error("Only published guides can be taken down.");
+  const now = new Date().toISOString();
+  const story: Story = {
+    ...existing,
+    status: "removed",
+    removedAt: now,
+    removedBy: moderator,
+    restoredAt: null,
+    restoredBy: null,
+    removalNote: note.trim().slice(0, 1000) || "Removed by Syaahi moderation.",
+    updatedAt: now,
+  };
+  await persistStory(story);
+  return story;
+}
+
+export async function restoreStory(
+  id: string,
+  moderator: string,
+  note: string,
+): Promise<Story> {
+  const existing = await getStoryById(id);
+  if (!existing || existing.status !== "removed")
+    throw new Error("Only removed guides can be restored.");
+  const now = new Date().toISOString();
+  const story: Story = {
+    ...existing,
+    status: "published",
+    removedAt: null,
+    removedBy: null,
+    removalNote: note.trim().slice(0, 1000) || null,
+    restoredAt: now,
+    restoredBy: moderator,
+    reviewedAt: now,
+    updatedAt: now,
+  };
+  await persistStory(story);
+  return story;
+}
+
+export async function reportPublicStory(
+  reporter: string,
+  slug: string,
+  reason: ReportReason,
+  details: string,
+): Promise<ContentReport> {
+  const validReasons: ReportReason[] = [
+    "spam",
+    "harmful",
+    "misleading",
+    "copyright",
+    "privacy",
+    "other",
+  ];
+  if (!validReasons.includes(reason))
+    throw new Error("Choose a report reason.");
+  const story = await getPublicStory(slug);
+  if (!story) throw new Error("This guide is no longer available.");
+  const cleanDetails = details.trim().slice(0, 1200);
+  if (cleanDetails.length < 12)
+    throw new Error(
+      "Add at least 12 characters to help the moderator review this report.",
+    );
+  const duplicate = useMongo()
+    ? await (
+        await collection("content_reports")
+      ).findOne({
+        storyId: story.id,
+        reporter,
+        status: "open",
+      })
+    : db()
+        .prepare(
+          "SELECT id FROM content_reports WHERE story_id=? AND reporter=? AND status='open'",
+        )
+        .get(story.id, reporter);
+  if (duplicate)
+    throw new Error("You already have an open report for this guide.");
+  const report: ContentReport = {
+    id: randomUUID(),
+    storyId: story.id,
+    storySlug: story.slug || slug,
+    reporter,
+    reason,
+    details: cleanDetails,
+    status: "open",
+    createdAt: new Date().toISOString(),
+    resolvedAt: null,
+    moderator: null,
+    resolutionNote: null,
+  };
+  if (useMongo())
+    await (
+      await collection("content_reports")
+    ).insertOne({ _id: report.id, ...report });
+  else
+    transaction(() =>
+      db()
+        .prepare(
+          "INSERT INTO content_reports (id,story_id,reporter,status,created_at,payload) VALUES (?,?,?,?,?,?)",
+        )
+        .run(
+          report.id,
+          report.storyId,
+          report.reporter,
+          report.status,
+          report.createdAt,
+          JSON.stringify(report),
+        ),
+    );
+  return report;
+}
+
+export async function listContentReports(): Promise<ContentReport[]> {
+  if (useMongo())
+    return (
+      await (
+        await collection("content_reports")
+      )
+        .find({})
+        .sort({ status: 1, createdAt: -1 })
+        .limit(200)
+        .toArray()
+    )
+      .map(cleanReport)
+      .filter((report): report is ContentReport => !!report);
+  return db()
+    .prepare(
+      "SELECT payload FROM content_reports ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, created_at DESC LIMIT 200",
+    )
+    .all()
+    .map((row: any) => cleanReport(JSON.parse(String(row.payload))))
+    .filter((report): report is ContentReport => !!report);
+}
+
+export async function resolveContentReport(
+  id: string,
+  action: "dismiss" | "takedown",
+  moderator: string,
+  note: string,
+): Promise<ContentReport> {
+  const existing = useMongo()
+    ? cleanReport(
+        await (await collection("content_reports")).findOne({ _id: id }),
+      )
+    : (() => {
+        const row = db()
+          .prepare("SELECT payload FROM content_reports WHERE id=?")
+          .get(id) as any;
+        return row ? cleanReport(JSON.parse(String(row.payload))) : null;
+      })();
+  if (!existing || existing.status !== "open")
+    throw new Error("Only open reports can be resolved.");
+  if (action === "takedown")
+    await removeStory(existing.storyId, moderator, note);
+  const resolved: ContentReport = {
+    ...existing,
+    status: action === "takedown" ? "actioned" : "dismissed",
+    resolvedAt: new Date().toISOString(),
+    moderator,
+    resolutionNote: note.trim().slice(0, 1000) || null,
+  };
+  if (useMongo())
+    await (
+      await collection("content_reports")
+    ).updateOne({ _id: id }, { $set: { ...resolved, _id: id } });
+  else
+    transaction(() =>
+      db()
+        .prepare("UPDATE content_reports SET status=?,payload=? WHERE id=?")
+        .run(resolved.status, JSON.stringify(resolved), id),
+    );
+  return resolved;
+}
+
+export async function recordPublicStoryView(slug: string): Promise<void> {
+  const story = await getPublicStory(slug);
+  if (!story) return;
+  const now = new Date().toISOString();
+  await persistStory({
+    ...story,
+    analytics: {
+      views: Math.max(0, Number(story.analytics?.views || 0)) + 1,
+      lastViewedAt: now,
+    },
+    updatedAt: story.updatedAt,
+  });
+}
+
+export async function creatorAnalytics(user: string) {
+  const stories = await listStories(user);
+  const status = (value: StoryStatus) =>
+    stories.filter((story) => story.status === value).length;
+  const ids = stories.map((story) => story.id);
+  let openReports = 0;
+  if (ids.length) {
+    if (useMongo())
+      openReports = await (
+        await collection("content_reports")
+      ).countDocuments({
+        storyId: { $in: ids },
+        status: "open",
+      });
+    else {
+      const placeholders = ids.map(() => "?").join(",");
+      const row = db()
+        .prepare(
+          `SELECT COUNT(*) as count FROM content_reports WHERE status='open' AND story_id IN (${placeholders})`,
+        )
+        .get(...ids) as any;
+      openReports = Number(row?.count || 0);
+    }
+  }
+  return {
+    drafts: status("draft") + status("changes_requested"),
+    inReview: status("submitted"),
+    published: status("published"),
+    removed: status("removed"),
+    approximateGuideOpens: stories.reduce(
+      (total, story) => total + Number(story.analytics?.views || 0),
+      0,
+    ),
+    openReports,
+  };
 }
