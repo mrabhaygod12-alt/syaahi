@@ -91,6 +91,7 @@ export default function UserChip() {
           <button
             type="button"
             className="btn light"
+            aria-label="Retry session"
             title="The server did not respond. Your saved session may still be valid."
             onClick={() => {
               setSessionCheck("checking");
@@ -102,13 +103,16 @@ export default function UserChip() {
                 .catch(() => setSessionCheck("unavailable"));
             }}
           >
-            Retry session
+            <span className="session-retry-label">Retry session</span>
+            <span className="session-retry-icon" aria-hidden="true">
+              ↻
+            </span>
           </button>
         )}
         <a className="btn light" href="/login">
           Log in
         </a>
-        <a className="btn dark" href="/signup">
+        <a className="btn dark account-signup" href="/signup">
           Get started
         </a>
       </div>
@@ -132,7 +136,7 @@ export default function UserChip() {
       }}
     >
       <a
-        className="btn dark"
+        className="btn dark account-upgrade"
         style={{
           background: "#b45309",
           borderColor: "#b45309",
@@ -160,6 +164,7 @@ export default function UserChip() {
       {sessionCheck === "unavailable" && (
         <span
           role="status"
+          className="account-reconnecting"
           title="The server could not be reached. Your saved session may still be valid."
           style={{
             color: "#92400e",
@@ -175,6 +180,9 @@ export default function UserChip() {
       {/* Avatar Button triggers dropdown */}
       <button
         type="button"
+        className="account-avatar"
+        aria-label="Open account menu"
+        aria-expanded={open}
         title={`${user.name} (${user.email}) — Click for profile & settings`}
         onClick={() => setOpen((prev) => !prev)}
         style={{

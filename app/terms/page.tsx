@@ -36,6 +36,10 @@ const sections = [
     "AI mock interview feedback is educational practice. It does not verify skills, assess a candidate for an employer, guarantee an interview outcome, or create a relationship with a recruiter. When you paste a job description, submit only information you may share and remove confidential employer material. Human interviews are not offered unless a separately described, verified booking service is made available.",
   ],
   [
+    "Saved voice practice",
+    "Saving a voice transcript is optional. Transcription may contain errors, and generated coaching must be reviewed critically. Practice scores describe only the submitted transcript; they do not assess accent, emotion, identity or suitability for employment. Do not submit another person's voice or confidential material without permission. You control deletion of your saved sessions and any report copies you download.",
+  ],
+  [
     "Payments",
     "Prices and pack quantities are displayed before checkout. Credits are granted after a verified captured gateway payment or administrator verification of a direct UPI bank receipt. Entering a UTR alone does not prove payment. Checkout availability depends on the operator’s configuration. Monetary refund requests are handled separately from generation-credit returns, as described on Refunds.",
   ],

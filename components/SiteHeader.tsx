@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
 import UserChip from "./UserChip";
+import "./site-header.css";
 
 type NavItem = { label: string; detail: string; href: string };
 type NavGroup = { label: string; items: NavItem[] };
@@ -102,6 +103,8 @@ export default function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const navigationRef = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -110,19 +113,26 @@ export default function SiteHeader() {
 
   useEffect(() => {
     const closeIfOutside = (event: MouseEvent) => {
-      if (!navigationRef.current?.contains(event.target as Node))
-        setOpenGroup(null);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (!headerRef.current?.contains(event.target as Node)) {
         setOpenGroup(null);
         setMobileOpen(false);
       }
     };
-    document.addEventListener("mousedown", closeIfOutside);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (
+          window.matchMedia("(max-width: 1080px)").matches &&
+          navigationRef.current?.contains(document.activeElement)
+        )
+          menuButton.current?.focus();
+        setOpenGroup(null);
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeIfOutside);
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.removeEventListener("mousedown", closeIfOutside);
+      document.removeEventListener("pointerdown", closeIfOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, []);
@@ -132,7 +142,7 @@ export default function SiteHeader() {
     path === href || (href !== "/" && Boolean(path?.startsWith(`${href}/`)));
 
   return (
-    <header className="top site-header">
+    <header ref={headerRef} className="top site-header">
       <div className="wrap header-row">
         <a className="brand" href="/" aria-label="Syaahi home">
           <Logo />
@@ -154,7 +164,7 @@ export default function SiteHeader() {
                 <button
                   className="nav-trigger"
                   type="button"
-                  aria-haspopup="menu"
+                  aria-controls={`nav-${group.label.toLowerCase()}`}
                   aria-expanded={isOpen}
                   onClick={() => setOpenGroup(isOpen ? null : group.label)}
                 >
@@ -162,13 +172,12 @@ export default function SiteHeader() {
                 </button>
                 <div
                   className={isOpen ? "nav-popover is-open" : "nav-popover"}
-                  role="menu"
+                  id={`nav-${group.label.toLowerCase()}`}
                 >
                   {group.items.map((item) => (
                     <a
                       key={item.href}
                       href={item.href}
-                      role="menuitem"
                       aria-current={isCurrent(item.href) ? "page" : undefined}
                       onClick={() => {
                         setMobileOpen(false);
@@ -199,12 +208,16 @@ export default function SiteHeader() {
           <InstallApp />
           <UserChip />
           <button
+            ref={menuButton}
             className="mobile-menu"
             type="button"
             aria-expanded={mobileOpen}
             aria-controls="site-navigation"
             aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
-            onClick={() => setMobileOpen((value) => !value)}
+            onClick={() => {
+              setMobileOpen((value) => !value);
+              setOpenGroup(null);
+            }}
           >
             <span aria-hidden="true">{mobileOpen ? "×" : "☰"}</span>
           </button>

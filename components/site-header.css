@@ -1,0 +1,156 @@
+/* Keep the navigation independent of legacy, general nav/media rules. */
+header.site-header .header-row {
+  width: 100%;
+  position: relative;
+}
+header.site-header .brand {
+  flex: 0 0 auto;
+}
+header.site-header .header-account {
+  flex: 0 0 auto;
+}
+header.site-header .nav-trigger,
+header.site-header .nav-direct-link {
+  min-height: 44px;
+  white-space: nowrap;
+}
+header.site-header .nav-popover:not(.is-open) {
+  display: none;
+}
+header.site-header .mobile-menu {
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+header.site-header .session-retry-icon {
+  display: none;
+}
+header.site-header button:focus-visible,
+header.site-header a:focus-visible {
+  outline: 2px solid #214b40;
+  outline-offset: 3px;
+}
+@media (max-width: 1080px) {
+  header.site-header .header-row {
+    min-height: 70px;
+    gap: 12px;
+    padding-inline: max(16px, env(safe-area-inset-left))
+      max(16px, env(safe-area-inset-right));
+  }
+  header.site-header .site-nav {
+    display: none;
+    position: absolute;
+    inset: 100% 0 auto;
+    max-height: calc(100vh - 70px);
+    max-height: calc(100dvh - 70px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 20px max(24px, env(safe-area-inset-bottom));
+    background: #fff;
+    border-bottom: 1px solid #dce3d6;
+    box-shadow: 0 16px 30px #203c3414;
+  }
+  header.site-header .site-nav.open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  header.site-header .nav-menu {
+    width: 100%;
+  }
+  header.site-header .nav-trigger,
+  header.site-header .nav-direct-link {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    min-height: 48px;
+    padding: 12px 8px;
+    font-size: 15px;
+  }
+  header.site-header .nav-popover.is-open {
+    display: grid;
+    position: static;
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 0 0 0 12px;
+    border: 0;
+    border-left: 2px solid #d9e3d3;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+  }
+  header.site-header .nav-popover a {
+    padding: 12px;
+    min-height: 52px;
+  }
+  header.site-header .nav-popover strong {
+    font-size: 14px;
+  }
+  header.site-header .nav-popover span {
+    font-size: 12px;
+  }
+  header.site-header .mobile-menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dce3d6;
+    border-radius: 10px;
+    background: white;
+    font-size: 22px;
+  }
+  header.site-header .install-app {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  header.site-header .brand .logo-lockup > span {
+    display: inline;
+  }
+  header.site-header .logo-lockup {
+    font-size: 21px;
+    gap: 7px;
+  }
+  header.site-header .header-account {
+    gap: 8px;
+  }
+  header.site-header .header-account .btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  header.site-header .header-account .account-signup,
+  header.site-header .header-account .account-upgrade {
+    display: none;
+  }
+  header.site-header .account-skeleton {
+    width: 64px;
+    height: 40px;
+  }
+  header.site-header .session-retry-label {
+    display: none;
+  }
+  header.site-header .session-retry-icon {
+    display: inline;
+    font-size: 20px;
+  }
+  header.site-header .account-reconnecting {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  header.site-header .account-avatar {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

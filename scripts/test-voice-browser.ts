@@ -59,8 +59,31 @@ async function main() {
         return stream;
       };
     });
+    let savedSession: any;
     await page.route("**/api/**", (route) => {
       const token = route.request().url().endsWith("/interview/live-token");
+      const path = new URL(route.request().url()).pathname;
+      if (
+        path === "/api/interview/voice" &&
+        route.request().method() === "POST"
+      ) {
+        const body = route.request().postDataJSON();
+        assert.equal(body.consent, true);
+        assert.equal(body.turns.length, 2);
+        assert.match(body.turns[1].text, /gradually/);
+        savedSession = { ...body, createdAt: new Date().toISOString() };
+        return route.fulfill({ json: { id: body.id } });
+      }
+      if (savedSession && path === `/api/interview/voice/${savedSession.id}`)
+        return route.fulfill({ json: { session: savedSession } });
+      if (path === "/api/interview/voice")
+        return route.fulfill({
+          json: {
+            sessions: savedSession
+              ? [{ ...savedSession, turns: savedSession.turns.length }]
+              : [],
+          },
+        });
       return route.fulfill({
         json: token
           ? { token: "test-ephemeral", model: "models/test-live" }
@@ -84,6 +107,35 @@ async function main() {
             );
         }
         if (frame.realtimeInput?.audio) {
+          if (!audioReceived) {
+            socket.send(
+              JSON.stringify({
+                serverContent: {
+                  outputTranscription: {
+                    text: "How would you debug a production issue?",
+                  },
+                },
+              }),
+            );
+            socket.send(
+              JSON.stringify({
+                serverContent: {
+                  inputTranscription: {
+                    text: "I inspect the logs, identify the affected release, ",
+                  },
+                },
+              }),
+            );
+            socket.send(
+              JSON.stringify({
+                serverContent: {
+                  inputTranscription: {
+                    text: "reproduce the bug safely, test the fix and roll it out gradually.",
+                  },
+                },
+              }),
+            );
+          }
           audioReceived = true;
           assert.match(
             frame.realtimeInput.audio.mimeType,
@@ -115,6 +167,19 @@ async function main() {
         ),
       ),
     );
+    await page
+      .getByRole("checkbox", { name: /Save this transcript privately/ })
+      .check();
+    await page
+      .getByRole("button", { name: "Save privately", exact: true })
+      .click();
+    await page
+      .getByRole("link", {
+        name: "Open saved transcript and report →",
+        exact: true,
+      })
+      .waitFor();
+    assert(savedSession);
     scenario = "error";
     await page
       .getByRole("button", { name: "Start voice interview", exact: true })
@@ -148,6 +213,21 @@ async function main() {
         ),
       ),
     );
+    await page.goto(`${base}/interview/sessions/${savedSession.id}`);
+    await page
+      .getByRole("heading", { name: "Saved transcript", exact: true })
+      .waitFor();
+    await page.getByText(savedSession.turns[1].text, { exact: true }).waitFor();
+    await page.emulateMedia({ media: "print" });
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Delete session", exact: true })
+        .isVisible(),
+      false,
+    );
+    const reportPdf = await page.pdf({ format: "A4" });
+    assert.equal(reportPdf.subarray(0, 5).toString(), "%PDF-");
+    await page.emulateMedia({ media: "screen" });
     await page.goto(`${base}/campus`);
     await page
       .getByRole("heading", { name: "Apply for the campus pilot" })

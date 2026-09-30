@@ -25,7 +25,11 @@ Keep the embedding model fixed for existing documents. To change models, delete 
 
 Set `GEMINI_LIVE_API_KEY` (or existing server `GEMINI_API_KEY`) and optionally `GEMINI_LIVE_MODEL` on the API. The default is `models/gemini-3.8-live`. Confirm model access in your Google project. No permanent key belongs in a `NEXT_PUBLIC_*` variable.
 
-The browser receives a single-use constrained token, asks for microphone permission, and connects directly to Gemini. Test on HTTPS with microphone permission. Verify the first question, spoken answer transcription, interruption, ordered audio playback, Stop, navigation away, permission denial and network failure. Microphone tracks must stop in every exit path. The interface ends sessions after 15 minutes; the provider can end them earlier. Automatic reconnection and saved voice reports are not implemented yet.
+The browser asks for microphone permission, receives a single-use constrained token, and connects directly to Gemini. Test on HTTPS with microphone permission. Verify the first question, spoken answer transcription, interruption, ordered audio playback, Stop, navigation away, permission denial and network failure. Microphone tracks must stop in every exit path. The interface ends sessions after 15 minutes; the provider can end them earlier. Automatic reconnection is not implemented yet.
+
+After stopping, learners can explicitly consent to saving the transcript privately. `/interview/sessions` lists up to 20 saved sessions; individual pages reopen transcripts, request coaching, delete sessions, and print/save a PDF through the browser. No raw audio is saved. Limits are 300 transcript turns and 40,000 characters per session. Saving again after a network error is idempotent; it cannot overwrite a different transcript. The learner must delete an old session when the 20-session limit is reached.
+
+Coaching uses the existing configured text AI providers and evaluates transcript structure, relevance, clarity and evidence. It does not assess accent, emotion or hiring suitability. Report failures preserve the saved transcript. A review lease prevents concurrent duplicate requests and expires after three minutes if the process crashes. Deleted sessions are not recreated by a late coaching response. Print layouts exclude navigation and action controls.
 
 Protocol references: [ephemeral tokens](https://ai.google.dev/gemini-api/docs/live-api/ephemeral-tokens), [WebSocket setup](https://ai.google.dev/gemini-api/docs/live-api/get-started-websocket).
 
@@ -43,5 +47,6 @@ These are pilot applications, not organisation provisioning, paid employment, co
 - `npm run check` and `npm run build`.
 - `npm run test:public-guides`: public field allowlist and frontend/backend reads.
 - `npm run test:voice-browser`: simulated voice handshake, audio input, microphone cleanup and mobile campus layout.
+- `npm run test:voice-sessions`: save consent, replay safety, account isolation, report validation, review leases and deletion.
 
 Provider credentials, real microphone conversations and deployed Qdrant connectivity require a deployment smoke test. Automated mocks do not prove provider availability.

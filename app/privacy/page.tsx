@@ -9,7 +9,7 @@ import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
     "Textbook retrieval and voice practice",
-    "Textbook uploads store extracted page text and page numbers privately under your account. When vector search is enabled, excerpts are sent to Gemini for embeddings; Qdrant stores vectors and account/document identifiers for account-scoped retrieval. Deleting a textbook immediately revokes access and clears extracted text; vector deletion is retried by the background worker. Live interview practice streams microphone audio directly to Gemini only during the session. This voice interface displays a temporary transcript and does not save raw recordings in Syaahi.",
+    "Textbook uploads store extracted page text and page numbers privately under your account. When vector search is enabled, excerpts are sent to Gemini for embeddings; Qdrant stores vectors and account/document identifiers for account-scoped retrieval. Deleting a textbook immediately revokes access and clears extracted text; vector deletion is retried by the background worker. Live interview practice streams microphone audio directly to Gemini only during the session. Syaahi does not save raw audio recordings. Transcripts remain temporary unless you explicitly choose Save privately. Up to 20 saved sessions retain the target role, transcript, save time and any requested coaching report. Creating a report sends the saved transcript to a configured AI provider. You can delete a saved session and report from its page; this removes the active application record, not independent provider records, backups or downloaded copies.",
   ],
   [
     "Campus and institution applications",

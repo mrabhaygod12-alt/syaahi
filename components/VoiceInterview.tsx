@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { requestJson } from "@/lib/http-client";
+import type { VoiceTurn } from "@/lib/interview/voice";
 
 const LIVE_ENDPOINT =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained";
@@ -34,7 +36,75 @@ export default function VoiceInterview() {
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [role, setRole] = useState("Software engineering intern"),
     [status, setStatus] = useState(""),
-    [transcript, setTranscript] = useState<string[]>([]);
+    [transcript, setTranscript] = useState<VoiceTurn[]>([]);
+  const transcriptRef = useRef<VoiceTurn[]>([]),
+    boundary = useRef(false);
+  const sessionId = useRef(""),
+    sessionRole = useRef(""),
+    savingLock = useRef(false);
+  const [consent, setConsent] = useState(false),
+    [saving, setSaving] = useState(false),
+    [savedId, setSavedId] = useState("");
+  function appendTurn(speaker: VoiceTurn["speaker"], text: string) {
+    if (!text) return;
+    const previous = transcriptRef.current,
+      last = previous.at(-1);
+    const merge =
+      !boundary.current &&
+      last?.speaker === speaker &&
+      last.text.length + text.length <= 10000;
+    if (!merge && !text.trim()) return;
+    const next = merge
+      ? [...previous.slice(0, -1), { speaker, text: last!.text + text }]
+      : [...previous, { speaker, text }];
+    if (
+      next.length > 300 ||
+      next.reduce((n, turn) => n + turn.text.length, 0) > 40000 ||
+      text.length > 10000
+    ) {
+      stop();
+      setStatus(
+        "Transcript limit reached. The final incoming segment was not saved. Save this transcript and start a shorter session.",
+      );
+      return;
+    }
+    boundary.current = false;
+    transcriptRef.current = next;
+    setTranscript(next);
+  }
+  async function save() {
+    if (!consent || savingLock.current || running || connecting) return;
+    savingLock.current = true;
+    setSaving(true);
+    setStatus("");
+    try {
+      const { response, data } = await requestJson("/api/interview/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: sessionId.current,
+          role: sessionRole.current,
+          turns: transcriptRef.current,
+          consent: true,
+        }),
+      });
+      if (!response.ok)
+        throw new Error(data.error || "Could not save transcript.");
+      setSavedId(data.id);
+      setStatus(
+        "Transcript saved privately. Open your report to request coaching.",
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not save transcript. You can retry without starting over.",
+      );
+    } finally {
+      savingLock.current = false;
+      setSaving(false);
+    }
+  }
   const socket = useRef<WebSocket | null>(null),
     context = useRef<AudioContext | null>(null),
     stream = useRef<MediaStream | null>(null),
@@ -92,13 +162,31 @@ export default function VoiceInterview() {
     nextPlayback.current = when + buffer.duration;
   }
   async function start() {
-    if (locked.current) return;
+    if (locked.current || savingLock.current) return;
+    if (!role.trim()) {
+      setStatus("Enter a target role before starting.");
+      return;
+    }
+    if (
+      transcriptRef.current.length &&
+      !savedId &&
+      !window.confirm(
+        "Start a new session and discard this unsaved transcript?",
+      )
+    )
+      return;
     locked.current = true;
     setConnecting(true);
     const run = ++generation.current;
     try {
       setStatus("Allow microphone access to begin…");
       setTranscript([]);
+      transcriptRef.current = [];
+      boundary.current = false;
+      sessionId.current = crypto.randomUUID();
+      sessionRole.current = role;
+      setConsent(false);
+      setSavedId("");
       const mic = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -212,14 +300,15 @@ export default function VoiceInterview() {
           }
           const input = content?.inputTranscription?.text,
             output = content?.outputTranscription?.text;
-          if (input)
-            setTranscript((items) => [...items.slice(-8), `You: ${input}`]);
-          if (output)
-            setTranscript((items) => [...items.slice(-8), `Coach: ${output}`]);
+          if (input) appendTurn("learner", input);
+          if (output) appendTurn("coach", output);
+          if (!active.current) return;
           for (const part of content?.modelTurn?.parts || [])
             if (part.inlineData?.data) void play(part.inlineData.data);
-          if (content?.turnComplete)
+          if (content?.turnComplete) {
+            boundary.current = true;
             setStatus("Your turn. Continue speaking or stop this practice.");
+          }
         } catch {
           /* Ignore non-content protocol frames. */
         }
@@ -267,7 +356,11 @@ export default function VoiceInterview() {
             Stop voice practice
           </button>
         ) : (
-          <button className="btn dark" onClick={() => void start()}>
+          <button
+            className="btn dark"
+            disabled={saving}
+            onClick={() => void start()}
+          >
             Start voice interview
           </button>
         )}
@@ -279,11 +372,48 @@ export default function VoiceInterview() {
       )}
       {transcript.length > 0 && (
         <div className="voice-transcript" aria-live="polite">
-          {transcript.map((line, index) => (
-            <p key={`${index}-${line}`}>{line}</p>
+          {transcript.map((turn, index) => (
+            <p key={index}>
+              <strong>{turn.speaker === "learner" ? "You" : "Coach"}:</strong>{" "}
+              {turn.text}
+            </p>
           ))}
         </div>
       )}
+      {!running && !connecting && transcript.length > 0 && !savedId && (
+        <div className="card">
+          <label>
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(event) => setConsent(event.target.checked)}
+            />{" "}
+            Save this transcript privately to my account. No audio recording is
+            stored.
+          </label>
+          <button
+            className="btn dark"
+            disabled={!consent || saving}
+            onClick={() => void save()}
+          >
+            {saving ? "Saving…" : "Save privately"}
+          </button>
+          <p className="small">
+            Unsaved transcripts disappear when you leave or reload. You can
+            delete saved sessions from their report page.
+          </p>
+        </div>
+      )}
+      {savedId && (
+        <p>
+          <a href={`/interview/sessions/${savedId}`}>
+            Open saved transcript and report →
+          </a>
+        </p>
+      )}
+      <p>
+        <a href="/interview/sessions">Your saved voice sessions →</a>
+      </p>
       <p className="small">
         Voice sessions are private practice, not a hiring decision. Typed
         practice remains available while voice access is in beta.
