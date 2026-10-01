@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { originError } from "@/lib/auth/server";
 /** Keep infrastructure errors and credentials out of public responses. */
 export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
   handler: T,
@@ -9,6 +10,8 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
     const requestId = randomUUID();
     try {
       if (req) {
+        const crossOrigin = originError(req);
+        if (crossOrigin) return crossOrigin;
         const bytes = Number(req.headers.get("content-length") || 0);
         const limit = req.headers
           .get("content-type")
@@ -20,6 +23,31 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
             { error: "Request exceeds the supported upload size.", requestId },
             { status: 413 },
           );
+        // Enforce the actual streamed bytes too: Content-Length is optional and
+        // untrusted. The original body remains available to the route handler.
+        if (req.body) {
+          const reader = req.clone().body!.getReader();
+          let received = 0;
+          try {
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              received += value.byteLength;
+              if (received > limit) {
+                void reader.cancel().catch(() => {});
+                return NextResponse.json(
+                  {
+                    error: "Request exceeds the supported upload size.",
+                    requestId,
+                  },
+                  { status: 413 },
+                );
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
       }
       const response = await handler(...args);
       response.headers.set("X-Request-Id", requestId);

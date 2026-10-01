@@ -4,8 +4,8 @@ import { authError, currentUser } from "@/lib/auth/server";
 import { getPaymentStatus, listUserPayments } from "@/lib/billing/upi";
 
 /**
- * GET /api/upi/status?orderId=xxx     — single order status
- * GET /api/upi/status?history=1       — all user payments
+ * GET /api/upi/status?orderId=xxx    : single order status
+ * GET /api/upi/status?history=1      : all user payments
  */
 async function handleGET(req: NextRequest) {
   const denied = await authError(req);

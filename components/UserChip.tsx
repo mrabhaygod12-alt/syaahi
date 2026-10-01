@@ -183,7 +183,7 @@ export default function UserChip() {
         className="account-avatar"
         aria-label="Open account menu"
         aria-expanded={open}
-        title={`${user.name} (${user.email}) — Click for profile & settings`}
+        title={`${user.name} (${user.email}) : Click for profile & settings`}
         onClick={() => setOpen((prev) => !prev)}
         style={{
           width: 36,

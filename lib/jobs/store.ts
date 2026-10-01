@@ -56,7 +56,7 @@ export interface Job {
   title: string | null;
   /** Auto-built practice set (quiz + flashcards), generated once at completion. */
   practice: JobPractice | null;
-  /** Set when a job stops for lack of credits — powers the top-up card. */
+  /** Set when a job stops for lack of credits: powers the top-up card. */
   shortage: { have: number; need: number } | null;
   /** Student answers from the question manager, baked into every page prompt. */
   brief: string | null;

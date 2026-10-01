@@ -211,7 +211,7 @@ export default function LessonChat({
     }
   }, [tokens, job.id]);
 
-  // Newest at the bottom, ChatGPT-style — always follow the conversation.
+  // Newest at the bottom, ChatGPT-style : always follow the conversation.
   useEffect(() => {
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -431,7 +431,7 @@ export default function LessonChat({
       setQ("");
       setThread((t) => [
         ...t,
-        { q: qq, a: "📴 Offline — queued, will send when you reconnect." },
+        { q: qq, a: "📴 Offline : queued, will send when you reconnect." },
       ]);
       return;
     }
@@ -448,7 +448,7 @@ export default function LessonChat({
         await askSync(qq, hist).catch(() => {
           setThread((t) => [
             ...t,
-            { q: qq, a: "Network error — check connection and retry." },
+            { q: qq, a: "Network error : check connection and retry." },
           ]);
         });
     } finally {
@@ -508,7 +508,7 @@ export default function LessonChat({
   async function exportThread() {
     if (!thread.length) return;
     const md =
-      `## Chat Q&A — ${lessonTitle(job)}\n` +
+      `## Chat Q&A : ${lessonTitle(job)}\n` +
       thread.map((m, k) => `### Q${k + 1}: ${m.q}\n${m.a}`).join("\n\n");
     const r = await fetch(`/api/jobs/${job.id}`, {
       method: "POST",

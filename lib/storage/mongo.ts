@@ -9,6 +9,15 @@ export const useMongo = () =>
 export async function mongo() {
   if (!process.env.MONGODB_URI)
     throw new Error("MongoDB Atlas is not configured.");
+  if (
+    process.env.NODE_ENV === "production" &&
+    /(?:[?&])(?:tlsInsecure|tlsAllowInvalidCertificates|tlsAllowInvalidHostnames)=true|(?:[?&])(?:tls|ssl)=false/i.test(
+      process.env.MONGODB_URI,
+    )
+  )
+    throw new Error(
+      "Insecure database TLS options are not permitted in production.",
+    );
   if (!state.mongoClient)
     state.mongoClient = new MongoClient(process.env.MONGODB_URI, {
       maxPoolSize: boundedSetting("MONGO_POOL_SIZE", 20, 5, 100),
@@ -29,7 +38,7 @@ export async function mongo() {
     state.mongoReady = indexes(database).catch((e) => {
       console.warn(
         "MongoDB index creation warning:",
-        e instanceof Error ? e.message : e,
+        e instanceof Error ? e.name : "unknown",
       );
     });
   await state.mongoReady;

@@ -109,7 +109,7 @@ async function handlePOST(req: NextRequest) {
   let topics = fallback.topics;
   let planNote = researchNote + fallback.note;
 
-  // Fast credit pre-check on the instant heuristic budget — a broke user gets
+  // Fast credit pre-check on the instant heuristic budget: a broke user gets
   // an instant 402 instead of waiting ~2min for the AI planner first.
   const have = await balance(user);
   if (have <= 0) {

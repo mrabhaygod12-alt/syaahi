@@ -1,9 +1,3 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
 const stages = [
   [
     "01",
@@ -28,45 +22,8 @@ const stages = [
 ] as const;
 
 export default function FeatureJourney() {
-  const root = useRef<HTMLElement>(null);
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-    const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      const context = gsap.context(() => {
-        gsap.from("[data-journey-heading]", {
-          opacity: 0,
-          y: 20,
-          duration: 0.55,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: root.current,
-            start: "top 82%",
-            once: true,
-          },
-        });
-        gsap.from("[data-journey-card]", {
-          opacity: 0,
-          y: 24,
-          scale: 0.98,
-          stagger: 0.1,
-          duration: 0.58,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".feature-journey-grid",
-            start: "top 84%",
-            once: true,
-          },
-        });
-      }, root);
-      return () => context.revert();
-    });
-    return () => media.revert();
-  }, []);
-
   return (
     <section
-      ref={root}
       className="wrap feature-journey"
       aria-labelledby="study-journey-title"
     >

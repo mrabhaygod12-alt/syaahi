@@ -46,7 +46,7 @@ async function handleGET(req: NextRequest) {
       ).href,
     );
   } catch (err) {
-    console.error("[OAuth Callback Error]:", err);
+    console.error("OAuth callback failed:", err instanceof Error ? err.name : "unknown");
     const msg =
       "Google sign-in could not be completed. Please retry or use email sign-in.";
     response.headers.set(

@@ -6,7 +6,7 @@ export interface HistTurn {
 // Keyword-overlap rank: grounds big lessons in the most relevant pages
 // instead of a blind char slice (cuts wrong-answer rate on 10+ pagers).
 // Shared by /api/ask and /api/ask-stream (route modules must not export
-// helpers — Next.js route-type checks reject them).
+// helpers: Next.js route-type checks reject them).
 export function rankPages(
   pages: Array<{ topic: string; markdown: string }>,
   question: string,
@@ -27,7 +27,7 @@ export function rankPages(
     const words = new Set(toks(`${p.topic} ${p.markdown.slice(0, 1500)}`));
     let s = 0;
     for (const w of qset) if (words.has(w)) s++;
-    // Topic-title hits weigh double — the question usually names the page.
+    // Topic-title hits weigh double: the question usually names the page.
     for (const w of qset) if (p.topic.toLowerCase().includes(w)) s += 2;
     return { i, s };
   });

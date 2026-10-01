@@ -1,7 +1,3 @@
-"use client";
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 const stages = [
   [
@@ -31,35 +27,15 @@ const stages = [
   ],
 ];
 export default function AboutStory() {
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      const ctx = gsap.context(() => {
-        gsap.utils.toArray<HTMLElement>("[data-story]").forEach((el) =>
-          gsap.from(el, {
-            y: 28,
-            opacity: 0,
-            duration: 0.7,
-            ease: "power2.out",
-            scrollTrigger: { trigger: el, start: "top 88%", once: true },
-          }),
-        );
-      }, root);
-      return () => ctx.revert();
-    });
-    return () => mm.revert();
-  }, []);
   return (
-    <div ref={root} className="wrap about-page">
+    <div className="wrap about-page">
       <section className="about-hero">
         <div>
           <p className="eyebrow">ABOUT THE CREATORS</p>
           <h1>
-            Built with curiosity.
+            Meet the people
             <br />
-            <em>Grounded in care.</em>
+            <em>building Syaahi.</em>
           </h1>
           <p className="about-lead">
             I’m Chandan Pandey, the creator of Syaahi. I’m building a study

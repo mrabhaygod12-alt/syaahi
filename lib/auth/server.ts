@@ -77,6 +77,13 @@ export async function currentUser(req: Request): Promise<Account | null> {
     JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?`,
     )
     .get(hash(token), Date.now());
+  if (row) {
+    const { rewardSummary } = await import("@/lib/billing/rewards");
+    if (!(await rewardSummary(String(row.id))).emailVerified) {
+      db().prepare("DELETE FROM sessions WHERE token_hash=?").run(hash(token));
+      return null;
+    }
+  }
   return row
     ? {
         id: String(row.id),
@@ -90,8 +97,14 @@ export async function currentUser(req: Request): Promise<Account | null> {
     : null;
 }
 export function originError(req: Request): NextResponse | null {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return null;
+  if (req.headers.get("sec-fetch-site") === "cross-site")
+    return NextResponse.json(
+      { error: "Cross-origin request rejected." },
+      { status: 403 },
+    );
   const origin = req.headers.get("origin");
-  if (!origin || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return null;
+  if (!origin) return null;
 
   // The proxy authenticates infrastructure, not the browser Origin.
   // Keep CSRF checks when Vercel forwards the request to Render.
@@ -102,8 +115,9 @@ export function originError(req: Request): NextResponse | null {
       (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, ""),
       "https://syaahii.in",
       "https://www.syaahii.in",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
+      ...(process.env.NODE_ENV !== "production"
+        ? ["http://localhost:3000", "http://127.0.0.1:3000"]
+        : []),
     ].filter(Boolean),
   );
 
@@ -184,7 +198,9 @@ export async function register(
   }
   transaction(() => {
     db()
-      .prepare("INSERT INTO users (id,email,name,password,created_at) VALUES (?,?,?,?,?)")
+      .prepare(
+        "INSERT INTO users (id,email,name,password,created_at) VALUES (?,?,?,?,?)",
+      )
       .run(user.id, email, name, encoded, user.createdAt);
     if (oauthSubject)
       db()
@@ -234,7 +250,9 @@ export async function startSession(
   response.cookies.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: new URL(req.url).protocol === "https:",
+    secure:
+      process.env.NODE_ENV === "production" ||
+      new URL(req.url).protocol === "https:",
     path: "/",
     maxAge: 7 * 86400,
   });

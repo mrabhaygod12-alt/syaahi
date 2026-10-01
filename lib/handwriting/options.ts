@@ -1,4 +1,4 @@
-// Handwriting style catalogue — all fonts are free Google Fonts (OFL).
+// Handwriting style catalogue: all fonts are free Google Fonts (OFL).
 export const FONTS = [
   {
     id: "Caveat",

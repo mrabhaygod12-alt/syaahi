@@ -1,12 +1,22 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { chromium, webkit, devices } from "playwright";
 
 async function main() {
   const server = spawn(
     process.execPath,
     ["node_modules/next/dist/bin/next", "start", "--port", "3138"],
-    { windowsHide: true, stdio: "ignore" },
+    {
+      windowsHide: true,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        APP_ROLE: "all",
+        BACKEND_URL: "",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3138",
+      },
+    },
   );
   try {
     for (let i = 0; i < 100; i++) {
@@ -28,6 +38,11 @@ async function main() {
             viewport: size,
           });
           const page = await context.newPage();
+          page.on("pageerror", error => console.error(`${engine.name()} ${size.width}px browser error: ${error.message}`));
+          page.on("requestfailed", request => { if (request.url().startsWith("http://localhost:3138/")) console.error("Local asset failed:", request.url(), request.failure()?.errorText); });
+          await page.addInitScript(() =>
+            localStorage.setItem("syaahi-privacy-v1", "essential"),
+          );
           await page.route("**/api/**", (r) =>
             r.fulfill({ json: { user: null } }),
           );
@@ -70,14 +85,108 @@ async function main() {
               .getByRole("button", { name: "Close navigation" })
               .click();
           assert.equal(await nav.isVisible(), false);
+          for (const path of [
+            "/",
+            "/about",
+            "/privacy",
+            "/delivery",
+            "/pricing",
+          ]) {
+            const response = await page.goto(`http://localhost:3138${path}`);
+            assert.equal(response?.status(), 200, `Page ${path} must load`);
+            await page.locator("main h1").waitFor();
+            assert(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth,
+              ),
+              `No overflow on ${path} at ${size.width}px`,
+            );
+            assert.equal(
+              await page.locator("main h1").count(),
+              1,
+              `One primary heading on ${path}`,
+            );
+          }
           await context.close();
         }
       } finally {
         await browser.close();
       }
     }
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1440, height: 1000 },
+      });
+      await page.route("**/api/**", (r) => r.fulfill({ json: { user: null } }));
+      await page.goto("http://localhost:3138/");
+      assert(
+        await page
+          .getByRole("button", { name: "Study", exact: true })
+          .isVisible(),
+      );
+      assert.equal(
+        await page.getByRole("button", { name: "Open navigation" }).isVisible(),
+        false,
+      );
+      assert.equal(
+        await page.locator('script[src*="insights"]').count(),
+        0,
+        "Optional analytics absent before consent",
+      );
+      await page.getByRole("button", { name: "Essential only" }).click();
+      await page.locator("main h1").waitFor();
+      await page.evaluate(() => { (document.activeElement as HTMLElement)?.blur(); window.scrollTo(0, 0); });
+      assert.equal(await page.locator(".skip-link").evaluate(e => getComputedStyle(e).position), "fixed");
+      await page
+        .getByRole("button", { name: "Privacy preferences", exact: true })
+        .click();
+      assert(
+        await page.getByRole("button", { name: "Essential only" }).isVisible(),
+      );
+      await page.getByRole("button", { name: "Essential only" }).click();
+      mkdirSync("output/qa", { recursive: true });
+      await page.screenshot({
+        path: "output/qa/home-desktop.png",
+        fullPage: true,
+      });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.locator("main h1").waitFor();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: "output/qa/home-mobile.png",
+        fullPage: true,
+      });
+      await page.screenshot({ path: "output/qa/home-mobile-top.png" });
+      const response = await page.request.get("http://localhost:3138/.env");
+      assert.equal(response.status(), 404);
+      for (const path of ["/.git/config", "/data/private.sqlite", "/backups/archive.zip"]) assert.equal((await page.request.get(`http://localhost:3138${path}`)).status(), 404);
+      const admin = await page.request.get("http://localhost:3138/admin/publications", { maxRedirects: 0 });
+      // A redirect after Next.js has streamed the loading shell is encoded in
+      // the HTML instead of changing an already-sent HTTP status.
+      if (admin.status() === 307) assert.match(admin.headers().location, /^\/login\?/);
+      else {
+        assert.equal(admin.status(), 200);
+        const html = await admin.text();
+        assert.match(html, /NEXT_REDIRECT|http-equiv="refresh"/);
+        assert.match(html, /\/login\?next=/);
+      }
+      const home = await page.request.get("http://localhost:3138/");
+      assert.equal(home.headers()["x-content-type-options"], "nosniff");
+      assert(!home.headers()["x-powered-by"]);
+      assert.match(
+        home.headers()["content-security-policy"],
+        /object-src 'none'/,
+      );
+      assert.equal(
+        (await page.request.get("http://localhost:3138/icon.svg")).status(),
+        200,
+      );
+    } finally {
+      await browser.close();
+    }
     console.log(
-      "PASS: Chromium + WebKit, iPhone portrait/landscape and 320px; disclosure, scrolling, dismissal and overflow.",
+      "PASS: Chromium + WebKit phone layouts and desktop; navigation, overflow, consent, favicon and security headers.",
     );
   } finally {
     server.kill();

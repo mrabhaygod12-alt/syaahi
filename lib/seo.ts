@@ -26,10 +26,10 @@ function resolveSiteUrl(value: string | undefined): string {
 // stay consistent for Google AND for AI answer engines (ChatGPT, Perplexity…).
 export const SITE = {
   name: "Syaahi",
-  tagline: "AI Handwritten Exam Notes Generator",
+  tagline: "Study notes, PDFs and active recall",
   url: resolveSiteUrl(process.env.NEXT_PUBLIC_APP_URL),
   description:
-    "Turn any topic into beautiful handwritten exam notes. Generate custom handwritten PDFs for school, college and interviews — free previews, pay-as-you-go credits, instant download.",
+    "Create study notes from your topics and course material. Review sources, export notebook-style PDFs, and practise with quizzes, flashcards and voice mock interviews.",
   locale: "en_IN",
 };
 
@@ -62,7 +62,7 @@ export function pageMeta(opts: {
           url: `${SITE.url}/opengraph-image`,
           width: 1200,
           height: 630,
-          alt: "Syaahi — visual notes and active learning",
+          alt: "Syaahi: study notes and active learning",
         },
       ],
     },

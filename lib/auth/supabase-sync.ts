@@ -19,18 +19,22 @@ export async function syncUserToSupabase(
 
   try {
     if (secretKey) {
-      // Use Admin API to create pre-confirmed user in Supabase
+      // Registration is not proof of email ownership.
       const adminClient = createClient(url, secretKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
       const { error } = await adminClient.auth.admin.createUser({
         email,
         password: password || undefined,
-        email_confirm: true,
+        email_confirm: false,
         user_metadata: { full_name: name || email.split("@")[0] },
       });
-      if (error && !error.message.includes("already registered") && !error.message.includes("already exists")) {
-        console.warn("Supabase admin sync warning:", error.message);
+      if (
+        error &&
+        !error.message.includes("already registered") &&
+        !error.message.includes("already exists")
+      ) {
+        console.warn("Supabase admin sync warning:", error.name);
       }
     } else if (key && password) {
       // Use Public client to sign up user in Supabase
@@ -40,11 +44,18 @@ export async function syncUserToSupabase(
         password,
         options: { data: { full_name: name || email.split("@")[0] } },
       });
-      if (error && !error.message.includes("already registered") && !error.message.includes("already exists")) {
-        console.warn("Supabase public sync warning:", error.message);
+      if (
+        error &&
+        !error.message.includes("already registered") &&
+        !error.message.includes("already exists")
+      ) {
+        console.warn("Supabase public sync warning:", error.name);
       }
     }
   } catch (err) {
-    console.warn("Supabase sync exception:", err instanceof Error ? err.message : err);
+    console.warn(
+      "Supabase sync exception:",
+      err instanceof Error ? err.name : "unknown",
+    );
   }
 }

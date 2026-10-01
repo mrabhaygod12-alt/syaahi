@@ -209,7 +209,7 @@ async function handlePOST(
   // and double-charge. The client should poll instead.
   if (job.status === "working") {
     return NextResponse.json(
-      { error: "Job is already running — keep polling GET /api/jobs/:id." },
+      { error: "Job is already running: keep polling GET /api/jobs/:id." },
       { status: 409 },
     );
   }

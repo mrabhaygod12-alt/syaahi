@@ -72,6 +72,8 @@ async function main() {
     "long-test-password",
   );
   process.env.SUPPORT_ADMIN_IDS = staff.id;
+  await markEmailVerified(staff.id);
+  await markEmailVerified(stranger.id);
   const staffCookie = (await server.startSession(staff, request())).headers
     .get("set-cookie")!
     .split(";")[0];

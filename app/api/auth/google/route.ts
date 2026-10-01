@@ -65,7 +65,7 @@ async function handlePOST(req: NextRequest) {
   } catch (e) {
     console.error(
       "Google OAuth initialization failed:",
-      e instanceof Error ? `${e.name}: ${e.message}` : "unknown error",
+      e instanceof Error ? e.name : "unknown error",
     );
     return NextResponse.json(
       {

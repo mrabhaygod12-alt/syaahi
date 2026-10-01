@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 export function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname.toLowerCase();
+  if (
+    /(?:^|\/)\.(?:env|git|svn)(?:[/.]|$)/.test(path) ||
+    /^\/(?:data|backups)(?:\/|$)/.test(path)
+  )
+    return new NextResponse(null, { status: 404 });
   // Keep one indexable/public origin even if the Vercel alias or apex domain
   // remains attached without a redirect in the hosting dashboard.
   const hostname = req.nextUrl.hostname.toLowerCase();

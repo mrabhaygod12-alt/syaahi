@@ -337,7 +337,7 @@ export default function InterviewPractice() {
           <ul>
             {history.slice(0, 5).map((item) => (
               <li key={item.id}>
-                {item.track}{item.targetRole ? ` · ${item.targetRole}` : ""} — {item.completed}/{item.total} answers reviewed
+                {item.track}{item.targetRole ? ` · ${item.targetRole}` : ""} : {item.completed}/{item.total} answers reviewed
                 <button className="btn light" disabled={busy} onClick={() => void reopen(item.id)} style={{ marginLeft: 8 }}>Reopen</button>
               </li>
             ))}

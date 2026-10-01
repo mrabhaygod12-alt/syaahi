@@ -49,11 +49,11 @@ export default async function SubjectPage({
   const faqs = [
     {
       q: `Are there free ${s.name} previews?`,
-      a: `Yes — every pack's first page is free to preview. Create a private lesson to study the topic in your own way.`,
+      a: `Yes : every pack's first page is free to preview. Create a private lesson to study the topic in your own way.`,
     },
     {
       q: `My ${s.name} topic is missing. What now?`,
-      a: `Generate it on the Generate page — type the topic, pick a handwriting style, and download the PDF in about a minute.`,
+      a: `Generate it on the Generate page : type the topic, pick a handwriting style, and download the PDF in about a minute.`,
     },
   ];
   return (

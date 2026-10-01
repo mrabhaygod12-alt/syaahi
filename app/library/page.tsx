@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const metadata = pageMeta({
-  title: "Library — free handwritten notes previews",
+  title: "Library : free handwritten notes previews",
   description:
     "Browse free handwritten notes previews: Physics, Biology, History, CS and interview packs. Browse public sample material, then create your own private lessons.",
   path: "/library",

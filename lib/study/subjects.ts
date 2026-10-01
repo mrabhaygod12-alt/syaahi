@@ -9,7 +9,7 @@ export const SUBJECTS: Subject[] = [
   {
     slug: "physics",
     name: "Physics",
-    desc: "Laws, derivations, circuits, optics and mechanics — one page per concept.",
+    desc: "Laws, derivations, circuits, optics and mechanics: one page per concept.",
     match: ["physics"],
   },
   {
@@ -39,7 +39,7 @@ export const SUBJECTS: Subject[] = [
   {
     slug: "computer-science",
     name: "Computer Science",
-    desc: "Algorithms, DBMS, OS and CN — tracing-friendly pages.",
+    desc: "Algorithms, DBMS, OS and CN: tracing-friendly pages.",
     match: ["cs", "computer"],
   },
   {
@@ -51,7 +51,7 @@ export const SUBJECTS: Subject[] = [
   {
     slug: "hindi-medium",
     name: "Hindi Medium",
-    desc: "हिंदी माध्यम नोट्स — सरल भाषा में अवधारणाएँ और अभ्यास।",
+    desc: "हिंदी माध्यम नोट्स: सरल भाषा में अवधारणाएँ और अभ्यास।",
     match: ["hindi"],
   },
 ];

@@ -102,7 +102,7 @@ export default function SourceView() {
         !vid && (
           <div className="card" style={{ marginTop: 16 }}>
             <p className="small">
-              Built from a typed topic — no uploaded file or YouTube link.
+              Built from a typed topic : no uploaded file or YouTube link.
             </p>
           </div>
         )

@@ -12,10 +12,10 @@ export function SiteFooter() {
       <div className="wrap footer-grid">
         <div className="footer-brand">
           <Logo size={38} />
-          <p>Make room for understanding.</p>
+          <p>Study notes, PDFs and active recall.</p>
           <p className="small">
-            Your material, thoughtfully organised into notes and active
-            practice.
+            Create notes from course material, review sources and practise
+            what you learn.
           </p>
         </div>
         {[
@@ -42,6 +42,7 @@ export function SiteFooter() {
             ["Privacy", "/privacy"],
             ["Terms", "/terms"],
             ["Refunds", "/refunds"],
+            ["Digital delivery", "/delivery"],
             ["Cookies", "/cookies"],
             ["Acceptable use", "/acceptable-use"],
             ["Disclaimer", "/disclaimer"],
@@ -59,6 +60,7 @@ export function SiteFooter() {
       </div>
       <div className="wrap footer-bottom">
         <span>© {new Date().getFullYear()} Syaahi</span>
+        <button className="privacy-settings" type="button" onClick={() => window.dispatchEvent(new Event("syaahi:privacy-settings"))}>Privacy preferences</button>
         <span>
           AI helps you study. Verify important facts with original sources.
         </span>

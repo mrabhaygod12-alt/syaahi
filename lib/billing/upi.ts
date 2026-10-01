@@ -1,6 +1,6 @@
 import { UPI_MERCHANTS, type UpiMerchant } from "./upi-merchants";
 /**
- * UPI Payment System — Core Library
+ * UPI Payment System: Core Library
  * ----------------------------------
  * Two methods:
  *   1. Direct UPI QR + UTR  → user scans, pays, submits UTR, admin approves

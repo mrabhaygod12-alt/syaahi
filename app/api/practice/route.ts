@@ -244,7 +244,7 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(
-      { error: "Practice generation returned malformed output — retry once." },
+      { error: "Practice generation returned malformed output: retry once." },
       { status: 502 },
     );
   }

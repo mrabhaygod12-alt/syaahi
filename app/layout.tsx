@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { Caveat, Instrument_Sans, Kalam, Patrick_Hand } from "next/font/google";
 import "./globals.css";
 import "./upi-payments.css";
+import "./design-refinement.css";
 import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
-import { Analytics } from "@vercel/analytics/next";
+import PrivacyPreferences from "@/components/PrivacyPreferences";
 
 const instrument = Instrument_Sans({
   subsets: ["latin"],
@@ -37,14 +38,14 @@ const patrickHand = Patrick_Hand({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: `${SITE.name} — ${SITE.tagline}`,
+    default: `${SITE.name} : ${SITE.tagline}`,
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
   openGraph: {
     type: "website",
     siteName: SITE.name,
-    title: `${SITE.name} — ${SITE.tagline}`,
+    title: `${SITE.name} : ${SITE.tagline}`,
     description: SITE.description,
     url: SITE.url,
     locale: SITE.locale,
@@ -78,9 +79,14 @@ export default function RootLayout({
       </head>
       <body>
         <SiteHeader />
-        <main>{children}</main>
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
+        <main id="main-content" tabIndex={-1}>
+          {children}
+        </main>
         <SiteFooter />
-        <Analytics />
+        <PrivacyPreferences />
       </body>
     </html>
   );

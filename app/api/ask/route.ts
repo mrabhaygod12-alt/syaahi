@@ -64,7 +64,7 @@ async function handlePOST(req: NextRequest) {
           role: "system",
           content:
             `Answer the student question STRICTLY from the notes below (under 120 words). ${languageLine(lang)} ` +
-            'If the notes do not contain the answer, say exactly: "Not in these notes — generate a page on this topic first." Do not invent beyond the notes.',
+            'If the notes do not contain the answer, say exactly: "Not in these notes: generate a page on this topic first." Do not invent beyond the notes.',
         },
         {
           role: "user",

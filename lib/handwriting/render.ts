@@ -2,7 +2,7 @@ import type { PaperId } from "./options";
 
 // Client-side handwriting jitter renderer (Canvas 2D).
 // Draws EVERY character with its own rotation (±jitter deg), x/y offset and
-// size variation (±5%) — this is what separates real-looking output from flat fonts.
+// size variation (±5%): this is what separates real-looking output from flat fonts.
 
 const PAPER_BG: Record<PaperId, string> = {
   ruled: "#ffffff",

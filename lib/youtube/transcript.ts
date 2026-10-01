@@ -1,11 +1,11 @@
 import { readPublicVideo } from "./study";
-// Real YouTube intake — no mocks, ever.
+// Real YouTube intake: no mocks, ever.
 // Strategy chain (first success wins):
 //   1. oEmbed → real video title + author (proves the link resolves; always attempted)
-//   2. youtube-transcript lib → caption text (works when captions exist — verified live)
+//   2. youtube-transcript lib → caption text (works when captions exist: verified live)
 //   3. watch-page captionTracks scrape → same captions via different path (when lib is blocked)
 // If 2+3 both fail, we return an HONEST error (video has no captions / is private /
-// age-restricted) — never fake notes generated from the URL string.
+// age-restricted): never fake notes generated from the URL string.
 
 export interface YTResult {
   videoId: string;
@@ -126,7 +126,7 @@ async function viaLibrary(id: string, debug: string[]): Promise<string> {
   try {
     const mod: any = await import("youtube-transcript");
     const YT = mod.YoutubeTranscript ?? mod.default ?? mod;
-    // Prefer English captions explicitly — default track can be another language.
+    // Prefer English captions explicitly: default track can be another language.
     let items: Array<{ text: string }>;
     try {
       items = await YT.fetchTranscript(id, { lang: "en" });
@@ -210,16 +210,16 @@ export async function fetchYouTube(url: string): Promise<YTResult> {
     throw new Error("Not a YouTube watch / shorts / live / youtu.be URL.");
   const debug: string[] = [];
 
-  // Duration guard FIRST — reject over-long videos before any heavy work.
+  // Duration guard FIRST: reject over-long videos before any heavy work.
   const dur = await getDuration(id, debug);
   if (dur.seconds !== null && dur.seconds <= 0) {
     throw new Error(
-      "Live streams and upcoming premieres are not supported — please provide a published video between 0 to 60 minutes.",
+      "Live streams and upcoming premieres are not supported: please provide a published video between 0 to 60 minutes.",
     );
   }
   if (dur.seconds !== null && dur.seconds > MAX_SECONDS) {
     throw new Error(
-      `Please provide a video between 0 to 60 minutes — this video is ${fmtDur(dur.seconds)} long ` +
+      `Please provide a video between 0 to 60 minutes: this video is ${fmtDur(dur.seconds)} long ` +
         `(${Math.round(dur.seconds / 60)} minutes). Videos longer than 60 minutes are not supported.`,
     );
   }

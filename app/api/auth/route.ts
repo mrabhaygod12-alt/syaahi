@@ -91,9 +91,7 @@ async function handlePOST(req: NextRequest) {
         { status: 202 },
       );
     } catch (err) {
-      const detail =
-        err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-      console.error("Signup failed:", detail);
+      console.error("Signup failed:", err instanceof Error ? err.name : "unknown");
       const isDuplicate =
         err instanceof Error &&
         (err.message.includes("duplicate key") ||

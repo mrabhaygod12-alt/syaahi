@@ -1,5 +1,4 @@
 import StudyDemo from "@/components/StudyDemo";
-import LandingReveal from "@/components/LandingReveal";
 import FeatureJourney from "@/components/FeatureJourney";
 import { CtaBand, Faq } from "@/components/site";
 import { pageMeta, jsonLd, SITE } from "@/lib/seo";
@@ -12,7 +11,6 @@ export const metadata = pageMeta({
 export default function Home() {
   return (
     <>
-      <LandingReveal />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -42,9 +40,9 @@ export default function Home() {
           <div>
             <p className="eyebrow">SYAAHI · YOUR AI STUDY WORKSPACE</p>
             <h1>
-              Make room for
+              Turn your material into
               <br />
-              <em>understanding.</em>
+              <em>notes you can study.</em>
             </h1>
             <p>
               Syaahi turns your topics, PDFs and supported lectures into

@@ -109,7 +109,7 @@ export default function Checkout({
         amount: current.amount,
         currency: current.currency,
         name: "Syaahi",
-        description: `${current.testMode ? "TEST — no real money — " : ""}${current.credits} study credits`,
+        description: `${current.testMode ? "TEST : no real money : " : ""}${current.credits} study credits`,
         theme: { color: "#214b40" },
         modal: {
           ondismiss: () => {

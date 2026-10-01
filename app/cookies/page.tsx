@@ -17,11 +17,11 @@ const sections = [
   ],
   [
     "Third-party services",
-    "Payment checkout and provider websites may use their own cookies when opened. Their policies apply to those interactions. The application does not currently install an advertising tracker or an optional analytics SDK.",
+    "Payment checkout and provider websites may use their own cookies when opened. Their policies apply to those interactions. Optional Vercel Web Analytics loads only if you choose Allow analytics. It measures page visits; no advertising tracker is installed by the application. Your choice is stored in this browser under syaahi-privacy-v1. Essential only keeps optional analytics disabled.",
   ],
   [
     "Your controls",
-    "You can remove cookies and site data in your browser settings. This signs you out and can remove local drafts and practice history. Download anything important first. Blocking session cookies prevents account features from working.",
+    "Use Privacy preferences in the footer to change your analytics choice at any time. Turning it off stops future analytics events from this page; it does not erase events already received by the provider. You can also remove cookies and site data in your browser settings. This signs you out and can remove local drafts. Blocking session cookies prevents account features from working.",
   ],
 ];
 export default function Policy() {
@@ -34,7 +34,7 @@ export default function Policy() {
       />
       <Prose>
         <p className="small">
-          Updated 21 September 2026 · Current installation
+          Updated 1 October 2026
         </p>
         {sections.map(([title, body], i) => (
           <section key={title}>

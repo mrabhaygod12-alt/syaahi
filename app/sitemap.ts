@@ -22,6 +22,7 @@ const STATIC = [
   "/terms",
   "/privacy",
   "/refunds",
+  "/delivery",
   "/disclaimer",
   "/acceptable-use",
   "/cookies",

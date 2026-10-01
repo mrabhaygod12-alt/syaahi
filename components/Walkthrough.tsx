@@ -1,6 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import gsap from "gsap";
+import { useState } from "react";
 const steps = [
   {
     title: "Bring your starting point",
@@ -40,29 +39,9 @@ const steps = [
   },
 ];
 export default function Walkthrough() {
-  const panel = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(0);
-  useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const ctx = gsap.context(() => {
-      gsap.from(".step-art .card", {
-        opacity: 0,
-        x: 30,
-        stagger: 0.14,
-        duration: 0.55,
-        ease: "power2.out",
-      });
-      gsap.from(".steps-grid h2,.steps-grid p:not(.card)", {
-        opacity: 0,
-        y: 12,
-        stagger: 0.08,
-        duration: 0.45,
-      });
-    }, panel);
-    return () => ctx.revert();
-  }, [step]);
   return (
-    <div ref={panel} className="wrap feature-section">
+    <div className="wrap feature-section">
       <div className="tabs-row" role="tablist" aria-label="Study workflow">
         {steps.map((s, i) => (
           <button

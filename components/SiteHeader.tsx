@@ -102,11 +102,13 @@ export default function SiteHeader() {
   const path = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    setReady(true);
     setMobileOpen(false);
     setOpenGroup(null);
   }, [path]);
@@ -164,6 +166,7 @@ export default function SiteHeader() {
                 <button
                   className="nav-trigger"
                   type="button"
+                  disabled={!ready}
                   aria-controls={`nav-${group.label.toLowerCase()}`}
                   aria-expanded={isOpen}
                   onClick={() => setOpenGroup(isOpen ? null : group.label)}
@@ -172,6 +175,8 @@ export default function SiteHeader() {
                 </button>
                 <div
                   className={isOpen ? "nav-popover is-open" : "nav-popover"}
+                  hidden={!isOpen}
+                  style={!isOpen ? { display: "none" } : undefined}
                   id={`nav-${group.label.toLowerCase()}`}
                 >
                   {group.items.map((item) => (
@@ -211,6 +216,7 @@ export default function SiteHeader() {
             ref={menuButton}
             className="mobile-menu"
             type="button"
+            disabled={!ready}
             aria-expanded={mobileOpen}
             aria-controls="site-navigation"
             aria-label={mobileOpen ? "Close navigation" : "Open navigation"}

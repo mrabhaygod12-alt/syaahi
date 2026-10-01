@@ -112,7 +112,7 @@ export default function CampusApplication({
         .filter((item) => item.kind === kind)
         .map((item) => (
           <p key={item.id}>
-            <b>{item.institution}</b> — {item.status}
+            <b>{item.institution}</b> : {item.status}
           </p>
         ))}
     </section>

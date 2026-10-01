@@ -117,7 +117,7 @@ export default function WorkspaceShell({
   }, [isResizing, chatWidth]);
 
   const drawerRef = useRef<HTMLDivElement>(null);
-  // AI chat lives behind the hamburger — never auto-open, same drawer on every room.
+  // AI chat lives behind the hamburger : never auto-open, same drawer on every room.
   // Escape closes it like any ChatGPT-style panel.
   useEffect(() => {
     if (!chatOpen) return;

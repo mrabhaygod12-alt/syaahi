@@ -72,7 +72,7 @@ export default async function PackPage({
     },
     {
       q: "Can I regenerate in a different handwriting?",
-      a: "Yes — open Generate, type the same topics, pick a supported font, paper, and template.",
+      a: "Yes : open Generate, type the same topics, pick a supported font, paper, and template.",
     },
   ];
   const article = {
@@ -106,14 +106,14 @@ export default async function PackPage({
       />
       <PageHero
         kicker={`${p.category} · ${p.pages} pages`}
-        title={`${p.title} — handwritten notes`}
+        title={`${p.title} : handwritten notes`}
         lede={`Free page-1 preview below. Create a private lesson to build your own notes.`}
       />
       <div className="wrap" style={{ paddingTop: 24 }}>
         <h2>What&apos;s inside</h2>
         <ul>
           {p.topics.map((t: string) => (
-            <li key={t}>Page — {t}</li>
+            <li key={t}>Page : {t}</li>
           ))}
         </ul>
         <h2 style={{ marginTop: 24 }}>Free preview · page 1</h2>
@@ -130,7 +130,7 @@ export default async function PackPage({
             className="btn dark"
             href={`/dashboard?topic=${encodeURIComponent(p.title)}`}
           >
-            Unlock full pack — {p.pages} credits
+            Unlock full pack : {p.pages} credits
           </a>
           <a className="btn light" href="/dashboard">
             Regenerate in my style

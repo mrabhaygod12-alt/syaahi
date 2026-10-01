@@ -19,6 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high
+      - run: npm run test:security
       - run: npm run check
       - run: npm run test:study
       - run: npm run test:generation-recovery

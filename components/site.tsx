@@ -117,7 +117,7 @@ export function CtaBand() {
 export function Updated({ date }: { date: string }) {
   return (
     <p className="small">
-      Last updated: {date}. Syaahi is a study aid — always verify important
+      Last updated: {date}. Syaahi is a study aid : always verify important
       facts from textbooks.
     </p>
   );

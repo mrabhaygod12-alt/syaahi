@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Syaahi — Handwritten Exam Notes",
+    name: "Syaahi: Handwritten Exam Notes",
     short_name: "Syaahi",
     description: "AI-generated handwritten-style exam revision notes as PDF.",
     start_url: "/dashboard",

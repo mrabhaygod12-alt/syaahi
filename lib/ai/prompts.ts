@@ -23,7 +23,7 @@ export function languageLine(lang: Lang): string {
     return "LANGUAGE: Write ALL notes in Hindi using Devanagari script. Keep standard technical terms in English in brackets on first use (e.g. प्रकाश-संश्लेषण (Photosynthesis)).";
   }
   if (lang === "hinglish") {
-    return "LANGUAGE: Write in Hinglish — Hindi in Roman script mixed naturally with English, the way Indian students speak and revise. Keep technical terms in English.";
+    return "LANGUAGE: Write in Hinglish: Hindi in Roman script mixed naturally with English, the way Indian students speak and revise. Keep technical terms in English.";
   }
   if (lang === "german") {
     return "LANGUAGE: Write all notes in clear German (Deutsch). Keep internationally standard technical terms in English in brackets on first use when useful.";
@@ -77,7 +77,7 @@ export function pagePrompt(
         "Rules: no fluff, no intro/outro sentences, facts only. Bold **key terms** inside bullets. " +
         'Any profile field marked "auto" must be inferred from the topic itself (e.g. a DSA topic → interview level; a Class-10-style topic → school level). ' +
         (context
-          ? "GROUND EVERYTHING in the source material below: reuse its examples, numbers and explanations for THIS topic; ignore unrelated parts. Do NOT transcribe it — synthesize exam notes."
+          ? "GROUND EVERYTHING in the source material below: reuse its examples, numbers and explanations for THIS topic; ignore unrelated parts. Do NOT transcribe it: synthesize exam notes."
           : "Write from syllabus-standard knowledge for the stated level."),
     },
     {

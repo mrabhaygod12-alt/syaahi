@@ -5,7 +5,7 @@ export const metadata = {
   robots: { index: false },
 };
 
-// Lesson ids are runtime data (file store) — never prerender. This also stops
+// Lesson ids are runtime data (file store) : never prerender. This also stops
 // dev from attempting static-path generation for /lesson/[id]/* rooms.
 export const dynamic = "force-dynamic";
 

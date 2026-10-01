@@ -4,7 +4,7 @@ export const runtime = "edge";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Share card for the landing page (no external assets — pure JSX).
+// Share card for the landing page (no external assets : pure JSX).
 export default function OG() {
   return new ImageResponse(
     <div

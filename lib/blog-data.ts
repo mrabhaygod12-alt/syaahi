@@ -162,7 +162,7 @@ Experience the retention benefit yourself by generating your next study guide on
 
 Whether you are preparing for Class 10/12 board exams or engineering and medical semester finals, exam month can feel overwhelming.
 
-With syllabi spanning hundreds of pages, the secret to topping exams is not reading more—it is **strategic information distillation**.
+With syllabi spanning hundreds of pages, the secret to topping exams is not reading more: it is **strategic information distillation**.
 
 ---
 

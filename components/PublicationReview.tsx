@@ -233,7 +233,7 @@ export default function PublicationReview() {
             .map((report) => (
               <div className="resolved-report" key={report.id}>
                 <b>{report.storySlug}</b> · {report.status}
-                {report.resolutionNote ? ` — ${report.resolutionNote}` : ""}
+                {report.resolutionNote ? ` : ${report.resolutionNote}` : ""}
                 {report.status === "actioned" && (
                   <button
                     className="text-button"
@@ -252,7 +252,7 @@ export default function PublicationReview() {
           {audit.map((event) => (
             <div className="resolved-report" key={`${event.storyId}:${event.at}:${event.action}`}>
               <b>{event.action.replaceAll("_", " ")}</b> · {event.title} · {new Date(event.at).toLocaleString()}
-              {event.note ? ` — ${event.note}` : ""}
+              {event.note ? ` : ${event.note}` : ""}
             </div>
           ))}
           {!audit.length && <p className="small">No editorial or moderation events yet.</p>}

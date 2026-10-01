@@ -1,9 +1,11 @@
 import { apiHandler } from "@/lib/api-handler";
-import { authError } from "@/lib/auth/server";
+import { authError, currentUser } from "@/lib/auth/server";
+import { isAdmin } from "@/lib/auth/admin";
+import { rateLimit } from "@/lib/ratelimit";
 import { NextRequest, NextResponse } from "next/server";
 
 // POST /api/test-tier { provider?: 'openrouter'|'apinex'|'zen'|'all', models?: string[], prompt?: string, maxTokens?: number }
-// Uses server-side keys from .env.local — keys never leave the server.
+// Uses server-side keys from .env.local: keys never leave the server.
 // Default budget is 3500: APInex/Zen reasoning models burn ~800-1500 thinking
 // tokens before answering, so ≤1000-token tests fake-fail them as EMPTY.
 
@@ -86,10 +88,18 @@ async function testModel(
 }
 
 async function handleGET(req: Request) {
-  if (process.env.ENABLE_DIAGNOSTICS !== "true")
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.ENABLE_DIAGNOSTICS !== "true"
+  )
     return new Response("Not found", { status: 404 });
   const denied = await authError(req);
   if (denied) return denied;
+  if (!isAdmin(await currentUser(req)))
+    return NextResponse.json(
+      { error: "Administrator access required." },
+      { status: 403 },
+    );
   return NextResponse.json({
     openrouter: {
       models: OPENROUTER_DEFAULTS,
@@ -104,15 +114,25 @@ async function handleGET(req: Request) {
       keyConfigured: !!process.env.OPENCODE_API_KEY,
     },
     usage:
-      "POST { provider?, models?, prompt?, maxTokens? } — runs server-side with .env.local keys",
+      "POST { provider?, models?, prompt?, maxTokens? }: runs server-side with .env.local keys",
   });
 }
 
 async function handlePOST(req: NextRequest) {
-  if (process.env.ENABLE_DIAGNOSTICS !== "true")
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.ENABLE_DIAGNOSTICS !== "true"
+  )
     return new Response("Not found", { status: 404 });
   const denied = await authError(req);
   if (denied) return denied;
+  if (!isAdmin(await currentUser(req)))
+    return NextResponse.json(
+      { error: "Administrator access required." },
+      { status: 403 },
+    );
+  const limited = await rateLimit(req, "diagnostics", 3, 60_000);
+  if (limited) return limited;
   const body = await req.json().catch(() => ({}));
   const provider: string = body.provider ?? "all";
   const prompt: string =
@@ -161,8 +181,7 @@ async function handlePOST(req: NextRequest) {
     if (!key) {
       results.push({
         provider: "zen",
-        error:
-          "OPENCODE_API_KEY not set — add it to .env.local to activate Zen",
+        error: "OPENCODE_API_KEY not set: add it to .env.local to activate Zen",
       });
     } else {
       const models: string[] = (body.models ?? ZEN_DEFAULTS).slice(0, 6);

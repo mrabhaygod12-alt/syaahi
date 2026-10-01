@@ -5,7 +5,7 @@ import { verifySignature } from "../lib/billing/payments";
 import { createHmac } from "node:crypto";
 
 async function runSecurityAudit() {
-  console.log("Running comprehensive defensive security tests...");
+  console.log("Running defensive security regression tests...");
 
   // 1. NoSQL / Object Injection & Input Sanitization
   // @ts-ignore - passing non-string to test type coercion defense

@@ -439,7 +439,7 @@ export default function UPICheckout() {
                   <div className="info-row">
                     <span className="info-label">Pack</span>
                     <span className="info-value">
-                      {COPY[order.pack]?.label} — {order.tokenLabel}
+                      {COPY[order.pack]?.label} : {order.tokenLabel}
                     </span>
                   </div>
                   <div className="info-row">
@@ -599,7 +599,7 @@ export default function UPICheckout() {
                       <div className="progress-fill"></div>
                     </div>
                     <p className="small">
-                      Auto-checking every 5 seconds. You can close this page —
+                      Auto-checking every 5 seconds. You can close this page :
                       credits will be added automatically.
                     </p>
                   </div>
@@ -667,7 +667,7 @@ export default function UPICheckout() {
                         </td>
                         <td>{COPY[p.pack]?.label || p.pack}</td>
                         <td>₹{p.amount / 100}</td>
-                        <td className="mono">{p.utr || "—"}</td>
+                        <td className="mono">{p.utr || ":"}</td>
                         <td>
                           <StatusBadge status={p.status} />
                           {[
