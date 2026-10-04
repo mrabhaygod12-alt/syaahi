@@ -32,6 +32,10 @@ The locally configured pair is **test** mode and the same pair occurs in the thr
 
 This change normalizes credentials across monthly requests, checkout key output and signature verification; normalizes monthly plan IDs; adds a safe 401 operator classification; loads local environment files correctly in the provisioning command; adds a GET-only payment diagnostic; and adds sanitized frontend/backend commit identity for deployment checks. A defensive flashcard change keeps React hooks in a stable order if lesson context becomes temporarily unavailable.
 
+The strict public deployment probe subsequently passed all 13 checks at pushed commit `33f3ccc3f3fb275c7293a1f985c93fc114794b44`: frontend response identity and both backend health identities agreed. GitHub CI and both Vercel project statuses also passed. Monthly plan availability remained false for all three tiers; this remains a merchant configuration blocker. Live popup opening and writer selection were observed, but completed production login and live payment settlement were not verified.
+
+A follow-up fixes the failed/cancelled Google callback's retry destination: it preserves the selected writer/student space and login/signup mode, maps incompatible destinations through the workspace routing guard, and clears temporary OAuth cookies. It does not resolve a provider-side `access_denied` response; that requires the connected Supabase/Google configuration and, where necessary, the account owner's sign-in.
+
 ### Finish merchant configuration in this order
 
 1. Inspect the existing Razorpay merchant and the existing Render API service; preserve the account, database and subscription history.

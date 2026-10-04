@@ -15,6 +15,9 @@ async function handleGET(req: NextRequest) {
     "https://www.syaahii.in";
   const response = NextResponse.redirect(new URL("/login", origin));
   response.headers.set("Cache-Control", "no-store");
+  const workspace = workspaceKind(
+    req.cookies.get("syaahi-oauth-workspace")?.value,
+  );
   try {
     if (req.cookies.get("syaahi-oauth-consent")?.value !== TERMS_VERSION)
       throw new Error("Agree to the Terms before signing in.");
@@ -28,9 +31,6 @@ async function handleGET(req: NextRequest) {
     if (verifyError || !data.user)
       throw new Error("Google identity could not be verified.");
     const account = await googleAccount(data.user);
-    const workspace = workspaceKind(
-      req.cookies.get("syaahi-oauth-workspace")?.value,
-    );
     if (workspace) {
       if (workspace === "writer") {
         if (req.cookies.get("syaahi-oauth-mode")?.value === "signup")
@@ -87,10 +87,22 @@ async function handleGET(req: NextRequest) {
     );
     const msg =
       "Google sign-in could not be completed. Please retry or use email sign-in.";
-    response.headers.set(
-      "location",
-      new URL("/login?error=" + encodeURIComponent(msg), origin).href,
+    const retry = new URL(
+      req.cookies.get("syaahi-oauth-mode")?.value === "signup"
+        ? "/signup"
+        : "/login",
+      origin,
     );
+    retry.searchParams.set("error", msg);
+    retry.searchParams.set("workspace", workspace || "student");
+    retry.searchParams.set(
+      "next",
+      workspaceDestination(
+        req.cookies.get("syaahi-oauth-next")?.value,
+        workspace || "student",
+      ),
+    );
+    response.headers.set("location", retry.href);
   }
   response.cookies.set("syaahi-oauth-next", "", { path: "/", maxAge: 0 });
   response.cookies.set("syaahi-oauth-consent", "", { path: "/", maxAge: 0 });

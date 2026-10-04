@@ -33,6 +33,8 @@ async function main() {
   try {
     const { POST: authPost } = await import("../app/api/auth/route");
     const { POST: googlePost } = await import("../app/api/auth/google/route");
+    const { GET: googleCallback } =
+      await import("../app/api/auth/callback/route");
     const { POST: verifyPost } =
       await import("../app/api/auth/verify-email/route");
     const { currentUser } = await import("../lib/auth/server");
@@ -54,6 +56,70 @@ async function main() {
     const googleError = await google.json();
     assert.match(googleError.error, /temporarily unavailable/i);
     assert.doesNotMatch(googleError.error, /SUPABASE_PUBLISHABLE_KEY/);
+
+    for (const scenario of [
+      {
+        workspace: "writer",
+        mode: "signup",
+        next: "/writer/stories",
+        path: "/signup",
+        expectedWorkspace: "writer",
+        expectedNext: "/writer/stories",
+      },
+      {
+        workspace: "writer",
+        mode: "login",
+        next: "/pricing",
+        path: "/login",
+        expectedWorkspace: "writer",
+        expectedNext: "/writer/membership",
+      },
+      {
+        workspace: "student",
+        mode: "login",
+        next: "/presentations",
+        path: "/login",
+        expectedWorkspace: "student",
+        expectedNext: "/presentations",
+      },
+      {
+        workspace: "invalid",
+        mode: "invalid",
+        next: "//example.test/private",
+        path: "/login",
+        expectedWorkspace: "student",
+        expectedNext: "/dashboard",
+      },
+    ]) {
+      const cancelled = await googleCallback(
+        new NextRequest(
+          "https://www.syaahii.in/api/auth/callback?error=access_denied&error_description=private-provider-detail",
+          {
+            headers: {
+              cookie: `syaahi-oauth-consent=2026-10-03; syaahi-oauth-workspace=${scenario.workspace}; syaahi-oauth-mode=${scenario.mode}; syaahi-oauth-next=${encodeURIComponent(scenario.next)}`,
+            },
+          },
+        ),
+      );
+      assert.equal(cancelled.status, 307);
+      const retry = new URL(cancelled.headers.get("location")!);
+      assert.equal(retry.origin, "https://www.syaahii.in");
+      assert.equal(retry.pathname, scenario.path);
+      assert.equal(
+        retry.searchParams.get("workspace"),
+        scenario.expectedWorkspace,
+      );
+      assert.equal(retry.searchParams.get("next"), scenario.expectedNext);
+      assert.match(retry.searchParams.get("error")!, /Please retry/);
+      assert.doesNotMatch(retry.href, /private-provider-detail/);
+      assert.equal(cancelled.headers.get("cache-control"), "no-store");
+      const clearedCookies = cancelled.headers.getSetCookie();
+      for (const cookie of clearedCookies) {
+        assert.match(cookie, /^syaahi-oauth-/);
+        assert.match(cookie, /Max-Age=0/i);
+      }
+      assert.equal(clearedCookies.length, 5);
+    }
 
     const signup = await authPost(
       new NextRequest("https://www.syaahii.in/api/auth", {
@@ -119,7 +185,7 @@ async function main() {
       "verified-learner@example.test",
     );
     console.log(
-      "PASS: missing Google config returns a generic public error; signup has no session before verification; verified login issues a seven-day HttpOnly cookie that authenticates on a later request.",
+      "PASS: missing Google config returns a generic public error; cancelled OAuth preserves workspace/mode with a safe retry destination and clears transient cookies; signup has no session before verification; verified login issues a seven-day HttpOnly cookie that authenticates on a later request.",
     );
   } finally {
     globalThis.fetch = originalFetch;
