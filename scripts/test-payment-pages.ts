@@ -1,4 +1,4 @@
-/** Browser workflow test with a simulated gateway; never sends a real payment. */
+/** Browser test for the monthly subscription interface; it never sends a payment. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -6,11 +6,6 @@ import { chromium } from "playwright";
 
 async function main() {
   const base = "http://localhost:3130";
-  const visibleText = (html: string) =>
-    html
-      .replace(/<!--.*?-->/gs, " ")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ");
   const server = spawn(
     process.execPath,
     ["node_modules/next/dist/bin/next", "start", "--port", "3130"],
@@ -28,149 +23,127 @@ async function main() {
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   try {
     let ready = false;
-    for (let i = 0; i < 80; i++) {
+    for (let attempt = 0; attempt < 80; attempt++) {
       try {
-        if ((await fetch(base + "/pricing")).ok) {
+        if ((await fetch(`${base}/pricing`)).ok) {
           ready = true;
           break;
         }
       } catch {}
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
     assert(ready, "Production server must start");
-    const usdPricing = await fetch(base + "/pricing", {
-      headers: { "x-vercel-ip-country": "US" },
-    });
-    const usdHtml = await usdPricing.text();
-    assert.equal(usdPricing.status, 200);
-    assert(usdHtml.includes("$5"), "US pricing should render USD prices");
-    assert(visibleText(usdHtml).includes("Prices are shown in USD"));
-    const euroPricing = await fetch(base + "/pricing", {
-      headers: { "x-vercel-ip-country": "FR" },
-    });
-    const euroHtml = await euroPricing.text();
-    assert.equal(euroPricing.status, 200);
-    assert(
-      /5\s*€/.test(visibleText(euroHtml)),
-      "Euro-area pricing should render EUR",
-    );
-    assert(visibleText(euroHtml).includes("Prices are shown in EUR"));
+    for (const country of ["IN", "US", "FR"]) {
+      const pricing = await fetch(`${base}/pricing`, {
+        headers: { "x-vercel-ip-country": country },
+      });
+      assert.equal(pricing.status, 200);
+    }
+
     browser = await chromium.launch();
     const page = await browser.newPage({
       viewport: { width: 1280, height: 900 },
     });
     let created = 0;
-    let paid = false;
-    const summary = () => ({
-      id: "order_BrowserTest",
-      pack: "try",
-      amount: 900,
-      credits: 3,
-      currency: "INR",
-      paid,
-      paymentId: paid ? "pay_BrowserTest" : null,
-    });
     await page.route("https://checkout.razorpay.com/v1/checkout.js", (route) =>
       route.fulfill({
         contentType: "application/javascript",
         body: "window.Razorpay = class { constructor(options) { this.options=options; window.testCheckout=this; } on(name, fn) { this[name]=fn; } open() {} };",
       }),
     );
-    await page.route("**/api/**", async (route) => {
+    await page.route("**/api/billing/subscription**", async (route) => {
       const path = new URL(route.request().url()).pathname;
-      let body: unknown = {};
-      if (path === "/api/credits") body = { balance: 19 };
-      if (path === "/api/billing/region")
-        body = { currency: "INR", checkoutEnabled: true };
-      if (path === "/api/razorpay/order") {
-        assert.equal(route.request().postDataJSON().pack, "try");
-        created++;
-        body = {
-          orderId: "order_BrowserTest",
-          keyId: "rzp_test_browser",
-          amount: 900,
-          credits: 3,
-          currency: "INR",
-          testMode: true,
-        };
+      if (path.endsWith("/verify")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            credited: false,
+            subscription: { id: "sub_BrowserTest" },
+          }),
+        });
+        return;
       }
-      if (path === "/api/razorpay/verify") {
-        assert.equal(
-          route.request().postDataJSON().razorpay_order_id,
-          "order_BrowserTest",
-        );
-        paid = true;
-        body = { ok: true, balance: 22 };
-      }
-      if (path === "/api/razorpay/orders") body = { orders: [summary()] };
+      const payload = route.request().postDataJSON();
+      assert.equal(payload.tier, "starter");
+      assert.equal(payload.acceptRecurring, true);
+      created++;
       await route.fulfill({
         contentType: "application/json",
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          keyId: "rzp_test_browser",
+          subscription: { id: "sub_BrowserTest", tier: "starter" },
+        }),
       });
     });
-    await page.goto(base + "/pricing");
-    await page.getByRole("button", { name: "Buy Try", exact: true }).click();
-    await page.waitForURL("**/checkout/try");
+
+    await page.goto(`${base}/pricing`);
+    for (const tier of ["Free", "Starter", "Pro", "Max", "Team"])
+      assert(
+        await page
+          .getByRole("heading", { name: tier, exact: true })
+          .isVisible(),
+      );
+    for (const price of ["₹39/month", "₹179/month", "₹399/month"])
+      assert(await page.getByText(price, { exact: true }).isVisible());
+    assert.equal(
+      await page.getByText("$5", { exact: true }).count(),
+      0,
+      "obsolete regional checkout prices must not be shown",
+    );
     await page
-      .getByRole("button", { name: "Pay ₹9 with Razorpay", exact: true })
+      .getByRole("link", { name: "Choose Starter", exact: true })
       .click();
+    await page.waitForURL("**/subscribe/starter");
+    const continueButton = page.getByRole("button", {
+      name: "Continue to Razorpay",
+      exact: true,
+    });
+    assert(
+      await continueButton.isDisabled(),
+      "consent is required before a mandate checkout",
+    );
+    await page.getByRole("checkbox").check();
+    await continueButton.click();
     await page.waitForFunction(() => Boolean((window as any).testCheckout));
     await page.evaluate(() =>
       (window as any).testCheckout.options.modal.ondismiss(),
     );
     await page.getByText("Checkout closed.", { exact: false }).waitFor();
-    mkdirSync("output/qa/payments", { recursive: true });
-    await page.screenshot({
-      path: "output/qa/payments/checkout-desktop.png",
-      fullPage: true,
-    });
-    await page
-      .getByRole("button", { name: "Continue payment", exact: true })
-      .click();
-    assert.equal(created, 1, "Reopening checkout reuses the saved order");
+    await continueButton.click();
+    assert.equal(
+      created,
+      2,
+      "a dismissed mandate creates a visible fresh checkout attempt",
+    );
     await page.evaluate(() =>
       (window as any).testCheckout.options.handler({
-        razorpay_order_id: "order_BrowserTest",
+        razorpay_subscription_id: "sub_BrowserTest",
         razorpay_payment_id: "pay_BrowserTest",
         razorpay_signature: "test",
       }),
     );
-    await page.waitForURL("**/payments/order_BrowserTest");
-    await page.getByRole("heading", { name: "Payment confirmed." }).waitFor();
+    await page.getByText("Mandate authorised.", { exact: false }).waitFor();
+    mkdirSync("output/qa/payments", { recursive: true });
     await page.screenshot({
-      path: "output/qa/payments/confirmed-desktop.png",
+      path: "output/qa/payments/subscription-desktop.png",
       fullPage: true,
     });
-    paid = false;
-    await page.goto(base + "/payments/order_BrowserTest?success=true");
-    await page.getByText("Awaiting confirmation", { exact: true }).waitFor();
-    assert.equal(
-      await page.getByRole("heading", { name: "Payment confirmed." }).count(),
-      0,
-    );
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.screenshot({
-      path: "output/qa/payments/pending-mobile.png",
-      fullPage: true,
-    });
     assert(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
-      "Payment page should fit mobile width",
+      "subscription page should fit mobile width",
     );
-    await page.goto(base + "/payments");
-    await page
-      .getByRole("heading", { name: "Your Razorpay purchases" })
-      .waitFor();
     console.log(
-      "PASS browser payment flow: INR/USD/EUR regional pricing, checkout, dismiss/reuse, verification, server-confirmed status, forged success URL ignored, history and mobile layout.",
+      "PASS browser payment flow: INR monthly plans, consent-gated Razorpay mandate checkout, dismiss, verification message and mobile layout.",
     );
   } finally {
     await browser?.close();
     server.kill();
   }
 }
+
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;

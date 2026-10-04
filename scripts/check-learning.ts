@@ -34,7 +34,7 @@ async function main() {
           email,
           password: "test-password-12345",
           acceptTerms: true,
-          termsVersion: "2026-09-24",
+          termsVersion: "2026-10-03",
         }),
       });
       assert.equal(r.status, 200);
@@ -187,9 +187,7 @@ async function main() {
     await page.getByRole("button", { name: "Continue →", exact: true }).click();
     await page.getByText(unit.example, { exact: true }).waitFor();
     await page.reload();
-    await page
-      .getByRole("button", { name: /^Start lesson/ })
-      .click();
+    await page.getByRole("button", { name: /^Start lesson/ }).click();
     await page.getByText(unit.example, { exact: true }).waitFor();
     await page.getByRole("button", { name: "Continue →", exact: true }).click();
     await page
@@ -288,4 +286,3 @@ main().catch((e) => {
   console.error(e);
   process.exitCode = 1;
 });
-

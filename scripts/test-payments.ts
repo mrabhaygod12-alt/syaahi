@@ -159,7 +159,7 @@ async function main() {
           email,
           password: "test-password-12345",
           acceptTerms: true,
-          termsVersion: "2026-09-24",
+          termsVersion: "2026-10-03",
         }),
       });
       assert.equal(r.status, 200);
@@ -404,7 +404,7 @@ async function main() {
         email: "unverified@example.test",
         password: "test-password-12345",
         acceptTerms: true,
-        termsVersion: "2026-09-24",
+        termsVersion: "2026-10-03",
       }),
     });
     const signupBody = await signup.json();

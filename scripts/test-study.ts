@@ -8,6 +8,7 @@ delete process.env.MONGODB_URI;
 process.env.DATA_BACKEND = "sqlite";
 async function main() {
   const auth = await import("../lib/auth/server");
+  const { markEmailVerified } = await import("../lib/billing/rewards");
   const jobs = await import("../lib/jobs/store");
   const study = await import("../app/api/study/route");
   const collaboration = await import("../app/api/collaboration/route");
@@ -29,6 +30,10 @@ async function main() {
     "member@example.test",
     "long-test-password",
   );
+  await Promise.all([
+    markEmailVerified(owner.id),
+    markEmailVerified(member.id),
+  ]);
   const ownerCookie = (await auth.startSession(owner, req(""))).headers
     .get("set-cookie")!
     .split(";")[0];

@@ -13,6 +13,8 @@ const STATIC = [
   "/subjects",
   "/interview",
   "/pricing",
+  "/presentations",
+  "/writing",
   "/features",
   "/how-it-works",
   "/examples",

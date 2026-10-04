@@ -7,6 +7,7 @@ export interface DemoUser {
   createdAt: string;
   avatar?: string | null;
   verified?: boolean;
+  workspace?: "student" | "writer";
 }
 const KEY = "syaahi-user";
 export function getUser(): DemoUser | null {
@@ -32,6 +33,7 @@ export async function signIn(
   mode: "login" | "signup",
   acceptTerms = false,
   referralCode?: string | null,
+  workspace?: "student" | "writer",
 ): Promise<SignInResult> {
   const { response, data } = await requestJson("/api/auth", {
     method: "POST",
@@ -43,7 +45,8 @@ export async function signIn(
       mode,
       acceptTerms,
       referralCode,
-      termsVersion: "2026-09-24",
+      workspace,
+      termsVersion: "2026-10-03",
     }),
   });
   if (!response.ok) {

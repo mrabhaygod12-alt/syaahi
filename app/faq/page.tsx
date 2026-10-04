@@ -1,8 +1,9 @@
-import { pageMeta } from "@/lib/seo";
+import { faqSchema, jsonLd, pageMeta } from "@/lib/seo";
+import { PRODUCT_FAQS } from "@/lib/product-copy";
 export const metadata = pageMeta({
   title: "Frequently Asked Questions",
   description:
-    "Answers about Syaahi sources, credits, handwriting fonts, PDF exports, payment verification, refunds and AI limitations.",
+    "Answers about learning, teaching and writing on Syaahi, both workspaces, publication review, notes, presentations, languages, credits and privacy.",
   path: "/faq",
 });
 import { PageHero, Faq, CtaBand } from "@/components/site";
@@ -13,6 +14,13 @@ export default function FAQ() {
         kicker="Answers at a glance"
         title="A few things worth understanding first."
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd(faqSchema([...PRODUCT_FAQS])),
+        }}
+      />
+      <Faq items={[...PRODUCT_FAQS]} />
       <Faq
         items={[
           {
@@ -21,7 +29,7 @@ export default function FAQ() {
           },
           {
             q: "What does a credit buy?",
-            a: "One generated section. Long sections can occupy extra printed sheets without extra credits. A new account receives 19 welcome credits (6⅓ tokens).",
+            a: "One credit covers a generated note section. Long sections can occupy extra printed sheets without extra credits. A completed presentation uses five credits. New accounts receive 19 welcome credits after email verification.",
           },
           {
             q: "What if generation fails?",
@@ -33,7 +41,7 @@ export default function FAQ() {
           },
           {
             q: "Is research guaranteed?",
-            a: "No. Topic research currently retrieves Wikipedia references when available. Plans clearly label general-knowledge fallback. Check important facts yourself.",
+            a: "No. Topic research retrieves Wikipedia references when available; relevant GeeksforGeeks and W3Schools reading searches are separate links, not retrieved evidence. Plans label general-knowledge fallback. Check important facts against the source.",
           },
           {
             q: "How do payments and refunds work?",

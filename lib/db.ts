@@ -59,6 +59,13 @@ export function db(): DatabaseSync {
     .all() as Array<{ name: string }>;
   if (!userColumns.some((column) => column.name === "locale"))
     connection.exec("ALTER TABLE users ADD COLUMN locale TEXT");
+  if (!userColumns.some((column) => column.name === "workspace"))
+    connection.exec(
+      "ALTER TABLE users ADD COLUMN workspace TEXT NOT NULL DEFAULT 'student'",
+    );
+  connection.exec(`CREATE TABLE IF NOT EXISTS writing_images (id TEXT PRIMARY KEY, owner TEXT NOT NULL, bytes BLOB NOT NULL, alt TEXT NOT NULL, created_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS workspace_records (id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS workspace_records_owner ON workspace_records(owner,kind,updated_at);`);
   state.syaahiDb = connection;
   return connection;
 }

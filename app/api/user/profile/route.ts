@@ -7,6 +7,7 @@ import { referralCode } from "@/lib/billing/referrals";
 
 import { rateLimit } from "@/lib/ratelimit";
 import { db } from "@/lib/db";
+import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 
 export const dynamic = "force-dynamic";
 
@@ -49,14 +50,30 @@ async function handlePATCH(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const updates: Record<string, unknown> = {};
+  if (body.workspace !== undefined) {
+    if (!workspaceKind(body.workspace))
+      return NextResponse.json(
+        { error: "Choose student or writer." },
+        { status: 400 },
+      );
+    await setWorkspace(user.id, workspaceKind(body.workspace)!);
+    updates.workspace = workspaceKind(body.workspace);
+  }
 
   if (typeof body.name === "string" && body.name.trim().length > 0) {
     updates.name = body.name.trim().slice(0, 80);
   }
   if (typeof body.locale === "string") {
     const locale = body.locale.trim().toLowerCase();
-    if (!["english", "hindi", "hinglish", "german", "french", "spanish"].includes(locale))
-      return NextResponse.json({ error: "Unsupported language preference." }, { status: 400 });
+    if (
+      !["english", "hindi", "hinglish", "german", "french", "spanish"].includes(
+        locale,
+      )
+    )
+      return NextResponse.json(
+        { error: "Unsupported language preference." },
+        { status: 400 },
+      );
     updates.locale = locale;
   }
 
@@ -67,7 +84,9 @@ async function handlePATCH(req: NextRequest) {
     } else if (/^anime-(?:[1-9]|1[0-9]|20)$/.test(raw)) {
       updates.avatar = raw;
     } else if (
-      /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(raw) &&
+      /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(
+        raw,
+      ) &&
       raw.length <= 2 * 1024 * 1024
     ) {
       // Valid base64 raster image up to 2MB (SVG rejected to prevent XSS)
@@ -80,18 +99,26 @@ async function handlePATCH(req: NextRequest) {
       updates.avatar = raw;
     } else {
       return NextResponse.json(
-        { error: "Invalid avatar format. Use an anime preset or PNG/JPEG/WEBP upload under 2MB." },
+        {
+          error:
+            "Invalid avatar format. Use an anime preset or PNG/JPEG/WEBP upload under 2MB.",
+        },
         { status: 400 },
       );
     }
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields to update." }, { status: 400 });
+    return NextResponse.json(
+      { error: "No valid fields to update." },
+      { status: 400 },
+    );
   }
 
   if (useMongo()) {
-    await (await collection("users")).updateOne({ _id: user.id }, { $set: updates });
+    await (
+      await collection("users")
+    ).updateOne({ _id: user.id }, { $set: updates });
   } else {
     // Local SQLite fallback
     try {
@@ -101,15 +128,26 @@ async function handlePATCH(req: NextRequest) {
         /* column might already exist */
       }
       const nameVal = typeof updates.name === "string" ? updates.name : null;
-      const avatarVal = typeof updates.avatar === "string" ? updates.avatar : null;
-      const localeVal = typeof updates.locale === "string" ? updates.locale : null;
-      if (localeVal) db().prepare("UPDATE users SET locale=? WHERE id=?").run(localeVal, user.id);
+      const avatarVal =
+        typeof updates.avatar === "string" ? updates.avatar : null;
+      const localeVal =
+        typeof updates.locale === "string" ? updates.locale : null;
+      if (localeVal)
+        db()
+          .prepare("UPDATE users SET locale=? WHERE id=?")
+          .run(localeVal, user.id);
       if (nameVal && updates.avatar !== undefined) {
-        db().prepare("UPDATE users SET name=?, avatar=? WHERE id=?").run(nameVal, avatarVal, user.id);
+        db()
+          .prepare("UPDATE users SET name=?, avatar=? WHERE id=?")
+          .run(nameVal, avatarVal, user.id);
       } else if (nameVal) {
-        db().prepare("UPDATE users SET name=? WHERE id=?").run(nameVal, user.id);
+        db()
+          .prepare("UPDATE users SET name=? WHERE id=?")
+          .run(nameVal, user.id);
       } else if (updates.avatar !== undefined) {
-        db().prepare("UPDATE users SET avatar=? WHERE id=?").run(avatarVal, user.id);
+        db()
+          .prepare("UPDATE users SET avatar=? WHERE id=?")
+          .run(avatarVal, user.id);
       }
     } catch {
       /* ignore local SQLite schema difference */

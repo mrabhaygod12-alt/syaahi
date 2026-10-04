@@ -5,6 +5,8 @@ import { requestJson } from "@/lib/http-client";
 import { waitForService } from "@/lib/service-ready";
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [accepted, setAccepted] = useState(false);
+  const [workspace, setWorkspace] = useState<"student" | "writer">("student");
+  const [returnTo, setReturnTo] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,8 +17,21 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
 
   useEffect(() => {
-    const error = new URLSearchParams(location.search).get("error");
+    const params = new URLSearchParams(location.search);
+    const error = params.get("error");
     if (error) setMsg(error.slice(0, 300));
+    const next = params.get("next");
+    if (
+      next?.startsWith("/") &&
+      !next.startsWith("//") &&
+      !/[\\\u0000-\u001f]/.test(next)
+    )
+      setReturnTo(next);
+    if (
+      params.get("workspace") === "writer" ||
+      (!params.has("workspace") && /^\/(writer|write)(\?|$)/.test(next || ""))
+    )
+      setWorkspace("writer");
     return () => activeAttempt.current?.abort();
   }, []);
 
@@ -47,6 +62,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         mode,
         accepted,
         mode === "signup" ? ref : null,
+        workspace,
       );
       if (res.requireVerification) {
         setVerifyLink(res.verifyUrl || "/verify-email");
@@ -56,9 +72,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         );
         return;
       }
-      const next = new URLSearchParams(location.search).get("next");
       window.location.href =
-        next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+        returnTo || (workspace === "writer" ? "/writer" : "/dashboard");
     } catch (error: any) {
       if (error?.requireVerification && error?.verifyUrl) {
         setVerifyLink(error.verifyUrl);
@@ -75,14 +90,44 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       className="wrap"
       style={{ paddingTop: 56, paddingBottom: 64, maxWidth: 500 }}
     >
-      <p className="small">YOUR PERSONAL STUDY SPACE</p>
+      <p className="small">YOUR LEARNING AND WRITING WORKSPACE</p>
       <h1>
-        {mode === "signup" ? "Make room for understanding." : "Welcome back."}
+        {mode === "signup" ? "Create your Syaahi account." : "Welcome back."}
       </h1>
       <p className="small">
         {mode === "signup"
-          ? "Create your account. Start with 19 free credits (6⅓ tokens / 19 note sections)."
-          : "Pick up your notes, questions, and revision where you left off."}
+          ? "Learn, teach, create presentations or write articles. Start with 19 generation credits after email verification."
+          : "Return to your lessons, presentations, drafts and published articles."}
+      </p>
+      <fieldset className="workspace-choice">
+        <legend>Where would you like to start?</legend>
+        <label>
+          <input
+            type="radio"
+            disabled={busy}
+            name="workspace"
+            value="student"
+            checked={workspace === "student"}
+            onChange={() => setWorkspace("student")}
+          />
+          Learn &amp; create{" "}
+          <small>For students, teachers and professionals</small>
+        </label>
+        <label>
+          <input
+            type="radio"
+            disabled={busy}
+            name="workspace"
+            value="writer"
+            checked={workspace === "writer"}
+            onChange={() => setWorkspace("writer")}
+          />
+          Write &amp; publish{" "}
+          <small>Articles, drafts and your creator profile</small>
+        </label>
+      </fieldset>
+      <p className="small">
+        This sets your starting dashboard. Both workspaces remain available.
       </p>
       <label className="consent-check">
         <input
@@ -109,7 +154,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         onClick={async () => {
           if (activeAttempt.current) return;
           const next =
-            new URLSearchParams(location.search).get("next") || "/dashboard";
+            returnTo || (workspace === "writer" ? "/writer" : "/dashboard");
           setBusy(true);
           setMsg("");
           setVerifyLink(null);
@@ -122,9 +167,10 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   next,
+                  workspace,
                   ref: new URLSearchParams(location.search).get("ref"),
                   acceptTerms: accepted,
-                  termsVersion: "2026-09-24",
+                  termsVersion: "2026-10-03",
                 }),
               },
             );
@@ -253,11 +299,21 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <p className="small">
         {mode === "signup" ? (
           <>
-            Already have an account? <a href="/login">Log in</a>
+            Already have an account?{" "}
+            <a
+              href={`/login?${new URLSearchParams({ workspace, ...(returnTo ? { next: returnTo } : {}) })}`}
+            >
+              Log in
+            </a>
           </>
         ) : (
           <>
-            New here? <a href="/signup">Create account</a>
+            New here?{" "}
+            <a
+              href={`/signup?${new URLSearchParams({ workspace, ...(returnTo ? { next: returnTo } : {}) })}`}
+            >
+              Create account
+            </a>
           </>
         )}
       </p>

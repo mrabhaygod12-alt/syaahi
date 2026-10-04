@@ -4,7 +4,7 @@ import { BLOG_POSTS } from "@/lib/blog-data";
 export const metadata = pageMeta({
   title: "Blog & Exam Study Guides",
   description:
-    "Expert guides, cognitive study science, and exam preparation strategies for CBSE, ICSE, and University students using AI handwritten notes.",
+    "Read Syaahi articles on source-aware notes, active recall and exam preparation. Explore community writing from teachers, professionals and learners.",
   path: "/blog",
 });
 
@@ -14,7 +14,7 @@ export default function BlogIndexPage() {
     "@type": "Blog",
     name: "Syaahi Study Blog",
     description:
-      "Expert study hacks, memory retention science, and AI handwritten note preparation tips.",
+      "Articles on source-aware notes, active recall and exam preparation.",
     url: `${SITE.url}/blog`,
     publisher: {
       "@type": "Organization",
@@ -40,16 +40,35 @@ export default function BlogIndexPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
-      <main className="wrap" style={{ maxWidth: 1040, padding: "60px 20px 100px" }}>
+      <main
+        className="wrap"
+        style={{ maxWidth: 1040, padding: "60px 20px 100px" }}
+      >
         {/* Header */}
-        <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 50px" }}>
+        <div
+          style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 50px" }}
+        >
           <p className="eyebrow">SYAAHI STUDY INSIGHTS</p>
-          <h1 style={{ fontSize: "2.6rem", lineHeight: 1.15, margin: "10px 0 16px" }}>
-            Master Your Exams with <br />
-            <span style={{ color: "#b45309" }}>Handwritten Notes & AI</span>
+          <h1
+            style={{
+              fontSize: "2.6rem",
+              lineHeight: 1.15,
+              margin: "10px 0 16px",
+            }}
+          >
+            Ideas for learning <br />
+            <span style={{ color: "#214b40" }}>
+              and explaining what you know.
+            </span>
           </h1>
-          <p className="small" style={{ fontSize: "1.05rem", color: "#4b5563" }}>
-            Actionable study strategies, cognitive science insights, and board exam blueprints to help you score higher in less time.
+          <p
+            className="small"
+            style={{ fontSize: "1.05rem", color: "#4b5563" }}
+          >
+            Read practical articles on notes, recall and preparation. For
+            teaching guides and professional explanations, explore{" "}
+            <a href="/community">community articles</a> or{" "}
+            <a href="/writing">start your own draft</a>.
           </p>
         </div>
 
@@ -57,7 +76,8 @@ export default function BlogIndexPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fill, minmax(min(100%, 320px), 1fr))",
             gap: 28,
             marginBottom: 60,
           }}
@@ -106,7 +126,13 @@ export default function BlogIndexPage() {
                   </span>
                 </div>
 
-                <h2 style={{ fontSize: "1.35rem", lineHeight: 1.3, margin: "0 0 10px" }}>
+                <h2
+                  style={{
+                    fontSize: "1.35rem",
+                    lineHeight: 1.3,
+                    margin: "0 0 10px",
+                  }}
+                >
                   <a
                     href={`/blog/${post.slug}`}
                     style={{ color: "#111827", textDecoration: "none" }}
@@ -117,7 +143,11 @@ export default function BlogIndexPage() {
 
                 <p
                   className="small"
-                  style={{ color: "#4b5563", margin: "0 0 18px", lineHeight: 1.55 }}
+                  style={{
+                    color: "#4b5563",
+                    margin: "0 0 18px",
+                    lineHeight: 1.55,
+                  }}
                 >
                   {post.excerpt}
                 </p>
@@ -133,7 +163,13 @@ export default function BlogIndexPage() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1f2937" }}>
+                  <div
+                    style={{
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      color: "#1f2937",
+                    }}
+                  >
                     {post.author}
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
@@ -169,19 +205,32 @@ export default function BlogIndexPage() {
             border: "1px solid #3f3f46",
           }}
         >
-          <span className="eyebrow" style={{ color: "#f0c06a", letterSpacing: "0.08em" }}>
+          <span
+            className="eyebrow"
+            style={{ color: "#f0c06a", letterSpacing: "0.08em" }}
+          >
             START LEARNING BETTER TODAY
           </span>
-          <h2 style={{ color: "#ffffff", fontSize: "2rem", margin: "8px 0 12px" }}>
+          <h2
+            style={{ color: "#ffffff", fontSize: "2rem", margin: "8px 0 12px" }}
+          >
             Generate Your First Handwritten Exam Note in 60s
           </h2>
           <p
             className="small"
             style={{ color: "#d1d5db", maxWidth: 580, margin: "0 auto 24px" }}
           >
-            Turn complex chapters into clean, legible handwritten PDFs with diagrams and formulas. Claim your 19 free credits now.
+            Turn complex chapters into clean, legible handwritten PDFs with
+            diagrams and formulas. Claim your 19 free credits now.
           </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <a
               href="/signup"
               className="btn dark"

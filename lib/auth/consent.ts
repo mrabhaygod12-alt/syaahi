@@ -1,5 +1,5 @@
 import { mutateState } from "@/lib/study/state";
-export const TERMS_VERSION = "2026-09-24";
+export const TERMS_VERSION = "2026-10-03";
 export const hasConsent = (body: {
   acceptTerms?: unknown;
   termsVersion?: unknown;

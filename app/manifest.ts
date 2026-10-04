@@ -2,9 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Syaahi: Handwritten Exam Notes",
+    name: "Syaahi: Learn, Create and Publish",
     short_name: "Syaahi",
-    description: "AI-generated handwritten-style exam revision notes as PDF.",
+    description:
+      "Learning and writing workspaces for notes, presentations and reviewed articles.",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#fcf9f4",

@@ -7,7 +7,7 @@ export default async function CommunityPublications() {
       <div className="steps-grid">
         {items.map((item) => (
           <article key={item.slug} className="interactive-panel">
-            <p className="eyebrow">REVIEWED GUIDE</p>
+            <p className="eyebrow">REVIEWED ARTICLE</p>
             <h2>{item.title}</h2>
             <p>{item.summary}</p>
             <p className="small">
@@ -23,16 +23,17 @@ export default async function CommunityPublications() {
               ))}
             </div>
             <a className="btn dark" href={`/guides/${item.slug}`}>
-              Read guide →
+              Read article →
             </a>
           </article>
         ))}
       </div>
       {!items.length && (
         <div className="card">
-          <h2>Be part of the first reviewed guides.</h2>
+          <h2>Your explanation could help the next reader.</h2>
           <p>
-            Draft a guide in Writer Studio and submit it for editorial review.
+            Draft an article or guide in Writer Studio and submit it for
+            editorial review.
           </p>
           <a className="btn dark" href="/write">
             Open Writer Studio

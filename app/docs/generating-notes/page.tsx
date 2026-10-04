@@ -13,7 +13,7 @@ const sections = [
   ],
   [
     "Sources and evidence",
-    "For topics without supplied material, Find sources retrieves Wikipedia references when available. A retrieved label means source text was fetched, not that every claim has been independently verified. No source found is labelled general knowledge.",
+    "For topics without supplied material, Find sources retrieves Wikipedia references when available. Relevant GeeksforGeeks and W3Schools reading searches are separate links, not fetched source evidence. A retrieved label means source text was fetched, not that every claim has been independently verified. No source found is labelled general knowledge.",
   ],
   [
     "Edit the outline",
@@ -44,7 +44,7 @@ export default function Guide() {
             <p>{body}</p>
           </section>
         ))}
-        <p className="small">Updated 22 September 2026</p>
+        <p className="small">Updated 4 October 2026</p>
       </Prose>
     </>
   );

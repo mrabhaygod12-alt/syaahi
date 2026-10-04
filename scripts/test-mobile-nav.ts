@@ -38,8 +38,19 @@ async function main() {
             viewport: size,
           });
           const page = await context.newPage();
-          page.on("pageerror", error => console.error(`${engine.name()} ${size.width}px browser error: ${error.message}`));
-          page.on("requestfailed", request => { if (request.url().startsWith("http://localhost:3138/")) console.error("Local asset failed:", request.url(), request.failure()?.errorText); });
+          page.on("pageerror", (error) =>
+            console.error(
+              `${engine.name()} ${size.width}px browser error: ${error.message}`,
+            ),
+          );
+          page.on("requestfailed", (request) => {
+            if (request.url().startsWith("http://localhost:3138/"))
+              console.error(
+                "Local asset failed:",
+                request.url(),
+                request.failure()?.errorText,
+              );
+          });
           await page.addInitScript(() =>
             localStorage.setItem("syaahi-privacy-v1", "essential"),
           );
@@ -50,21 +61,29 @@ async function main() {
           const nav = page.locator("#site-navigation");
           await page.getByRole("button", { name: "Open navigation" }).click();
           await page
-            .getByRole("button", { name: "Study", exact: true })
+            .getByRole("button", { name: "Learn & create", exact: true })
             .click();
           assert(
             await nav.getByText("Course packs", { exact: true }).isVisible(),
           );
           assert.equal(await page.locator(".nav-popover:visible").count(), 1);
           await page
-            .getByRole("button", { name: "Community", exact: true })
+            .getByRole("button", { name: "Write & publish", exact: true })
             .click();
           assert.equal(await page.locator(".nav-popover:visible").count(), 1);
+          assert(
+            await nav
+              .getByRole("link", { name: "Writing on Syaahi", exact: false })
+              .isVisible(),
+          );
+          await page
+            .getByRole("button", { name: "Resources", exact: true })
+            .click();
           await nav
-            .getByRole("link", { name: "About", exact: true })
+            .getByRole("link", { name: "Support", exact: false })
             .scrollIntoViewIfNeeded();
           const box = await nav
-            .getByRole("link", { name: "About", exact: true })
+            .getByRole("link", { name: "Support", exact: false })
             .boundingBox();
           assert(
             box && box.y + box.height <= size.height + 1,
@@ -91,6 +110,9 @@ async function main() {
             "/privacy",
             "/delivery",
             "/pricing",
+            "/writing",
+            "/features",
+            "/blog",
           ]) {
             const response = await page.goto(`http://localhost:3138${path}`);
             assert.equal(response?.status(), 200, `Page ${path} must load`);
@@ -122,7 +144,7 @@ async function main() {
       await page.goto("http://localhost:3138/");
       assert(
         await page
-          .getByRole("button", { name: "Study", exact: true })
+          .getByRole("button", { name: "Learn & create", exact: true })
           .isVisible(),
       );
       assert.equal(
@@ -135,9 +157,58 @@ async function main() {
         "Optional analytics absent before consent",
       );
       await page.getByRole("button", { name: "Essential only" }).click();
+      const learnMenu = page.getByRole("button", {
+        name: "Learn & create",
+        exact: true,
+      });
+      await learnMenu.click();
+      await page.locator("#nav-learn a").first().focus();
+      await page.keyboard.press("Escape");
+      assert.equal(await learnMenu.getAttribute("aria-expanded"), "false");
+      assert(
+        await learnMenu.evaluate(
+          (element) => element === document.activeElement,
+        ),
+        "Escape returns focus to the desktop menu trigger",
+      );
+      const schemas = await page
+        .locator('script[type="application/ld+json"]')
+        .allTextContents();
+      const application = schemas
+        .map((text) => JSON.parse(text))
+        .find((schema) => schema["@type"] === "WebApplication");
+      assert.deepEqual(
+        application.audience.map(
+          (audience: { audienceType: string }) => audience.audienceType,
+        ),
+        ["Students", "Teachers", "Professionals", "Writers"],
+      );
+      const faq = schemas
+        .map((text) => JSON.parse(text))
+        .find((schema) => schema["@type"] === "FAQPage");
+      for (const question of faq.mainEntity) {
+        assert(
+          (await page.getByText(question.name, { exact: true }).count()) > 0,
+          "Schema question is visible in the page",
+        );
+        assert(
+          (await page
+            .getByText(question.acceptedAnswer.text, { exact: true })
+            .count()) > 0,
+          "Schema answer matches displayed copy",
+        );
+      }
       await page.locator("main h1").waitFor();
-      await page.evaluate(() => { (document.activeElement as HTMLElement)?.blur(); window.scrollTo(0, 0); });
-      assert.equal(await page.locator(".skip-link").evaluate(e => getComputedStyle(e).position), "fixed");
+      await page.evaluate(() => {
+        (document.activeElement as HTMLElement)?.blur();
+        window.scrollTo(0, 0);
+      });
+      assert.equal(
+        await page
+          .locator(".skip-link")
+          .evaluate((e) => getComputedStyle(e).position),
+        "fixed",
+      );
       await page
         .getByRole("button", { name: "Privacy preferences", exact: true })
         .click();
@@ -146,6 +217,8 @@ async function main() {
       );
       await page.getByRole("button", { name: "Essential only" }).click();
       mkdirSync("output/qa", { recursive: true });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: "output/qa/home-desktop-top.png" });
       await page.screenshot({
         path: "output/qa/home-desktop.png",
         fullPage: true,
@@ -158,13 +231,31 @@ async function main() {
         fullPage: true,
       });
       await page.screenshot({ path: "output/qa/home-mobile-top.png" });
+      await page.goto("http://localhost:3138/writing");
+      await page.locator("main h1").waitFor();
+      await page.screenshot({
+        path: "output/qa/writing-mobile.png",
+        fullPage: true,
+      });
       const response = await page.request.get("http://localhost:3138/.env");
       assert.equal(response.status(), 404);
-      for (const path of ["/.git/config", "/data/private.sqlite", "/backups/archive.zip"]) assert.equal((await page.request.get(`http://localhost:3138${path}`)).status(), 404);
-      const admin = await page.request.get("http://localhost:3138/admin/publications", { maxRedirects: 0 });
+      for (const path of [
+        "/.git/config",
+        "/data/private.sqlite",
+        "/backups/archive.zip",
+      ])
+        assert.equal(
+          (await page.request.get(`http://localhost:3138${path}`)).status(),
+          404,
+        );
+      const admin = await page.request.get(
+        "http://localhost:3138/admin/publications",
+        { maxRedirects: 0 },
+      );
       // A redirect after Next.js has streamed the loading shell is encoded in
       // the HTML instead of changing an already-sent HTTP status.
-      if (admin.status() === 307) assert.match(admin.headers().location, /^\/login\?/);
+      if (admin.status() === 307)
+        assert.match(admin.headers().location, /^\/login\?/);
       else {
         assert.equal(admin.status(), 200);
         const html = await admin.text();

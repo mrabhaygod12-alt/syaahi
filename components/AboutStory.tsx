@@ -38,9 +38,9 @@ export default function AboutStory() {
             <em>building Syaahi.</em>
           </h1>
           <p className="about-lead">
-            I’m Chandan Pandey, the creator of Syaahi. I’m building a study
-            space where a difficult idea becomes something you can see, question
-            and remember.
+            I’m Chandan Pandey, the creator of Syaahi. I’m building a learning
+            and writing space where students, teachers, professionals and
+            writers can understand an idea, explain it and share what they know.
           </p>
           <p className="about-lead">
             <strong>Manish Kumar Singh</strong> builds alongside me as a{" "}
@@ -66,6 +66,18 @@ export default function AboutStory() {
       <section className="about-bio card" data-story>
         <p className="eyebrow">A LITTLE ABOUT ME</p>
         <h2>Learning and building belong together.</h2>
+        <p>
+          Syaahi has two workspaces in one account. Learn &amp; create helps you
+          work through sources, make notes and prepare presentations. Write
+          &amp; publish gives your articles a rich editor, private revisions and
+          a path through editorial review. A classroom guide and a professional
+          tutorial can both begin with careful learning.
+        </p>
+        <p>
+          <a href="/writing">Explore writing and publishing</a>
+          {" · "}
+          <a href="/features">See the available tools</a>
+        </p>
         <p>
           I am pursuing an MSc in Digital Forensics and Cyber Security at Lovely
           Professional University (LPU). I have four years of experience in web

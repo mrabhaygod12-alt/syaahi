@@ -8,6 +8,10 @@ export const metadata = pageMeta({
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
+    "Writer images, workspace preference and presentations",
+    "We store your selected student or writer starting workspace, rich-text drafts, up to ten saved draft versions, and uploaded writer images. Images are resized and re-encoded to WebP without original metadata, and remain private until referenced in an approved public guide. Publication makes the guide and its referenced images publicly accessible; takedown revokes future access. Presentation briefs, reference text, outlines, slides, language, template, generation status and speaker notes are saved privately under your account. Generating slides sends the submitted text to a configured AI provider. PPTX downloads remain on your device once downloaded. Subscription records include plan, mandate/subscription and invoice/payment identifiers, paid period, cancellation status and ledger events. Payment credentials remain with Razorpay.",
+  ],
+  [
     "Textbook retrieval and voice practice",
     "Textbook uploads store extracted page text and page numbers privately under your account. When vector search is enabled, excerpts are sent to Gemini for embeddings; Qdrant stores vectors and account/document identifiers for account-scoped retrieval. Deleting a textbook immediately revokes access and clears extracted text; vector deletion is retried by the background worker. Live interview practice streams microphone audio directly to Gemini only during the session. Syaahi does not save raw audio recordings. Transcripts remain temporary unless you explicitly choose Save privately. Up to 20 saved sessions retain the target role, transcript, save time and any requested coaching report. Creating a report sends the saved transcript to a configured AI provider. You can delete a saved session and report from its page; this removes the active application record, not independent provider records, backups or downloaded copies.",
   ],
@@ -85,9 +89,7 @@ export default function Policy() {
         lede="A factual description of how this installation handles data."
       />
       <Prose>
-        <p className="small">
-          Updated 28 September 2026 · Current installation
-        </p>
+        <p className="small">Updated 3 October 2026 · Current installation</p>
         {sections.map(([title, body], i) => (
           <section key={title}>
             <H>

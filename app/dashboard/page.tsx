@@ -1,5 +1,5 @@
 import { pageMeta } from "@/lib/seo";
-import DashboardClient from "./DashboardClient";
+import DashboardRouter from "./DashboardRouter";
 
 export const metadata = pageMeta({
   title: "Dashboard",
@@ -10,5 +10,5 @@ export const metadata = pageMeta({
 });
 
 export default function Dashboard() {
-  return <DashboardClient />;
+  return <DashboardRouter />;
 }

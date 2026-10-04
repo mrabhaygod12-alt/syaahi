@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { db, transaction } from "@/lib/db";
 import { collection, useMongo } from "@/lib/storage/mongo";
+import { normalizeDocument, documentText, type RichNode } from "./document";
+import { assertOwnedImages } from "./images";
 
 export type StoryStatus =
   "draft" | "submitted" | "changes_requested" | "published" | "removed";
@@ -36,6 +38,7 @@ export interface Story {
   title: string;
   summary: string;
   body: string;
+  document?: RichNode;
   tags: string[];
   status: StoryStatus;
   createdAt: string;
@@ -56,6 +59,7 @@ export interface Story {
     title: string;
     summary: string;
     body: string;
+    document?: RichNode;
     tags: string[];
   }>;
   moderationEvents?: Array<{
@@ -229,12 +233,21 @@ export async function saveStory(
     id?: string;
     submit?: boolean;
     authorName: string;
+    document?: unknown;
+    expectedUpdatedAt?: string;
   },
 ): Promise<Story> {
   const now = new Date().toISOString();
   const title = input.title.trim().slice(0, 140);
   const summary = input.summary.trim().slice(0, 320);
-  const body = input.body.trim().slice(0, 50000);
+  const document =
+    input.document === undefined
+      ? undefined
+      : normalizeDocument(input.document);
+  if (document) await assertOwnedImages(user, document);
+  const body = (document ? documentText(document) : input.body)
+    .trim()
+    .slice(0, 50000);
   const tags = [
     ...new Set(
       input.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean),
@@ -242,8 +255,10 @@ export async function saveStory(
   ]
     .slice(0, 5)
     .map((tag) => tag.slice(0, 32));
-  if (title.length < 5 || body.length < 80)
-    throw new Error("Add a title and at least 80 characters before saving.");
+  if (!title || (input.submit && (title.length < 5 || body.length < 80)))
+    throw new Error(
+      "Add a title to save. Review submissions need at least 80 characters.",
+    );
   if (input.id) {
     const existing = useMongo()
       ? clean(
@@ -258,6 +273,13 @@ export async function saveStory(
           })(),
         );
     if (!existing) throw new Error("Draft not found.");
+    if (
+      input.expectedUpdatedAt &&
+      existing.updatedAt !== input.expectedUpdatedAt
+    )
+      throw new Error(
+        "This draft changed in another tab. Reload it before saving.",
+      );
     if (!["draft", "changes_requested"].includes(existing.status))
       throw new Error("This submission is under editorial review.");
     const story: Story = {
@@ -267,6 +289,7 @@ export async function saveStory(
       title,
       summary,
       body,
+      document,
       tags,
       status: input.submit ? "submitted" : "draft",
       updatedAt: now,
@@ -280,22 +303,35 @@ export async function saveStory(
           title: existing.title,
           summary: existing.summary,
           body: existing.body,
+          document: existing.document,
           tags: existing.tags,
         },
       ].slice(-10),
     };
-    if (useMongo())
-      await (
+    story.updatedAt = new Date(
+      Math.max(Date.now(), Date.parse(existing.updatedAt) + 1),
+    ).toISOString();
+    if (useMongo()) {
+      const changed = await (
         await collection("stories")
       ).updateOne(
-        { _id: story.id, user },
+        {
+          _id: story.id,
+          user,
+          updatedAt: existing.updatedAt,
+          status: existing.status,
+        },
         { $set: { ...story, _id: story.id } },
       );
-    else
-      transaction(() =>
-        db()
+      if (!changed.matchedCount)
+        throw new Error(
+          "This draft changed in another tab. Reload it before saving.",
+        );
+    } else
+      transaction(() => {
+        const changed = db()
           .prepare(
-            "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=? AND user_id=?",
+            "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=? AND user_id=? AND updated_at=? AND status=?",
           )
           .run(
             story.status,
@@ -303,8 +339,14 @@ export async function saveStory(
             JSON.stringify(story),
             story.id,
             user,
-          ),
-      );
+            existing.updatedAt,
+            existing.status,
+          );
+        if (!changed.changes)
+          throw new Error(
+            "This draft changed in another tab. Reload it before saving.",
+          );
+      });
     return story;
   }
   const story: Story = {
@@ -318,6 +360,7 @@ export async function saveStory(
     title,
     summary,
     body,
+    document,
     tags,
     status: input.submit ? "submitted" : "draft",
     createdAt: now,

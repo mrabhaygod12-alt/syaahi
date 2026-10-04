@@ -1,11 +1,15 @@
 import { notFound } from "next/navigation";
 import { publicGuides } from "@/lib/writing/public";
-const getPublicStory = async (slug: string) =>
-  (await publicGuides("slug", slug))[0];
+import { cache } from "react";
+const getPublicStory = cache(
+  async (slug: string) => (await publicGuides("slug", slug))[0],
+);
 import { pageMeta } from "@/lib/seo";
 import ReportPublication from "@/components/ReportPublication";
 import PublicationEngagement from "@/components/PublicationEngagement";
 import PublicationActions from "@/components/PublicationActions";
+import StoryDocument from "@/components/StoryDocument";
+import { SITE, jsonLd, breadcrumbSchema } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +21,8 @@ export async function generateMetadata({
   const story = await getPublicStory((await params).slug);
   if (!story)
     return pageMeta({
-      title: "Guide not found",
-      description: "This study guide is unavailable.",
+      title: "Article not found",
+      description: "This article or guide is unavailable.",
       path: "/community",
       noindex: true,
     });
@@ -26,6 +30,10 @@ export async function generateMetadata({
     title: story.title,
     description: story.summary,
     path: `/guides/${story.slug}`,
+    article: {
+      author: story.authorName,
+      publishedAt: story.publishedAt || story.createdAt,
+    },
   });
 }
 
@@ -40,7 +48,7 @@ export default async function GuidePage({
     <main className="wrap feature-section">
       <PublicationEngagement slug={story.slug!} />
       <article className="interactive-panel" style={{ maxWidth: 860 }}>
-        <p className="eyebrow">REVIEWED STUDY GUIDE</p>
+        <p className="eyebrow">REVIEWED ARTICLE</p>
         <h1>{story.title}</h1>
         <p className="small">
           By <a href={`/creators/${story.creatorSlug}`}>{story.authorName}</a> ·
@@ -53,11 +61,37 @@ export default async function GuidePage({
             <span key={tag}>{tag}</span>
           ))}
         </div>
-        <div
-          style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, marginTop: 24 }}
-        >
-          {story.body}
-        </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLd({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              headline: story.title,
+              description: story.summary,
+              datePublished: story.publishedAt || story.createdAt,
+              author: {
+                "@type": "Person",
+                name: story.authorName,
+                url: `${SITE.url}/creators/${story.creatorSlug}`,
+              },
+              mainEntityOfPage: `${SITE.url}/guides/${story.slug}`,
+              publisher: { "@id": `${SITE.url}/#organization` },
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLd(
+              breadcrumbSchema([
+                { name: "Community articles", path: "/community" },
+                { name: story.title, path: `/guides/${story.slug}` },
+              ]),
+            ),
+          }}
+        />
+        <StoryDocument document={story.document} fallback={story.body} />
         <PublicationActions slug={story.slug!} />
         <ReportPublication slug={story.slug!} />
       </article>

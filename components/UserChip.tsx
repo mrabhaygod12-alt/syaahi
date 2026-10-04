@@ -13,7 +13,6 @@ export default function UserChip() {
   const [user, setUser] = useState<DemoUser | null | undefined>(undefined);
   const [open, setOpen] = useState(false);
   const [signOutError, setSignOutError] = useState("");
-  const [tokens, setTokens] = useState<number | null>(null);
   const [sessionCheck, setSessionCheck] = useState<
     "checking" | "ready" | "unavailable"
   >("checking");
@@ -28,17 +27,6 @@ export default function UserChip() {
         .then((u) => {
           setUser(u);
           setSessionCheck("ready");
-          if (u) {
-            fetch("/api/credits")
-              .then((r) => (r.ok ? r.json() : null))
-              .then((d) => {
-                if (d)
-                  setTokens(
-                    Number(Number(d.tokens ?? (d.balance ?? 0) / 3).toFixed(2)),
-                  );
-              })
-              .catch(() => {});
-          }
         })
         .catch(() => setSessionCheck("unavailable"));
     void checkSession();
@@ -137,29 +125,10 @@ export default function UserChip() {
     >
       <a
         className="btn dark account-upgrade"
-        style={{
-          background: "#b45309",
-          borderColor: "#b45309",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-        }}
+        style={{ display: "inline-flex", alignItems: "center" }}
         href="/pricing"
       >
-        <span>✨ Upgrade</span>
-        {tokens !== null && (
-          <span
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              padding: "1px 6px",
-              borderRadius: 10,
-              fontSize: "0.75rem",
-              fontWeight: 800,
-            }}
-          >
-            {tokens}T
-          </span>
-        )}
+        Upgrade
       </a>
       {sessionCheck === "unavailable" && (
         <span
@@ -189,7 +158,7 @@ export default function UserChip() {
           width: 36,
           height: 36,
           borderRadius: "50%",
-          border: open ? "2px solid #6246ea" : "1.5px solid #d9d1c7",
+          border: open ? "2px solid #1f5b4a" : "1.5px solid #d9d1c7",
           background: isCustomImage ? "#fff" : anime.bg,
           color: "#fff",
           fontWeight: 800,
@@ -201,7 +170,7 @@ export default function UserChip() {
           padding: 0,
           overflow: "hidden",
           transition: "all 0.15s ease",
-          boxShadow: open ? "0 0 0 3px rgba(98, 70, 234, 0.25)" : "none",
+          boxShadow: open ? "0 0 0 3px rgba(31, 91, 74, 0.18)" : "none",
         }}
       >
         {isCustomImage ? (
@@ -294,7 +263,7 @@ export default function UserChip() {
             </div>
           </div>
 
-          {/* Tokens & Verification Badges */}
+          {/* Account status */}
           <div
             style={{
               padding: "6px 10px",
@@ -306,8 +275,8 @@ export default function UserChip() {
               alignItems: "center",
             }}
           >
-            <span style={{ color: "#b45309", fontWeight: 700 }}>
-              ⚡ {tokens !== null ? `${tokens} Tokens` : "Study Tokens"}
+            <span style={{ color: "#1f5b4a", fontWeight: 700 }}>
+              Study account
             </span>
             {user.verified ? (
               <span
@@ -362,7 +331,7 @@ export default function UserChip() {
             </a>
 
             <a
-              href="/dashboard"
+              href={user.workspace === "writer" ? "/writer" : "/dashboard"}
               onClick={() => setOpen(false)}
               style={{
                 display: "flex",

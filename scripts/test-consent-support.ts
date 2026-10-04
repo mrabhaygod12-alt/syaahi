@@ -29,7 +29,7 @@ async function main() {
     400,
   );
   const created = await auth.POST(
-    request({ ...form, acceptTerms: true, termsVersion: "2026-09-24" }),
+    request({ ...form, acceptTerms: true, termsVersion: "2026-10-03" }),
   );
   assert.equal(created.status, 202);
   const signup = await created.json();
@@ -55,7 +55,7 @@ async function main() {
   assert.equal(
     (await readState(String(learner.id), "terms-consent", { version: "" }))
       .version,
-    "2026-09-24",
+    "2026-10-03",
   );
   assert.equal(
     (await auth.POST(request({ ...form, mode: "login" }))).status,

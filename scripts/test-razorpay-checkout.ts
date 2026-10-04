@@ -42,6 +42,8 @@ async function main() {
     "test-password-12345",
   );
   process.env.PAYMENT_ADMIN_IDS = admin.id;
+  const { markEmailVerified } = await import("../lib/billing/rewards");
+  await markEmailVerified(admin.id);
   const auth = await startSession(admin, new Request("http://localhost:3123"));
   const cookie = auth.headers.get("set-cookie")!.split(";")[0];
   const server = spawn(
@@ -100,10 +102,10 @@ async function main() {
     const [name, value] = cookie.split("=");
     await context.addCookies([{ name, value, domain: "localhost", path: "/" }]);
     const page = await context.newPage();
-    await page.goto(base + "/pricing");
-    await page.getByRole("button", { name: "Buy Try", exact: true }).click();
-    await page.waitForURL("**/checkout/try");
-    await page.getByRole("button", { name: "Pay ₹9 with Razorpay", exact: true }).click();
+    await page.goto(base + "/checkout/try");
+    await page
+      .getByRole("button", { name: "Pay ₹9 with Razorpay", exact: true })
+      .click();
     await page
       .locator("iframe.razorpay-checkout-frame")
       .waitFor({ state: "visible", timeout: 30000 });

@@ -12,6 +12,7 @@ delete process.env.GEMINI_API_KEY;
 
 async function main() {
   const auth = await import("../lib/auth/server");
+  const { markEmailVerified } = await import("../lib/billing/rewards");
   const interview = await import("../app/api/interview/route");
   const request = (cookie: string, body?: unknown) =>
     new NextRequest("http://localhost:3101/api/interview", {
@@ -25,6 +26,7 @@ async function main() {
     "interview@example.test",
     "long-test-password",
   );
+  await markEmailVerified(user.id);
   const cookie = (await auth.startSession(user, request(""))).headers
     .get("set-cookie")!
     .split(";")[0];
@@ -42,7 +44,12 @@ async function main() {
   assert.equal(data.session.questions.length, 5);
   assert.equal(data.session.track, "Software engineering");
   assert.equal(data.session.targetRole, "Frontend developer");
-  assert(data.session.questions.every((item: { question: string; competency: string; guidance: string }) => item.question && item.competency && item.guidance));
+  assert(
+    data.session.questions.every(
+      (item: { question: string; competency: string; guidance: string }) =>
+        item.question && item.competency && item.guidance,
+    ),
+  );
 
   const history = await interview.GET(request(cookie));
   assert.equal(history.status, 200);
@@ -51,13 +58,18 @@ async function main() {
   assert.equal(saved.sessions[0].total, 5);
   assert.equal(saved.sessions[0].completed, 0);
   const reopened = await interview.GET(
-    new NextRequest(`http://localhost:3101/api/interview?session=${data.session.id}`, {
-      headers: { cookie },
-    }),
+    new NextRequest(
+      `http://localhost:3101/api/interview?session=${data.session.id}`,
+      {
+        headers: { cookie },
+      },
+    ),
   );
   assert.equal(reopened.status, 200);
   assert.equal((await reopened.json()).session.id, data.session.id);
-  console.log("PASS: authenticated role plan is saved with five safe fallback questions and history.");
+  console.log(
+    "PASS: authenticated role plan is saved with five safe fallback questions and history.",
+  );
 }
 
 main().catch((error) => {

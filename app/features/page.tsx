@@ -2,9 +2,9 @@ import { pageMeta } from "@/lib/seo";
 import { CtaBand, PageHero } from "@/components/site";
 
 export const metadata = pageMeta({
-  title: "Study Tools: Notes, Quizzes, Flashcards & AI Practice",
+  title: "Learning & Writing Tools: Notes, Presentations and Articles",
   description:
-    "Explore Syaahi handwritten-style study notes, source-aware lessons, quizzes, flashcards, lesson chat, mock interview practice, private sharing and reviewed study guides.",
+    "Explore Syaahi tools for students, teachers, professionals and writers: notes, editable AI presentations, recall practice, rich drafting and reviewed publication.",
   path: "/features",
 });
 
@@ -72,14 +72,26 @@ const features = [
   [
     "11",
     "Writer Studio",
-    "Draft a study guide privately, keep version history, and submit it for editorial review when it is ready.",
-    "/write",
+    "Write articles and guides with headings, links and uploaded images. Save private drafts, keep revisions and submit for editorial review.",
+    "/writing",
   ],
   [
     "12",
-    "Reviewed community guides",
-    "Discover public guides only after review, with a clear route back to the creator and the original guide.",
+    "Reviewed community articles",
+    "Discover public articles and guides after review, with creator attribution, bookmarking and content reports.",
     "/community",
+  ],
+  [
+    "13",
+    "Editable AI presentations",
+    "Describe a classroom, learning or professional topic. Supply references, edit the slides and export native PowerPoint text, charts and speaker notes.",
+    "/presentations",
+  ],
+  [
+    "14",
+    "Two workspaces in one account",
+    "Choose Learn & create or Write & publish as your starting dashboard and switch between them with the same account.",
+    "/writing",
   ],
 ] as const;
 
@@ -87,9 +99,9 @@ export default function Features() {
   return (
     <>
       <PageHero
-        kicker="A connected learning workspace"
-        title="Tools that follow the way you actually study."
-        lede="Bring in material, shape it into a lesson, practise recall, and return when you need it. Every tool has a clear place in the study loop."
+        kicker="Learning and writing on Syaahi"
+        title="From understanding an idea to explaining it."
+        lede="Create notes and presentations, practise a topic, or develop an article for readers. Students, teachers, professionals and writers can use both workspaces with one account."
       />
       <section
         className="wrap feature-directory"

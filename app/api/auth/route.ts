@@ -11,6 +11,7 @@ import {
   startSession,
 } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
+import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handleGET(req: NextRequest) {
@@ -57,6 +58,8 @@ async function handlePOST(req: NextRequest) {
         password,
       );
       await recordConsent(user.id);
+      if (workspaceKind(body.workspace))
+        await setWorkspace(user.id, workspaceKind(body.workspace)!);
 
       // Record invite attribution now; the inviter is rewarded only after
       // this account completes email verification.
@@ -91,7 +94,10 @@ async function handlePOST(req: NextRequest) {
         { status: 202 },
       );
     } catch (err) {
-      console.error("Signup failed:", err instanceof Error ? err.name : "unknown");
+      console.error(
+        "Signup failed:",
+        err instanceof Error ? err.name : "unknown",
+      );
       const isDuplicate =
         err instanceof Error &&
         (err.message.includes("duplicate key") ||
@@ -146,12 +152,18 @@ async function handlePOST(req: NextRequest) {
   }
 
   await recordConsent(userId);
+  if (workspaceKind(body.workspace))
+    await setWorkspace(userId, workspaceKind(body.workspace)!);
   return startSession(
     {
       id: userId,
       email,
       name: String(row.name),
       createdAt: String(row.created_at),
+      workspace:
+        workspaceKind(body.workspace) ||
+        workspaceKind(row.workspace) ||
+        "student",
     },
     req,
   );

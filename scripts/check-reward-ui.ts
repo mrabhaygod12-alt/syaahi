@@ -35,7 +35,7 @@ async function main() {
           password: "long-test-password",
           mode: "signup",
           acceptTerms: true,
-          termsVersion: "2026-09-24",
+          termsVersion: "2026-10-03",
         }),
       });
       assert.equal(r.status, 200);

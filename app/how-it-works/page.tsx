@@ -2,7 +2,7 @@ import { pageMeta } from "@/lib/seo";
 export const metadata = pageMeta({
   title: "How Syaahi Works",
   description:
-    "See how to turn a topic, PDF or supported lecture into a study outline, handwritten-style notes, quizzes and flashcards with Syaahi.",
+    "Follow Syaahi's two workflows: create source-aware notes and presentations, or write rich articles, save private revisions and submit for publication review.",
   path: "/how-it-works",
 });
 import { PageHero, Faq, CtaBand } from "@/components/site";
@@ -12,10 +12,33 @@ export default function HowItWorks() {
     <>
       <PageHero
         kicker="A thoughtful workflow"
-        title="Less organising. More learning."
-        lede="Explore how a question becomes a study plan, a set of notes, and a chance to practise."
+        title="Learn an idea. Create something from it."
+        lede="Use the learning workspace for sources, notes and practice. Use the writing workspace for drafts, revisions and reviewed articles. You can switch between them."
       />
       <Walkthrough />
+      <section className="wrap home-section">
+        <p className="eyebrow">THE WRITING WORKFLOW</p>
+        <h2>Draft privately, publish after review.</h2>
+        <ol>
+          <li>
+            Choose Write &amp; publish at signup or login, then open Writer
+            Studio.
+          </li>
+          <li>
+            Add a title, headings, lists, links and images you have the right to
+            use.
+          </li>
+          <li>
+            Save, preview and revise your draft. Reopen it later with the same
+            account.
+          </li>
+          <li>
+            Submit for editorial review, address requested changes and share the
+            approved article's public URL.
+          </li>
+        </ol>
+        <a href="/writing">Explore writing for teachers and professionals →</a>
+      </section>
       <Faq
         items={[
           {

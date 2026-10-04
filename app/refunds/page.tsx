@@ -8,6 +8,10 @@ export const metadata = pageMeta({
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
+    "Subscriptions, cancellation and presentation failures",
+    "Cancel renewal from Billing to stop future monthly charges. For an active subscription, cancellation takes effect at the end of its current cycle; remaining wallet credits are retained. Cancellation does not automatically refund an already captured charge. Report unauthorised, duplicate, or disputed charges through Support with the payment and subscription IDs for review; applicable consumer rights remain unaffected. Failed presentation generation automatically returns its five-credit charge. Resuming reserves five credits again and preserves completed slides. If monthly credits are missing, refresh Billing before paying again.",
+  ],
+  [
     "If generation stops",
     "Unused reserved credits are returned automatically when a job is marked failed. Sections saved successfully remain in your lesson and consume their credits. A resumed job reserves only its missing sections.",
   ],
@@ -37,9 +41,7 @@ export default function Policy() {
         lede="A clear distinction between generation credits and payment refunds."
       />
       <Prose>
-        <p className="small">
-          Updated 28 September 2026 · Current installation
-        </p>
+        <p className="small">Updated 3 October 2026 · Current installation</p>
         {sections.map(([title, body], i) => (
           <section key={title}>
             <H>

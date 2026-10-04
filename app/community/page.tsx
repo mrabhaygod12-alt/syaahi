@@ -2,8 +2,9 @@ import CommunityPublications from "@/components/CommunityPublications";
 import { pageMeta } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = pageMeta({
-  title: "Reviewed Study Guides",
-  description: "Read reviewed study guides from the Syaahi learning community.",
+  title: "Community Articles & Reviewed Guides",
+  description:
+    "Read reviewed articles, teaching guides and professional explanations on Syaahi. Discover the creators and submit your own work for editorial review.",
   path: "/community",
 });
 export default function CommunityPage() {
@@ -11,15 +12,15 @@ export default function CommunityPage() {
     <main className="wrap feature-section">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">SYAAHI LEARNING COMMONS</span>
-          <h1>Guides reviewed for learners.</h1>
+          <span className="eyebrow">THE SYAAHI COMMUNITY</span>
+          <h1>Articles and guides, reviewed before publication.</h1>
           <p className="small">
-            Every guide shown here has passed editorial review. Creator drafts
+            Every article shown here has passed editorial review. Creator drafts
             remain private until published.
           </p>
         </div>
         <a className="btn dark" href="/write">
-          Write a guide
+          Write an article
         </a>
       </div>
       <CommunityPublications />

@@ -73,7 +73,7 @@ async function main() {
         email: "capacity@example.test",
         password: "test-password-12345",
         acceptTerms: true,
-        termsVersion: "2026-09-24",
+        termsVersion: "2026-10-03",
       }),
     });
     assert.equal(login.status, 200);

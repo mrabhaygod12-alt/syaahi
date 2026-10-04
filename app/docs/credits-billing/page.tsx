@@ -8,6 +8,10 @@ export const metadata = pageMeta({
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
+    "Monthly study plans and PPTX",
+    "Free includes 19 signup credits. Starter: ₹39/month for 15 credits; Pro: ₹179/month for 90; Max: ₹399/month for 360. Monthly plans currently bill in INR. Each captured invoice grants the plan allowance once. Unused credits remain in the wallet. Manage or cancel renewals at /account/billing. Presentation generation costs 5 credits per completed deck; failed jobs return the charge and retries reserve it again. Larger paid plans allow larger decks. Previously purchased credits and legacy receipts are retained.",
+  ],
+  [
     "Welcome credits",
     "A new account receives 19 free credits (6⅓ tokens / 19 note sections). One token covers 3 sections; one section consumes ⅓ token; longer sections may print on multiple sheets. Planning and PDF re-downloads do not subtract credits.",
   ],
@@ -44,7 +48,7 @@ export default function Guide() {
             <p>{body}</p>
           </section>
         ))}
-        <p className="small">Updated 22 September 2026</p>
+        <p className="small">Updated 3 October 2026</p>
       </Prose>
     </>
   );

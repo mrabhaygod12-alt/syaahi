@@ -6,6 +6,7 @@ export type PublicGuide = Pick<
   | "title"
   | "summary"
   | "body"
+  | "document"
   | "tags"
   | "authorName"
   | "creatorSlug"
@@ -18,6 +19,7 @@ export function publicGuide(story: Story): PublicGuide {
     title,
     summary,
     body,
+    document,
     tags,
     authorName,
     creatorSlug,
@@ -29,6 +31,7 @@ export function publicGuide(story: Story): PublicGuide {
     title,
     summary,
     body,
+    document,
     tags,
     authorName,
     creatorSlug,

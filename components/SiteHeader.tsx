@@ -8,16 +8,22 @@ import UserChip from "./UserChip";
 import "./site-header.css";
 
 type NavItem = { label: string; detail: string; href: string };
-type NavGroup = { label: string; items: NavItem[] };
+type NavGroup = { id: string; label: string; items: NavItem[] };
 
 const groups: NavGroup[] = [
   {
-    label: "Study",
+    id: "learn",
+    label: "Learn & create",
     items: [
       {
-        label: "Study workspace",
-        detail: "Create and continue your lessons",
-        href: "/dashboard",
+        label: "Learning workspace",
+        detail: "Notes, sources and recall practice",
+        href: "/dashboard?view=student",
+      },
+      {
+        label: "AI presentations",
+        detail: "Build and edit a PowerPoint deck",
+        href: "/presentations",
       },
       {
         label: "Subjects",
@@ -25,8 +31,8 @@ const groups: NavGroup[] = [
         href: "/subjects",
       },
       {
-        label: "Library",
-        detail: "Return to saved material",
+        label: "Public library",
+        detail: "Browse sample learning material",
         href: "/library",
       },
       {
@@ -42,61 +48,76 @@ const groups: NavGroup[] = [
     ],
   },
   {
-    label: "Practice",
+    id: "write",
+    label: "Write & publish",
     items: [
       {
-        label: "Mock interviews",
-        detail: "Role-based answer practice",
-        href: "/interview",
+        label: "Writing on Syaahi",
+        detail: "A workspace for teachers and writers",
+        href: "/writing",
       },
       {
-        label: "How Syaahi works",
-        detail: "See each study step",
-        href: "/how-it-works",
+        label: "Community articles",
+        detail: "Read reviewed articles and guides",
+        href: "/community",
       },
       {
-        label: "Documentation",
-        detail: "Guides for study tools",
-        href: "/docs",
+        label: "Writer dashboard",
+        detail: "Stories, drafts and editorial feedback",
+        href: "/writer",
+      },
+      {
+        label: "Writer Studio",
+        detail: "Headings, images and private drafts",
+        href: "/write",
+      },
+      {
+        label: "Creator profile",
+        detail: "Edit your biography and social links",
+        href: "/profile",
       },
     ],
   },
   {
-    label: "Community",
+    id: "resources",
+    label: "Resources",
     items: [
       {
-        label: "Study guides",
-        detail: "Browse reviewed public guides",
-        href: "/community",
+        label: "All features",
+        detail: "Learning, writing and presentations",
+        href: "/features",
       },
       {
-        label: "Writer Studio",
-        detail: "Draft a guide privately",
-        href: "/write",
+        label: "How it works",
+        detail: "Follow both workspace workflows",
+        href: "/how-it-works",
+      },
+      {
+        label: "Mock interviews",
+        detail: "Practise for a professional role",
+        href: "/interview",
+      },
+      {
+        label: "Documentation",
+        detail: "Setup, tools and billing help",
+        href: "/docs",
       },
       {
         label: "Study blog",
-        detail: "Read practical study ideas",
+        detail: "Practical learning articles",
         href: "/blog",
       },
+      { label: "About", detail: "Meet Chandan and Manish", href: "/about" },
       {
-        label: "Campus pilots",
-        detail: "Apply as a campus ambassador",
-        href: "/campus",
-      },
-      {
-        label: "For institutions",
-        detail: "Discuss a student pilot",
-        href: "/enterprise",
+        label: "Support",
+        detail: "Get help with your account or work",
+        href: "/support",
       },
     ],
   },
 ];
 
-const directLinks = [
-  { label: "Pricing", href: "/pricing" },
-  { label: "About", href: "/about" },
-];
+const directLinks = [{ label: "Pricing", href: "/pricing" }];
 
 export default function SiteHeader() {
   const path = usePathname();
@@ -122,11 +143,16 @@ export default function SiteHeader() {
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (
-          window.matchMedia("(max-width: 1080px)").matches &&
-          navigationRef.current?.contains(document.activeElement)
-        )
-          menuButton.current?.focus();
+        if (navigationRef.current?.contains(document.activeElement)) {
+          if (window.matchMedia("(max-width: 1080px)").matches)
+            menuButton.current?.focus();
+          else
+            navigationRef.current
+              .querySelector<HTMLButtonElement>(
+                ".nav-trigger[aria-expanded='true']",
+              )
+              ?.focus();
+        }
         setOpenGroup(null);
         setMobileOpen(false);
       }
@@ -141,7 +167,8 @@ export default function SiteHeader() {
 
   if (path?.startsWith("/lesson/")) return null;
   const isCurrent = (href: string) =>
-    path === href || (href !== "/" && Boolean(path?.startsWith(`${href}/`)));
+    path === href.split("?")[0] ||
+    (href !== "/" && Boolean(path?.startsWith(`${href.split("?")[0]}/`)));
 
   return (
     <header ref={headerRef} className="top site-header">
@@ -167,7 +194,7 @@ export default function SiteHeader() {
                   className="nav-trigger"
                   type="button"
                   disabled={!ready}
-                  aria-controls={`nav-${group.label.toLowerCase()}`}
+                  aria-controls={`nav-${group.id}`}
                   aria-expanded={isOpen}
                   onClick={() => setOpenGroup(isOpen ? null : group.label)}
                 >
@@ -177,7 +204,7 @@ export default function SiteHeader() {
                   className={isOpen ? "nav-popover is-open" : "nav-popover"}
                   hidden={!isOpen}
                   style={!isOpen ? { display: "none" } : undefined}
-                  id={`nav-${group.label.toLowerCase()}`}
+                  id={`nav-${group.id}`}
                 >
                   {group.items.map((item) => (
                     <a

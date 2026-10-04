@@ -39,7 +39,7 @@ export async function spend(user: string, pages: number): Promise<number> {
 export async function grant(
   user: string,
   credits: number,
-  eventId = randomUUID(),
+  eventId: string = randomUUID(),
 ): Promise<number> {
   validCount(credits);
   if (useMongo()) return mongoGrant(user, credits, eventId);

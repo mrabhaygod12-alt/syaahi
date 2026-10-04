@@ -5,6 +5,7 @@ import { oauthClient, googleAccount, safeNext } from "@/lib/auth/oauth";
 import { startSession } from "@/lib/auth/server";
 import { markEmailVerified } from "@/lib/billing/rewards";
 import { claimReferral } from "@/lib/billing/referrals";
+import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 async function handleGET(req: NextRequest) {
   const origin =
     (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
@@ -25,6 +26,13 @@ async function handleGET(req: NextRequest) {
     if (verifyError || !data.user)
       throw new Error("Google identity could not be verified.");
     const account = await googleAccount(data.user);
+    const workspace = workspaceKind(
+      req.cookies.get("syaahi-oauth-workspace")?.value,
+    );
+    if (workspace) {
+      await setWorkspace(account.id, workspace);
+      account.workspace = workspace;
+    }
     const referral = req.cookies.get("syaahi-oauth-ref")?.value;
     if (referral) {
       try {
@@ -46,7 +54,10 @@ async function handleGET(req: NextRequest) {
       ).href,
     );
   } catch (err) {
-    console.error("OAuth callback failed:", err instanceof Error ? err.name : "unknown");
+    console.error(
+      "OAuth callback failed:",
+      err instanceof Error ? err.name : "unknown",
+    );
     const msg =
       "Google sign-in could not be completed. Please retry or use email sign-in.";
     response.headers.set(
@@ -57,6 +68,7 @@ async function handleGET(req: NextRequest) {
   response.cookies.set("syaahi-oauth-next", "", { path: "/", maxAge: 0 });
   response.cookies.set("syaahi-oauth-consent", "", { path: "/", maxAge: 0 });
   response.cookies.set("syaahi-oauth-ref", "", { path: "/", maxAge: 0 });
+  response.cookies.set("syaahi-oauth-workspace", "", { path: "/", maxAge: 0 });
   return response;
 }
 

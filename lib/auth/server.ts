@@ -17,6 +17,7 @@ export interface Account {
   avatar?: string | null;
   verified?: boolean;
   locale?: string | null;
+  workspace?: "student" | "writer";
 }
 const COOKIE = "syaahi-session";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -69,11 +70,12 @@ export async function currentUser(req: Request): Promise<Account | null> {
       avatar: user.avatar || null,
       verified: true,
       locale: typeof user.locale === "string" ? user.locale : null,
+      workspace: user.workspace === "writer" ? "writer" : "student",
     };
   }
   const row = db()
     .prepare(
-      `SELECT u.id,u.email,u.name,u.created_at,u.locale FROM sessions s
+      `SELECT u.id,u.email,u.name,u.created_at,u.locale,u.workspace FROM sessions s
     JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?`,
     )
     .get(hash(token), Date.now());
@@ -93,6 +95,7 @@ export async function currentUser(req: Request): Promise<Account | null> {
         avatar: null,
         verified: true,
         locale: typeof row.locale === "string" ? row.locale : null,
+        workspace: row.workspace === "writer" ? "writer" : "student",
       }
     : null;
 }
@@ -294,6 +297,7 @@ export async function accountByEmail(email: string) {
           name: user.name,
           password: user.password,
           created_at: user.createdAt,
+          workspace: user.workspace || "student",
         }
       : null;
   }

@@ -4,6 +4,7 @@ import { processJob } from "./runner";
 import { collection, useMongo } from "@/lib/storage/mongo";
 import { deliverStudyReminders } from "@/lib/study/reminders";
 import { indexDocumentBatch } from "@/lib/documents/vectors";
+import { processPendingDeck } from "@/lib/presentations/store";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
@@ -33,6 +34,7 @@ export function kickWorker(standalone = false) {
       await Promise.all(
         (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
       );
+      await processPendingDeck();
       if (standalone) await indexDocumentBatch();
       // Email reminders are deliberately throttled; generation keeps priority.
       if (

@@ -8,6 +8,10 @@ export const metadata = pageMeta({
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
+    "Monthly subscriptions and presentations",
+    "Starter costs ₹39/month for 15 credits; Pro ₹179/month for 90; Max ₹399/month for 360. Recurring payments require explicit mandate authorisation. Plans renew for up to 120 monthly cycles unless cancelled. Credits arrive only after a captured invoice payment, not a mandate authorisation alone. Cancel future renewals from Billing; active plans cancel at the current cycle end. Existing credits remain in your wallet and have no cash value. A completed presentation costs 5 credits; failed presentation jobs return that charge and retrying reserves it again. Slide limits are Free 6, Starter 8, Pro 12, Max 15. Team access requires a separately agreed arrangement; it is not an automatic subscription.",
+  ],
+  [
     "Purpose of the service",
     "Syaahi helps organise study material into AI-generated notes and practice. It is not a substitute for a textbook, teacher, professional adviser, or an institution’s official requirements. No grade, admission, employment, or accuracy outcome is guaranteed.",
   ],
@@ -61,9 +65,7 @@ export default function Policy() {
         lede="How the study service works and the responsibilities that come with using it."
       />
       <Prose>
-        <p className="small">
-          Updated 28 September 2026 · Current installation
-        </p>
+        <p className="small">Updated 3 October 2026 · Current installation</p>
         {sections.map(([title, body], i) => (
           <section key={title}>
             <H>

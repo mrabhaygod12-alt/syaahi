@@ -21,8 +21,8 @@ export async function generateMetadata({
       noindex: true,
     });
   return pageMeta({
-    title: `${stories[0].authorName} | Verified Syaahi Creator`,
-    description: `Read reviewed study guides from ${stories[0].authorName} on Syaahi.`,
+    title: `${stories[0].authorName} | Syaahi Author`,
+    description: `Read reviewed articles and guides from ${stories[0].authorName} on Syaahi.`,
     path: `/creators/${stories[0].creatorSlug}`,
   });
 }
@@ -42,10 +42,10 @@ export default async function CreatorPage({
   return (
     <main className="wrap feature-section">
       <section className="interactive-panel" style={{ maxWidth: 860 }}>
-        <span className="eyebrow">VERIFIED SYAAHI CREATOR</span>
+        <span className="eyebrow">PUBLIC SYAAHI CREATOR PROFILE</span>
         <h1>{creator.authorName}</h1>
         <p className="small">
-          This profile is created only from guides approved by Syaahi’s
+          This profile is created only from articles approved by Syaahi’s
           editorial review. It does not disclose the creator’s email or private
           drafts.
         </p>
@@ -56,7 +56,7 @@ export default async function CreatorPage({
       <section style={{ marginTop: 24 }}>
         <div className="section-heading">
           <div>
-            <span className="eyebrow">REVIEWED GUIDES</span>
+            <span className="eyebrow">REVIEWED ARTICLES AND GUIDES</span>
             <h2>Published by {creator.authorName}</h2>
           </div>
         </div>
@@ -77,7 +77,7 @@ export default async function CreatorPage({
                 ).toLocaleDateString()}
               </p>
               <a className="btn dark" href={`/guides/${story.slug}`}>
-                Read guide →
+                Read article →
               </a>
             </article>
           ))}

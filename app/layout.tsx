@@ -5,6 +5,8 @@ import { Caveat, Instrument_Sans, Kalam, Patrick_Hand } from "next/font/google";
 import "./globals.css";
 import "./upi-payments.css";
 import "./design-refinement.css";
+import "./workspace-upgrade.css";
+import "./home-positioning.css";
 import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
 import PrivacyPreferences from "@/components/PrivacyPreferences";
 

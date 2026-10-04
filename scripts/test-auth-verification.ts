@@ -46,7 +46,7 @@ async function main() {
         headers,
         body: JSON.stringify({
           acceptTerms: true,
-          termsVersion: "2026-09-24",
+          termsVersion: "2026-10-03",
         }),
       }),
     );
@@ -65,7 +65,7 @@ async function main() {
           email: "verified-learner@example.test",
           password: "test-password-12345",
           acceptTerms: true,
-          termsVersion: "2026-09-24",
+          termsVersion: "2026-10-03",
         }),
       }),
     );
@@ -82,7 +82,7 @@ async function main() {
           email: "verified-learner@example.test",
           password: "test-password-12345",
           acceptTerms: true,
-          termsVersion: "2026-09-24",
+          termsVersion: "2026-10-03",
         }),
       }),
     );

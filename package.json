@@ -33,7 +33,10 @@
     "test:voice-browser": "tsx scripts/test-voice-browser.ts",
     "test:voice-sessions": "tsx scripts/test-voice-sessions.ts",
     "test:public-guides": "tsx scripts/test-public-guides.ts",
-    "make:carousel": "node scripts/build-instagram-carousel.mjs"
+    "make:carousel": "node scripts/build-instagram-carousel.mjs",
+    "test:workspace-upgrade": "tsx scripts/test-workspace-upgrade.ts",
+    "test:workspace-browser": "tsx scripts/test-workspace-browser.ts",
+    "billing:plans": "tsx scripts/provision-monthly-plans.ts"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",
@@ -41,6 +44,11 @@
     "@fontsource/patrick-hand": "^5.3.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "@tiptap/extension-image": "^3.31.4",
+    "@tiptap/extension-text-align": "^3.31.4",
+    "@tiptap/pm": "^3.31.4",
+    "@tiptap/react": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
     "@vercel/analytics": "^2.0.1",
     "katex": "^0.18.7",
     "mongodb": "^7.6.0",
@@ -48,10 +56,12 @@
     "openai": "^4.67.3",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.63.0",
+    "pptxgenjs": "^4.0.0",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.8",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "sharp": "^0.35.5",
     "yauzl": "^3.4.0",
     "youtube-transcript": "^1.3.1"
   },
@@ -68,7 +78,8 @@
     "typescript": "^5.5.0"
   },
   "overrides": {
-    "postcss": "^8.5.23"
+    "postcss": "^8.5.23",
+    "image-size": "^2.0.4"
   },
   "engines": {
     "node": "24.x"

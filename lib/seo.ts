@@ -26,14 +26,15 @@ function resolveSiteUrl(value: string | undefined): string {
 // stay consistent for Google AND for AI answer engines (ChatGPT, Perplexity…).
 export const SITE = {
   name: "Syaahi",
-  tagline: "Study notes, PDFs and active recall",
+  tagline: "Learn, create and publish",
   url: resolveSiteUrl(process.env.NEXT_PUBLIC_APP_URL),
   description:
-    "Create study notes from your topics and course material. Review sources, export notebook-style PDFs, and practise with quizzes, flashcards and voice mock interviews.",
+    "Syaahi brings learning and writing together for students, teachers, professionals and writers. Create notes and presentations, or publish reviewed articles.",
   locale: "en_IN",
 };
 
 export function pageMeta(opts: {
+  article?: { author: string; publishedAt: string };
   title: string;
   description?: string;
   path?: string;
@@ -51,7 +52,13 @@ export function pageMeta(opts: {
     description,
     alternates: { canonical: url },
     openGraph: {
-      type: "website",
+      type: opts.article ? "article" : "website",
+      ...(opts.article
+        ? {
+            authors: [opts.article.author],
+            publishedTime: opts.article.publishedAt,
+          }
+        : {}),
       siteName: SITE.name,
       title: `${title} | ${SITE.name}`,
       description,
@@ -62,7 +69,7 @@ export function pageMeta(opts: {
           url: `${SITE.url}/opengraph-image`,
           width: 1200,
           height: 630,
-          alt: "Syaahi: study notes and active learning",
+          alt: "Syaahi: learning, presentations and reviewed writing",
         },
       ],
     },

@@ -37,6 +37,11 @@ async function handlePOST(req: NextRequest) {
         : [],
       submit: body.action === "submit",
       authorName: user.name,
+      document: body.document,
+      expectedUpdatedAt:
+        typeof body.expectedUpdatedAt === "string"
+          ? body.expectedUpdatedAt
+          : undefined,
     });
     return NextResponse.json({ story });
   } catch (error) {

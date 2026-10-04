@@ -1,4 +1,6 @@
 "use client";
+import type { RichNode } from "@/lib/writing/document";
+import StoryDocument from "./StoryDocument";
 
 import { useEffect, useState } from "react";
 
@@ -8,6 +10,7 @@ interface Story {
   summary: string;
   authorName: string;
   body: string;
+  document?: RichNode;
 }
 interface Report {
   id: string;
@@ -140,7 +143,7 @@ export default function PublicationReview() {
             <p className="eyebrow">SUBMITTED · {story.authorName}</p>
             <h3>{story.title}</h3>
             <p>{story.summary}</p>
-            <pre className="review-story-body">{story.body}</pre>
+            <StoryDocument document={story.document} fallback={story.body} />
             <label>
               Editorial note
               <input
@@ -180,47 +183,60 @@ export default function PublicationReview() {
       <section className="moderation-queue" aria-labelledby="report-queue">
         <p className="eyebrow">COMMUNITY REPORTS</p>
         <h2 id="report-queue">Open reports ({openReports.length})</h2>
-        <label className="small">Filter reports <select value={reportFilter} onChange={(event) => setReportFilter(event.target.value)}><option value="open">Open</option><option value="dismissed">Dismissed</option><option value="actioned">Actioned</option><option value="all">All reports</option></select></label>
-        {filteredReports.filter((report) => report.status === "open").map((report) => (
-          <article className="interactive-panel" key={report.id}>
-            <p className="eyebrow">
-              {report.reason.toUpperCase()} ·{" "}
-              {new Date(report.createdAt).toLocaleString()}
-            </p>
-            <h3>Guide: {report.storySlug}</h3>
-            <p>{report.details}</p>
-            <label>
-              Moderation note <small>Required for a takedown</small>
-              <input
-                value={note[report.id] || ""}
-                maxLength={1000}
-                placeholder="Record the evidence and decision"
-                onChange={(event) =>
-                  setNote((current) => ({
-                    ...current,
-                    [report.id]: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <div className="hero-actions">
-              <button
-                className="btn light"
-                disabled={busy === report.id}
-                onClick={() => void moderate(report, "dismiss")}
-              >
-                Dismiss report
-              </button>
-              <button
-                className="btn danger"
-                disabled={busy === report.id}
-                onClick={() => void moderate(report, "takedown")}
-              >
-                Take down guide
-              </button>
-            </div>
-          </article>
-        ))}
+        <label className="small">
+          Filter reports{" "}
+          <select
+            value={reportFilter}
+            onChange={(event) => setReportFilter(event.target.value)}
+          >
+            <option value="open">Open</option>
+            <option value="dismissed">Dismissed</option>
+            <option value="actioned">Actioned</option>
+            <option value="all">All reports</option>
+          </select>
+        </label>
+        {filteredReports
+          .filter((report) => report.status === "open")
+          .map((report) => (
+            <article className="interactive-panel" key={report.id}>
+              <p className="eyebrow">
+                {report.reason.toUpperCase()} ·{" "}
+                {new Date(report.createdAt).toLocaleString()}
+              </p>
+              <h3>Guide: {report.storySlug}</h3>
+              <p>{report.details}</p>
+              <label>
+                Moderation note <small>Required for a takedown</small>
+                <input
+                  value={note[report.id] || ""}
+                  maxLength={1000}
+                  placeholder="Record the evidence and decision"
+                  onChange={(event) =>
+                    setNote((current) => ({
+                      ...current,
+                      [report.id]: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <div className="hero-actions">
+                <button
+                  className="btn light"
+                  disabled={busy === report.id}
+                  onClick={() => void moderate(report, "dismiss")}
+                >
+                  Dismiss report
+                </button>
+                <button
+                  className="btn danger"
+                  disabled={busy === report.id}
+                  onClick={() => void moderate(report, "takedown")}
+                >
+                  Take down guide
+                </button>
+              </div>
+            </article>
+          ))}
         {!openReports.length && (
           <p className="card">No open community reports.</p>
         )}
@@ -248,14 +264,23 @@ export default function PublicationReview() {
         </details>
         <details className="card moderation-audit">
           <summary>Formal moderation audit log ({audit.length})</summary>
-          <p className="small">Records action, time, administrator ID, and the decision note. This log is retained with the guide record.</p>
+          <p className="small">
+            Records action, time, administrator ID, and the decision note. This
+            log is retained with the guide record.
+          </p>
           {audit.map((event) => (
-            <div className="resolved-report" key={`${event.storyId}:${event.at}:${event.action}`}>
-              <b>{event.action.replaceAll("_", " ")}</b> · {event.title} · {new Date(event.at).toLocaleString()}
+            <div
+              className="resolved-report"
+              key={`${event.storyId}:${event.at}:${event.action}`}
+            >
+              <b>{event.action.replaceAll("_", " ")}</b> · {event.title} ·{" "}
+              {new Date(event.at).toLocaleString()}
               {event.note ? ` : ${event.note}` : ""}
             </div>
           ))}
-          {!audit.length && <p className="small">No editorial or moderation events yet.</p>}
+          {!audit.length && (
+            <p className="small">No editorial or moderation events yet.</p>
+          )}
         </details>
       </section>
     </main>

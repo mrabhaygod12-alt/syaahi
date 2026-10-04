@@ -12,26 +12,29 @@ export function SiteFooter() {
       <div className="wrap footer-grid">
         <div className="footer-brand">
           <Logo size={38} />
-          <p>Study notes, PDFs and active recall.</p>
+          <p>Learn, create and publish.</p>
           <p className="small">
-            Create notes from course material, review sources and practise
-            what you learn.
+            Notes, presentations and reviewed articles for students, teachers,
+            professionals and writers.
           </p>
         </div>
         {[
           [
             "Explore",
-            ["Workspace", "/dashboard"],
+            ["Learning workspace", "/dashboard?view=student"],
+            ["AI presentations", "/presentations"],
             ["Subjects", "/subjects"],
             ["Library", "/library"],
             ["Interview practice", "/interview"],
           ],
           [
             "Resources",
-            ["Study Blog", "/blog"],
-            ["Reviewed guides", "/community"],
+            ["Writing and publishing", "/writing"],
+            ["Community articles", "/community"],
             ["Writer Studio", "/write"],
-            ["About the creator", "/about"],
+            ["Writer dashboard", "/writer"],
+            ["About the creators", "/about"],
+            ["Study blog", "/blog"],
             ["How it works", "/how-it-works"],
             ["Documentation", "/docs"],
             ["Support", "/support"],
@@ -60,9 +63,17 @@ export function SiteFooter() {
       </div>
       <div className="wrap footer-bottom">
         <span>© {new Date().getFullYear()} Syaahi</span>
-        <button className="privacy-settings" type="button" onClick={() => window.dispatchEvent(new Event("syaahi:privacy-settings"))}>Privacy preferences</button>
+        <button
+          className="privacy-settings"
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new Event("syaahi:privacy-settings"))
+          }
+        >
+          Privacy preferences
+        </button>
         <span>
-          AI helps you study. Verify important facts with original sources.
+          Check AI output and published claims against original sources.
         </span>
       </div>
     </footer>

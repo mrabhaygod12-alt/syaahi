@@ -23,16 +23,29 @@ async function main() {
   const urls = entries.map((entry) => entry.url);
   assert(urls.includes("https://www.syaahii.in/"));
   assert(urls.includes("https://www.syaahii.in/subjects/physics"));
+  assert(urls.includes("https://www.syaahii.in/writing"));
+  assert(
+    !urls.some((url) =>
+      /\/(writer|write|dashboard|subscribe|account)(\/|$)/.test(url),
+    ),
+  );
   assert(!urls.some((url) => /\/(login|signup|forgot-password)$/.test(url)));
 
   const facts = await (await llms()).text();
   assert(facts.includes("19 welcome credits after email verification"));
-  assert(
-    facts.includes(
-      "[How it works](https://www.syaahii.in/how-it-works)",
-    ),
-  );
+  assert(facts.includes("[How it works](https://www.syaahii.in/how-it-works)"));
   assert(!facts.includes("/dashboard"));
+  const { default: robots } = await import("../app/robots");
+  const rules = robots().rules as Array<{
+    allow: string[];
+    disallow: string[];
+  }>;
+  assert(rules[0].allow.includes("/api/writing/images/"));
+  assert(rules[0].disallow.includes("/api/"));
+  assert(facts.includes("students, teachers, professionals and writers"));
+  assert(
+    facts.includes("[Writing and publishing](https://www.syaahii.in/writing)"),
+  );
   console.log(
     "PASS: apex and Vercel aliases permanently redirect; sitemap stays canonical and excludes noindex auth pages; llms.txt lists public pages and current credit facts.",
   );

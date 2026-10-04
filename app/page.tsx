@@ -1,16 +1,99 @@
 import StudyDemo from "@/components/StudyDemo";
 import FeatureJourney from "@/components/FeatureJourney";
 import { CtaBand, Faq } from "@/components/site";
-import { pageMeta, jsonLd, SITE } from "@/lib/seo";
+import { PRODUCT_FAQS } from "@/lib/product-copy";
+import { pageMeta, jsonLd, faqSchema, SITE } from "@/lib/seo";
+
 export const metadata = pageMeta({
-  title: "AI Study Notes, Handwritten PDFs & Flashcards",
+  title: "AI Notes, Presentations & Blog Writing",
   path: "/",
   description:
-    "Syaahi at syaahii.in turns topics, PDFs and supported lectures into handwritten-style notes, quizzes and flashcards. Preview the study workflow and create your own notes.",
+    "Learn, teach and write with Syaahi. Create source-aware notes and editable presentations, or publish reviewed articles with headings, images and your own profile.",
 });
+
+const audiences = [
+  [
+    "Students",
+    "Turn course material into notes, quiz yourself and review due flashcards.",
+    "/examples",
+    "See a learning example",
+  ],
+  [
+    "Teachers",
+    "Prepare explanations and slides, then write a guide your readers can revisit.",
+    "/writing#teachers",
+    "Explore teaching workflows",
+  ],
+  [
+    "Professionals",
+    "Work through a technical topic, create a presentation and write about your experience.",
+    "/writing#professionals",
+    "Explore professional workflows",
+  ],
+  [
+    "Writers",
+    "Draft with headings and photos, keep revisions and submit your article for review.",
+    "/writing",
+    "Explore the writing workspace",
+  ],
+] as const;
+
+const tools = [
+  [
+    "Notes and printable PDFs",
+    "Review a source and outline. Generate handwritten-style notes with templates, diagrams and continuation pages.",
+    "/examples",
+  ],
+  [
+    "Editable AI presentations",
+    "Describe your audience and topic, supply references and export a PowerPoint deck with editable text, charts and speaker notes.",
+    "/presentations",
+  ],
+  [
+    "Lesson tutor and sources",
+    "Ask about the current lesson while keeping supplied material and retrieved-reference labels available for review.",
+    "/docs/getting-started",
+  ],
+  [
+    "Flashcards, quizzes and progress",
+    "Practise recall, review weak concepts and return to saved lessons and due cards.",
+    "/how-it-works",
+  ],
+  [
+    "Rich writing and images",
+    "Write articles with headings, lists, links and uploaded images. Add descriptions so images are accessible to readers.",
+    "/writing",
+  ],
+  [
+    "Private drafts and revisions",
+    "Save as you write, reopen your work and restore earlier draft versions before submitting for review.",
+    "/writing#workflow",
+  ],
+  [
+    "Public articles and profiles",
+    "Approved articles get a public URL and creator attribution. Readers can bookmark, upvote or report an article.",
+    "/community",
+  ],
+  [
+    "Voice mock interviews",
+    "Practise speaking for a target role, save an interview session and return to its feedback.",
+    "/interview",
+  ],
+  [
+    "Source documents and course packs",
+    "Work with uploaded source material or a course-outline starter. Confirm that a course pack matches your current syllabus.",
+    "/course-packs",
+  ],
+  [
+    "Learning languages and audio",
+    "Generate in six languages and use spoken study explanations when the audio service is available.",
+    "/features",
+  ],
+] as const;
+
 export default function Home() {
   return (
-    <>
+    <div className="syaahi-home">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -18,353 +101,269 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "WebApplication",
             "@id": `${SITE.url}/#application`,
-            name: "Syaahi",
+            name: SITE.name,
             alternateName: "Syaahii",
             url: `${SITE.url}/`,
-            applicationCategory: "EducationalApplication",
             operatingSystem: "Web browser",
+            applicationCategory: "EducationalApplication",
             description: SITE.description,
             publisher: { "@id": `${SITE.url}/#organization` },
-            featureList: [
-              "Handwritten-style study notes",
-              "PDF export",
-              "Lesson quizzes",
-              "Flashcards",
-              "AI lesson tutor",
-            ],
+            audience: ["Students", "Teachers", "Professionals", "Writers"].map(
+              (audienceType) => ({ "@type": "Audience", audienceType }),
+            ),
+            featureList: tools.map(([title]) => title),
           }),
         }}
       />
-      <section className="public-hero">
-        <div className="wrap hero-grid">
-          <div>
-            <p className="eyebrow">SYAAHI · YOUR AI STUDY WORKSPACE</p>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd(faqSchema([...PRODUCT_FAQS])),
+        }}
+      />
+
+      <section className="public-hero home-hero">
+        <div className="wrap home-hero-grid">
+          <div className="home-hero-copy">
+            <p className="eyebrow">SYAAHI · LEARN, CREATE, PUBLISH</p>
             <h1>
-              Turn your material into
+              Create notes and presentations.
               <br />
-              <em>notes you can study.</em>
+              <em>Write and publish articles.</em>
             </h1>
             <p>
-              Syaahi turns your topics, PDFs and supported lectures into
-              handwritten-style notes, quizzes and flashcards. Learn one idea at
-              a time, and practise what matters.
+              Turn source material into notes and presentations. Write articles
+              with headings and images, then publish after editorial review. A
+              workspace for students, teachers, professionals and writers.
             </p>
             <div className="hero-actions">
-              <a className="btn dark" href="/dashboard">
-                Create a study workspace →
+              <a className="btn dark" href="/signup?workspace=student">
+                Learn &amp; create
               </a>
-              <a className="btn light" href="#try-demo">
-                Try a sample
+              <a className="btn light" href="/signup?workspace=writer">
+                Write &amp; publish
               </a>
             </div>
             <p className="small">
-              19 welcome credits after email verification · Review your plan
-              before generation
+              One account, two workspaces. Start free and switch whenever you
+              need.
             </p>
+            <a className="home-demo-link" href="#try-demo">
+              Try the learning sample ↓
+            </a>
           </div>
           <div
-            className="hero-learning-visual"
-            aria-label="Illustrative study workflow"
+            className="home-workflow-preview"
+            aria-label="Illustration of the two Syaahi workflows"
           >
-            <div className="floating-source">▤ Your lecture</div>
-            <div className="hero-paper">
-              <span className="eyebrow">A NOTE WORTH KEEPING</span>
-              <p className="hero-paper-title" aria-hidden="true">
-                Understand.
+            <p className="eyebrow">TWO WAYS TO WORK WITH AN IDEA</p>
+            <div className="home-preview-note">
+              <span>01 / LEARN &amp; CREATE</span>
+              <p className="home-ink">
+                Start with the source.
                 <br />
-                Recall.
+                Explain the idea.
                 <br />
-                Apply.
+                Check what you remember.
               </p>
-              <div className="paper-lines">
-                <i />
-                <i />
-                <i />
-              </div>
-              <p>One concept at a time.</p>
+              <div>Source → Notes → Practice</div>
             </div>
-            <div className="floating-check">✓ Check your understanding</div>
+            <div className="home-preview-story">
+              <span>02 / WRITE &amp; PUBLISH</span>
+              <p>
+                Give your knowledge
+                <br />a page of its own.
+              </p>
+              <div>Draft → Review → Public article</div>
+            </div>
+            <p className="small">
+              Workflow illustration. Your own work stays private until you share
+              or publish it.
+            </p>
           </div>
         </div>
       </section>
+
+      <section className="wrap home-section" aria-labelledby="workspace-paths">
+        <p className="eyebrow">CHOOSE YOUR STARTING POINT</p>
+        <h2 id="workspace-paths">Two workspaces. One account.</h2>
+        <p className="home-section-lede">
+          Choose a dashboard that fits today's work. Your account gives you
+          access to both.
+        </p>
+        <div className="home-path-grid">
+          <article className="home-path-card">
+            <span className="home-path-index">01</span>
+            <h3>Learn &amp; create</h3>
+            <p>
+              For a lecture, classroom topic, certification or professional
+              subject you want to understand and explain.
+            </p>
+            <ul>
+              <li>Source-aware notes and printable PDFs</li>
+              <li>Lesson tutor, flashcards, quizzes and saved progress</li>
+              <li>Editable AI presentations from your brief</li>
+            </ul>
+            <a className="btn dark" href="/dashboard?view=student">
+              Open the learning workspace
+            </a>
+          </article>
+          <article className="home-path-card home-path-writing">
+            <span className="home-path-index">02</span>
+            <h3>Write &amp; publish</h3>
+            <p>
+              For a tutorial, teaching guide, professional explanation or
+              article you want to develop in your own voice.
+            </p>
+            <ul>
+              <li>Rich editor with headings, lists, links and images</li>
+              <li>Private drafts, autosave and revision history</li>
+              <li>Reviewed publication with a public creator profile</li>
+            </ul>
+            <a className="btn dark" href="/writer">
+              Open the writer dashboard
+            </a>
+          </article>
+        </div>
+      </section>
+
+      <section
+        className="wrap home-section home-audiences"
+        aria-labelledby="who-syaahi-serves"
+      >
+        <p className="eyebrow">FOR THE WORK YOU DO</p>
+        <h2 id="who-syaahi-serves">
+          From the classroom to your professional practice.
+        </h2>
+        <div className="home-audience-grid">
+          {audiences.map(([title, copy, href, link]) => (
+            <article key={title}>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+              <a href={href}>{link} →</a>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <StudyDemo />
       <FeatureJourney />
-      <section className="wrap trust-note" aria-labelledby="about-syaahi">
-        <h2 id="about-syaahi">What is Syaahi?</h2>
-        <p>
-          Syaahi is an AI study workspace at <strong>syaahii.in</strong>. Bring
-          your course material, review an editable outline and create
-          notebook-style notes. Export a PDF, ask questions about a lesson, or
-          practise with quizzes and flashcards. Notes are private by default; AI
-          explanations should be checked against your original sources.
-        </p>
-        <p>
-          <a href="/how-it-works">See the complete workflow</a>
-          {" · "}
-          <a href="/examples">Read a sample note</a>
-          {" · "}
-          <a href="/pricing">Compare credit packs</a>
-        </p>
-      </section>
-      <section className="wrap feature-section">
-        <p className="eyebrow">FROM SOURCE TO STUDY SESSION</p>
-        <h2>A clear path through your material.</h2>
-        <div className="retention-grid">
-          {[
-            [
-              "01",
-              "Bring your source",
-              "Upload a document, screenshot or audio recording. Public YouTube videos are checked for study suitability; unavailable captions can use a labelled video digest when supported.",
-            ],
-            [
-              "02",
-              "Review before creating",
-              "Check the extracted material, adjust your learning goal and edit the suggested outline. See the credit cost before starting.",
-            ],
-            [
-              "03",
-              "Learn, then return",
-              "Move through explanations and worked examples. Check your understanding, save progress and revisit flashcards when they are due.",
-            ],
-          ].map(([n, t, p]) => (
-            <article key={n} className="retention-card">
-              <span className="feature-number">{n}</span>
-              <h3>{t}</h3>
-              <p>{p}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className="wrap feature-section">
-        <p className="eyebrow">YOUR COMPLETE STUDY DESK</p>
-        <h2>Tools with a place in your routine.</h2>
-        <div className="product-bento">
-          <article className="pillar-card bento-wide">
-            <div>
-              <p className="eyebrow">NOTES YOU CAN KEEP</p>
-              <h3>A notebook, ready to print.</h3>
-              <p>
-                Blue handwriting, clear headings and useful flowcharts. Choose a
-                template and export an A4 PDF, with long sections continuing
-                onto additional sheets.
-              </p>
-              <a href="/examples">Explore note examples →</a>
-            </div>
-            <div className="mini-note" aria-hidden="true">
-              <h4>Algorithms</h4>
-              <p>A finite sequence of steps.</p>
-              <span>Input → Process → Output</span>
-              <p>Clear. Ordered. Useful.</p>
-            </div>
-          </article>
-          {[
-            [
-              "↗",
-              "A tutor beside your lesson",
-              "Ask for a simpler explanation, a worked example or a hint without leaving the current section.",
-              "/features",
-            ],
-            [
-              "↻",
-              "A reason to come back",
-              "Review due flashcards and revisit concepts you find difficult. Your review schedule follows your responses.",
-              "/how-it-works",
-            ],
-            [
-              "♫",
-              "Take the explanation with you",
-              "Generate spoken study audio from your notes. Audio availability depends on the configured service.",
-              "/features",
-            ],
-            [
-              "▤",
-              "Study together",
-              "Invite a classmate to a lesson, discuss ideas and control their viewing or editing access.",
-              "/docs",
-            ],
-          ].map(([icon, title, copy, href]) => (
-            <article className="pillar-card" key={title}>
-              <span className="bento-symbol" aria-hidden="true">
-                {icon}
-              </span>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-              <a href={href}>See how it works →</a>
-            </article>
-          ))}
-        </div>
-      </section>
+
       <section
-        className="wrap all-tools-section"
-        aria-labelledby="all-tools-title"
+        className="wrap home-section"
+        id="publish-workflow"
+        aria-labelledby="publish-title"
       >
-        <div className="all-tools-heading">
-          <div>
-            <p className="eyebrow">EXPLORE THE FULL WORKSPACE</p>
-            <h2 id="all-tools-title">More than a note generator.</h2>
-          </div>
-          <p>
-            Each feature has a clear purpose: help you understand material,
-            practise it, and return to it with the original context intact.
-          </p>
+        <p className="eyebrow">THE WRITING WORKSPACE</p>
+        <h2 id="publish-title">
+          A draft you can shape. An article you can stand behind.
+        </h2>
+        <p className="home-section-lede">
+          Use your own explanation and experience. Add structure, illustrate a
+          point and check your sources before sharing it.
+        </p>
+        <ol className="home-publish-steps">
+          <li>
+            <span>01</span>
+            <h3>Write and illustrate</h3>
+            <p>
+              Add a title, headings, lists, links and your uploaded images.
+              Preview the article as you work.
+            </p>
+          </li>
+          <li>
+            <span>02</span>
+            <h3>Save and revise</h3>
+            <p>
+              Keep a private draft, reopen it later and restore an earlier saved
+              version if your direction changes.
+            </p>
+          </li>
+          <li>
+            <span>03</span>
+            <h3>Submit for review</h3>
+            <p>
+              Check your claims and image rights. Editorial review can approve
+              the work or request changes.
+            </p>
+          </li>
+          <li>
+            <span>04</span>
+            <h3>Publish with attribution</h3>
+            <p>
+              An approved article has a public URL and creator link, with
+              bookmarking and content reporting for readers.
+            </p>
+          </li>
+        </ol>
+        <div className="hero-actions">
+          <a className="btn dark" href="/signup?workspace=writer">
+            Start a private draft
+          </a>
+          <a href="/writing">See how writing works →</a>
+          <a href="/community">Read community articles →</a>
         </div>
-        <div className="all-tools-grid">
-          {[
-            [
-              "✦",
-              "Syaahi AI tutor",
-              "Ask a lesson-specific question, request a simpler explanation, or work through an example.",
-              "/features",
-            ],
-            [
-              "▤",
-              "Source transparency",
-              "Review the original material and labels that distinguish supplied text from researched context.",
-              "/docs/getting-started",
-            ],
-            [
-              "↻",
-              "Adaptive recall",
-              "Use quizzes and flashcards to identify weak concepts and plan another review.",
-              "/how-it-works",
-            ],
-            [
-              "⇩",
-              "Notebook-style PDFs",
-              "Choose a note template, keep long content readable, and export a printable A4 PDF.",
-              "/examples",
-            ],
-            [
-              "◌",
-              "Study languages",
-              "Choose English, Hindi, Hinglish, German, French, or Spanish when you create notes.",
-              "/dashboard",
-            ],
-            [
-              "▦",
-              "Course-pack starters",
-              "Begin from a private university-course outline, then verify it against your current syllabus before generating notes.",
-              "/course-packs",
-            ],
-            [
-              "↗",
-              "Interview practice",
-              "Reopen a mock interview, respond to follow-ups, and download a preparation report.",
-              "/interview",
-            ],
-            [
-              "◎",
-              "Private collaboration",
-              "Keep lessons private by default and decide when classmates can view or edit them.",
-              "/docs",
-            ],
-            [
-              "✎",
-              "Reviewed study guides",
-              "Write privately, submit for editorial review, and discover community guides after approval.",
-              "/community",
-            ],
-          ].map(([icon, title, copy, href]) => (
-            <a className="all-tools-card" href={href} key={title}>
-              <span aria-hidden="true">{icon}</span>
+      </section>
+
+      <section className="wrap home-section" aria-labelledby="available-tools">
+        <p className="eyebrow">AVAILABLE IN SYAAHI</p>
+        <h2 id="available-tools">
+          Tools for learning, teaching and publishing.
+        </h2>
+        <div className="home-tool-grid">
+          {tools.map(([title, copy, href]) => (
+            <article key={title}>
               <h3>{title}</h3>
               <p>{copy}</p>
-              <b>
-                Explore <i aria-hidden="true">→</i>
-              </b>
-            </a>
+              <a href={href}>Explore {title.toLowerCase()} →</a>
+            </article>
           ))}
         </div>
       </section>
-      <section className="wrap trust-note">
-        <h2>Useful AI starts with honest limits.</h2>
-        <p>
-          Generated material can contain mistakes. Check important facts against
-          your source, syllabus or teacher. Syaahi labels source material and
-          keeps your original notes available for review.
-        </p>
-        <a href="/about">Meet the people building Syaahi →</a>
-      </section>
-      <section className="wrap feature-section">
-        <p className="eyebrow">LEARN WITH PEOPLE, NOT JUST PROMPTS</p>
-        <h2>Practice your explanation. Share what you learn.</h2>
-        <div className="retention-grid">
-          <article className="retention-card">
-            <span className="feature-number">↗</span>
-            <h3>Role-aware interview practice</h3>
-            <p>
-              Add an optional target role and job requirements, then receive
-              structured AI coaching on your answer. It remains practice, not a
-              hiring decision.
-            </p>
-            <a href="/interview">Start a mock interview →</a>
-          </article>
-          <article className="retention-card">
-            <span className="feature-number">✎</span>
-            <h3>Write a guide students can use</h3>
-            <p>
-              Create a private draft, submit it to the editorial queue, and
-              publish only after review. This keeps community guides useful and
-              trustworthy.
-            </p>
-            <a href="/write">Open Writer Studio →</a>
-          </article>
-          <article className="retention-card">
-            <span className="feature-number">◎</span>
-            <h3>Discover reviewed guides</h3>
-            <p>
-              Read study guides that have passed editorial review, alongside
-              your own private lesson workspace.
-            </p>
-            <a href="/community">Browse the community →</a>
-          </article>
+
+      <section
+        className="wrap home-section home-facts"
+        aria-labelledby="what-is-syaahi"
+      >
+        <div>
+          <p className="eyebrow">ABOUT THE PLATFORM</p>
+          <h2 id="what-is-syaahi">What is Syaahi?</h2>
+          <p>
+            Syaahi is a learning and writing platform at{" "}
+            <strong>syaahii.in</strong>. Students, teachers, professionals and
+            writers can create source-aware notes and editable presentations, or
+            write and publish reviewed articles. The learning and writer
+            dashboards share one account.
+          </p>
+          <p>
+            Chandan Pandey and Manish Kumar Singh build Syaahi. Read their story
+            and the product's approach to source transparency, privacy and
+            responsible AI use.
+          </p>
+          <a href="/about">Meet the people behind Syaahi →</a>
+        </div>
+        <div>
+          <h3>Keep ownership of the decision.</h3>
+          <p>
+            Private work stays private unless you share it or it passes
+            publication review. AI output needs your factual checks. Only
+            publish text and images you have the right to use.
+          </p>
+          <p>
+            Writing is available on Free. Paid monthly plans add generation
+            credits; they do not guarantee publication, audience size or
+            professional outcomes.
+          </p>
+          <nav aria-label="Platform policies">
+            <a href="/privacy">Privacy</a>
+            <a href="/acceptable-use">Content rules</a>
+            <a href="/pricing">Plans and limits</a>
+            <a href="/support">Support</a>
+          </nav>
         </div>
       </section>
-      <Faq
-        items={[
-          {
-            q: "What can I study from?",
-            a: "Start with a topic, document, screenshot, audio recording or supported public YouTube video. Review extracted material before generation.",
-          },
-          {
-            q: "What if a YouTube video has no captions?",
-            a: "When supported, Syaahi can request an AI-extracted video digest. This is labelled separately from a transcript. If the video cannot be read reliably, upload an audio recording or transcript you can use.",
-          },
-          {
-            q: "How are credits used?",
-            a: "New accounts receive 19 credits after email verification. One token equals 3 credits. Each generated note section uses one credit; extra PDF continuation sheets do not cost additional credits. Review your outline before starting.",
-          },
-          {
-            q: "Does completing a lesson prove mastery?",
-            a: "Completion records your progress. Repeated recall and independent practice are better evidence that you understand the topic.",
-          },
-          {
-            q: "Are my materials private?",
-            a: "Lessons are private by default unless shared. Configured AI services process supplied material. Read our privacy policy for the details.",
-          },
-          {
-            q: "Can I choose the language for my notes?",
-            a: "Yes. Choose a language while creating a lesson: English, Hindi, Hinglish, German, French, or Spanish. Your selected study language is saved as a preference for your next lesson.",
-          },
-          {
-            q: "Can I return after closing my browser?",
-            a: "After you sign in, your lessons and account are stored in your workspace. Keep your browser session active and use the same account to reopen saved lessons on another device.",
-          },
-          {
-            q: "What happens if note generation is interrupted?",
-            a: "The workspace shows the generation status and lets you resume or retry a partially completed lesson. You can continue from the failed section instead of starting the whole lesson again.",
-          },
-          {
-            q: "Can I share or publish my work?",
-            a: "Lessons stay private unless you share them. Study guides begin as private drafts; guides become public only after they are submitted and pass editorial review.",
-          },
-          {
-            q: "Does Syaahi replace a teacher or original source?",
-            a: "No. It helps organise and practise material. Check important claims against your syllabus, teacher, and original sources before relying on them.",
-          },
-        ]}
-      />
+      <Faq items={[...PRODUCT_FAQS]} />
       <CtaBand />
-    </>
+    </div>
   );
 }

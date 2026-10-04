@@ -1,18 +1,12 @@
 import { pageMeta } from "@/lib/seo";
 export const metadata = pageMeta({
-  title: "Credit Packs & Pricing",
+  title: "Monthly Plans: Free, Starter, Pro, Max & Team",
   description:
-    "Compare Syaahi study credit packs, regional INR, USD and EUR prices, and how credits are used to create handwritten-style notes.",
+    "Compare Syaahi monthly plans: Starter ₹39 for 15 credits, Pro ₹179 for 90, Max ₹399 for 360. Notes, editable presentations and Writer Studio.",
   path: "/pricing",
 });
-import { headers } from "next/headers";
 import PricingClient from "@/components/pricing/PricingClient";
-import { currencyForCountry } from "@/lib/billing/currency";
 
-export default async function PricingPage() {
-  const requestHeaders = await headers();
-  const currency = currencyForCountry(
-    requestHeaders.get("x-vercel-ip-country"),
-  );
-  return <PricingClient currency={currency} />;
+export default function PricingPage() {
+  return <PricingClient />;
 }

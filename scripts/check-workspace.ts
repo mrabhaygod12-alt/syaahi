@@ -14,7 +14,9 @@ async function main() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      mode: "signup", acceptTerms:true,termsVersion:"2026-09-24",
+      mode: "signup",
+      acceptTerms: true,
+      termsVersion: "2026-10-03",
       name: "Workspace QA",
       email: `qa-ui-${Date.now()}@example.test`,
       password: randomBytes(18).toString("hex"),

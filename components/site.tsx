@@ -88,14 +88,14 @@ export function CtaBand() {
         }}
       >
         <div>
-          <b>Ready to make your first handwritten PDF?</b>
+          <b>What will you learn, create or write next?</b>
           <div className="small" style={{ color: "#c9c4bb" }}>
-            19 welcome credits · One credit per generated section
+            One account for your learning and writing. Start free.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <a className="btn light" href="/library">
-            Browse library
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a className="btn light" href="/signup?workspace=writer">
+            Write &amp; publish
           </a>
           <a
             className="btn"
@@ -104,9 +104,9 @@ export function CtaBand() {
               borderColor: "#f0c06a",
               color: "#1f1f1f",
             }}
-            href="/dashboard"
+            href="/signup?workspace=student"
           >
-            Generate notes
+            Learn &amp; create
           </a>
         </div>
       </div>

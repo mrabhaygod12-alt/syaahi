@@ -1,6 +1,10 @@
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { capturePayment, verifySignature } from "@/lib/billing/payments";
+import {
+  settleSubscription,
+  syncSubscription,
+} from "@/lib/billing/subscriptions";
 async function handlePOST(req: NextRequest) {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
   if (!secret)
@@ -18,9 +22,26 @@ async function handlePOST(req: NextRequest) {
     );
   try {
     const event = JSON.parse(raw);
+    if (
+      typeof event.event === "string" &&
+      event.event.startsWith("subscription.")
+    ) {
+      const subscription = event.payload?.subscription?.entity;
+      if (!/^sub_[A-Za-z0-9]+$/.test(subscription?.id || ""))
+        throw new Error("Missing subscription.");
+      if (event.event === "subscription.charged") {
+        const payment = event.payload?.payment?.entity;
+        if (!/^pay_[A-Za-z0-9]+$/.test(payment?.id || ""))
+          throw new Error("Missing payment.");
+        await settleSubscription(subscription.id, payment.id);
+      } else await syncSubscription(subscription.id);
+      return NextResponse.json({ ok: true });
+    }
     if (event.event !== "payment.captured")
       return NextResponse.json({ ok: true, ignored: true });
     const payment = event.payload?.payment?.entity;
+    if (payment?.invoice_id)
+      return NextResponse.json({ ok: true, ignored: true });
     if (
       !payment ||
       typeof payment.id !== "string" ||

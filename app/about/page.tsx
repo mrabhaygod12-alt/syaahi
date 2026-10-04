@@ -4,7 +4,7 @@ export const metadata = pageMeta({
   title: "About Chandan, Manish and Syaahi",
   path: "/about",
   description:
-    "Meet creator Chandan Pandey and Manish Kumar Singh, DevOps Engineer & Researcher, and explore the people behind Syaahi.",
+    "Meet Chandan Pandey and Manish Kumar Singh, the people building Syaahi's learning and writing workspaces for students, teachers, professionals and writers.",
 });
 export default function About() {
   const aboutSchema = {

@@ -12,7 +12,7 @@ export default function Delivery() {
       <PageHero
         kicker="Payments & delivery"
         title="Digital delivery"
-        lede="Syaahi supplies online study tools and credit packs. No physical products are shipped."
+        lede="Syaahi supplies online study tools, monthly plans and digital exports. No physical products are shipped."
       />
       <Prose>
         <p>Updated 1 October 2026</p>

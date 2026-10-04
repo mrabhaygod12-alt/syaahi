@@ -4,6 +4,7 @@ import { originError } from "@/lib/auth/server";
 import { NextRequest, NextResponse } from "next/server";
 import { oauthClient, safeNext } from "@/lib/auth/oauth";
 import { rateLimit } from "@/lib/ratelimit";
+import { workspaceKind } from "@/lib/workspace-preference";
 async function handlePOST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const denied = originError(req);
@@ -22,6 +23,17 @@ async function handlePOST(req: NextRequest) {
   const response = NextResponse.redirect(new URL("/login", origin));
   try {
     const client = oauthClient(req, response);
+    response.cookies.set(
+      "syaahi-oauth-workspace",
+      workspaceKind(body.workspace) || "student",
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: origin.startsWith("https:"),
+        maxAge: 600,
+        path: "/",
+      },
+    );
     response.cookies.set(
       "syaahi-oauth-ref",
       typeof body.ref === "string" && /^[a-f0-9]{18}$/.test(body.ref)
