@@ -1,4 +1,5 @@
 import { MONTHLY_PLANS } from "../lib/billing/subscription-plans";
+import { loadEnvConfig } from "@next/env";
 const apply = process.argv.includes("--apply");
 async function main() {
   if (!apply) {
@@ -9,6 +10,11 @@ async function main() {
       );
     return;
   }
+  const at = process.argv.indexOf("--env-file");
+  if (at >= 0) {
+    if (!process.argv[at + 1]) throw new Error("Missing environment file.");
+    process.loadEnvFile(process.argv[at + 1]);
+  } else loadEnvConfig(process.cwd());
   const key = process.env.RAZORPAY_KEY_ID?.trim(),
     secret = process.env.RAZORPAY_KEY_SECRET?.trim();
   if (!key || !secret)

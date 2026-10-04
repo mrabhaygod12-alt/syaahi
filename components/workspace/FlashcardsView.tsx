@@ -108,7 +108,6 @@ export default function FlashcardsView() {
       setBusy(false);
     }
   }
-  if (!job) return null;
   const queue = cards
     .map((_, i) => i)
     .filter(
@@ -151,6 +150,7 @@ export default function FlashcardsView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [card, busy, flip, current]);
   async function rate(rating: string) {
+    if (!job || !card) return;
     setBusy(true);
     setError("");
     try {
@@ -206,6 +206,7 @@ export default function FlashcardsView() {
       setBusy(false);
     }
   }
+  if (!job) return null;
   return (
     <div className="quiz-room">
       <div className="section-heading">

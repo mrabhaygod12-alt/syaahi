@@ -1,7 +1,11 @@
 import { apiHandler } from "@/lib/api-handler";
 import { NextResponse } from "next/server";
 import { useMongo, mongo } from "@/lib/storage/mongo";
+import { releaseRevision } from "@/lib/release";
 async function handleGET() {
+  const revision = releaseRevision(
+    process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA,
+  );
   try {
     let mongoOk = false;
     if (useMongo()) {
@@ -14,8 +18,9 @@ async function handleGET() {
           ok: false,
           error: "The service is temporarily unavailable.",
           role: process.env.APP_ROLE,
+          revision,
         },
-        { status: 503 },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
       );
     }
     return NextResponse.json(
@@ -24,6 +29,7 @@ async function handleGET() {
         app: "syaahi",
         mongo: mongoOk,
         role: process.env.APP_ROLE || "unspecified",
+        revision,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -36,6 +42,7 @@ async function handleGET() {
         ok: false,
         error: "The service is temporarily unavailable.",
         role: process.env.APP_ROLE || "unspecified",
+        revision,
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );

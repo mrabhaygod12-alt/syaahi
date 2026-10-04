@@ -135,8 +135,27 @@ Razorpay order creation, capture verification and signed webhooks run through th
 
 ### Razorpay setup, test, and go-live
 
-Pricing opens `/checkout/try`, `/checkout/starter`, `/checkout/popular`, or
-`/checkout/pro` for plan review. Checkout creates a server-priced order and opens
+The current pricing page offers Free, Starter (₹39/month), Pro (₹179/month),
+Max (₹399/month) and a Team enquiry. Monthly checkout uses `/subscribe/<tier>`
+in student context and `/writer/subscribe/<tier>` in writer context. Both use
+the same account, wallet and subscription. Set `RAZORPAY_PLAN_STARTER_INR`,
+`RAZORPAY_PLAN_PRO_INR` and `RAZORPAY_PLAN_MAX_INR` on Render; they must be
+monthly INR plans for the same merchant and mode as the API keys. A key pair
+alone does not enable monthly checkout. Captured monthly payments grant
+15/90/360 credits respectively; mandate authorization alone grants nothing.
+
+Run `npm run billing:diagnose` in the private API environment for GET-only
+authentication and plan-price checks. Locally, append `-- --env-file <private-file>`
+to select a configuration file explicitly. This prints safe statuses, not keys
+or provider bodies. `npm run billing:plans` previews the expected configuration;
+`-- --apply` reuses or provisions test plans, with an additional `--live` guard
+for live provisioning. Configure subscription lifecycle webhooks, especially
+`subscription.charged`, alongside `payment.captured`. Keep the webhook secret
+separate from the API secret. The merchant owner must perform credential
+rotation and any live financial transaction.
+
+Legacy one-time credit-pack routes remain `/checkout/try`, `/checkout/starter`,
+`/checkout/popular`, `/checkout/pro` and `/checkout/semester`. Their checkout creates a server-priced order and opens
 Razorpay. Its callback submits the signature for verification and sends the
 customer to `/payments/<order_id>`. That page reads the authenticated owner's
 stored order; URL parameters never mark a purchase as paid. `/payments` shows
@@ -154,8 +173,10 @@ Run `npm run test:payment-status` for isolated authentication/ownership and
 capture-state checks. Run `npm run test:razorpay` after a production build for a
 real **test-mode** order and checkout-modal smoke check. The latter does not
 submit a payment; finish the captured-payment and webhook test below manually.
-If the gateway returns 401, regenerate a matching test key pair and update both
-values together on the Render API service. A code push cannot repair revoked
+If the gateway returns 401, check a matched pair in the selected mode using the
+read-only diagnostic. If the original secret is unavailable or the keys were
+revoked, the owner must regenerate the pair and update both values together in
+the intended service environment. A code push cannot repair revoked
 credentials or update service dashboard environment variables.
 
 1. In Razorpay Dashboard, finish the website/app details and payment-method activation. KYC approval alone does not prove that live checkout is enabled.

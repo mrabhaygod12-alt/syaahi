@@ -3,6 +3,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { monthlyTier } from "@/lib/billing/subscription-plans";
+import { razorpayCredentials } from "@/lib/billing/configuration";
 import {
   currentSubscription,
   createSubscription,
@@ -60,7 +61,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     );
     return NextResponse.json({
       subscription: publicSubscription(subscription),
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: razorpayCredentials().keyId,
     });
   } catch (e) {
     return NextResponse.json(

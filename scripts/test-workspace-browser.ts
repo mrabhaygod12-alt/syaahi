@@ -219,6 +219,47 @@ async function main() {
       },
     );
     assert.equal(switchResponse.status(), 200);
+    const jobs = await import("../lib/jobs/store");
+    const lesson = await jobs.createJob(
+      user.id,
+      ["Recall regression"],
+      "concise",
+    );
+    const lease = (await jobs.claimJob(lesson.id))!;
+    await jobs.commitPage(lesson.id, lease.token, 0, {
+      topic: "Recall regression",
+      markdown: "# Recall\nPreserve the original evidence.",
+      provider: "fixture",
+      model: "fixture",
+    });
+    await jobs.finishJob(lesson.id, lease.token);
+    await jobs.updateJob(lesson.id, {
+      practice: {
+        quiz: [],
+        flashcards: [
+          {
+            front: "What should you preserve?",
+            back: "The original evidence.",
+          },
+        ],
+      },
+    });
+    await page.goto(`http://localhost:3139/lesson/${lesson.id}/flashcards`);
+    await page
+      .getByRole("button", { name: "Show answer", exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Show answer", exact: true })
+      .click();
+    await page.getByText("The original evidence.", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "good (3)" }).click();
+    await page.getByRole("heading", { name: "You’re up to date." }).waitFor();
+    await page.reload();
+    await page.getByRole("heading", { name: "You’re up to date." }).waitFor();
+    await page.getByLabel("Flashcard review mode").selectOption("all");
+    await page
+      .getByRole("button", { name: "Show answer", exact: true })
+      .waitFor();
     await page.goto("http://localhost:3139/presentations");
     await page
       .getByRole("heading", { name: "Create a presentation", exact: true })
@@ -290,7 +331,7 @@ async function main() {
       await mobileBrowser.close();
     }
     console.log(
-      "PASS: writer role routing, real editor headings/image upload, autosave/reopen/preview, monthly pricing and consent gating, and Chromium/WebKit iPhone 13 overflow checks.",
+      "PASS: writer role routing, real editor headings/image upload, autosave/reopen/preview, saved flashcard review/reload, monthly pricing and consent gating, and Chromium/WebKit iPhone 13 overflow checks.",
     );
   } finally {
     await browser?.close();

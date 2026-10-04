@@ -1,5 +1,30 @@
 # Syaahi release status
 
+## Latest verification — 5 October 2026
+
+The writer/student redesign at `6941378` has successful GitHub CI and Vercel
+deployment statuses for both connected projects. Live public homepage, writing,
+writer welcome/membership/support, pricing and presentation routes return 200.
+Proxied and direct Render health return healthy MongoDB-backed API responses;
+private jobs/profile/presentation APIs reject unauthenticated requests with 401.
+These checks do not verify signed-in journeys, worker completion or settlement.
+
+Hosted billing reports live mode, but all three monthly tiers are unavailable.
+The separately configured local **test** pair returns 401 on a read-only Razorpay
+authentication probe. Do not infer that the deployed live pair is the same or
+that its authentication has been tested. Merchant environment/plan validation
+and captured-payment testing remain outstanding.
+
+This follow-up adds consistent payment credential/plan trimming, safe merchant
+authentication errors, private GET-only diagnostics, correct provisioning env
+loading and sanitized frontend/backend commit identity for future live checks.
+See [the focused audit](STUDENT-PRESENTATION-UPGRADE-AUDIT-2026-10-05.md) for
+24 student and 16 presentation recommendations, with fullstack acceptance criteria.
+
+Run `npm run verify:deployment -- --commit <full-sha>` after deployments finish.
+Strict verification fails if the frontend or either backend health path reports
+an older/unknown revision. Preserve the existing database and account history.
+
 ## Separate writer experience and public redesign — 4 October 2026
 
 Writer sign-in now opens `/writer/welcome`. Student navigation/dashboard/footer/pricing no longer expose writer controls. Legacy pricing, profile, support, checkout and receipt links preserve writer context. Dedicated writer membership, billing, receipts and support use the existing account APIs; persisted support tickets are separated by workspace. The public landing, writing landing, community and creator profiles have new responsive layouts, CSS perspective scenes and reduced-motion-aware scroll effects. The article editor adds a persisted Design tab plus contents, symbols, equations and click-to-load YouTube embeds. Public account menus use the independent writer identity. See [45 delivered improvements, routes, persistence, checks and deployment limits](WORKSPACE-EXPERIENCE-UPGRADE-2026-10-04.md). Live Razorpay credentials returned HTTP 401 in the optional smoke test; a successful production payment or coordinated deployment is not claimed.

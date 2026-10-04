@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { releaseRevision } from "./lib/release";
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname.toLowerCase();
   if (
@@ -24,6 +25,11 @@ export function middleware(req: NextRequest) {
     process.env.VERCEL === "1" ||
     (!!backend && role !== "backend" && role !== "worker");
   const isApiRequest = req.nextUrl.pathname.startsWith("/api/");
+  const frontendResponse = (response: NextResponse) => {
+    const revision = releaseRevision(process.env.VERCEL_GIT_COMMIT_SHA);
+    if (revision) response.headers.set("x-syaahi-frontend-revision", revision);
+    return response;
+  };
 
   // Vercel owns and serves every page, static asset, sitemap and robots file.
   // Only same-origin API calls should cross the private proxy to Render.
@@ -76,10 +82,12 @@ export function middleware(req: NextRequest) {
         : undefined) || "unknown",
     );
     headers.delete("x-real-ip");
-    return NextResponse.rewrite(target, { request: { headers } });
+    return frontendResponse(
+      NextResponse.rewrite(target, { request: { headers } }),
+    );
   }
 
-  if (isFrontend) return NextResponse.next();
+  if (isFrontend) return frontendResponse(NextResponse.next());
 
   if (role === "backend" && req.nextUrl.pathname !== "/api/health") {
     const secret = process.env.BACKEND_PROXY_SECRET;

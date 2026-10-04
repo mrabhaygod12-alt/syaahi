@@ -38,7 +38,10 @@
     "make:carousel": "node scripts/build-instagram-carousel.mjs",
     "test:workspace-upgrade": "tsx scripts/test-workspace-upgrade.ts",
     "test:workspace-browser": "tsx scripts/test-workspace-browser.ts",
-    "billing:plans": "tsx scripts/provision-monthly-plans.ts"
+    "billing:plans": "tsx scripts/provision-monthly-plans.ts",
+    "billing:diagnose": "tsx scripts/diagnose-razorpay.ts",
+    "test:deployment-config": "tsx scripts/test-deployment-config.ts",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",

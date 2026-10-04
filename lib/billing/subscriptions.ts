@@ -4,7 +4,7 @@ import {
   type MonthlyTier,
   SUBSCRIPTION_CYCLES,
 } from "./subscription-plans";
-import { paymentConfiguration } from "./configuration";
+import { paymentConfiguration, razorpayCredentials } from "./configuration";
 import { grant } from "@/lib/credits/store";
 import {
   mutateRecord,
@@ -34,11 +34,11 @@ interface AccountSlot extends WorkspaceRecord {
   tier?: MonthlyTier;
 }
 type ProviderRequest = (path: string, body?: unknown) => Promise<any>;
+const providerPlanId = (tier: MonthlyTier) =>
+  (process.env[`RAZORPAY_PLAN_${tier.toUpperCase()}_INR`] || "").trim();
 export const subscriptionReady = (tier: MonthlyTier) =>
   paymentConfiguration().configured &&
-  /^plan_[a-zA-Z0-9]+$/.test(
-    process.env[`RAZORPAY_PLAN_${tier.toUpperCase()}_INR`] || "",
-  );
+  /^plan_[a-zA-Z0-9]+$/.test(providerPlanId(tier));
 export async function subscriptionRequest(
   path: string,
   body?: unknown,
@@ -51,20 +51,32 @@ export async function subscriptionRequest(
     )
   )
     throw new Error("Invalid payment operation.");
+  const { keyId, keySecret } = razorpayCredentials();
   const response = await fetch(`https://api.razorpay.com/v1/${path}`, {
     method: body === undefined ? "GET" : "POST",
     headers: {
-      Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
       "Content-Type": "application/json",
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(15000),
     cache: "no-store",
   });
-  if (!response.ok)
+  if (!response.ok) {
+    // Log only an operator classification, never credentials or financial data.
+    console.error("Razorpay subscription request failed", {
+      status: response.status,
+      category:
+        response.status === 401
+          ? "merchant-authentication"
+          : "provider-request",
+    });
     throw new Error(
-      "Subscription provider is unavailable. Please retry or contact support.",
+      response.status === 401
+        ? "Monthly payments need a merchant configuration update. Please contact support."
+        : "Subscription provider is unavailable. Please retry or contact support.",
     );
+  }
   return response.json();
 }
 export async function currentSubscription(
@@ -117,8 +129,7 @@ export async function createSubscription(
   });
   let posted = false;
   try {
-    const providerPlan =
-        process.env[`RAZORPAY_PLAN_${tier.toUpperCase()}_INR`]!,
+    const providerPlan = providerPlanId(tier),
       plan = await api(`plans/${providerPlan}`),
       config = MONTHLY_PLANS[tier];
     if (
@@ -252,8 +263,7 @@ async function recoverRemoteSubscription(remote: any) {
     !slot?.creatingUntil ||
     !slot.tier ||
     slot.attempt !== remote.notes?.syaahi_attempt ||
-    remote.plan_id !==
-      process.env[`RAZORPAY_PLAN_${slot.tier.toUpperCase()}_INR`]
+    remote.plan_id !== providerPlanId(slot.tier)
   )
     return null;
   const config = MONTHLY_PLANS[slot.tier],

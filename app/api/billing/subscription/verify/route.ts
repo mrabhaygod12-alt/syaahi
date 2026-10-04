@@ -8,6 +8,7 @@ import {
   settleSubscription,
 } from "@/lib/billing/subscriptions";
 import { verifySignature } from "@/lib/billing/payments";
+import { razorpayCredentials } from "@/lib/billing/configuration";
 export const POST = apiHandler(async (req: NextRequest) => {
   const denied =
     (await authError(req)) ||
@@ -15,15 +16,16 @@ export const POST = apiHandler(async (req: NextRequest) => {
   if (denied) return denied;
   const body = await req.json().catch(() => ({})),
     stored = await currentSubscription((await currentUser(req))!.id);
+  const { keySecret } = razorpayCredentials();
   if (
     !stored ||
-    !process.env.RAZORPAY_KEY_SECRET ||
+    !keySecret ||
     body.razorpay_subscription_id !== stored.id ||
     !/^pay_[A-Za-z0-9]+$/.test(body.razorpay_payment_id || "") ||
     !verifySignature(
       `${body.razorpay_payment_id}|${stored.id}`,
       body.razorpay_signature || "",
-      process.env.RAZORPAY_KEY_SECRET || "",
+      keySecret,
     )
   )
     return NextResponse.json(

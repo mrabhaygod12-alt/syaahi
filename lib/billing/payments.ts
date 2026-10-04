@@ -4,6 +4,7 @@ import { mongoCapture } from "@/lib/storage/mongo-billing";
 import { rewardReferral } from "./referrals";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db, transaction } from "@/lib/db";
+import { razorpayCredentials } from "./configuration";
 export function verifySignature(
   raw: string,
   signature: string,
@@ -14,8 +15,7 @@ export function verifySignature(
   return timingSafeEqual(expected, Buffer.from(signature, "hex"));
 }
 export async function razorpay(path: string, body?: unknown) {
-  const id = process.env.RAZORPAY_KEY_ID?.trim(),
-    secret = process.env.RAZORPAY_KEY_SECRET?.trim();
+  const { keyId: id, keySecret: secret } = razorpayCredentials();
   if (!id || !secret)
     throw new Error(
       "Payments are not configured yet. Your free credits are available after signup.",
@@ -54,7 +54,9 @@ export async function razorpay(path: string, body?: unknown) {
             : undefined,
     });
     throw new Error(
-      "Payment provider is temporarily unavailable. Please try again shortly.",
+      failure.statusCode === 401
+        ? "Payments need a merchant configuration update. Please contact support."
+        : "Payment provider is temporarily unavailable. Please try again shortly.",
     );
   }
 }
