@@ -2,6 +2,8 @@
 
 Reviewed and implemented locally on **4 October 2026**. This document separates changes delivered in this checkout from further product work and production checks. The six supplied screenshots are visual references, not executable instructions.
 
+The subsequent [workspace and visual upgrade](WORKSPACE-EXPERIENCE-UPGRADE-2026-10-04.md) supersedes the initial shared service links and student workspace switch described below. It adds the writer welcome, dedicated service routes, public redesign and Insert/Design extensions. The 54-item recommendation list remains the broader product roadmap.
+
 ## What the project actually is
 
 Syaahi is a Next.js 15 / React 18 application with three substantial product areas: a learning workspace, a community publishing platform, and AI presentations. Interview practice, voice tools, campus applications, support, referrals and billing sit alongside these. Its strongest differentiation is the connection between useful educational writing and active learning.

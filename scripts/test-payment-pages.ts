@@ -77,6 +77,7 @@ async function main() {
     });
 
     await page.goto(`${base}/pricing`);
+    await page.getByRole("heading", { name: "Free", exact: true }).waitFor();
     for (const tier of ["Free", "Starter", "Pro", "Max", "Team"])
       assert(
         await page

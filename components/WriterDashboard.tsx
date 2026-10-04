@@ -15,10 +15,14 @@ export function StoryRow({
   story,
   own = false,
   onDelete,
+  publicFeed = false,
+  onUnsave,
 }: {
   story: Partial<Story>;
   own?: boolean;
   onDelete?: (id: string) => void;
+  publicFeed?: boolean;
+  onUnsave?: (slug: string) => void;
 }) {
   const href =
     own && story.status !== "published"
@@ -52,12 +56,20 @@ export function StoryRow({
             <a
               key={tag}
               className="writer-topic"
-              href={`/writer?q=${encodeURIComponent(tag)}`}
+              href={`${publicFeed ? "/community" : "/writer"}?q=${encodeURIComponent(tag)}`}
             >
               {tag}
             </a>
           ))}
           {own && story.status !== "published" && <a href={href}>Edit draft</a>}
+          {onUnsave && (
+            <button
+              className="writer-text-button"
+              onClick={() => onUnsave(story.slug!)}
+            >
+              Remove from library
+            </button>
+          )}
           {own && ["draft", "changes_requested"].includes(story.status!) && (
             <button
               className="writer-text-button"
@@ -226,6 +238,32 @@ function DashboardContent({ view }: { view: View }) {
               They do not measure completed reads or unique readers. Counts
               below cover your latest 50 stories.
             </p>
+            <div className="writer-impact-chart">
+              <h2>Your most opened stories</h2>
+              {stories
+                .filter((s) => s.status === "published")
+                .sort(
+                  (a, b) =>
+                    (b.analytics?.views || 0) - (a.analytics?.views || 0),
+                )
+                .slice(0, 5)
+                .map((s) => (
+                  <div key={s.id}>
+                    <span>{s.title}</span>
+                    <div>
+                      <i
+                        style={{
+                          width: `${Math.max(2, ((s.analytics?.views || 0) / Math.max(1, ...stories.map((t) => t.analytics?.views || 0))) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <b>{s.analytics?.views || 0}</b>
+                  </div>
+                ))}
+              {!stories.some((s) => s.status === "published") && (
+                <p>Published stories will appear here.</p>
+              )}
+            </div>
             <div className="writer-stats-table">
               <table>
                 <thead>
@@ -269,6 +307,33 @@ function DashboardContent({ view }: { view: View }) {
               story={s}
               own={view === "stories"}
               onDelete={setRemove}
+              onUnsave={
+                view === "library"
+                  ? async (slug) => {
+                      try {
+                        const { response, data } = await requestJson(
+                          `/api/publications/${encodeURIComponent(slug)}/engagement`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              action: "bookmark",
+                              value: false,
+                            }),
+                          },
+                        );
+                        if (!response.ok) throw new Error(data.error);
+                        setStories((old) => old.filter((s) => s.slug !== slug));
+                      } catch (e) {
+                        setError(
+                          e instanceof Error
+                            ? e.message
+                            : "Could not remove saved story.",
+                        );
+                      }
+                    }
+                  : undefined
+              }
             />
           ))
         ) : (
@@ -320,7 +385,7 @@ function DashboardContent({ view }: { view: View }) {
           One membership covers learning and writing. Your balance follows your
           account.
         </p>
-        <a href="/pricing">Explore membership ↗</a>
+        <a href="/writer/membership">Explore membership ↗</a>
       </aside>
       {remove && (
         <Modal

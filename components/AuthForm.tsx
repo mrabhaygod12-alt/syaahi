@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { signIn } from "@/lib/auth/session";
 import { requestJson } from "@/lib/http-client";
-import { waitForService } from "@/lib/service-ready";
+import { workspaceDestination } from "@/lib/workspace-routing";
 export default function AuthForm({
   mode,
   compact = false,
@@ -54,10 +54,9 @@ export default function AuthForm({
     const controller = new AbortController();
     activeAttempt.current = controller;
     setProgress(
-      "Connecting securely… This can take up to 90 seconds while the service starts.",
+      mode === "signup" ? "Creating your account…" : "Signing you in…",
     );
-    await waitForService(controller.signal);
-    setProgress("Service connected. Signing you in…");
+    return controller;
   }
 
   async function submit(e: React.FormEvent) {
@@ -67,7 +66,7 @@ export default function AuthForm({
     setMsg("");
     setVerifyLink(null);
     try {
-      await prepareSignIn();
+      const controller = await prepareSignIn();
       const ref = new URLSearchParams(params ?? location.search).get("ref");
       const res = await signIn(
         name,
@@ -77,6 +76,7 @@ export default function AuthForm({
         accepted,
         mode === "signup" ? ref : null,
         workspace,
+        controller.signal,
       );
       if (res.requireVerification) {
         setVerifyLink(res.verifyUrl || "/verify-email");
@@ -86,8 +86,10 @@ export default function AuthForm({
         );
         return;
       }
-      window.location.href =
-        returnTo || (workspace === "writer" ? "/writer" : "/dashboard");
+      window.location.href = workspaceDestination(
+        workspace === "writer" && returnTo === "/writer" ? null : returnTo,
+        workspace,
+      );
     } catch (error: any) {
       if (error?.requireVerification && error?.verifyUrl) {
         setVerifyLink(error.verifyUrl);
@@ -108,7 +110,9 @@ export default function AuthForm({
           : { paddingTop: 56, paddingBottom: 64, maxWidth: 500 }
       }
     >
-      <p className="small">YOUR LEARNING AND WRITING WORKSPACE</p>
+      <p className="small">
+        {workspace === "writer" ? "YOUR WRITING SPACE" : "YOUR LEARNING SPACE"}
+      </p>
       <h1>
         {mode === "signup"
           ? workspace === "writer"
@@ -117,9 +121,13 @@ export default function AuthForm({
           : "Welcome back."}
       </h1>
       <p className="small">
-        {mode === "signup"
-          ? "Learn, teach, create presentations or write articles. Start with 19 generation credits after email verification."
-          : "Return to your lessons, presentations, drafts and published articles."}
+        {workspace === "writer"
+          ? mode === "signup"
+            ? "Create your writer profile, save private drafts and submit stories for review. Already a student? Use your existing email and password."
+            : "Return to your drafts, stories and reading library."
+          : mode === "signup"
+            ? "Create notes and presentations, practise recall and track your progress. Start with 19 generation credits after email verification."
+            : "Return to your lessons, presentations and saved progress."}
       </p>
       <fieldset className="workspace-choice">
         <legend>Where would you like to start?</legend>
@@ -177,13 +185,15 @@ export default function AuthForm({
         style={{ marginTop: 16, width: "100%" }}
         onClick={async () => {
           if (activeAttempt.current) return;
-          const next =
-            returnTo || (workspace === "writer" ? "/writer" : "/dashboard");
+          const next = workspaceDestination(
+            workspace === "writer" && returnTo === "/writer" ? null : returnTo,
+            workspace,
+          );
           setBusy(true);
           setMsg("");
           setVerifyLink(null);
           try {
-            await prepareSignIn();
+            const controller = await prepareSignIn();
             const { response: r, data: d } = await requestJson(
               "/api/auth/google",
               {
@@ -199,7 +209,9 @@ export default function AuthForm({
                   acceptTerms: accepted,
                   termsVersion: "2026-10-03",
                 }),
+                signal: controller.signal,
               },
+              45000,
             );
             if (!r.ok) throw new Error(d.error);
             if (typeof d.url !== "string" || !d.url.startsWith("https://"))

@@ -17,11 +17,11 @@ export default function PricingClient() {
   }, []);
   return (
     <div className="container pricing-page">
-      <p className="eyebrow">Plans for learning, teaching and writing</p>
+      <p className="eyebrow">Plans for learning and creating</p>
       <h1>Choose your monthly generation budget.</h1>
       <p>
-        Use credits for notes and presentations. Write private drafts and submit
-        articles for editorial review with any plan.
+        Use credits for notes and presentations. Practise recall and return to
+        your saved lessons with any plan.
       </p>
       {balance !== null && (
         <p>
@@ -34,11 +34,11 @@ export default function PricingClient() {
           <h2>Free</h2>
           <p className="plan-price">₹0</p>
           <strong>19 credits after email verification</strong>
-          <p>Start with notes, recall practice, and writing.</p>
+          <p>Start with notes, recall practice and presentations.</p>
           <ul>
             <li>All core study tools</li>
             <li>Up to 6 slides per presentation</li>
-            <li>Private drafts and article submission</li>
+            <li>Saved lessons, quizzes and flashcards</li>
           </ul>
           <a className="btn light" href="/signup">
             Start free
@@ -109,16 +109,6 @@ export default function PricingClient() {
                 <td>Lesson flashcards, quizzes, source view and progress</td>
                 <td>Included for your lessons</td>
                 <td>No additional deck charge</td>
-              </tr>
-              <tr>
-                <td>Writer Studio, images, version history, profile</td>
-                <td>Included</td>
-                <td>No study credits required</td>
-              </tr>
-              <tr>
-                <td>Publication</td>
-                <td>Editorial review required</td>
-                <td>No guaranteed acceptance</td>
               </tr>
             </tbody>
           </table>

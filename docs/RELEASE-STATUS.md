@@ -1,5 +1,9 @@
 # Syaahi release status
 
+## Separate writer experience and public redesign — 4 October 2026
+
+Writer sign-in now opens `/writer/welcome`. Student navigation/dashboard/footer/pricing no longer expose writer controls. Legacy pricing, profile, support, checkout and receipt links preserve writer context. Dedicated writer membership, billing, receipts and support use the existing account APIs; persisted support tickets are separated by workspace. The public landing, writing landing, community and creator profiles have new responsive layouts, CSS perspective scenes and reduced-motion-aware scroll effects. The article editor adds a persisted Design tab plus contents, symbols, equations and click-to-load YouTube embeds. Public account menus use the independent writer identity. See [45 delivered improvements, routes, persistence, checks and deployment limits](WORKSPACE-EXPERIENCE-UPGRADE-2026-10-04.md). Live Razorpay credentials returned HTTP 401 in the optional smoke test; a successful production payment or coordinated deployment is not claimed.
+
 ## Writer redesign — 4 October 2026
 
 The local checkout now includes an accessible in-page auth dialog, explicit same-email writer enrollment, independent writer profiles, dedicated writer navigation/pages and a functional rich-text ribbon. Writing without a title autosaves a private draft. Safe formatting and tables persist through preview/public rendering. Student accounts cannot gain writing access by changing their workspace preference or upgrading billing; both workspaces use the same existing wallet/subscription. See [detailed findings, verification and 54 improvements](WRITER-PLATFORM-AUDIT-2026-10-04.md). Complete Medium/Word parity and deployed provider/payment behavior are not claimed. These changes require coordinated frontend/API deployment.

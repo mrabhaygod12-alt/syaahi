@@ -2,9 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import Logo from "./Logo";
+import { useAccount } from "./WorkspaceProvider";
+import { publishingPath } from "@/lib/workspace-routing";
 
 export function SiteFooter() {
   const pathname = usePathname();
+  const { user } = useAccount();
   if (
     pathname?.startsWith("/lesson/") ||
     pathname === "/write" ||
@@ -12,16 +15,39 @@ export function SiteFooter() {
     pathname?.startsWith("/writer/")
   )
     return null;
+  if (user?.workspace === "writer" || publishingPath(pathname || ""))
+    return (
+      <footer className="publication-footer">
+        <Logo size={30} />
+        <p>A home for thoughtful stories.</p>
+        <nav aria-label="Publication footer">
+          <a href="/community">Discover stories</a>
+          <a href="/writing">For writers</a>
+          <a href="/writer/support">Help</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+        </nav>
+        <small>© {new Date().getFullYear()} Syaahi</small>
+        <button
+          className="privacy-settings"
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new Event("syaahi:privacy-settings"))
+          }
+        >
+          Privacy preferences
+        </button>
+      </footer>
+    );
 
   return (
     <footer className="site-footer">
       <div className="wrap footer-grid">
         <div className="footer-brand">
           <Logo size={38} />
-          <p>Learn, create and publish.</p>
+          <p>Learn, create and remember.</p>
           <p className="small">
-            Notes, presentations and reviewed articles for students, teachers,
-            professionals and writers.
+            Notes, presentations and recall practice for curious learners.
           </p>
         </div>
         {[
@@ -35,10 +61,6 @@ export function SiteFooter() {
           ],
           [
             "Resources",
-            ["Writing and publishing", "/writing"],
-            ["Community articles", "/community"],
-            ["Writer Studio", "/write"],
-            ["Writer dashboard", "/writer"],
             ["About the creators", "/about"],
             ["Study blog", "/blog"],
             ["How it works", "/how-it-works"],

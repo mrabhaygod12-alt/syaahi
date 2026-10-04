@@ -10,6 +10,7 @@ async function main() {
   process.env.DATA_BACKEND = "sqlite";
   process.env.MONGODB_URI = "";
   process.env.APP_ROLE = "all";
+  process.env.NEXT_DIST_DIR = ".next-validation";
   process.env.BACKEND_URL = "";
   process.env.WORKER_MODE = "external";
   process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3139";
@@ -104,7 +105,12 @@ async function main() {
       "External-style return URLs are not carried between auth pages",
     );
     await page.goto("http://localhost:3139/dashboard");
-    await page.waitForURL("**/writer");
+    await page.waitForURL("**/writer/welcome");
+    await page.locator(".writer-welcome").waitFor();
+    await page.goto("http://localhost:3139/writer");
+    await page
+      .getByRole("heading", { name: "For the curious mind." })
+      .waitFor();
     assert(
       await page
         .getByRole("heading", {
@@ -179,6 +185,8 @@ async function main() {
       fullPage: true,
     });
     await page.goto("http://localhost:3139/pricing");
+    await page.waitForURL("**/writer/membership");
+    await page.getByRole("heading", { name: "Free", exact: true }).waitFor();
     for (const tier of ["Free", "Starter", "Pro", "Max", "Team"])
       assert(
         await page
@@ -186,15 +194,35 @@ async function main() {
           .isVisible(),
       );
     await page
-      .getByRole("link", { name: "Choose Starter", exact: true })
+      .getByRole("link", { name: "Choose Starter", exact: false })
       .click();
-    await page.waitForURL("**/subscribe/starter");
+    await page.waitForURL("**/writer/subscribe/starter");
+    await page.getByRole("button", { name: "Continue to Razorpay" }).waitFor();
     assert(
       await page
         .getByRole("button", { name: "Continue to Razorpay" })
         .isDisabled(),
     );
+    // Explicitly sign in to the student space before testing student features.
+    const switchResponse = await page.request.post(
+      "http://localhost:3139/api/auth",
+      {
+        headers: { origin: "http://localhost:3139" },
+        data: {
+          email: user.email,
+          password: "browser-test-password",
+          mode: "login",
+          workspace: "student",
+          acceptTerms: true,
+          termsVersion: "2026-10-03",
+        },
+      },
+    );
+    assert.equal(switchResponse.status(), 200);
     await page.goto("http://localhost:3139/presentations");
+    await page
+      .getByRole("heading", { name: "Create a presentation", exact: true })
+      .waitFor();
     assert(
       await page
         .getByRole("heading", { name: "Create a presentation", exact: true })
@@ -204,6 +232,27 @@ async function main() {
       await page.locator('input[type="number"]').getAttribute("max"),
       "6",
     );
+    assert.equal(
+      await page
+        .locator('a[href^="/writer"],a[href="/write"],a[href="/writing"]')
+        .count(),
+      0,
+    );
+    const writerLogin = await page.request.post(
+      "http://localhost:3139/api/auth",
+      {
+        headers: { origin: "http://localhost:3139" },
+        data: {
+          email: user.email,
+          password: "browser-test-password",
+          mode: "login",
+          workspace: "writer",
+          acceptTerms: true,
+          termsVersion: "2026-10-03",
+        },
+      },
+    );
+    assert.equal(writerLogin.status(), 200);
     assert.deepEqual(errors, []);
     for (const engine of [chromium, webkit]) {
       const mobileBrowser = await engine.launch();

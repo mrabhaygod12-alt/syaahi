@@ -4,6 +4,7 @@ import {
   STORY_LINE_HEIGHTS,
   safeColor,
 } from "./formatting";
+import { normalizeDesign } from "./design";
 export interface RichNode {
   type: string;
   text?: string;
@@ -28,6 +29,9 @@ const blocks = new Set([
   "tableRow",
   "tableCell",
   "tableHeader",
+  "equation",
+  "tableOfContents",
+  "videoEmbed",
 ]);
 export function normalizeDocument(value: unknown): RichNode {
   let count = 0,
@@ -38,6 +42,23 @@ export function normalizeDocument(value: unknown): RichNode {
     const node = input as RichNode;
     if (!blocks.has(node.type)) throw new Error("Unsupported document block.");
     const result: RichNode = { type: node.type };
+    if (node.type === "doc" && node.attrs)
+      result.attrs = normalizeDesign(node.attrs);
+    if (node.type === "equation") {
+      const expression = String(node.attrs?.expression || "").trim();
+      if (!expression || expression.length > 500)
+        throw new Error("Equations need 1–500 characters.");
+      characters += expression.length;
+      if (characters > 50000)
+        throw new Error("Story exceeds 50,000 characters.");
+      result.attrs = { expression };
+    }
+    if (node.type === "videoEmbed") {
+      const videoId = String(node.attrs?.videoId || "");
+      if (!/^[A-Za-z0-9_-]{11}$/.test(videoId))
+        throw new Error("Use a valid YouTube video.");
+      result.attrs = { videoId };
+    }
     if (node.type === "text") {
       if (typeof node.text !== "string") throw new Error("Invalid text block.");
       characters += node.text.length;
@@ -142,6 +163,9 @@ export function normalizeDocument(value: unknown): RichNode {
     }
     const allowed: Record<string, string[]> = {
       doc: [
+        "equation",
+        "tableOfContents",
+        "videoEmbed",
         "paragraph",
         "heading",
         "bulletList",
@@ -158,6 +182,9 @@ export function normalizeDocument(value: unknown): RichNode {
       bulletList: ["listItem"],
       orderedList: ["listItem"],
       listItem: [
+        "equation",
+        "tableOfContents",
+        "videoEmbed",
         "paragraph",
         "heading",
         "bulletList",
@@ -168,6 +195,9 @@ export function normalizeDocument(value: unknown): RichNode {
         "table",
       ],
       blockquote: [
+        "equation",
+        "tableOfContents",
+        "videoEmbed",
         "paragraph",
         "heading",
         "bulletList",
@@ -180,6 +210,9 @@ export function normalizeDocument(value: unknown): RichNode {
       table: ["tableRow"],
       tableRow: ["tableCell", "tableHeader"],
       tableCell: [
+        "equation",
+        "tableOfContents",
+        "videoEmbed",
         "paragraph",
         "heading",
         "bulletList",
@@ -189,6 +222,9 @@ export function normalizeDocument(value: unknown): RichNode {
         "image",
       ],
       tableHeader: [
+        "equation",
+        "tableOfContents",
+        "videoEmbed",
         "paragraph",
         "heading",
         "bulletList",
@@ -226,6 +262,7 @@ export function normalizeDocument(value: unknown): RichNode {
   return result;
 }
 export function documentText(node: RichNode): string {
+  if (node.type === "equation") return String(node.attrs?.expression || "");
   return node.type === "text"
     ? node.text || ""
     : (node.content || [])

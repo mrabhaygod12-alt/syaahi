@@ -4,7 +4,15 @@ import type { OrderSummary } from "@/lib/billing/orders";
 import { paymentRequest } from "@/lib/billing/checkout-client";
 import { formatMinorPrice, type BillingCurrency } from "@/lib/billing/packs";
 
-export default function PaymentStatus({ orderId }: { orderId?: string }) {
+export default function PaymentStatus({
+  orderId,
+  workspace = "student",
+}: {
+  orderId?: string;
+  workspace?: "student" | "writer";
+}) {
+  const base = workspace === "writer" ? "/writer/payments" : "/payments",
+    plans = workspace === "writer" ? "/writer/membership" : "/pricing";
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,7 +27,7 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
       if (!mounted.current) return true;
       if (response.status === 401) {
         window.location.assign(
-          `/login?next=${encodeURIComponent(orderId ? `/payments/${orderId}` : "/payments")}`,
+          `/login?workspace=${workspace}&next=${encodeURIComponent(orderId ? `${base}/${orderId}` : base)}`,
         );
         return true;
       }
@@ -38,7 +46,7 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, base, workspace]);
   useEffect(() => {
     mounted.current = true;
     let cancelled = false;
@@ -60,7 +68,7 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
   const order = orderId ? orders[0] : undefined;
   return (
     <div className="payment-flow">
-      <a href={orderId ? "/payments" : "/pricing"}>
+      <a href={orderId ? base : plans}>
         ← {orderId ? "Payment history" : "All plans"}
       </a>
       <p className="payment-eyebrow">YOUR PAYMENTS</p>
@@ -76,7 +84,7 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
       </div>
       {!loading && !error && !orders.length && (
         <p>
-          No Razorpay orders found. <a href="/pricing">Explore plans →</a>
+          No Razorpay orders found. <a href={plans}>Explore plans →</a>
         </p>
       )}
       {orders.map((item) => (
@@ -108,7 +116,7 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
               Payment reference: <code>{item.paymentId}</code>
             </p>
           )}
-          {!orderId && <a href={`/payments/${item.id}`}>View payment →</a>}
+          {!orderId && <a href={`${base}/${item.id}`}>View payment →</a>}
           {orderId && !item.paid && (
             <p>
               We have not received a captured-payment confirmation. This can
@@ -118,8 +126,13 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
             </p>
           )}
           {orderId && item.paid && (
-            <a className="btn dark" href="/dashboard">
-              Start studying →
+            <a
+              className="btn dark"
+              href={workspace === "writer" ? "/writer/welcome" : "/dashboard"}
+            >
+              {workspace === "writer"
+                ? "Return to writing →"
+                : "Start studying →"}
             </a>
           )}
         </section>
@@ -128,9 +141,19 @@ export default function PaymentStatus({ orderId }: { orderId?: string }) {
         {loading ? "Checking…" : "Refresh payment status"}
       </button>
       <p>
-        <a href="/support">Payment support</a> ·{" "}
-        <a href="/profile">Account and credit balance</a> ·{" "}
-        <a href="/pay">Direct UPI payments</a>
+        <a href={workspace === "writer" ? "/writer/support" : "/support"}>
+          Payment support
+        </a>{" "}
+        ·{" "}
+        <a href={workspace === "writer" ? "/writer/billing" : "/profile"}>
+          Account and credit balance
+        </a>
+        {workspace === "student" && (
+          <>
+            {" "}
+            · <a href="/pay">Direct UPI payments</a>
+          </>
+        )}
       </p>
       <p className="small">
         Status comes from your account’s payment record. Direct UPI submissions

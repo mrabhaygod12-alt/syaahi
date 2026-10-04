@@ -2,28 +2,31 @@ import CommunityPublications from "@/components/CommunityPublications";
 import { pageMeta } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 export const metadata = pageMeta({
-  title: "Community Articles & Reviewed Guides",
+  title: "Stories for curious minds",
   description:
-    "Read reviewed articles, teaching guides and professional explanations on Syaahi. Discover the creators and submit your own work for editorial review.",
+    "Discover reviewed stories, guides and new perspectives on Syaahi.",
   path: "/community",
 });
 export default function CommunityPage() {
   return (
-    <main className="wrap feature-section">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">THE SYAAHI COMMUNITY</span>
-          <h1>Articles and guides, reviewed before publication.</h1>
-          <p className="small">
-            Every article shown here has passed editorial review. Creator drafts
-            remain private until published.
-          </p>
-        </div>
-        <a className="btn dark" href="/write">
-          Write an article
-        </a>
+    <div className="community-editorial-page">
+      <header className="community-editorial-hero">
+        <p className="landing-eyebrow">THE SYAAHI COMMUNITY</p>
+        <h1>
+          Read a little.
+          <br />
+          <em>See a little differently.</em>
+        </h1>
+        <p>
+          Thoughtful guides, practical experiences and perspectives worth your
+          time.
+        </p>
+        <a href="/writing">Have a story to tell? ↗</a>
+        <span aria-hidden="true">✦</span>
+      </header>
+      <div className="community-editorial-wrap">
+        <CommunityPublications />
       </div>
-      <CommunityPublications />
-    </main>
+    </div>
   );
 }

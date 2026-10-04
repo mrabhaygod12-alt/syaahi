@@ -11,6 +11,9 @@ import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
 import PrivacyPreferences from "@/components/PrivacyPreferences";
 import AuthDialog from "@/components/AuthDialog";
 import "./writer-experience.css";
+import WorkspaceProvider from "@/components/WorkspaceProvider";
+import "./experience-upgrade.css";
+import "katex/dist/katex.min.css";
 
 const instrument = Instrument_Sans({
   subsets: ["latin"],
@@ -82,16 +85,18 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <SiteHeader />
-        <a className="skip-link" href="#main-content">
-          Skip to content
-        </a>
-        <main id="main-content" tabIndex={-1}>
-          {children}
-        </main>
-        <SiteFooter />
-        <PrivacyPreferences />
-        <AuthDialog />
+        <WorkspaceProvider>
+          <SiteHeader />
+          <a className="skip-link" href="#main-content">
+            Skip to content
+          </a>
+          <main id="main-content" tabIndex={-1}>
+            {children}
+          </main>
+          <SiteFooter />
+          <PrivacyPreferences />
+          <AuthDialog />
+        </WorkspaceProvider>
       </body>
     </html>
   );

@@ -88,15 +88,12 @@ export function CtaBand() {
         }}
       >
         <div>
-          <b>What will you learn, create or write next?</b>
+          <b>What will you understand next?</b>
           <div className="small" style={{ color: "#c9c4bb" }}>
-            One account for your learning and writing. Start free.
+            A place for your notes, sources and practice. Start free.
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a className="btn light" href="/signup?workspace=writer">
-            Write &amp; publish
-          </a>
           <a
             className="btn"
             style={{

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium, webkit, devices } from "playwright";
 
 async function main() {
@@ -13,6 +15,10 @@ async function main() {
       env: {
         ...process.env,
         APP_ROLE: "all",
+        NEXT_DIST_DIR: ".next-validation",
+        DATA_DIR: mkdtempSync(join(tmpdir(), "syaahi-nav-")),
+        DATA_BACKEND: "sqlite",
+        MONGODB_URI: "",
         BACKEND_URL: "",
         NEXT_PUBLIC_APP_URL: "http://localhost:3138",
       },
@@ -38,11 +44,8 @@ async function main() {
             viewport: size,
           });
           const page = await context.newPage();
-          page.on("pageerror", (error) =>
-            console.error(
-              `${engine.name()} ${size.width}px browser error: ${error.message}`,
-            ),
-          );
+          const errors: string[] = [];
+          page.on("pageerror", (error) => errors.push(error.message));
           page.on("requestfailed", (request) => {
             if (request.url().startsWith("http://localhost:3138/"))
               console.error(
@@ -58,32 +61,22 @@ async function main() {
             r.fulfill({ json: { user: null } }),
           );
           await page.goto("http://localhost:3138/login");
+          await page.waitForLoadState("networkidle");
           const nav = page.locator("#site-navigation");
           await page.getByRole("button", { name: "Open navigation" }).click();
-          await page
-            .getByRole("button", { name: "Learn & create", exact: true })
-            .click();
-          assert(
-            await nav.getByText("Course packs", { exact: true }).isVisible(),
+          assert.equal(await nav.getByRole("link").count(), 3);
+          for (const label of ["Workspace", "Subjects", "Plans"])
+            assert(
+              await nav
+                .getByRole("link", { name: label, exact: true })
+                .isVisible(),
+            );
+          assert.equal(
+            await nav.locator('a[href^="/writer"],a[href="/writing"]').count(),
+            0,
           );
-          assert.equal(await page.locator(".nav-popover:visible").count(), 1);
-          await page
-            .getByRole("button", { name: "Write & publish", exact: true })
-            .click();
-          assert.equal(await page.locator(".nav-popover:visible").count(), 1);
-          assert(
-            await nav
-              .getByRole("link", { name: "Writing on Syaahi", exact: false })
-              .isVisible(),
-          );
-          await page
-            .getByRole("button", { name: "Resources", exact: true })
-            .click();
-          await nav
-            .getByRole("link", { name: "Support", exact: false })
-            .scrollIntoViewIfNeeded();
           const box = await nav
-            .getByRole("link", { name: "Support", exact: false })
+            .getByRole("link", { name: "Plans", exact: true })
             .boundingBox();
           assert(
             box && box.y + box.height <= size.height + 1,
@@ -117,6 +110,7 @@ async function main() {
             const response = await page.goto(`http://localhost:3138${path}`);
             assert.equal(response?.status(), 200, `Page ${path} must load`);
             await page.locator("main h1").waitFor();
+            await page.waitForLoadState("networkidle");
             assert(
               await page.evaluate(
                 () => document.documentElement.scrollWidth <= innerWidth,
@@ -129,6 +123,11 @@ async function main() {
               `One primary heading on ${path}`,
             );
           }
+          assert.deepEqual(
+            errors,
+            [],
+            `${engine.name()} ${size.width}px page errors`,
+          );
           await context.close();
         }
       } finally {
@@ -142,11 +141,18 @@ async function main() {
       });
       await page.route("**/api/**", (r) => r.fulfill({ json: { user: null } }));
       await page.goto("http://localhost:3138/");
-      assert(
-        await page
-          .getByRole("button", { name: "Learn & create", exact: true })
-          .isVisible(),
-      );
+      for (const label of [
+        "For learners",
+        "For writers",
+        "Read stories",
+        "Plans",
+      ])
+        assert(
+          await page
+            .locator("#site-navigation")
+            .getByRole("link", { name: label, exact: true })
+            .isVisible(),
+        );
       assert.equal(
         await page.getByRole("button", { name: "Open navigation" }).isVisible(),
         false,
@@ -157,19 +163,10 @@ async function main() {
         "Optional analytics absent before consent",
       );
       await page.getByRole("button", { name: "Essential only" }).click();
-      const learnMenu = page.getByRole("button", {
-        name: "Learn & create",
-        exact: true,
-      });
-      await learnMenu.click();
-      await page.locator("#nav-learn a").first().focus();
-      await page.keyboard.press("Escape");
-      assert.equal(await learnMenu.getAttribute("aria-expanded"), "false");
-      assert(
-        await learnMenu.evaluate(
-          (element) => element === document.activeElement,
-        ),
-        "Escape returns focus to the desktop menu trigger",
+      assert.equal(
+        await page.locator(".nav-popover").count(),
+        0,
+        "Header uses a compact set of direct links",
       );
       const schemas = await page
         .locator('script[type="application/ld+json"]')
@@ -219,6 +216,21 @@ async function main() {
       mkdirSync("output/qa", { recursive: true });
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: "output/qa/home-desktop-top.png" });
+      for (const section of await page
+        .locator(".landing-page [data-reveal]")
+        .all()) {
+        await section.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+      }
+      await page.waitForTimeout(800);
+      assert.equal(
+        await page
+          .locator(".landing-page [data-reveal]:not(.is-visible)")
+          .count(),
+        0,
+        "Every animated section is revealed by scrolling",
+      );
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({
         path: "output/qa/home-desktop.png",
         fullPage: true,
@@ -273,6 +285,48 @@ async function main() {
         (await page.request.get("http://localhost:3138/icon.svg")).status(),
         200,
       );
+      const reduced = await browser.newContext({
+        viewport: { width: 320, height: 568 },
+        reducedMotion: "reduce",
+      });
+      const reducedPage = await reduced.newPage();
+      await reducedPage.route("**/api/**", (r) =>
+        r.fulfill({ json: { user: null } }),
+      );
+      await reducedPage.goto("http://localhost:3138/");
+      await reducedPage.waitForFunction(() =>
+        Array.from(
+          document.querySelectorAll(".landing-page [data-reveal]"),
+        ).every((n) => getComputedStyle(n).opacity === "1"),
+      );
+      assert.equal(
+        await reducedPage
+          .locator(".scene-sheet")
+          .first()
+          .evaluate((n) => getComputedStyle(n).animationName),
+        "none",
+      );
+      await reduced.close();
+      const withoutJs = await browser.newContext({
+        javaScriptEnabled: false,
+        viewport: { width: 390, height: 844 },
+      });
+      const plainPage = await withoutJs.newPage();
+      await plainPage.goto("http://localhost:3138/");
+      assert.equal(
+        await plainPage
+          .locator(".landing-hero-copy")
+          .evaluate((n) => getComputedStyle(n).opacity),
+        "1",
+        "Landing copy remains visible without JavaScript",
+      );
+      assert(
+        await plainPage
+          .getByRole("link", { name: "Start learning ↗", exact: true })
+          .first()
+          .isVisible(),
+      );
+      await withoutJs.close();
     } finally {
       await browser.close();
     }

@@ -5,7 +5,15 @@ import {
   MONTHLY_PLANS,
   type MonthlyTier,
 } from "@/lib/billing/subscription-plans";
-export default function SubscriptionCheckout({ tier }: { tier: MonthlyTier }) {
+export default function SubscriptionCheckout({
+  tier,
+  workspace = "student",
+}: {
+  tier: MonthlyTier;
+  workspace?: "student" | "writer";
+}) {
+  const billing =
+    workspace === "writer" ? "/writer/billing" : "/account/billing";
   const plan = MONTHLY_PLANS[tier],
     [accepted, setAccepted] = useState(false),
     [busy, setBusy] = useState(false),
@@ -20,7 +28,9 @@ export default function SubscriptionCheckout({ tier }: { tier: MonthlyTier }) {
         { tier, acceptRecurring: true },
       );
       if (response.status === 401) {
-        location.assign(`/login?next=/subscribe/${tier}`);
+        location.assign(
+          `/login?workspace=${workspace}&next=${encodeURIComponent(workspace === "writer" ? `/writer/subscribe/${tier}` : `/subscribe/${tier}`)}`,
+        );
         return;
       }
       if (!response.ok) throw new Error(data.error);
@@ -113,7 +123,7 @@ export default function SubscriptionCheckout({ tier }: { tier: MonthlyTier }) {
           </p>
         )}
         <p>
-          <a href="/account/billing">Manage or check subscription</a>
+          <a href={billing}>Manage or check subscription</a>
         </p>
       </div>
     </section>

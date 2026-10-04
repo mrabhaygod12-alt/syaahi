@@ -7,6 +7,7 @@ export interface TicketIndex {
   category: string;
   status: string;
   createdAt: string;
+  workspace?: "student" | "writer";
 }
 function setup() {
   db().exec(

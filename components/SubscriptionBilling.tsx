@@ -1,7 +1,15 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
-export default function SubscriptionBilling() {
+export default function SubscriptionBilling({
+  workspace = "student",
+}: {
+  workspace?: "student" | "writer";
+}) {
+  const plans = workspace === "writer" ? "/writer/membership" : "/pricing",
+    billing = workspace === "writer" ? "/writer/billing" : "/account/billing",
+    receipts = workspace === "writer" ? "/writer/payments" : "/payments",
+    support = workspace === "writer" ? "/writer/support" : "/support";
   const [data, setData] = useState<any>(null),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -61,7 +69,10 @@ export default function SubscriptionBilling() {
         </p>
       )}
       {data && !data.authenticated ? (
-        <a className="btn dark" href="/login?next=/account/billing">
+        <a
+          className="btn dark"
+          href={`/login?workspace=${workspace}&next=${encodeURIComponent(billing)}`}
+        >
           Log in to view billing
         </a>
       ) : (
@@ -105,7 +116,7 @@ export default function SubscriptionBilling() {
                   )}
               </>
             ) : (
-              <a className="btn dark" href="/pricing">
+              <a className="btn dark" href={plans}>
                 Compare plans
               </a>
             )}
@@ -128,9 +139,9 @@ export default function SubscriptionBilling() {
       )}
       {message && <p role="status">{message}</p>}
       <nav className="hero-actions">
-        <a href="/payments">Payment receipts</a>
+        <a href={receipts}>Payment receipts</a>
         <a href="/refunds">Refund policy</a>
-        <a href="/support">Billing support</a>
+        <a href={support}>Billing support</a>
       </nav>
     </div>
   );

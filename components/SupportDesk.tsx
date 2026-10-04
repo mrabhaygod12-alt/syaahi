@@ -8,12 +8,20 @@ interface Ticket {
   status: string;
   messages?: Array<{ by: string; text: string; at: string }>;
 }
-export default function SupportDesk() {
+export default function SupportDesk({
+  workspace = "student",
+}: {
+  workspace?: "student" | "writer";
+}) {
+  const endpoint =
+    workspace === "writer" ? "/api/writer/support" : "/api/support";
   const [tickets, setTickets] = useState<Ticket[]>([]),
     [current, setCurrent] = useState<Ticket | null>(null),
     [subject, setSubject] = useState(""),
     [message, setMessage] = useState(""),
-    [category, setCategory] = useState("generation"),
+    [category, setCategory] = useState(
+      workspace === "writer" ? "writing" : "generation",
+    ),
     [reply, setReply] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -22,7 +30,7 @@ export default function SupportDesk() {
     [guest, setGuest] = useState(false),
     [admin, setAdmin] = useState(false);
   async function load() {
-    const { response: r, data: d } = await requestJson("/api/support");
+    const { response: r, data: d } = await requestJson(endpoint);
     if (r.status === 401) {
       setGuest(true);
       setCurrent(null);
@@ -42,7 +50,7 @@ export default function SupportDesk() {
   }
   async function openTicket(id: string) {
     const { response, data } = await requestJson(
-      "/api/support?id=" + encodeURIComponent(id),
+      endpoint + "?id=" + encodeURIComponent(id),
     );
     if (!response.ok || !data.ticket)
       throw new Error(
@@ -72,7 +80,7 @@ export default function SupportDesk() {
     setBusy(true);
     setError("");
     try {
-      const { response: r, data: d } = await requestJson("/api/support", {
+      const { response: r, data: d } = await requestJson(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -130,7 +138,14 @@ export default function SupportDesk() {
       )}
       {loading && <p role="status">Loading your support inbox…</p>}
       {guest ? (
-        <a className="btn dark" href="/login?next=/support">
+        <a
+          className="btn dark"
+          href={
+            workspace === "writer"
+              ? "/login?workspace=writer&next=/writer/support"
+              : "/login?workspace=student&next=/support"
+          }
+        >
           Sign in to contact support
         </a>
       ) : loaded ? (
@@ -176,7 +191,13 @@ export default function SupportDesk() {
                       key={i}
                       className={m.by === "support" ? "support-reply" : ""}
                     >
-                      <b>{m.by === "support" ? "Support team" : "Learner"}</b>
+                      <b>
+                        {m.by === "support"
+                          ? "Support team"
+                          : workspace === "writer"
+                            ? "Writer"
+                            : "Learner"}
+                      </b>
                       <time>{new Date(m.at).toLocaleString()}</time>
                       <p>{m.text}</p>
                     </article>
@@ -244,13 +265,17 @@ export default function SupportDesk() {
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                   >
-                    {[
-                      "generation",
-                      "account",
-                      "payment",
-                      "privacy",
-                      "other",
-                    ].map((c) => (
+                    {(workspace === "writer"
+                      ? [
+                          "writing",
+                          "publishing",
+                          "account",
+                          "payment",
+                          "privacy",
+                          "other",
+                        ]
+                      : ["generation", "account", "payment", "privacy", "other"]
+                    ).map((c) => (
                       <option key={c}>{c}</option>
                     ))}
                   </select>

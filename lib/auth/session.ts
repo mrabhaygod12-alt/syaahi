@@ -34,21 +34,27 @@ export async function signIn(
   acceptTerms = false,
   referralCode?: string | null,
   workspace?: "student" | "writer",
+  signal?: AbortSignal,
 ): Promise<SignInResult> {
-  const { response, data } = await requestJson("/api/auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name,
-      email,
-      password,
-      mode,
-      acceptTerms,
-      referralCode,
-      workspace,
-      termsVersion: "2026-10-03",
-    }),
-  });
+  const { response, data } = await requestJson(
+    "/api/auth",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        mode,
+        acceptTerms,
+        referralCode,
+        workspace,
+        termsVersion: "2026-10-03",
+      }),
+      signal,
+    },
+    45000,
+  );
   if (!response.ok) {
     const err = new Error(data.error || "Sign-in failed.") as Error & {
       requireVerification?: boolean;

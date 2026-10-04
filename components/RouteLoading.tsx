@@ -1,4 +1,4 @@
-// First-paint skeleton while a route streams in.
+// Private workspace skeleton while a route streams in.
 // Visiting a page does not create a note-generation job.
 export default function Loading() {
   return (

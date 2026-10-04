@@ -5,6 +5,11 @@ import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import sharp from "sharp";
+import { workspaceDestination } from "../lib/workspace-routing";
+import { renderToStaticMarkup } from "react-dom/server";
+import React, { createElement } from "react";
+import StoryDocument from "../components/StoryDocument";
+Object.assign(globalThis, { React });
 process.env.APP_ROLE = "all";
 process.env.DATA_BACKEND = "sqlite";
 process.env.MONGODB_URI = "";
@@ -176,6 +181,15 @@ async function run(backend: string) {
   );
   const doc = normalizeDocument({
     type: "doc",
+    attrs: {
+      theme: "journal",
+      articleFont: "Georgia",
+      paragraphSpacing: "2",
+      paper: "cream",
+      pageBorder: "frame",
+      accent: "#945634",
+      onerror: "unsafe",
+    },
     content: [
       {
         type: "paragraph",
@@ -221,8 +235,39 @@ async function run(backend: string) {
           },
         ],
       },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "The important idea" }],
+      },
+      { type: "tableOfContents" },
+      { type: "equation", attrs: { expression: "E = mc^2" } },
+      { type: "videoEmbed", attrs: { videoId: "dQw4w9WgXcQ" } },
     ],
   });
+  assert.equal(doc.attrs!.onerror, undefined);
+  assert.equal(doc.attrs!.theme, "journal");
+  const html = renderToStaticMarkup(
+    createElement(StoryDocument, { document: doc, fallback: "" }),
+  );
+  assert.match(html, /story-section-1/);
+  assert.match(html, /katex/);
+  assert.match(html, /Playing loads content from YouTube/);
+  assert(!html.includes("<iframe"));
+  assert.throws(() =>
+    normalizeDocument({
+      type: "doc",
+      content: [
+        { type: "videoEmbed", attrs: { videoId: "javascript:alert(1)" } },
+      ],
+    }),
+  );
+  assert.throws(() =>
+    normalizeDocument({
+      type: "doc",
+      content: [{ type: "equation", attrs: { expression: "x".repeat(501) } }],
+    }),
+  );
   assert.equal(doc.content![0].content![0].marks![0].attrs!.onerror, undefined);
   const created = await stories.POST(
     req("/api/stories", "POST", {
@@ -339,11 +384,83 @@ async function run(backend: string) {
     403,
   );
   assert.equal(await writerProfile(unverified.id), null);
+  const studentSupport = await import("../app/api/support/route"),
+    writerSupport = await import("../app/api/writer/support/route");
+  const writerTicket = await writerSupport.POST(
+    req("/api/writer/support", "POST", {
+      action: "create",
+      subject: "Help with article design",
+      message: "I need help adjusting the article theme and table layout.",
+      category: "writing",
+    }),
+  );
+  assert.equal(writerTicket.status, 201);
+  const writerTicketData = (await writerTicket.json()).ticket;
+  assert.equal(writerTicketData.workspace, "writer");
+  const studentTicket = await studentSupport.POST(
+    req("/api/support", "POST", {
+      action: "create",
+      subject: "Help with study notes",
+      message: "I need help understanding the source notes in my lesson.",
+      category: "generation",
+    }),
+  );
+  assert.equal(studentTicket.status, 201);
+  const writerInbox = await (
+    await writerSupport.GET(req("/api/writer/support"))
+  ).json();
+  assert.equal(writerInbox.tickets.length, 1);
+  assert.equal(writerInbox.tickets[0].id, writerTicketData.id);
+  assert.equal(
+    (await studentSupport.GET(req(`/api/support?id=${writerTicketData.id}`)))
+      .status,
+    404,
+  );
+  assert.equal(
+    (
+      await writerSupport.POST(
+        req("/api/writer/support", "POST", {
+          action: "reply",
+          id: writerTicketData.id,
+          message: "Thanks, I can share an example.",
+        }),
+      )
+    ).status,
+    200,
+  );
+  const thread = await (
+    await writerSupport.GET(
+      req(`/api/writer/support?id=${writerTicketData.id}`),
+    )
+  ).json();
+  assert.equal(thread.ticket.messages.length, 2);
   console.log(
     `PASS ${backend}: explicit authenticated enrollment, shared identity/wallet, independent profile/photo, current public bylines, sanitization, stale writes, ownership, review locking and saved library.`,
   );
 }
 async function main() {
+  assert.equal(workspaceDestination(null, "writer"), "/writer/welcome");
+  assert.equal(
+    workspaceDestination("/dashboard?view=student", "writer"),
+    "/writer/welcome",
+  );
+  assert.equal(
+    workspaceDestination("/pricing", "writer"),
+    "/writer/membership",
+  );
+  assert.equal(workspaceDestination("/support", "writer"), "/writer/support");
+  assert.equal(
+    workspaceDestination("/subscribe/pro", "writer"),
+    "/writer/subscribe/pro",
+  );
+  assert.equal(
+    workspaceDestination("https://evil.test", "writer"),
+    "/writer/welcome",
+  );
+  assert.equal(
+    workspaceDestination("/writer/profile", "student"),
+    "/dashboard",
+  );
   await run("sqlite");
   const replica = await MongoMemoryReplSet.create({
     replSet: { count: 1 },

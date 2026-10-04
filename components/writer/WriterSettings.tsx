@@ -3,9 +3,10 @@ import { useState } from "react";
 import WriterShell, { useWriter } from "./WriterShell";
 import { ProfileEditor } from "./WriterProfileView";
 import { requestJson } from "@/lib/http-client";
-import WorkspaceSwitch from "../WorkspaceSwitch";
+import { useAccount } from "../WorkspaceProvider";
 function SettingsContent() {
   const { profile, update } = useWriter();
+  const { user } = useAccount();
   const [edit, setEdit] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -70,28 +71,31 @@ function SettingsContent() {
             workspaces.
           </p>
         </div>
-        <a href="/account/billing">Manage membership ↗</a>
+        <a href="/writer/billing">Manage membership ↗</a>
       </div>
       <div className="writer-setting-row">
         <div>
-          <h3>Learning workspace</h3>
-          <p>Return to your lessons and your separate student profile.</p>
+          <h3>Account identity</h3>
+          <p>
+            {user?.email} ·{" "}
+            {user?.verified ? "Verified email" : "Email account"}
+          </p>
         </div>
-        <WorkspaceSwitch current="writer" />
+        <span className="writer-topic">Writer session</span>
       </div>
       <div className="writer-setting-row">
         <div>
           <h3>Account security</h3>
           <p>Manage your account identity and verification.</p>
         </div>
-        <a href="/profile">Open account settings ↗</a>
+        <a href="/writer/support">Get account help ↗</a>
       </div>
       <div className="writer-setting-row">
         <div>
           <h3>Help with writing</h3>
           <p>Get support with drafts, publishing and your account.</p>
         </div>
-        <a href="/support">Contact support ↗</a>
+        <a href="/writer/support">Contact support ↗</a>
       </div>
       {error && <p role="alert">{error}</p>}
       {edit && <ProfileEditor onClose={() => setEdit(false)} />}

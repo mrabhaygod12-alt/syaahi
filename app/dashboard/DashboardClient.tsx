@@ -5,7 +5,6 @@ import StudyOrganisation from "@/components/StudyOrganisation";
 import StudyComposer from "@/components/StudyComposer";
 import CmdK from "@/components/CmdK";
 import ReferralWallet from "@/components/ReferralWallet";
-import WorkspaceSwitch from "@/components/WorkspaceSwitch";
 interface Job {
   id: string;
   title: string | null;
@@ -91,7 +90,6 @@ export default function DashboardClient() {
           <a href="/interview">↗ Interview practice</a>
           <a href="/presentations">Create a presentation</a>
           <a href="/account/billing">Manage subscription</a>
-          <WorkspaceSwitch current="student" />
           <div className="sidebar-tip">
             <span className="eyebrow">A BETTER STUDY LOOP</span>
             <p>

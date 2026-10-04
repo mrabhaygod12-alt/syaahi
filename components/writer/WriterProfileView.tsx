@@ -56,6 +56,10 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
         }}
       >
         <h2>Profile information</h2>
+        <div className={`profile-edit-cover accent-${form.accent || "forest"}`}>
+          <span>Your writer identity</span>
+          <b>✦</b>
+        </div>
         <label>Photo</label>
         <div className="writer-photo-edit">
           <WriterAvatar profile={form} size={80} />
@@ -140,6 +144,24 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
             onChange={(e) => setForm({ ...form, website: e.target.value })}
           />
         </label>
+        <fieldset className="profile-accent-choices">
+          <legend>Profile accent</legend>
+          {["forest", "copper", "violet", "ink"].map((accent) => (
+            <label key={accent} className={`accent-${accent}`}>
+              <input
+                type="radio"
+                name="profile-accent"
+                value={accent}
+                checked={(form.accent || "forest") === accent}
+                disabled={busy}
+                onChange={() =>
+                  setForm({ ...form, accent: accent as typeof form.accent })
+                }
+              />
+              {accent}
+            </label>
+          ))}
+        </fieldset>
         <hr />
         <label>
           About page
@@ -198,12 +220,25 @@ function ProfileContent() {
   return (
     <div className="writer-content-layout">
       <section className="writer-primary">
+        <div
+          className={`writer-profile-cover accent-${profile.accent || "forest"}`}
+        >
+          <span>YOUR VOICE ON SYAAHI</span>
+          <b>✦</b>
+        </div>
+        <div className="writer-profile-hero-avatar">
+          <WriterAvatar profile={profile} size={92} />
+        </div>
         <div className="writer-page-heading">
           <h1>{profile.name}</h1>
           <a className="writer-text-button" href={`/creators/${profile.slug}`}>
             Public profile ↗
           </a>
         </div>
+        <p className="writer-profile-bio">
+          {profile.bio ||
+            "Give readers a little glimpse of the person behind the words."}
+        </p>
         <div
           className="writer-tabs"
           role="tablist"

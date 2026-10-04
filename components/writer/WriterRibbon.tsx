@@ -7,6 +7,15 @@ import {
   STORY_LINE_HEIGHTS,
 } from "@/lib/writing/formatting";
 import Modal from "../Modal";
+import {
+  ARTICLE_THEMES,
+  ARTICLE_PAPERS,
+  ARTICLE_BORDERS,
+  ARTICLE_SPACING,
+  ARTICLE_ACCENTS,
+  normalizeDesign,
+  youtubeId,
+} from "@/lib/writing/design";
 export default function WriterRibbon({
   editor,
   disabled,
@@ -35,6 +44,25 @@ export default function WriterRibbon({
       type: string;
       attrs?: Record<string, any>;
     }> | null>(null);
+  const [insert, setInsert] = useState<"equation" | "video" | "symbol" | null>(
+      null,
+    ),
+    [insertValue, setInsertValue] = useState(""),
+    [insertError, setInsertError] = useState("");
+  const design = normalizeDesign(editor?.state.doc.attrs);
+  function setDesign(values: Record<string, string>) {
+    if (!editor || disabled) return;
+    const tr = editor.state.tr;
+    Object.entries(values).forEach(([key, value]) =>
+      tr.setDocAttribute(key, value),
+    );
+    editor.view.dispatch(tr);
+  }
+  function openInsert(kind: "equation" | "video" | "symbol") {
+    setInsert(kind);
+    setInsertValue(kind === "equation" ? "E = mc^2" : "");
+    setInsertError("");
+  }
   const blocked = !editor || disabled;
   const tool = (
     label: string,
@@ -104,12 +132,10 @@ export default function WriterRibbon({
           .chain()
           .focus()
           .insertContent(
-            text
-              .split("\n")
-              .map((line) => ({
-                type: "paragraph",
-                content: line ? [{ type: "text", text: line }] : [],
-              })),
+            text.split("\n").map((line) => ({
+              type: "paragraph",
+              content: line ? [{ type: "text", text: line }] : [],
+            })),
           )
           .run();
       } else {
@@ -134,7 +160,7 @@ export default function WriterRibbon({
         role="tablist"
         aria-label="Editor tools"
       >
-        {["Home", "Insert", "Review", "View"].map((t) => (
+        {["Home", "Insert", "Design", "Review", "View"].map((t) => (
           <button
             role="tab"
             aria-selected={tab === t}
@@ -422,6 +448,31 @@ export default function WriterRibbon({
           <>
             <div className="ribbon-group">
               <div className="ribbon-controls">
+                {tool("Insert table of contents", "Contents", () => {
+                  let exists = false;
+                  editor?.state.doc.descendants((n) => {
+                    if (n.type.name === "tableOfContents") exists = true;
+                  });
+                  if (exists)
+                    return message("Your story already has a contents block.");
+                  editor!
+                    .chain()
+                    .focus()
+                    .insertContent({ type: "tableOfContents" })
+                    .run();
+                })}
+                {tool("Insert equation", "Equation π", () =>
+                  openInsert("equation"),
+                )}
+                {tool("Insert online video", "Video ▶", () =>
+                  openInsert("video"),
+                )}
+                {tool("Insert symbol", "Symbols Ω", () => openInsert("symbol"))}
+              </div>
+              <small>References & media</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls">
                 {tool("Image", "Image", image)}
                 {tool("Insert link", "Link", () => {
                   setLink(editor?.getAttributes("link").href || "");
@@ -504,6 +555,121 @@ export default function WriterRibbon({
                 )}
               </div>
               <small>Tables</small>
+            </div>
+          </>
+        )}
+        {tab === "Design" && (
+          <>
+            <div className="ribbon-group">
+              <div className="ribbon-controls design-presets">
+                {ARTICLE_THEMES.map((theme) => (
+                  <button
+                    type="button"
+                    disabled={blocked}
+                    aria-label={`${theme} article theme`}
+                    aria-pressed={design.theme === theme}
+                    key={theme}
+                    onClick={() =>
+                      setDesign({
+                        theme,
+                        articleFont: theme === "modern" ? "Arial" : "Georgia",
+                      })
+                    }
+                  >
+                    <span>Aa</span>
+                    <strong>{theme}</strong>
+                  </button>
+                ))}
+              </div>
+              <small>Article themes</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls">
+                <label>
+                  Fonts
+                  <select
+                    aria-label="Article font"
+                    disabled={blocked}
+                    value={design.articleFont}
+                    onChange={(e) => setDesign({ articleFont: e.target.value })}
+                  >
+                    {STORY_FONTS.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Spacing
+                  <select
+                    aria-label="Article paragraph spacing"
+                    disabled={blocked}
+                    value={design.paragraphSpacing}
+                    onChange={(e) =>
+                      setDesign({ paragraphSpacing: e.target.value })
+                    }
+                  >
+                    {ARTICLE_SPACING.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <small>Document formatting</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls">
+                <label>
+                  Page color
+                  <select
+                    aria-label="Article page color"
+                    disabled={blocked}
+                    value={design.paper}
+                    onChange={(e) => setDesign({ paper: e.target.value })}
+                  >
+                    {ARTICLE_PAPERS.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Border
+                  <select
+                    aria-label="Article page border"
+                    disabled={blocked}
+                    value={design.pageBorder}
+                    onChange={(e) => setDesign({ pageBorder: e.target.value })}
+                  >
+                    {ARTICLE_BORDERS.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <small>Page background</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls design-swatches">
+                {ARTICLE_ACCENTS.map((v, i) => (
+                  <button
+                    type="button"
+                    aria-label={`Article accent ${["forest", "copper", "violet", "ink"][i]}`}
+                    aria-pressed={design.accent === v}
+                    disabled={blocked}
+                    key={v}
+                    style={{ backgroundColor: v }}
+                    onClick={() => setDesign({ accent: v })}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                className="writer-text-button"
+                disabled={blocked}
+                onClick={() => setDesign(normalizeDesign())}
+              >
+                Reset article design
+              </button>
+              <small>Accent colors</small>
             </div>
           </>
         )}
@@ -628,6 +794,128 @@ export default function WriterRibbon({
             </label>
             {linkError && <p role="alert">{linkError}</p>}
             <button className="btn dark">Insert link</button>
+          </form>
+        </Modal>
+      )}
+      {insert && (
+        <Modal
+          title={
+            insert === "equation"
+              ? "Insert equation"
+              : insert === "video"
+                ? "Insert online video"
+                : "Insert symbol"
+          }
+          onClose={() => setInsert(null)}
+        >
+          <form
+            className="writer-profile-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!editor) return;
+              if (insert === "equation") {
+                if (!insertValue.trim() || insertValue.length > 500)
+                  return setInsertError(
+                    "Enter 1–500 characters of LaTeX math.",
+                  );
+                editor
+                  .chain()
+                  .focus()
+                  .insertContent([
+                    {
+                      type: "equation",
+                      attrs: { expression: insertValue.trim() },
+                    },
+                    { type: "paragraph" },
+                  ])
+                  .run();
+              } else if (insert === "video") {
+                const id = youtubeId(insertValue);
+                if (!id)
+                  return setInsertError(
+                    "Use an HTTPS YouTube or youtu.be video link.",
+                  );
+                editor
+                  .chain()
+                  .focus()
+                  .insertContent([
+                    { type: "videoEmbed", attrs: { videoId: id } },
+                    { type: "paragraph" },
+                  ])
+                  .run();
+              }
+              setInsert(null);
+            }}
+          >
+            <h2>
+              {insert === "equation"
+                ? "Give an idea a formula."
+                : insert === "video"
+                  ? "Add a little context."
+                  : "The right symbol."}
+            </h2>
+            {insert === "symbol" ? (
+              <div className="symbol-grid">
+                {[
+                  "©",
+                  "®",
+                  "™",
+                  "→",
+                  "←",
+                  "↔",
+                  "±",
+                  "×",
+                  "÷",
+                  "π",
+                  "Σ",
+                  "∞",
+                  "Ω",
+                  "°",
+                  "✓",
+                  "✦",
+                ].map((s) => (
+                  <button
+                    type="button"
+                    key={s}
+                    aria-label={`Insert symbol ${s}`}
+                    onClick={() => {
+                      editor
+                        ?.chain()
+                        .focus()
+                        .insertContent({ type: "text", text: s })
+                        .run();
+                      setInsert(null);
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
+                <label>
+                  {insert === "equation"
+                    ? "LaTeX expression"
+                    : "YouTube video link"}
+                  <input
+                    autoFocus
+                    value={insertValue}
+                    onChange={(e) => setInsertValue(e.target.value)}
+                    maxLength={insert === "equation" ? 500 : 1200}
+                    required
+                  />
+                </label>
+                <p className="writer-fine-print">
+                  {insert === "equation"
+                    ? "Examples: E = mc^2 or \\frac{a}{b}. Equations render in your preview and published story."
+                    : "Readers choose when to load the video. Only YouTube embeds are supported."}
+                </p>
+                {insertError && <p role="alert">{insertError}</p>}
+                <button className="btn dark">
+                  {insert === "equation" ? "Insert equation" : "Insert video"}
+                </button>
+              </>
+            )}
           </form>
         </Modal>
       )}

@@ -19,6 +19,7 @@ export interface WriterProfile extends WorkspaceRecord {
   avatar: string;
   website: string;
   appearance: "light" | "dark" | "system";
+  accent?: "forest" | "copper" | "violet" | "ink";
   joinedAt: string;
 }
 export const writerProfile = (user: string) =>
@@ -67,6 +68,7 @@ export async function enrollWriter(account: Pick<Account, "id" | "name">) {
         avatar: "",
         website: "",
         appearance: "system",
+        accent: "forest",
         joinedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -134,6 +136,10 @@ export async function updateWriterProfile(
     input.appearance === undefined ? old.appearance : input.appearance;
   if (!["light", "dark", "system"].includes(String(appearance)))
     throw new Error("Choose a supported appearance.");
+  const accent =
+    input.accent === undefined ? old.accent || "forest" : input.accent;
+  if (!["forest", "copper", "violet", "ink"].includes(String(accent)))
+    throw new Error("Choose a supported profile accent.");
   return mutateRecord<WriterProfile>(old.id, (current) => {
     if (
       !current ||
@@ -151,6 +157,7 @@ export async function updateWriterProfile(
       website,
       avatar,
       appearance: appearance as WriterProfile["appearance"],
+      accent: accent as WriterProfile["accent"],
       updatedAt: new Date(
         Math.max(Date.now(), Date.parse(current.updatedAt) + 1),
       ).toISOString(),
@@ -167,6 +174,7 @@ export function publicWriterProfile(p: WriterProfile) {
     avatar: p.avatar,
     website: p.website,
     joinedAt: p.joinedAt,
+    accent: p.accent || "forest",
   };
 }
 export async function writerNames(

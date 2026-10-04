@@ -1,5 +1,8 @@
 import { Fragment, type ReactNode } from "react";
 import type { RichNode } from "@/lib/writing/document";
+import { articleStyles, normalizeDesign } from "@/lib/writing/design";
+import katex from "katex";
+import VideoEmbed from "./writer/VideoEmbed";
 import {
   STORY_FONTS,
   STORY_SIZES,
@@ -10,12 +13,27 @@ import {
 export default function StoryDocument({
   document,
   fallback,
+  embedded = false,
 }: {
   document?: RichNode;
   fallback: string;
+  embedded?: boolean;
 }) {
   if (!document)
     return <div style={{ whiteSpace: "pre-wrap" }}>{fallback}</div>;
+  const headings: Array<{ node: RichNode; id: string; text: string }> = [];
+  const plain = (n: RichNode): string =>
+    n.text || (n.content || []).map(plain).join("");
+  const collect = (n: RichNode) => {
+    if (n.type === "heading")
+      headings.push({
+        node: n,
+        id: `story-section-${headings.length + 1}`,
+        text: plain(n),
+      });
+    n.content?.forEach(collect);
+  };
+  collect(document);
   function render(node: RichNode, key: number): ReactNode {
     const children = node.content?.map(render);
     if (node.type === "text") {
@@ -88,12 +106,13 @@ export default function StoryDocument({
     };
     switch (node.type) {
       case "heading":
+        const headingId = headings.find((h) => h.node === node)?.id;
         return node.attrs?.level === 3 ? (
-          <h3 key={key} style={style}>
+          <h3 key={key} id={headingId} style={style}>
             {children}
           </h3>
         ) : (
-          <h2 key={key} style={style}>
+          <h2 key={key} id={headingId} style={style}>
             {children}
           </h2>
         );
@@ -103,6 +122,44 @@ export default function StoryDocument({
             {children}
           </p>
         );
+      case "tableOfContents":
+        return (
+          <nav key={key} className="story-contents" aria-label="In this story">
+            <strong>In this story</strong>
+            {headings.length ? (
+              <ol>
+                {headings.map((h) => (
+                  <li key={h.id}>
+                    <a href={`#${h.id}`}>{h.text}</a>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>No section headings yet.</p>
+            )}
+          </nav>
+        );
+      case "equation":
+        return (
+          <div
+            key={key}
+            className="story-equation"
+            dangerouslySetInnerHTML={{
+              __html: katex.renderToString(
+                String(node.attrs?.expression || ""),
+                {
+                  displayMode: true,
+                  throwOnError: false,
+                  trust: false,
+                  maxExpand: 200,
+                  maxSize: 10,
+                },
+              ),
+            }}
+          />
+        );
+      case "videoEmbed":
+        return <VideoEmbed key={key} id={String(node.attrs?.videoId || "")} />;
       case "bulletList":
         return <ul key={key}>{children}</ul>;
       case "orderedList":
@@ -173,5 +230,13 @@ export default function StoryDocument({
         return <Fragment key={key}>{children}</Fragment>;
     }
   }
-  return <div className="story-prose">{render(document, 0)}</div>;
+  const design = normalizeDesign(document.attrs);
+  return (
+    <div
+      className={`story-prose ${embedded ? "" : "article-design"} theme-${design.theme} border-${embedded ? "none" : design.pageBorder}`}
+      style={articleStyles(document.attrs)}
+    >
+      {render(document, 0)}
+    </div>
+  );
 }

@@ -112,7 +112,7 @@ async function main() {
       .getByRole("link", { name: "Create account", exact: true })
       .click();
     await modal
-      .getByRole("heading", { name: "Create your Syaahi account." })
+      .getByRole("heading", { name: "Your words belong here." })
       .waitFor();
     await page.keyboard.press("Escape");
     await modal.waitFor({ state: "hidden" });
@@ -126,12 +126,27 @@ async function main() {
     await page.keyboard.press("Escape");
     await modal.waitFor({ state: "hidden" });
     await context.addCookies([{ name, value, domain: "localhost", path: "/" }]);
+    await page.goto("http://localhost:3147/dashboard");
+    await page.locator(".workspace-main").waitFor();
+    assert.equal(
+      await page
+        .locator(
+          'a[href="/writer"],a[href="/write"],a[href="/writing"],a[href^="/writer/"]',
+        )
+        .count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Write & publish", exact: true })
+        .count(),
+      0,
+    );
     await page.goto("http://localhost:3147/writer");
     await page
-      .getByText(
-        "Create a writer profile with your existing email and password.",
-        { exact: false },
-      )
+      .getByText("Sign in as a writer to open your writing space.", {
+        exact: false,
+      })
       .waitFor();
     await page
       .getByRole("link", { name: "Create writer profile", exact: true })
@@ -147,6 +162,29 @@ async function main() {
     await modal
       .getByRole("button", { name: "Create account", exact: true })
       .click();
+    await page.locator(".writer-welcome").waitFor();
+    assert.match(page.url(), /\/writer\/welcome$/);
+    await page.screenshot({
+      path: "output/writer-redesign/writer-welcome.png",
+      fullPage: true,
+    });
+    await page.goto(
+      "http://localhost:3147/login?workspace=writer&next=/dashboard",
+    );
+    await page.locator('input[value="writer"]:checked').waitFor();
+    await page.getByLabel("Email", { exact: true }).fill(user.email);
+    await page
+      .getByLabel("Password", { exact: true })
+      .fill("browser-password-42");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Log in", exact: true }).click();
+    await page.waitForURL("**/writer/welcome");
+    await page.locator(".writer-welcome").waitFor();
+    assert.equal(
+      await page.getByText("Connecting securely…", { exact: false }).count(),
+      0,
+    );
+    await page.goto("http://localhost:3147/writer");
     await page
       .getByRole("heading", { name: "For the curious mind." })
       .waitFor();
@@ -171,6 +209,7 @@ async function main() {
         "Exploring technology, learning and the everyday art of curiosity.",
       );
     await modal.getByLabel("Pronouns").fill("he/him");
+    await modal.locator('input[name="profile-accent"][value="violet"]').check();
     await modal
       .getByLabel("About page")
       .fill(
@@ -194,6 +233,7 @@ async function main() {
     await page
       .getByRole("heading", { name: "Aarav the Writer", exact: true })
       .waitFor();
+    await page.getByRole("tab", { name: "About", exact: true }).click();
     await page.reload();
     await page
       .getByRole("heading", { name: "Aarav the Writer", exact: true })
@@ -219,8 +259,19 @@ async function main() {
     await page
       .getByRole("heading", { name: "Aarav the Writer", exact: true })
       .waitFor();
+    await page.getByRole("tab", { name: "About", exact: true }).click();
     await page
       .getByText("I write to understand the world.", { exact: false })
+      .waitFor();
+    assert.equal(await page.locator('a[href="/dashboard"]').count(), 0);
+    assert.equal(await page.locator(".creator-cover.accent-violet").count(), 1);
+    await page.screenshot({
+      path: "output/writer-redesign/public-profile.png",
+      fullPage: true,
+    });
+    await page
+      .locator(".account-toggle b")
+      .filter({ hasText: "Aarav" })
       .waitFor();
     await page.goto("http://localhost:3147/write");
     const editor = page.getByRole("textbox", { name: "Story editor" });
@@ -268,6 +319,9 @@ async function main() {
     await editor.click();
     await editor.press("Control+End");
     await editor.press("Enter");
+    await page.getByRole("button", { name: "Heading 2", exact: true }).click();
+    await editor.pressSequentially("Learning principles");
+    await editor.press("Enter");
     await page.getByRole("tab", { name: "Insert", exact: true }).click();
     await page
       .getByRole("button", { name: "Insert table", exact: true })
@@ -279,6 +333,93 @@ async function main() {
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     assert.equal(await page.locator(".story-prose table tr").count(), 4);
     await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page.getByRole("tab", { name: "Insert", exact: true }).click();
+    await editor.click();
+    await editor.press("Control+End");
+    await editor.press("ArrowDown");
+    await page
+      .getByRole("button", { name: "Insert symbol", exact: true })
+      .click();
+    await modal
+      .getByRole("button", { name: "Insert symbol π", exact: true })
+      .click();
+    assert((await editor.textContent())!.includes("π"));
+    await page
+      .getByRole("button", { name: "Insert equation", exact: true })
+      .click();
+    await modal.getByLabel("LaTeX expression").fill("\\frac{a}{b} = c");
+    await modal
+      .getByRole("button", { name: "Insert equation", exact: true })
+      .click();
+    await editor.locator(".story-equation .katex").waitFor();
+    await page
+      .getByRole("button", { name: "Insert online video", exact: true })
+      .click();
+    await modal
+      .getByLabel("YouTube video link")
+      .fill("https://youtu.be/dQw4w9WgXcQ");
+    await modal
+      .getByRole("button", { name: "Insert video", exact: true })
+      .click();
+    await editor.locator(".editor-video-placeholder").waitFor();
+    await page
+      .getByRole("button", { name: "Insert table of contents", exact: true })
+      .click();
+    await editor.locator(".story-contents").waitFor();
+    assert(
+      (await editor.locator(".story-contents").innerText()).includes(
+        "Learning principles",
+      ),
+    );
+    await page.getByRole("tab", { name: "Design", exact: true }).click();
+    await page.getByRole("button", { name: "journal article theme" }).click();
+    await page
+      .getByLabel("Article page color", { exact: true })
+      .selectOption("cream");
+    await page
+      .getByLabel("Article page border", { exact: true })
+      .selectOption("frame");
+    await page
+      .getByLabel("Article paragraph spacing", { exact: true })
+      .selectOption("2");
+    await page
+      .getByRole("button", { name: "Article accent copper", exact: true })
+      .click();
+    await page.getByText("Saved to your account.", { exact: true }).waitFor();
+    saved = (
+      await (await page.request.get("http://localhost:3147/api/stories")).json()
+    ).stories[0];
+    assert.equal(saved.document.attrs.theme, "journal");
+    assert.equal(saved.document.attrs.paper, "cream");
+    assert.equal(saved.document.attrs.pageBorder, "frame");
+    await page.screenshot({
+      path: "output/writer-redesign/writer-design.png",
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Play video", exact: true })
+      .waitFor();
+    assert.equal(await page.locator(".story-video iframe").count(), 0);
+    await page.route("https://www.youtube-nocookie.com/embed/**", (r) =>
+      r.fulfill({
+        contentType: "text/html",
+        body: "<title>Isolated video fixture</title>",
+      }),
+    );
+    await page.getByRole("button", { name: "Play video", exact: true }).click();
+    await page.locator(".story-video iframe").waitFor();
+    assert.match(
+      (await page.locator(".story-video iframe").getAttribute("src"))!,
+      /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/,
+    );
+    assert.match(
+      await page
+        .locator('nav[aria-label="In this story"] a[href="#story-section-1"]')
+        .innerText(),
+      /Learning principles/,
+    );
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByRole("tab", { name: "Home", exact: true }).click();
     await page.screenshot({
       path: "output/writer-redesign/writer-editor.png",
@@ -287,12 +428,22 @@ async function main() {
     const draftUrl = page.url();
     await page.reload();
     await editor.waitFor();
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("#story-title") as HTMLInputElement)?.value ===
+        "A more thoughtful way to learn",
+    );
     assert.equal(
       await page.locator("#story-title").inputValue(),
       "A more thoughtful way to learn",
     );
     assert.equal(await editor.locator("table tr").count(), 4);
     assert((await editor.textContent())!.includes("Wonder"));
+    assert.equal(
+      await page.locator(".writer-canvas.theme-journal.border-frame").count(),
+      1,
+    );
+    await editor.locator(".story-equation .katex").waitFor();
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await modal
       .getByLabel("Story preview summary")
@@ -326,6 +477,62 @@ async function main() {
     );
     await page.goto("http://localhost:3147/writer/library");
     await page.getByRole("heading", { name: published.title }).waitFor();
+    await page
+      .getByRole("button", { name: "Remove from library", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Make room for a good read." })
+      .waitFor();
+    await page.goto("http://localhost:3147/pricing");
+    await page.waitForURL("**/writer/membership");
+    await page.getByRole("link", { name: "Choose Pro", exact: false }).click();
+    await page.waitForURL("**/writer/subscribe/pro");
+    await page.getByRole("checkbox").check();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Continue to Razorpay" })
+        .isEnabled(),
+      true,
+    );
+    await page
+      .getByRole("link", { name: "Manage or check subscription" })
+      .click();
+    await page.waitForURL("**/writer/billing");
+    await page
+      .getByRole("heading", { name: "No monthly subscription" })
+      .waitFor();
+    await page.goto("http://localhost:3147/support");
+    await page.waitForURL("**/writer/support");
+    await page
+      .getByLabel("Subject", { exact: true })
+      .fill("Help with an article");
+    await page
+      .getByLabel("What happened?", { exact: true })
+      .fill("I would like help with the formatting of my new article.");
+    await page.getByRole("button", { name: "Create support ticket" }).click();
+    await page
+      .getByRole("heading", { name: "Help with an article", exact: true })
+      .waitFor();
+    await page
+      .getByLabel("Your reply", { exact: true })
+      .fill("Here is some additional information.");
+    await page.getByRole("button", { name: "Send reply", exact: true }).click();
+    await page
+      .getByText("Here is some additional information.", { exact: true })
+      .waitFor();
+    await page.reload();
+    await page.getByRole("button", { name: /Help with an article/ }).click();
+    await page
+      .getByText("Here is some additional information.", { exact: true })
+      .waitFor();
+    await page.screenshot({
+      path: "output/writer-redesign/writer-support.png",
+      fullPage: true,
+    });
+    await page.goto("http://localhost:3147/dashboard");
+    await page.waitForURL("**/writer/welcome");
+    await page.goto("http://localhost:3147/profile");
+    await page.waitForURL("**/writer/settings");
     await page.goto("http://localhost:3147/writer/settings");
     await page.getByLabel("Writer appearance").selectOption("dark");
     await page.waitForFunction(
@@ -379,6 +586,15 @@ async function main() {
           "/writer/stats",
           "/writer/library",
           "/writer/settings",
+          "/writer/welcome",
+          "/writer/membership",
+          "/writer/billing",
+          "/writer/support",
+          "/writer/subscribe/pro",
+          `/creators/${wp.slug}`,
+          "/community",
+          "/writing",
+          "/",
           new URL(draftUrl).pathname + new URL(draftUrl).search,
           "/pricing",
         ]) {
@@ -387,6 +603,18 @@ async function main() {
             await p.locator(".writer-workspace").waitFor();
           if (path.startsWith("/write?"))
             await p.getByRole("textbox", { name: "Story editor" }).waitFor();
+          if (path.startsWith("/write?")) {
+            for (const tab of ["Insert", "Design"]) {
+              await p.getByRole("tab", { name: tab, exact: true }).click();
+              assert.equal(
+                await p.evaluate(
+                  () => document.documentElement.scrollWidth > innerWidth + 1,
+                ),
+                false,
+                `${engine.name()} ${tab} ribbon overflow`,
+              );
+            }
+          }
           await p.waitForLoadState("networkidle");
           assert.equal(
             await p.evaluate(

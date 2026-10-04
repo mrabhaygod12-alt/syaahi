@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { authError, currentUser } from "@/lib/auth/server";
 import { readState, mutateState } from "@/lib/study/state";
 import { rateLimit } from "@/lib/ratelimit";
+import { writerAccess } from "@/lib/writing/profile";
 interface Message {
   by: "learner" | "support";
   text: string;
@@ -18,6 +19,7 @@ interface Ticket {
   category: string;
   status: "open" | "waiting" | "resolved";
   createdAt: string;
+  workspace?: "student" | "writer";
   messages: Message[];
 }
 const admin = (id: string) =>
@@ -29,12 +31,23 @@ async function handleGET(req: Request) {
   const denied = await authError(req);
   if (denied) return denied;
   const user = (await currentUser(req))!;
+  const workspace = new URL(req.url).pathname.startsWith("/api/writer/")
+    ? "writer"
+    : "student";
+  if (workspace === "writer") {
+    const access = await writerAccess(user.id);
+    if (access) return access;
+  }
   const isAdmin = admin(user.id);
   const id = new URL(req.url).searchParams.get("id");
   const tickets = await listTickets(isAdmin ? undefined : user.id);
   if (id) {
     const item = await findTicket(id);
-    if (!item || (!isAdmin && item.user !== user.id))
+    if (
+      !item ||
+      (!isAdmin &&
+        (item.user !== user.id || (item.workspace || "student") !== workspace))
+    )
       return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
     return NextResponse.json(
       {
@@ -51,7 +64,11 @@ async function handleGET(req: Request) {
   return NextResponse.json(
     {
       tickets: tickets
-        .filter((t) => isAdmin || t.user === user.id)
+        .filter(
+          (t) =>
+            isAdmin ||
+            (t.user === user.id && (t.workspace || "student") === workspace),
+        )
         .slice(0, 100),
       admin: isAdmin,
     },
@@ -63,6 +80,13 @@ async function handlePOST(req: Request) {
     (await authError(req)) || (await rateLimit(req, "support", 12, 60000));
   if (denied) return denied;
   const user = (await currentUser(req))!;
+  const workspace = new URL(req.url).pathname.startsWith("/api/writer/")
+    ? "writer"
+    : "student";
+  if (workspace === "writer") {
+    const access = await writerAccess(user.id);
+    if (access) return access;
+  }
   const b = await req.json().catch(() => ({}));
   const isAdmin = admin(user.id);
   try {
@@ -89,11 +113,14 @@ async function handlePOST(req: Request) {
       const ticket: Ticket = {
         id: randomUUID(),
         user: user.id,
+        workspace,
         subject,
         category: [
           "account",
           "payment",
           "generation",
+          "writing",
+          "publishing",
           "privacy",
           "other",
         ].includes(b.category)
@@ -116,11 +143,16 @@ async function handlePOST(req: Request) {
         category: ticket.category,
         status: ticket.status,
         createdAt: ticket.createdAt,
+        workspace,
       });
       return NextResponse.json({ ticket }, { status: 201 });
     }
     const item = await findTicket(String(b.id || ""));
-    if (!item || (!isAdmin && item.user !== user.id))
+    if (
+      !item ||
+      (!isAdmin &&
+        (item.user !== user.id || (item.workspace || "student") !== workspace))
+    )
       return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
     const ticket = await mutateState<Ticket | null>(
       item.user,

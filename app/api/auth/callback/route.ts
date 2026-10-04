@@ -1,12 +1,13 @@
 import { apiHandler } from "@/lib/api-handler";
 import { TERMS_VERSION, recordConsent } from "@/lib/auth/consent";
 import { NextRequest, NextResponse } from "next/server";
-import { oauthClient, googleAccount, safeNext } from "@/lib/auth/oauth";
+import { oauthClient, googleAccount } from "@/lib/auth/oauth";
 import { startSession } from "@/lib/auth/server";
 import { markEmailVerified } from "@/lib/billing/rewards";
 import { claimReferral } from "@/lib/billing/referrals";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 import { enrollWriter, writerProfile } from "@/lib/writing/profile";
+import { workspaceDestination } from "@/lib/workspace-routing";
 async function handleGET(req: NextRequest) {
   const origin =
     (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
@@ -41,7 +42,8 @@ async function handleGET(req: NextRequest) {
             response.cookies.set(cookie);
           response.headers.set(
             "location",
-            new URL("/signup?workspace=writer&next=/writer", origin).href,
+            new URL("/signup?workspace=writer&next=/writer/welcome", origin)
+              .href,
           );
           await client.auth.signOut({ scope: "local" });
           for (const key of ["next", "consent", "ref", "workspace", "mode"])
@@ -71,7 +73,10 @@ async function handleGET(req: NextRequest) {
     response.headers.set(
       "location",
       new URL(
-        safeNext(req.cookies.get("syaahi-oauth-next")?.value || null),
+        workspaceDestination(
+          req.cookies.get("syaahi-oauth-next")?.value,
+          workspace || account.workspace || "student",
+        ),
         origin,
       ).href,
     );

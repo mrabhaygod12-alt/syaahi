@@ -20,7 +20,14 @@ import type { Story } from "@/lib/writing/stories";
 import StoryDocument from "./StoryDocument";
 import WriterShell from "./writer/WriterShell";
 import WriterRibbon from "./writer/WriterRibbon";
-import { ParagraphIndent } from "./writer/editor-extensions";
+import {
+  ParagraphIndent,
+  ArticleDesign,
+  Equation,
+  Video,
+  Contents,
+} from "./writer/editor-extensions";
+import { articleStyles, normalizeDesign } from "@/lib/writing/design";
 import Modal from "./Modal";
 function StudioContent() {
   const [active, setActive] = useState<Story | null>(null),
@@ -75,6 +82,10 @@ function StudioContent() {
       TableKit,
       Placeholder.configure({ placeholder: "Tell your story…" }),
       ParagraphIndent,
+      ArticleDesign,
+      Equation,
+      Video,
+      Contents,
     ],
     content: textDocument(""),
     editorProps: {
@@ -323,7 +334,10 @@ function StudioContent() {
           message={setMessage}
         />
       )}
-      <article className="writer-canvas">
+      <article
+        className={`writer-canvas article-design theme-${normalizeDesign(document.attrs).theme} border-${normalizeDesign(document.attrs).pageBorder}`}
+        style={articleStyles(document.attrs)}
+      >
         {!locked && !preview && loaded && (
           <details className="writer-block-insert">
             <summary aria-label="Add story element">+</summary>
@@ -388,7 +402,7 @@ function StudioContent() {
         {preview ? (
           <>
             <p className="writer-preview-summary">{summary}</p>
-            <StoryDocument document={document} fallback="" />
+            <StoryDocument document={document} fallback="" embedded />
           </>
         ) : (
           <EditorContent editor={editor} />

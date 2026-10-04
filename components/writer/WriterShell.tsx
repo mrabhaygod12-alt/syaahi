@@ -11,12 +11,14 @@ import { requestJson } from "@/lib/http-client";
 import { signOut } from "@/lib/auth/session";
 import type { WriterProfile } from "@/lib/writing/profile";
 import Logo from "../Logo";
+import { useAccount } from "../WorkspaceProvider";
 const ProfileContext = createContext<{
   profile: WriterProfile;
   update: (p: WriterProfile) => void;
 } | null>(null);
 export const useWriter = () => useContext(ProfileContext)!;
 const links = [
+  ["Your space", "/writer/welcome", "write"],
   ["Home", "/writer", "home"],
   ["Library", "/writer/library", "bookmark"],
   ["Profile", "/writer/profile", "user"],
@@ -80,6 +82,7 @@ export default function WriterShell({
     [menu, setMenu] = useState(false),
     [nav, setNav] = useState(false);
   const path = usePathname();
+  const account = useAccount();
   const load = () => {
     setStatus("loading");
     requestJson("/api/writer/profile")
@@ -97,7 +100,19 @@ export default function WriterShell({
         setStatus("error");
       });
   };
-  useEffect(load, []);
+  useEffect(() => {
+    if (account.loading) return;
+    if (account.error) {
+      setError(account.error);
+      setStatus("error");
+      return;
+    }
+    if (account.user && account.user.workspace !== "writer") {
+      setStatus("student");
+      return;
+    }
+    load();
+  }, [account.loading, account.user?.workspace, account.error]);
   useEffect(() => {
     if (!profile) return;
     const query = window.matchMedia("(prefers-color-scheme: dark)");
@@ -147,7 +162,7 @@ export default function WriterShell({
           </button>
         )}
         <a
-          href="/writer"
+          href="/writer/welcome"
           className="writer-brand"
           aria-label="Syaahi writer home"
         >
@@ -199,15 +214,15 @@ export default function WriterShell({
                   <a href="/writer/stats">Stats</a>
                   <hr />
                   <a href="/writer/settings">Settings & appearance</a>
-                  <a href="/account/billing">Membership & billing</a>
-                  <a href="/pricing">Upgrade your plan ↗</a>
-                  <a href="/support">Help</a>
+                  <a href="/writer/billing">Membership & billing</a>
+                  <a href="/writer/membership">Upgrade your plan ↗</a>
+                  <a href="/writer/support">Help</a>
                   <hr />
                   <button
                     onClick={async () => {
                       try {
                         await signOut();
-                        location.assign("/");
+                        location.assign("/writing");
                       } catch (e) {
                         setError(
                           e instanceof Error ? e.message : "Sign out failed.",
@@ -253,9 +268,11 @@ export default function WriterShell({
           ) : (
             <>
               <p>
-                {status === "enroll"
-                  ? "Create a writer profile with your existing email and password. Your student profile stays separate, and your membership covers both workspaces."
-                  : "Sign in to write, save drafts and share what you know."}
+                {status === "student"
+                  ? "Sign in as a writer to open your writing space. Your student workspace stays separate."
+                  : status === "enroll"
+                    ? "Create a writer profile with your existing email and password. Your student profile stays separate, and your membership covers both workspaces."
+                    : "Sign in to write, save drafts and share what you know."}
               </p>
               <a
                 className="btn dark"
@@ -298,8 +315,8 @@ export default function WriterShell({
                 </nav>
                 <div className="writer-sidebar-bottom">
                   <a href="/writer/settings">Settings</a>
-                  <a href="/pricing">Membership ↗</a>
-                  <a href="/support">Help & support</a>
+                  <a href="/writer/membership">Membership ↗</a>
+                  <a href="/writer/support">Help & support</a>
                   <small>
                     © Syaahi · <a href="/privacy">Privacy</a> ·{" "}
                     <a href="/terms">Terms</a>
