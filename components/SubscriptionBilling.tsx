@@ -60,6 +60,28 @@ export default function SubscriptionBilling({
     }
   }
   const subscription = data?.subscription;
+  async function prepareCheckout() {
+    setBusy(true);
+    setMessage("Checking secure monthly checkout…");
+    try {
+      const result = await requestJson(
+        "/api/billing/catalog",
+        { method: "POST" },
+        60000,
+      );
+      if (!result.response.ok) throw new Error(result.data.error);
+      await load();
+      setMessage(
+        "Monthly checkout is ready. No subscription or payment was started.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Could not prepare checkout.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="container narrow">
       <h1>Billing</h1>
@@ -121,6 +143,13 @@ export default function SubscriptionBilling({
               </a>
             )}
             <p>
+              <button
+                className="btn light"
+                disabled={busy}
+                onClick={() => void prepareCheckout()}
+              >
+                Check payment setup
+              </button>{" "}
               <button
                 className="btn light"
                 disabled={busy}

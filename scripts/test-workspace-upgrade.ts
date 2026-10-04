@@ -141,6 +141,7 @@ async function main() {
   const provider = async (path: string, body?: any): Promise<any> => {
     if (path === "plans/plan_STARTER")
       return {
+        id: "plan_STARTER",
         period: "monthly",
         interval: 1,
         item: { currency: "INR", amount: 3900 },

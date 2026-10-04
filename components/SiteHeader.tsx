@@ -54,6 +54,7 @@ export default function SiteHeader() {
       : [
           ["Workspace", "/dashboard"],
           ["Subjects", "/subjects"],
+          ["About", "/about"],
           ["Plans", "/pricing"],
         ];
   return (

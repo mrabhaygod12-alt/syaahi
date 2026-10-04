@@ -16,6 +16,15 @@ async function handlePOST(req: NextRequest) {
   const denied =
     (await authError(req)) || (await rateLimit(req, "orders", 5, 60000));
   if (denied) return denied;
+  if (process.env.LEGACY_CREDIT_PACK_CHECKOUT !== "1")
+    return NextResponse.json(
+      {
+        error:
+          "One-time credit packs have been retired. Choose a shared monthly plan.",
+        plans: "/pricing",
+      },
+      { status: 410 },
+    );
   const body = await req.json().catch(() => ({}));
   const pack = String(body.pack || "");
   if (!Object.hasOwn(PACKS, pack))

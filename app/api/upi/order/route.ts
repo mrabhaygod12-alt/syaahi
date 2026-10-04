@@ -17,6 +17,15 @@ import {
  * Create a new UPI payment order with QR code data.
  */
 async function handlePOST(req: NextRequest) {
+  if (process.env.LEGACY_CREDIT_PACK_CHECKOUT !== "1")
+    return NextResponse.json(
+      {
+        error:
+          "Legacy UPI packs have been retired. Choose a monthly plan through Razorpay.",
+        plans: "/pricing",
+      },
+      { status: 410 },
+    );
   const denied =
     (await authError(req)) || (await rateLimit(req, "upi-order", 10, 60000));
   if (denied) return denied;

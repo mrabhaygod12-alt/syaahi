@@ -5,6 +5,11 @@ import {
   SUBSCRIPTION_CYCLES,
 } from "./subscription-plans";
 import { paymentConfiguration, razorpayCredentials } from "./configuration";
+import {
+  registeredPlanId,
+  resolveMonthlyPlan,
+  monthlyCheckoutConfigured,
+} from "./monthly-catalog";
 import { grant } from "@/lib/credits/store";
 import {
   mutateRecord,
@@ -32,13 +37,10 @@ interface AccountSlot extends WorkspaceRecord {
   creatingUntil: number;
   attempt?: string;
   tier?: MonthlyTier;
+  providerPlan?: string;
 }
 type ProviderRequest = (path: string, body?: unknown) => Promise<any>;
-const providerPlanId = (tier: MonthlyTier) =>
-  (process.env[`RAZORPAY_PLAN_${tier.toUpperCase()}_INR`] || "").trim();
-export const subscriptionReady = (tier: MonthlyTier) =>
-  paymentConfiguration().configured &&
-  /^plan_[a-zA-Z0-9]+$/.test(providerPlanId(tier));
+export const subscriptionReady = monthlyCheckoutConfigured;
 export async function subscriptionRequest(
   path: string,
   body?: unknown,
@@ -93,7 +95,7 @@ export async function createSubscription(
   api: ProviderRequest = subscriptionRequest,
 ) {
   if (!subscriptionReady(tier))
-    throw new Error("This monthly plan is not ready for checkout yet.");
+    throw new Error("Monthly checkout is unavailable. Please contact support.");
   const old = await currentSubscription(owner);
   if (old && !["cancelled", "completed", "expired"].includes(old.status)) {
     if (old.tier === tier && old.status === "created") return old;
@@ -129,18 +131,13 @@ export async function createSubscription(
   });
   let posted = false;
   try {
-    const providerPlan = providerPlanId(tier),
-      plan = await api(`plans/${providerPlan}`),
+    const providerPlan = await resolveMonthlyPlan(tier, api),
       config = MONTHLY_PLANS[tier];
-    if (
-      plan.period !== "monthly" ||
-      plan.interval !== 1 ||
-      plan.item?.currency !== "INR" ||
-      Number(plan.item?.amount) !== config.inr * 100
-    )
-      throw new Error(
-        "Configured plan does not match the published monthly price.",
-      );
+    await mutateRecord<AccountSlot>(slotId, (previous) => ({
+      ...previous!,
+      providerPlan,
+      updatedAt: new Date().toISOString(),
+    }));
     posted = true;
     const remote = await api("subscriptions", {
       plan_id: providerPlan,
@@ -263,7 +260,8 @@ async function recoverRemoteSubscription(remote: any) {
     !slot?.creatingUntil ||
     !slot.tier ||
     slot.attempt !== remote.notes?.syaahi_attempt ||
-    remote.plan_id !== providerPlanId(slot.tier)
+    remote.plan_id !==
+      (slot.providerPlan || (await registeredPlanId(slot.tier)))
   )
     return null;
   const config = MONTHLY_PLANS[slot.tier],

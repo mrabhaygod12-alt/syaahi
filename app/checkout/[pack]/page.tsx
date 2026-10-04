@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PACKS } from "@/lib/billing/packs";
 import { currencyForCountry } from "@/lib/billing/currency";
 import Checkout from "@/components/payments/Checkout";
@@ -8,6 +8,7 @@ export default async function Page({
 }: {
   params: Promise<{ pack: string }>;
 }) {
+  if (process.env.LEGACY_CREDIT_PACK_CHECKOUT !== "1") redirect("/pricing");
   const { pack } = await params;
   if (!Object.hasOwn(PACKS, pack)) notFound();
   const requestHeaders = await headers();
