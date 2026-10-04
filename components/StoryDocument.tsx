@@ -1,5 +1,11 @@
 import { Fragment, type ReactNode } from "react";
 import type { RichNode } from "@/lib/writing/document";
+import {
+  STORY_FONTS,
+  STORY_SIZES,
+  STORY_LINE_HEIGHTS,
+  safeColor,
+} from "@/lib/writing/formatting";
 
 export default function StoryDocument({
   document,
@@ -20,6 +26,47 @@ export default function StoryDocument({
         if (mark.type === "underline") text = <u>{text}</u>;
         if (mark.type === "strike") text = <s>{text}</s>;
         if (mark.type === "code") text = <code>{text}</code>;
+        if (mark.type === "subscript") text = <sub>{text}</sub>;
+        if (mark.type === "superscript") text = <sup>{text}</sup>;
+        if (mark.type === "highlight")
+          text = (
+            <mark
+              style={{
+                backgroundColor: safeColor(mark.attrs?.color)
+                  ? mark.attrs!.color
+                  : "#fff1ad",
+                color: "#242424",
+              }}
+            >
+              {text}
+            </mark>
+          );
+        if (mark.type === "textStyle")
+          text = (
+            <span
+              style={{
+                color: safeColor(mark.attrs?.color)
+                  ? mark.attrs!.color
+                  : undefined,
+                backgroundColor: safeColor(mark.attrs?.backgroundColor)
+                  ? mark.attrs!.backgroundColor
+                  : undefined,
+                fontFamily: STORY_FONTS.includes(mark.attrs?.fontFamily || "")
+                  ? mark.attrs!.fontFamily
+                  : undefined,
+                fontSize: STORY_SIZES.includes(mark.attrs?.fontSize || "")
+                  ? mark.attrs!.fontSize
+                  : undefined,
+                lineHeight: STORY_LINE_HEIGHTS.includes(
+                  mark.attrs?.lineHeight || "",
+                )
+                  ? mark.attrs!.lineHeight
+                  : undefined,
+              }}
+            >
+              {text}
+            </span>
+          );
         if (
           mark.type === "link" &&
           /^https?:\/\//i.test(mark.attrs?.href || "")
@@ -34,7 +81,10 @@ export default function StoryDocument({
     }
     const style = {
       textAlign: node.attrs?.textAlign as
-        "left" | "center" | "right" | undefined,
+        "left" | "center" | "right" | "justify" | undefined,
+      marginLeft: node.attrs?.indent
+        ? `${Math.min(5, Number(node.attrs.indent)) * 2}em`
+        : undefined,
     };
     switch (node.type) {
       case "heading":
@@ -56,9 +106,43 @@ export default function StoryDocument({
       case "bulletList":
         return <ul key={key}>{children}</ul>;
       case "orderedList":
-        return <ol key={key}>{children}</ol>;
+        return (
+          <ol key={key} start={Number(node.attrs?.start) || 1}>
+            {children}
+          </ol>
+        );
       case "listItem":
         return <li key={key}>{children}</li>;
+      case "table":
+        return (
+          <div className="story-table-scroll" key={key}>
+            <table>
+              <tbody>{children}</tbody>
+            </table>
+          </div>
+        );
+      case "tableRow":
+        return <tr key={key}>{children}</tr>;
+      case "tableCell":
+        return (
+          <td
+            key={key}
+            colSpan={Number(node.attrs?.colspan) || 1}
+            rowSpan={Number(node.attrs?.rowspan) || 1}
+          >
+            {children}
+          </td>
+        );
+      case "tableHeader":
+        return (
+          <th
+            key={key}
+            colSpan={Number(node.attrs?.colspan) || 1}
+            rowSpan={Number(node.attrs?.rowspan) || 1}
+          >
+            {children}
+          </th>
+        );
       case "blockquote":
         return <blockquote key={key}>{children}</blockquote>;
       case "codeBlock":

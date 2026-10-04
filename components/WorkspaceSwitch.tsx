@@ -23,6 +23,10 @@ export default function WorkspaceSwitch({
                 workspace: current === "student" ? "writer" : "student",
               }),
             });
+            if (data.code === "WRITER_ENROLLMENT_REQUIRED") {
+              window.location.assign("/signup?workspace=writer&next=/writer");
+              return;
+            }
             if (!response.ok) throw new Error(data.error);
             window.location.assign(
               current === "student" ? "/writer" : "/dashboard?view=student",

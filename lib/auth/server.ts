@@ -75,7 +75,7 @@ export async function currentUser(req: Request): Promise<Account | null> {
   }
   const row = db()
     .prepare(
-      `SELECT u.id,u.email,u.name,u.created_at,u.locale,u.workspace FROM sessions s
+      `SELECT u.id,u.email,u.name,u.created_at,u.locale,u.workspace,u.avatar FROM sessions s
     JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires>?`,
     )
     .get(hash(token), Date.now());
@@ -92,7 +92,7 @@ export async function currentUser(req: Request): Promise<Account | null> {
         email: String(row.email),
         name: String(row.name),
         createdAt: String(row.created_at),
-        avatar: null,
+        avatar: typeof row.avatar === "string" ? row.avatar : null,
         verified: true,
         locale: typeof row.locale === "string" ? row.locale : null,
         workspace: row.workspace === "writer" ? "writer" : "student",

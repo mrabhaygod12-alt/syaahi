@@ -73,9 +73,9 @@ No real bank charge was submitted as part of automated checks. Final live mandat
 
 ## Writer workspace
 
-Login/signup asks whether the starting workspace is **Learn & create** or **Write & publish**, including Google sign-in. The learning workspace serves students, teachers and professionals; the writing workspace serves articles, tutorials and teaching guides. This is a saved navigation preference, **not an administrator permission**. Both workspaces remain available through the switch. The existing internal `student` value is retained for storage compatibility.
+Login/signup asks whether the starting workspace is **Learn & create** or **Write & publish**, including Google sign-in. Writer access now requires explicit signup and an independent writer profile. A verified existing student signs up using the same email and existing password (or verified Google signup); the account ID, credits and subscription are reused. Changing the workspace preference does not enroll a writer. The existing internal `student` value is retained for storage compatibility. See [the 4 October writer audit and 54-item roadmap](WRITER-PLATFORM-AUDIT-2026-10-04.md).
 
-- `/writer`: drafts, submissions, published guides and approximate guide opens.
+- `/writer`: community feed; separate `/writer/stories`, `/writer/library`, `/writer/stats`, `/writer/profile` and `/writer/settings` pages.
 - `/write`: headings, lists, emphasis, links, uploaded images with alt text, preview, autosave and ten draft revisions.
 - Images: JPEG/PNG/WebP up to 4 MB; resized/re-encoded WebP, original metadata removed. Private until referenced by a published guide. Takedown revokes future access.
 - Concurrent saves use a database compare-and-set guard. Conflicts preserve the editor content and pause automatic retries.

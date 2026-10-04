@@ -1,6 +1,36 @@
 import { db, transaction } from "@/lib/db";
 import { collection, mongoTransaction, useMongo } from "@/lib/storage/mongo";
 import { getPublicStory } from "./stories";
+import { type Story } from "./stories";
+export async function savedGuides(user: string): Promise<Story[]> {
+  if (useMongo()) {
+    const reactions = await (
+      await collection("story_engagement")
+    )
+      .find({ user, bookmarked: true })
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .toArray();
+    const stories = await (
+      await collection("stories")
+    )
+      .find({
+        _id: { $in: reactions.map((r) => r.storyId) },
+        status: "published",
+      })
+      .toArray();
+    return reactions.flatMap((r) => {
+      const s = stories.find((s) => s._id === r.storyId);
+      return s ? [s as unknown as Story] : [];
+    });
+  }
+  return db()
+    .prepare(
+      "SELECT s.payload FROM story_engagement e JOIN stories s ON s.id=e.story_id WHERE e.user_id=? AND e.bookmarked=1 AND s.status='published' ORDER BY e.updated_at DESC LIMIT 100",
+    )
+    .all(user)
+    .map((r) => JSON.parse(String(r.payload)));
+}
 
 export interface GuideEngagement {
   upvotes: number;

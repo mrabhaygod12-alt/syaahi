@@ -10,14 +10,5 @@ export const metadata = pageMeta({
 });
 
 export default function WritePage() {
-  return (
-    <div className="wrap feature-section">
-      <h1>Writer Studio</h1>
-      <p>
-        Write with headings, photos and readable formatting. Save privately,
-        then submit for editorial review.
-      </p>
-      <WriterStudio />
-    </div>
-  );
+  return <WriterStudio />;
 }

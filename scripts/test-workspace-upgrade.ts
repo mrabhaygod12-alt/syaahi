@@ -27,6 +27,8 @@ async function main() {
       "other-upgrade@example.test",
       "a-safe-test-password",
     );
+  const { enrollWriter } = await import("../lib/writing/profile");
+  await enrollWriter(user);
   await setWorkspace(user.id, "writer");
   assert.equal((await accountByEmail(user.email))?.workspace, "writer");
   assert.equal(await balance(user.id), 19);

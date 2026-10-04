@@ -276,7 +276,7 @@ export default function UserChip() {
             }}
           >
             <span style={{ color: "#1f5b4a", fontWeight: 700 }}>
-              Study account
+              {user.workspace === "writer" ? "Writer account" : "Study account"}
             </span>
             {user.verified ? (
               <span
@@ -306,7 +306,9 @@ export default function UserChip() {
           {/* Navigation Links */}
           <div style={{ display: "grid", gap: 2 }}>
             <a
-              href="/profile"
+              href={
+                user.workspace === "writer" ? "/writer/profile" : "/profile"
+              }
               onClick={() => setOpen(false)}
               style={{
                 display: "flex",
@@ -352,7 +354,10 @@ export default function UserChip() {
                 (e.currentTarget.style.background = "transparent")
               }
             >
-              <span>✦</span> Study Dashboard
+              <span>✦</span>{" "}
+              {user.workspace === "writer"
+                ? "Writer Dashboard"
+                : "Study Dashboard"}
             </a>
 
             <a

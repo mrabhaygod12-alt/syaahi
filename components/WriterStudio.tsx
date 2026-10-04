@@ -4,53 +4,59 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
+import { TextStyleKit } from "@tiptap/extension-text-style";
+import Highlight from "@tiptap/extension-highlight";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
+import { TableKit } from "@tiptap/extension-table";
+import Placeholder from "@tiptap/extension-placeholder";
 import { requestJson } from "@/lib/http-client";
-import { textDocument, type RichNode } from "@/lib/writing/document";
+import {
+  textDocument,
+  documentText,
+  type RichNode,
+} from "@/lib/writing/document";
+import type { Story } from "@/lib/writing/stories";
 import StoryDocument from "./StoryDocument";
-interface Story {
-  id: string;
-  title: string;
-  summary: string;
-  body: string;
-  document?: RichNode;
-  tags: string[];
-  status: string;
-  updatedAt: string;
-  reviewNote?: string;
-  versions?: Array<{
-    title: string;
-    summary: string;
-    body: string;
-    document?: RichNode;
-    tags: string[];
-    savedAt: string;
-  }>;
-}
-export default function WriterStudio() {
-  const [stories, setStories] = useState<Story[]>([]),
-    [active, setActive] = useState<Story | null>(null);
-  const [title, setTitle] = useState(""),
+import WriterShell from "./writer/WriterShell";
+import WriterRibbon from "./writer/WriterRibbon";
+import { ParagraphIndent } from "./writer/editor-extensions";
+import Modal from "./Modal";
+function StudioContent() {
+  const [active, setActive] = useState<Story | null>(null),
+    [title, setTitle] = useState(""),
     [summary, setSummary] = useState(""),
     [tags, setTags] = useState("");
-  const [document, setDocument] = useState<RichNode>(textDocument(""));
-  const [autosavePaused, setAutosavePaused] = useState(false),
+  const [document, setDocument] = useState<RichNode>(textDocument("")),
     [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false),
-    [message, setMessage] = useState("Loading your drafts…");
-  const [preview, setPreview] = useState(false),
-    [alt, setAlt] = useState(""),
+    [paused, setPaused] = useState(false),
+    [loaded, setLoaded] = useState(false),
+    [loadError, setLoadError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState(""),
+    [saveError, setSaveError] = useState(false),
+    [preview, setPreview] = useState(false),
+    [focus, setFocus] = useState(false),
+    [tools, setTools] = useState(true),
+    [dialog, setDialog] = useState<"image" | "publish" | "history" | null>(
+      null,
+    ),
     [file, setFile] = useState<File | null>(null),
-    [imageDialog, setImageDialog] = useState(false),
-    [guest, setGuest] = useState(false);
+    [alt, setAlt] = useState(""),
+    [caption, setCaption] = useState("");
   const activeRef = useRef<Story | null>(null),
     saving = useRef(false),
-    revision = useRef(0);
+    revision = useRef(0),
+    initialized = useRef(false),
+    readyDocument = useRef<RichNode | null>(null);
   const locked =
     !!active && !["draft", "changes_requested"].includes(active.status);
   function edited() {
     revision.current++;
     setDirty(true);
-    setAutosavePaused(false);
+    setPaused(false);
+    setSaveError(false);
     setMessage("Changes pending save.");
   }
   const editor = useEditor({
@@ -62,6 +68,13 @@ export default function WriterStudio() {
       }),
       Image,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextStyleKit,
+      Highlight.configure({ multicolor: true }),
+      Subscript,
+      Superscript,
+      TableKit,
+      Placeholder.configure({ placeholder: "Tell your story…" }),
+      ParagraphIndent,
     ],
     content: textDocument(""),
     editorProps: {
@@ -70,75 +83,52 @@ export default function WriterStudio() {
         role: "textbox",
         "aria-multiline": "true",
         class: "writer-content",
+        spellcheck: "true",
       },
     },
     onUpdate: ({ editor }) => {
+      if (!initialized.current) return;
       setDocument(editor.getJSON() as RichNode);
       edited();
     },
   });
-  function open(story: Story | null) {
-    if (
-      saving.current ||
-      (dirty && !window.confirm("Leave the unsaved changes in this draft?"))
-    )
-      return;
-    activeRef.current = story;
-    setActive(story);
-    setTitle(story?.title || "");
-    setSummary(story?.summary || "");
-    setTags(story?.tags.join(", ") || "");
-    const next = story?.document || textDocument(story?.body || "");
-    setDocument(next);
-    editor?.commands.setContent(next, { emitUpdate: false });
-    setDirty(false);
-    setPreview(false);
-    setMessage(story ? "Draft opened." : "Start a new story.");
-  }
-  useEffect(() => {
-    let alive = true;
+  const load = () => {
+    setLoadError("");
     requestJson("/api/stories")
       .then(({ response, data }) => {
-        if (!alive) return;
-        if (response.status === 401) {
-          setGuest(true);
-          setMessage("Sign in to use Writer Studio.");
-          return;
-        }
-        if (!response.ok) throw new Error(data.error);
-        setStories(data.stories || []);
-        setMessage("");
-        const id = new URLSearchParams(location.search).get("draft"),
-          found = data.stories?.find((s: Story) => s.id === id);
-        if (found) {
-          activeRef.current = found;
-          setActive(found);
-          setTitle(found.title);
-          setSummary(found.summary);
-          setTags(found.tags.join(", "));
-          const next = found.document || textDocument(found.body);
-          setDocument(next);
-          editor?.commands.setContent(next, { emitUpdate: false });
-        }
+        if (!response.ok)
+          throw new Error(data.error || "Unable to load draft.");
+        const id = new URLSearchParams(location.search).get("draft");
+        const story = id ? data.stories.find((s: Story) => s.id === id) : null;
+        if (id && !story)
+          throw new Error(
+            "This draft could not be found. Open it from Your stories.",
+          );
+        activeRef.current = story;
+        setActive(story);
+        setTitle(story?.title || "");
+        setSummary(story?.summary || "");
+        setTags(story?.tags.join(", ") || "");
+        const nextDocument = story?.document || textDocument(story?.body || "");
+        readyDocument.current = nextDocument;
+        setDocument(nextDocument);
+        setLoaded(true);
       })
-      .catch((e) => alive && setMessage(e.message));
-    return () => {
-      alive = false;
-    };
-  }, []);
+      .catch((e) => setLoadError(e.message));
+  };
+  useEffect(load, []);
   useEffect(() => {
-    if (editor && activeRef.current)
-      editor.commands.setContent(
-        activeRef.current.document || textDocument(activeRef.current.body),
-        { emitUpdate: false },
-      );
-  }, [editor, active?.id]);
+    if (editor && loaded && !initialized.current) {
+      editor.commands.setContent(readyDocument.current!, { emitUpdate: false });
+      initialized.current = true;
+    }
+  }, [editor, loaded]);
   useEffect(() => {
-    editor?.setEditable(!locked && !busy, false);
-  }, [editor, locked, busy]);
+    editor?.setEditable(loaded && !locked && !preview && !submitting, false);
+  }, [editor, loaded, locked, preview, submitting]);
   useEffect(() => {
     const protect = (e: BeforeUnloadEvent) => {
-      if (dirty) {
+      if (dirty || saving.current) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -147,9 +137,12 @@ export default function WriterStudio() {
     return () => window.removeEventListener("beforeunload", protect);
   }, [dirty]);
   async function save(action: "save" | "submit") {
-    if (saving.current || locked || !title.trim()) return;
+    if (saving.current || locked || !loaded) return;
     saving.current = true;
     setBusy(true);
+    setSaveError(false);
+    setMessage("Saving…");
+    if (action === "submit") setSubmitting(true);
     const savingRevision = revision.current;
     try {
       const { response, data } = await requestJson("/api/stories", {
@@ -158,9 +151,9 @@ export default function WriterStudio() {
         body: JSON.stringify({
           id: activeRef.current?.id,
           expectedUpdatedAt: activeRef.current?.updatedAt,
-          title,
+          title: title.trim() || "Untitled story",
           summary,
-          document,
+          document: editor?.getJSON() || document,
           body: "",
           tags: tags.split(","),
           action,
@@ -168,18 +161,22 @@ export default function WriterStudio() {
       });
       if (!response.ok)
         throw new Error(data.error || "Draft could not be saved.");
-      const story = data.story as Story;
-      activeRef.current = story;
-      setActive(story);
-      setStories((old) => [story, ...old.filter((s) => s.id !== story.id)]);
+      activeRef.current = data.story;
+      setActive(data.story);
       if (revision.current === savingRevision) setDirty(false);
+      if (!new URLSearchParams(location.search).get("draft"))
+        window.history.replaceState(null, "", `/write?draft=${data.story.id}`);
       setMessage(
         action === "submit"
-          ? "Submitted for review. Your story stays private until an editor publishes it."
-          : "Saved to your account.",
+          ? "Submitted for review. Your story remains private until approved."
+          : revision.current === savingRevision
+            ? "Saved to your account."
+            : "Saving your latest changes next…",
       );
+      if (action === "submit") setDialog(null);
     } catch (e) {
-      setAutosavePaused(true);
+      setPaused(true);
+      setSaveError(true);
       setMessage(
         e instanceof Error
           ? e.message
@@ -188,15 +185,24 @@ export default function WriterStudio() {
     } finally {
       saving.current = false;
       setBusy(false);
+      setSubmitting(false);
     }
   }
   const saveRef = useRef(save);
   saveRef.current = save;
   useEffect(() => {
-    if (autosavePaused || !dirty || !title.trim() || locked || busy) return;
+    if (
+      !loaded ||
+      paused ||
+      !dirty ||
+      locked ||
+      busy ||
+      (!title.trim() && !documentText(document).trim())
+    )
+      return;
     const timer = setTimeout(() => void saveRef.current("save"), 2500);
     return () => clearTimeout(timer);
-  }, [title, summary, tags, document, dirty, locked, busy, autosavePaused]);
+  }, [title, summary, tags, document, dirty, locked, busy, paused, loaded]);
   async function insertImage() {
     if (!file || !alt.trim() || !editor) return;
     setBusy(true);
@@ -210,76 +216,150 @@ export default function WriterStudio() {
         body: form,
       });
       if (!response.ok) throw new Error(data.error);
-      editor.chain().focus().setImage({ src: data.url, alt: data.alt }).run();
-      setImageDialog(false);
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: data.url, alt: data.alt, title: caption.trim() })
+        .run();
+      setDialog(null);
       setFile(null);
       setAlt("");
+      setCaption("");
     } catch (e) {
+      setSaveError(true);
       setMessage(e instanceof Error ? e.message : "Image upload failed.");
     } finally {
       saving.current = false;
       setBusy(false);
     }
   }
-  const button = (label: string, run: () => unknown, pressed = false) => (
-    <button
-      type="button"
-      disabled={!editor || locked || busy || preview}
-      aria-pressed={pressed}
-      onClick={() => run()}
-    >
-      {label}
-    </button>
-  );
-  if (guest)
+  function exportDraft() {
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          { title, summary, document, tags: tags.split(",") },
+          null,
+          2,
+        ),
+      ],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = window.document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${title || "draft"}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+  const words = documentText(document)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  if (loadError)
     return (
-      <div className="card">
-        <p>{message}</p>
-        <a className="btn dark" href="/login?next=/write">
-          Log in
-        </a>
+      <div className="writer-gate">
+        <h1>Your draft could not open.</h1>
+        <p role="alert">{loadError}</p>
+        <button className="btn light" onClick={load}>
+          Try again
+        </button>{" "}
+        <a href="/writer/stories">Back to stories</a>
       </div>
     );
   return (
-    <div className="writer-shell">
-      <aside className="writer-drafts">
-        <a href="/writer">Writer dashboard</a>
-        <h2>Stories</h2>
-        <button className="btn dark" disabled={busy} onClick={() => open(null)}>
-          New story
-        </button>
-        {stories.map((s) => (
-          <button
-            key={s.id}
-            disabled={busy}
-            className="writer-draft"
-            aria-current={active?.id === s.id ? "page" : undefined}
-            onClick={() => open(s)}
-          >
-            <strong>{s.title}</strong>
-            <small>
-              {s.status.replaceAll("_", " ")} ·{" "}
-              {new Date(s.updatedAt).toLocaleDateString()}
-            </small>
-          </button>
-        ))}
-        {!stories.length && (
-          <p className="small">Your saved drafts will appear here.</p>
-        )}
-      </aside>
-      <section className="writer-page">
-        <div className="writer-topline">
-          <span>
-            {locked
-              ? active?.status.replaceAll("_", " ")
-              : dirty
-                ? "Unsaved changes"
+    <div className={`writer-studio${focus ? " focus-mode" : ""}`}>
+      <div className="writer-editor-actions">
+        <a href="/writer/stories">← Your stories</a>
+        <span className="writer-save-status" role="status">
+          {busy
+            ? "Saving…"
+            : dirty
+              ? "Unsaved changes"
+              : active
+                ? "Saved"
                 : "Private draft"}
-          </span>
-          <button className="btn light" onClick={() => setPreview(!preview)}>
-            {preview ? "Edit" : "Preview"}
-          </button>
-        </div>
+        </span>
+        <button className="writer-text-button" onClick={() => setTools(!tools)}>
+          {tools ? "Hide tools" : "Show tools"}
+        </button>
+        <button className="writer-text-button" onClick={() => setFocus(!focus)}>
+          {focus ? "Exit focus" : "Focus"}
+        </button>
+        <button className="btn light" onClick={() => setPreview(!preview)}>
+          {preview ? "Edit" : "Preview"}
+        </button>
+        <button
+          className="btn dark"
+          disabled={busy || locked || !loaded || !title.trim()}
+          onClick={() => setDialog("publish")}
+        >
+          Publish
+        </button>
+        <details className="writer-more">
+          <summary aria-label="More story actions">•••</summary>
+          <div>
+            <button
+              disabled={busy || locked || !loaded}
+              onClick={() => void save("save")}
+            >
+              Save draft
+            </button>
+            <button onClick={() => setDialog("history")}>
+              Revision history
+            </button>
+            <button onClick={exportDraft}>Download draft</button>
+            <button onClick={() => window.print()}>Print / Save PDF</button>
+          </div>
+        </details>
+      </div>
+      {tools && !preview && (
+        <WriterRibbon
+          editor={editor}
+          disabled={!loaded || busy || locked}
+          image={() => setDialog("image")}
+          history={() => setDialog("history")}
+          preview={() => setPreview(true)}
+          focus={() => setFocus(!focus)}
+          message={setMessage}
+        />
+      )}
+      <article className="writer-canvas">
+        {!locked && !preview && loaded && (
+          <details className="writer-block-insert">
+            <summary aria-label="Add story element">+</summary>
+            <div>
+              <button disabled={busy} onClick={() => setDialog("image")}>
+                Image
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  editor?.chain().focus().setHorizontalRule().run()
+                }
+              >
+                Divider
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+              >
+                Code block
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  editor
+                    ?.chain()
+                    .focus()
+                    .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                    .run()
+                }
+              >
+                Table
+              </button>
+            </div>
+          </details>
+        )}
         <label className="sr-only" htmlFor="story-title">
           Story title
         </label>
@@ -289,95 +369,152 @@ export default function WriterStudio() {
           placeholder="Title"
           value={title}
           maxLength={140}
-          disabled={locked || busy}
+          disabled={!loaded || locked || submitting}
           onChange={(e) => {
             setTitle(e.target.value);
             edited();
           }}
         />
-        <label className="sr-only" htmlFor="story-summary">
-          Short summary
-        </label>
-        <textarea
-          id="story-summary"
-          className="writer-summary"
-          rows={2}
-          value={summary}
-          maxLength={320}
-          placeholder="Tell readers what they will learn"
-          disabled={locked || busy}
-          onChange={(e) => {
-            setSummary(e.target.value);
-            edited();
-          }}
-        />
-        {preview ? (
-          <StoryDocument document={document} fallback="" />
-        ) : (
-          <>
-            <div
-              className="writer-toolbar"
-              role="toolbar"
-              aria-label="Text formatting"
-            >
-              {button(
-                "Paragraph",
-                () => editor!.chain().focus().setParagraph().run(),
-                editor?.isActive("paragraph"),
-              )}
-              {button(
-                "Heading 2",
-                () => editor!.chain().focus().toggleHeading({ level: 2 }).run(),
-                editor?.isActive("heading", { level: 2 }),
-              )}
-              {button("Heading 3", () =>
-                editor!.chain().focus().toggleHeading({ level: 3 }).run(),
-              )}
-              {button(
-                "Bold",
-                () => editor!.chain().focus().toggleBold().run(),
-                editor?.isActive("bold"),
-              )}
-              {button("Italic", () =>
-                editor!.chain().focus().toggleItalic().run(),
-              )}
-              {button("Underline", () =>
-                editor!.chain().focus().toggleUnderline().run(),
-              )}
-              {button("Bullets", () =>
-                editor!.chain().focus().toggleBulletList().run(),
-              )}
-              {button("Numbered list", () =>
-                editor!.chain().focus().toggleOrderedList().run(),
-              )}
-              {button("Quote", () =>
-                editor!.chain().focus().toggleBlockquote().run(),
-              )}
-              {button("Link", () => {
-                const href = window.prompt("Enter an HTTPS link");
-                if (href && /^https?:\/\//i.test(href))
-                  editor!.chain().focus().setLink({ href }).run();
-              })}
-              {button("Image", () => setImageDialog(true))}
-              {button("Undo", () => editor!.chain().focus().undo().run())}
-              {button("Redo", () => editor!.chain().focus().redo().run())}
-            </div>
-            <EditorContent editor={editor} />
-            {!editor && <p role="status">Opening editor…</p>}
-          </>
+        {locked && (
+          <p className="writer-review-note">
+            {active?.status === "published"
+              ? "This story is published."
+              : "This story is awaiting editorial review."}{" "}
+            {active?.slug && (
+              <a href={`/guides/${active.slug}`}>Read published story ↗</a>
+            )}
+          </p>
         )}
-        {imageDialog && (
-          <div
-            className="writer-image-form"
-            role="group"
-            aria-label="Insert image"
+        {preview ? (
+          <>
+            <p className="writer-preview-summary">{summary}</p>
+            <StoryDocument document={document} fallback="" />
+          </>
+        ) : (
+          <EditorContent editor={editor} />
+        )}
+        {!loaded && <p role="status">Opening your draft…</p>}
+        {active?.reviewNote && (
+          <p className="writer-review-note">
+            <strong>Editorial feedback:</strong> {active.reviewNote}
+          </p>
+        )}
+      </article>
+      <div className="writer-editor-status">
+        <span>
+          {words} words · {Math.max(1, Math.ceil(words / 220))} min read
+        </span>
+        <p role={saveError ? "alert" : "status"}>
+          {message || "Private until you submit for publication."}
+        </p>
+        {paused && (
+          <button disabled={busy} onClick={() => void save("save")}>
+            Retry save
+          </button>
+        )}
+      </div>
+      {dialog === "publish" && (
+        <Modal
+          title="Publish your story"
+          wide
+          onClose={() => {
+            if (!busy) setDialog(null);
+          }}
+        >
+          <form
+            className="writer-publish-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save("submit");
+            }}
           >
+            <div>
+              <p className="writer-kicker">YOUR STORY, READY FOR READERS</p>
+              <h2>Publish your story</h2>
+              <div className="writer-publish-preview">
+                <h3>{title}</h3>
+                <p>{summary || "Add a summary that makes readers curious."}</p>
+                <span>
+                  {words} words · {Math.max(1, Math.ceil(words / 220))} min read
+                </span>
+              </div>
+            </div>
+            <div>
+              <label>
+                Story preview summary
+                <textarea
+                  id="story-summary"
+                  value={summary}
+                  maxLength={320}
+                  rows={4}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setSummary(e.target.value);
+                    edited();
+                  }}
+                />
+                <small>{summary.length}/320</small>
+              </label>
+              <label>
+                Topics (up to five)
+                <input
+                  value={tags}
+                  maxLength={180}
+                  placeholder="Technology, learning, personal growth"
+                  disabled={busy}
+                  onChange={(e) => {
+                    setTags(e.target.value);
+                    edited();
+                  }}
+                />
+              </label>
+              <p className="writer-fine-print">
+                Syaahi reviews submissions before publication. Your story and
+                images stay private until an editor approves them. After
+                submission, editing is paused during review.
+              </p>
+              {saveError && <p role="alert">{message}</p>}
+              <button
+                className="btn dark"
+                disabled={
+                  busy ||
+                  title.trim().length < 5 ||
+                  documentText(document).trim().length < 80
+                }
+              >
+                {busy ? "Submitting…" : "Submit for publication"}
+              </button>
+              <p className="writer-fine-print">
+                A title of at least 5 characters and a story of at least 80
+                characters are required.
+              </p>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {dialog === "image" && (
+        <Modal
+          title="Insert image"
+          onClose={() => {
+            if (!busy) setDialog(null);
+          }}
+        >
+          <form
+            className="writer-profile-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void insertImage();
+            }}
+          >
+            <h2>A picture adds perspective.</h2>
             <label>
               Image (JPEG, PNG or WebP, up to 4 MB)
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
+                disabled={busy}
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
+                required
               />
             </label>
             <label>
@@ -385,98 +522,85 @@ export default function WriterStudio() {
               <input
                 value={alt}
                 maxLength={300}
+                disabled={busy}
                 onChange={(e) => setAlt(e.target.value)}
+                required
               />
             </label>
+            <label>
+              Caption (optional)
+              <input
+                value={caption}
+                maxLength={300}
+                disabled={busy}
+                onChange={(e) => setCaption(e.target.value)}
+              />
+            </label>
+            {saveError && <p role="alert">{message}</p>}
             <button
               className="btn dark"
               disabled={busy || !file || !alt.trim()}
-              onClick={() => void insertImage()}
             >
-              Upload and insert
+              {busy ? "Uploading…" : "Upload and insert"}
             </button>
-            <button className="btn light" onClick={() => setImageDialog(false)}>
-              Cancel
-            </button>
-          </div>
-        )}
-        <label>
-          Topics (up to five)
-          <input
-            value={tags}
-            maxLength={180}
-            disabled={locked || busy}
-            placeholder="Computer science, revision"
-            onChange={(e) => {
-              setTags(e.target.value);
-              edited();
-            }}
-          />
-        </label>
-        <p className="small">
-          {editor?.getText().length || 0} characters. Autosaves after you add a
-          title. Images stay private until publication.
-        </p>
-        {message && (
-          <p role="status" aria-live="polite">
-            {message}
+          </form>
+        </Modal>
+      )}
+      {dialog === "history" && (
+        <Modal title="Revision history" onClose={() => setDialog(null)}>
+          <h2>Revision history</h2>
+          <p className="writer-fine-print">
+            The last ten saved versions. Restoring creates an editable draft
+            change; it saves automatically.
           </p>
-        )}
-        {active?.reviewNote && (
-          <p className="card">
-            <strong>Editorial feedback</strong>
-            <br />
-            {active.reviewNote}
-          </p>
-        )}
-        {!locked && (
-          <div className="hero-actions">
-            <button
-              className="btn light"
-              disabled={busy || !title.trim()}
-              onClick={() => void save("save")}
-            >
-              Save draft
-            </button>
-            <button
-              className="btn dark"
-              disabled={busy || !title.trim()}
-              onClick={() => {
-                if (window.confirm("Submit this version for editorial review?"))
-                  void save("submit");
-              }}
-            >
-              Submit for review
-            </button>
-          </div>
-        )}
-        {!!active?.versions?.length && (
-          <details>
-            <summary>Version history ({active.versions.length})</summary>
-            {active.versions
-              .slice()
+          {!active?.versions?.length && (
+            <p>No previous versions yet. Save a draft to get started.</p>
+          )}
+          <div className="writer-history">
+            {active?.versions
+              ?.slice()
               .reverse()
               .map((v, i) => (
-                <button
-                  key={i}
-                  className="btn light"
-                  disabled={locked || busy}
-                  onClick={() => {
-                    setTitle(v.title);
-                    setSummary(v.summary);
-                    setTags(v.tags.join(", "));
-                    const next = v.document || textDocument(v.body);
-                    setDocument(next);
-                    editor?.commands.setContent(next, { emitUpdate: false });
-                    edited();
-                  }}
-                >
-                  Restore {new Date(v.savedAt).toLocaleString()}
-                </button>
+                <div key={i}>
+                  <span>
+                    <strong>{v.title}</strong>
+                    <small>{new Date(v.savedAt).toLocaleString("en-IN")}</small>
+                  </span>
+                  <button
+                    className="btn light"
+                    disabled={busy || locked}
+                    onClick={() => {
+                      if (
+                        dirty &&
+                        !window.confirm(
+                          "Replace your current unsaved text with this revision?",
+                        )
+                      )
+                        return;
+                      setTitle(v.title);
+                      setSummary(v.summary);
+                      setTags(v.tags.join(", "));
+                      const next = v.document || textDocument(v.body);
+                      setDocument(next);
+                      editor?.commands.setContent(next, { emitUpdate: false });
+                      edited();
+                      setDialog(null);
+                    }}
+                  >
+                    Restore
+                  </button>
+                </div>
               ))}
-          </details>
-        )}
-      </section>
+          </div>
+        </Modal>
+      )}
     </div>
+  );
+}
+export default function WriterStudio() {
+  return (
+    <WriterShell editor>
+      <StudioContent />
+    </WriterShell>
   );
 }

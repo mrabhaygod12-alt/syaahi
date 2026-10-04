@@ -3,9 +3,23 @@ import { useEffect, useRef, useState } from "react";
 import { signIn } from "@/lib/auth/session";
 import { requestJson } from "@/lib/http-client";
 import { waitForService } from "@/lib/service-ready";
-export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export default function AuthForm({
+  mode,
+  compact = false,
+  params,
+  onModeChange,
+}: {
+  mode: "login" | "signup";
+  compact?: boolean;
+  params?: string;
+  onModeChange?: (href: string) => void;
+}) {
   const [accepted, setAccepted] = useState(false);
-  const [workspace, setWorkspace] = useState<"student" | "writer">("student");
+  const [workspace, setWorkspace] = useState<"student" | "writer">(
+    params && new URLSearchParams(params).get("workspace") === "writer"
+      ? "writer"
+      : "student",
+  );
   const [returnTo, setReturnTo] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,10 +31,10 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const error = params.get("error");
+    const query = new URLSearchParams(params ?? location.search);
+    const error = query.get("error");
     if (error) setMsg(error.slice(0, 300));
-    const next = params.get("next");
+    const next = query.get("next");
     if (
       next?.startsWith("/") &&
       !next.startsWith("//") &&
@@ -28,8 +42,8 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     )
       setReturnTo(next);
     if (
-      params.get("workspace") === "writer" ||
-      (!params.has("workspace") && /^\/(writer|write)(\?|$)/.test(next || ""))
+      query.get("workspace") === "writer" ||
+      (!query.has("workspace") && /^\/(writer|write)(\/|\?|$)/.test(next || ""))
     )
       setWorkspace("writer");
     return () => activeAttempt.current?.abort();
@@ -54,7 +68,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setVerifyLink(null);
     try {
       await prepareSignIn();
-      const ref = new URLSearchParams(location.search).get("ref");
+      const ref = new URLSearchParams(params ?? location.search).get("ref");
       const res = await signIn(
         name,
         email,
@@ -87,12 +101,20 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
   return (
     <div
-      className="wrap"
-      style={{ paddingTop: 56, paddingBottom: 64, maxWidth: 500 }}
+      className={compact ? "auth-form compact" : "auth-form wrap"}
+      style={
+        compact
+          ? undefined
+          : { paddingTop: 56, paddingBottom: 64, maxWidth: 500 }
+      }
     >
       <p className="small">YOUR LEARNING AND WRITING WORKSPACE</p>
       <h1>
-        {mode === "signup" ? "Create your Syaahi account." : "Welcome back."}
+        {mode === "signup"
+          ? workspace === "writer"
+            ? "Your words belong here."
+            : "Create your Syaahi account."
+          : "Welcome back."}
       </h1>
       <p className="small">
         {mode === "signup"
@@ -127,7 +149,9 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </label>
       </fieldset>
       <p className="small">
-        This sets your starting dashboard. Both workspaces remain available.
+        {workspace === "writer"
+          ? "Already a student? Use the same email and existing password to create a separate writer profile. Your plan and credits stay shared."
+          : "Your learning profile stays separate from your writer profile. Writer signup is required before publishing."}
       </p>
       <label className="consent-check">
         <input
@@ -168,7 +192,10 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 body: JSON.stringify({
                   next,
                   workspace,
-                  ref: new URLSearchParams(location.search).get("ref"),
+                  mode,
+                  ref: new URLSearchParams(params ?? location.search).get(
+                    "ref",
+                  ),
                   acceptTerms: accepted,
                   termsVersion: "2026-10-03",
                 }),
@@ -302,6 +329,12 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             Already have an account?{" "}
             <a
               href={`/login?${new URLSearchParams({ workspace, ...(returnTo ? { next: returnTo } : {}) })}`}
+              onClick={(e) => {
+                if (onModeChange) {
+                  e.preventDefault();
+                  onModeChange(e.currentTarget.getAttribute("href")!);
+                }
+              }}
             >
               Log in
             </a>
@@ -311,6 +344,12 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             New here?{" "}
             <a
               href={`/signup?${new URLSearchParams({ workspace, ...(returnTo ? { next: returnTo } : {}) })}`}
+              onClick={(e) => {
+                if (onModeChange) {
+                  e.preventDefault();
+                  onModeChange(e.currentTarget.getAttribute("href")!);
+                }
+              }}
             >
               Create account
             </a>

@@ -7,6 +7,11 @@ export const workspaceKind = (value: unknown): WorkspaceKind | null =>
 
 // Workspace selection changes the starting screen, never authorization scopes.
 export async function setWorkspace(user: string, workspace: WorkspaceKind) {
+  if (workspace === "writer") {
+    const { writerProfile } = await import("@/lib/writing/profile");
+    if (!(await writerProfile(user)))
+      throw new Error("Complete writer signup with your existing email first.");
+  }
   if (useMongo())
     await (
       await collection("users")

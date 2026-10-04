@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
+import { enrollWriter, writerAccess } from "@/lib/writing/profile";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handleGET(req: NextRequest) {
@@ -50,6 +51,40 @@ async function handlePOST(req: NextRequest) {
   }
   if (body.mode === "signup") {
     try {
+      // Same email, same identity and wallet. Authenticate before adding a writer profile.
+      const existing = await accountByEmail(email);
+      if (existing && body.workspace === "writer") {
+        if (!passwordMatches(password, String(existing.password)))
+          return NextResponse.json(
+            {
+              error:
+                "Use your existing account password to create your writer profile, or continue with Google.",
+            },
+            { status: 401 },
+          );
+        const { rewardSummary } = await import("@/lib/billing/rewards");
+        if (!(await rewardSummary(String(existing.id))).emailVerified)
+          return NextResponse.json(
+            {
+              error:
+                "Verify your existing email before creating a writer profile.",
+              requireVerification: true,
+              verifyUrl: "/verify-email",
+            },
+            { status: 403 },
+          );
+        const account = {
+          id: String(existing.id),
+          email,
+          name: String(existing.name),
+          createdAt: String(existing.created_at),
+          workspace: "writer" as const,
+        };
+        await enrollWriter(account);
+        await recordConsent(account.id);
+        await setWorkspace(account.id, "writer");
+        return startSession(account, req);
+      }
       const user = await register(
         String(body.name || email.split("@")[0])
           .trim()
@@ -58,6 +93,7 @@ async function handlePOST(req: NextRequest) {
         password,
       );
       await recordConsent(user.id);
+      if (body.workspace === "writer") await enrollWriter(user);
       if (workspaceKind(body.workspace))
         await setWorkspace(user.id, workspaceKind(body.workspace)!);
 
@@ -120,38 +156,34 @@ async function handlePOST(req: NextRequest) {
       { status: 401 },
     );
 
-  // Check email verification for production MongoDB accounts
+  // Verification is required for both local and hosted accounts.
   const userId = String(row.id);
-  const { collection, useMongo } = await import("@/lib/storage/mongo");
-  if (useMongo()) {
-    let verified = Boolean((row as any).verified);
-    const vDoc = await (
-      await collection("verified_accounts")
-    ).findOne({ _id: userId });
-    if (vDoc) verified = true;
-
-    if (!verified) {
-      let verificationSent = false;
-      try {
-        const { sendVerification } = await import("@/lib/auth/verification");
-        await sendVerification({ id: userId, email });
-        verificationSent = true;
-      } catch {}
-      return NextResponse.json(
-        {
-          error: verificationSent
-            ? "Email not verified. Open the link sent to your inbox."
-            : "Email verification delivery is unavailable. Please contact support.",
-          requireVerification: true,
-          verifyUrl: "/verify-email",
-          email,
-        },
-        { status: 403 },
-      );
-    }
+  const { rewardSummary } = await import("@/lib/billing/rewards");
+  if (!(await rewardSummary(userId)).emailVerified) {
+    let verificationSent = false;
+    try {
+      const { sendVerification } = await import("@/lib/auth/verification");
+      await sendVerification({ id: userId, email });
+      verificationSent = true;
+    } catch {}
+    return NextResponse.json(
+      {
+        error: verificationSent
+          ? "Email not verified. Open the link sent to your inbox."
+          : "Email verification delivery is unavailable. Please contact support.",
+        requireVerification: true,
+        verifyUrl: "/verify-email",
+        email,
+      },
+      { status: 403 },
+    );
   }
 
   await recordConsent(userId);
+  if (body.workspace === "writer") {
+    const access = await writerAccess(userId);
+    if (access) return access;
+  }
   if (workspaceKind(body.workspace))
     await setWorkspace(userId, workspaceKind(body.workspace)!);
   return startSession(

@@ -24,6 +24,17 @@ async function handlePOST(req: NextRequest) {
   try {
     const client = oauthClient(req, response);
     response.cookies.set(
+      "syaahi-oauth-mode",
+      body.mode === "signup" ? "signup" : "login",
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: origin.startsWith("https:"),
+        maxAge: 600,
+        path: "/",
+      },
+    );
+    response.cookies.set(
       "syaahi-oauth-workspace",
       workspaceKind(body.workspace) || "student",
       {

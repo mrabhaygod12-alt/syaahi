@@ -5,7 +5,7 @@ import {
   getPublicStory,
   listPublicStoriesByCreator,
 } from "@/lib/writing/stories";
-import { publicGuide } from "@/lib/writing/public";
+import { publicStoryViews } from "@/lib/writing/public";
 
 async function handleGET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug"),
@@ -20,7 +20,7 @@ async function handleGET(req: NextRequest) {
       : await listPublicStories();
   return NextResponse.json(
     {
-      stories: stories.map(publicGuide),
+      stories: await publicStoryViews(stories),
     },
     { headers: { "Cache-Control": "no-store" } },
   );

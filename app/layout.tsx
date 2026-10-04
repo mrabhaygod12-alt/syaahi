@@ -9,6 +9,8 @@ import "./workspace-upgrade.css";
 import "./home-positioning.css";
 import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
 import PrivacyPreferences from "@/components/PrivacyPreferences";
+import AuthDialog from "@/components/AuthDialog";
+import "./writer-experience.css";
 
 const instrument = Instrument_Sans({
   subsets: ["latin"],
@@ -89,6 +91,7 @@ export default function RootLayout({
         </main>
         <SiteFooter />
         <PrivacyPreferences />
+        <AuthDialog />
       </body>
     </html>
   );

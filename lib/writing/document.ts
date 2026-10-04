@@ -1,3 +1,9 @@
+import {
+  STORY_FONTS,
+  STORY_SIZES,
+  STORY_LINE_HEIGHTS,
+  safeColor,
+} from "./formatting";
 export interface RichNode {
   type: string;
   text?: string;
@@ -18,6 +24,10 @@ const blocks = new Set([
   "hardBreak",
   "horizontalRule",
   "image",
+  "table",
+  "tableRow",
+  "tableCell",
+  "tableHeader",
 ]);
 export function normalizeDocument(value: unknown): RichNode {
   let count = 0,
@@ -36,11 +46,40 @@ export function normalizeDocument(value: unknown): RichNode {
       result.text = node.text;
       result.marks = (node.marks || [])
         .filter((m) =>
-          ["bold", "italic", "strike", "underline", "code", "link"].includes(
-            m.type,
-          ),
+          [
+            "bold",
+            "italic",
+            "strike",
+            "underline",
+            "code",
+            "link",
+            "subscript",
+            "superscript",
+            "highlight",
+            "textStyle",
+          ].includes(m.type),
         )
         .map((m) => {
+          if (m.type === "highlight")
+            return {
+              type: m.type,
+              attrs: {
+                color: safeColor(m.attrs?.color) ? m.attrs!.color : "#fff1ad",
+              },
+            };
+          if (m.type === "textStyle") {
+            const attrs: Record<string, string> = {};
+            if (safeColor(m.attrs?.color)) attrs.color = m.attrs!.color;
+            if (safeColor(m.attrs?.backgroundColor))
+              attrs.backgroundColor = m.attrs!.backgroundColor;
+            if (STORY_FONTS.includes(m.attrs?.fontFamily || ""))
+              attrs.fontFamily = m.attrs!.fontFamily;
+            if (STORY_SIZES.includes(m.attrs?.fontSize || ""))
+              attrs.fontSize = m.attrs!.fontSize;
+            if (STORY_LINE_HEIGHTS.includes(m.attrs?.lineHeight || ""))
+              attrs.lineHeight = m.attrs!.lineHeight;
+            return { type: m.type, attrs };
+          }
           if (m.type !== "link") return { type: m.type };
           const href = m.attrs?.href;
           if (
@@ -58,11 +97,30 @@ export function normalizeDocument(value: unknown): RichNode {
       };
     if (
       ["paragraph", "heading"].includes(node.type) &&
-      ["left", "center", "right"].includes(String(node.attrs?.textAlign))
+      ["left", "center", "right", "justify"].includes(
+        String(node.attrs?.textAlign),
+      )
     )
       result.attrs = {
         ...result.attrs,
         textAlign: String(node.attrs?.textAlign),
+      };
+    if (
+      ["paragraph", "heading"].includes(node.type) &&
+      Number.isInteger(node.attrs?.indent)
+    )
+      result.attrs = {
+        ...result.attrs,
+        indent: Math.max(0, Math.min(5, Number(node.attrs!.indent))),
+      };
+    if (node.type === "orderedList")
+      result.attrs = {
+        start: Math.max(1, Math.min(999, Number(node.attrs?.start) || 1)),
+      };
+    if (["tableCell", "tableHeader"].includes(node.type))
+      result.attrs = {
+        colspan: Math.max(1, Math.min(12, Number(node.attrs?.colspan) || 1)),
+        rowspan: Math.max(1, Math.min(100, Number(node.attrs?.rowspan) || 1)),
       };
     if (node.type === "image") {
       const src = String(node.attrs?.src || ""),
@@ -82,6 +140,84 @@ export function normalizeDocument(value: unknown): RichNode {
         throw new Error("Invalid document content.");
       result.content = node.content.map((c) => clean(c, depth + 1));
     }
+    const allowed: Record<string, string[]> = {
+      doc: [
+        "paragraph",
+        "heading",
+        "bulletList",
+        "orderedList",
+        "blockquote",
+        "codeBlock",
+        "horizontalRule",
+        "image",
+        "table",
+      ],
+      paragraph: ["text", "hardBreak"],
+      heading: ["text", "hardBreak"],
+      codeBlock: ["text"],
+      bulletList: ["listItem"],
+      orderedList: ["listItem"],
+      listItem: [
+        "paragraph",
+        "heading",
+        "bulletList",
+        "orderedList",
+        "blockquote",
+        "codeBlock",
+        "image",
+        "table",
+      ],
+      blockquote: [
+        "paragraph",
+        "heading",
+        "bulletList",
+        "orderedList",
+        "blockquote",
+        "codeBlock",
+        "image",
+        "table",
+      ],
+      table: ["tableRow"],
+      tableRow: ["tableCell", "tableHeader"],
+      tableCell: [
+        "paragraph",
+        "heading",
+        "bulletList",
+        "orderedList",
+        "blockquote",
+        "codeBlock",
+        "image",
+      ],
+      tableHeader: [
+        "paragraph",
+        "heading",
+        "bulletList",
+        "orderedList",
+        "blockquote",
+        "codeBlock",
+        "image",
+      ],
+    };
+    if (
+      (result.content || []).some(
+        (child) => !(allowed[node.type] || []).includes(child.type),
+      )
+    )
+      throw new Error("Invalid document structure.");
+    if (
+      [
+        "table",
+        "tableRow",
+        "tableCell",
+        "tableHeader",
+        "listItem",
+        "bulletList",
+        "orderedList",
+        "blockquote",
+      ].includes(node.type) &&
+      !result.content?.length
+    )
+      throw new Error("Empty structural block.");
     return result;
   }
   const result = clean(value, 0);
@@ -108,11 +244,9 @@ export function documentImages(node?: RichNode): string[] {
 export function textDocument(text: string): RichNode {
   return {
     type: "doc",
-    content: text
-      .split(/\n\s*\n/)
-      .map((line) => ({
-        type: "paragraph",
-        content: line ? [{ type: "text", text: line }] : [],
-      })),
+    content: text.split(/\n\s*\n/).map((line) => ({
+      type: "paragraph",
+      content: line ? [{ type: "text", text: line }] : [],
+    })),
   };
 }

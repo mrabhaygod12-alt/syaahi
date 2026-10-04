@@ -663,7 +663,7 @@ export default function ProfileView() {
           </div>
 
           <div className="card" style={{ padding: 24 }}>
-            <h3 style={{ margin: "0 0 10px" }}>Sign Out of All Sessions</h3>
+            <h3 style={{ margin: "0 0 10px" }}>Sign Out</h3>
             <p className="small" style={{ color: "#4b5563" }}>
               Need to switch devices or sign out safely? Click below.
             </p>

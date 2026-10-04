@@ -5,7 +5,13 @@ import Logo from "./Logo";
 
 export function SiteFooter() {
   const pathname = usePathname();
-  if (pathname?.startsWith("/lesson/")) return null;
+  if (
+    pathname?.startsWith("/lesson/") ||
+    pathname === "/write" ||
+    pathname === "/writer" ||
+    pathname?.startsWith("/writer/")
+  )
+    return null;
 
   return (
     <footer className="site-footer">

@@ -74,7 +74,7 @@ const groups: NavGroup[] = [
       {
         label: "Creator profile",
         detail: "Edit your biography and social links",
-        href: "/profile",
+        href: "/writer/profile",
       },
     ],
   },
@@ -165,7 +165,13 @@ export default function SiteHeader() {
     };
   }, []);
 
-  if (path?.startsWith("/lesson/")) return null;
+  if (
+    path?.startsWith("/lesson/") ||
+    path === "/write" ||
+    path === "/writer" ||
+    path?.startsWith("/writer/")
+  )
+    return null;
   const isCurrent = (href: string) =>
     path === href.split("?")[0] ||
     (href !== "/" && Boolean(path?.startsWith(`${href.split("?")[0]}/`)));

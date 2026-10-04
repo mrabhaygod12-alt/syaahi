@@ -1,4 +1,5 @@
 import type { Story } from "./stories";
+import { writerNames } from "./profile";
 
 export type PublicGuide = Pick<
   Story,
@@ -39,6 +40,15 @@ export function publicGuide(story: Story): PublicGuide {
     createdAt,
   };
 }
+export async function publicStoryViews(
+  stories: Story[],
+): Promise<PublicGuide[]> {
+  const names = await writerNames(stories.map((s) => s.user));
+  return stories.map((story) => ({
+    ...publicGuide(story),
+    authorName: names.get(story.user) || story.authorName,
+  }));
+}
 
 // Server-rendered public pages use the same backend as API requests. The
 // frontend must never silently fall back to an empty local database.
@@ -75,11 +85,11 @@ export const publicGuides = async (
   const store = await import("./stories");
   if (kind === "slug") {
     const story = await store.getPublicStory(value);
-    return story ? [publicGuide(story)] : [];
+    return story ? publicStoryViews([story]) : [];
   }
-  return (
+  return publicStoryViews(
     await (kind === "creator"
       ? store.listPublicStoriesByCreator(value)
-      : store.listPublicStories())
-  ).map(publicGuide);
+      : store.listPublicStories()),
+  );
 };

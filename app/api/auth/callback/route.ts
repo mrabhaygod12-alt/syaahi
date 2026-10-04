@@ -6,6 +6,7 @@ import { startSession } from "@/lib/auth/server";
 import { markEmailVerified } from "@/lib/billing/rewards";
 import { claimReferral } from "@/lib/billing/referrals";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
+import { enrollWriter, writerProfile } from "@/lib/writing/profile";
 async function handleGET(req: NextRequest) {
   const origin =
     (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
@@ -30,6 +31,27 @@ async function handleGET(req: NextRequest) {
       req.cookies.get("syaahi-oauth-workspace")?.value,
     );
     if (workspace) {
+      if (workspace === "writer") {
+        if (req.cookies.get("syaahi-oauth-mode")?.value === "signup")
+          await enrollWriter(account);
+        else if (!(await writerProfile(account.id))) {
+          await markEmailVerified(account.id);
+          const session = await startSession(account, req);
+          for (const cookie of session.cookies.getAll())
+            response.cookies.set(cookie);
+          response.headers.set(
+            "location",
+            new URL("/signup?workspace=writer&next=/writer", origin).href,
+          );
+          await client.auth.signOut({ scope: "local" });
+          for (const key of ["next", "consent", "ref", "workspace", "mode"])
+            response.cookies.set(`syaahi-oauth-${key}`, "", {
+              path: "/",
+              maxAge: 0,
+            });
+          return response;
+        }
+      }
       await setWorkspace(account.id, workspace);
       account.workspace = workspace;
     }
@@ -69,6 +91,7 @@ async function handleGET(req: NextRequest) {
   response.cookies.set("syaahi-oauth-consent", "", { path: "/", maxAge: 0 });
   response.cookies.set("syaahi-oauth-ref", "", { path: "/", maxAge: 0 });
   response.cookies.set("syaahi-oauth-workspace", "", { path: "/", maxAge: 0 });
+  response.cookies.set("syaahi-oauth-mode", "", { path: "/", maxAge: 0 });
   return response;
 }
 

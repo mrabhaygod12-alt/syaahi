@@ -22,6 +22,8 @@ async function main() {
     "browser-test-password",
   );
   await markEmailVerified(user.id);
+  const { enrollWriter } = await import("../lib/writing/profile");
+  await enrollWriter(user);
   await setWorkspace(user.id, "writer");
   const response = await startSession(
       user,
@@ -106,7 +108,7 @@ async function main() {
     assert(
       await page
         .getByRole("heading", {
-          name: "Your stories, from draft to publication",
+          name: "For the curious mind.",
         })
         .isVisible(),
     );
@@ -123,6 +125,7 @@ async function main() {
       "Read your notes, close the book, and explain the concept in your own words. Check errors against your source and review weak ideas again tomorrow.",
     );
     await page.getByText("Saved to your account.", { exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Insert", exact: true }).click();
     await page.getByRole("button", { name: "Image", exact: true }).click();
     const image = await sharp({
       create: { width: 600, height: 350, channels: 3, background: "#b4d7c1" },
@@ -164,9 +167,7 @@ async function main() {
     assert((await page.locator(".story-prose h2").count()) > 0);
     assert(await page.getByAltText("A green study illustration").isVisible());
     await page.reload();
-    await page
-      .getByRole("button", { name: /A useful university study guide/ })
-      .click();
+    await page.getByRole("textbox", { name: "Story editor" }).waitFor();
     await page.locator(".writer-content img").waitFor();
     assert.equal(
       await page.locator("#story-title").inputValue(),

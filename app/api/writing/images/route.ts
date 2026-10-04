@@ -3,12 +3,15 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { uploadWritingImage } from "@/lib/writing/images";
+import { writerAccess } from "@/lib/writing/profile";
 export const runtime = "nodejs";
 export const POST = apiHandler(async (req: NextRequest) => {
   const denied =
     (await authError(req)) ||
     (await rateLimit(req, "writing-upload", 8, 60000));
   if (denied) return denied;
+  const access = await writerAccess((await currentUser(req))!.id);
+  if (access) return access;
   try {
     const data = await req.formData(),
       file = data.get("image"),

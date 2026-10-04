@@ -118,6 +118,28 @@ export async function listStories(user: string): Promise<Story[]> {
     .filter((s): s is Story => !!s);
 }
 
+export async function deleteDraft(user: string, id: string) {
+  if (useMongo()) {
+    const deleted = await (
+      await collection("stories")
+    ).deleteOne({
+      _id: id,
+      user,
+      status: { $in: ["draft", "changes_requested"] },
+    });
+    if (!deleted.deletedCount)
+      throw new Error("Only your editable drafts can be deleted.");
+  } else {
+    const deleted = db()
+      .prepare(
+        "DELETE FROM stories WHERE id=? AND user_id=? AND status IN ('draft','changes_requested')",
+      )
+      .run(id, user);
+    if (!deleted.changes)
+      throw new Error("Only your editable drafts can be deleted.");
+  }
+}
+
 export async function listReviewStories(): Promise<Story[]> {
   if (useMongo())
     return (
@@ -233,6 +255,7 @@ export async function saveStory(
     id?: string;
     submit?: boolean;
     authorName: string;
+    creatorSlug?: string;
     document?: unknown;
     expectedUpdatedAt?: string;
   },
@@ -284,6 +307,7 @@ export async function saveStory(
       throw new Error("This submission is under editorial review.");
     const story: Story = {
       ...existing,
+      authorName: input.authorName.trim().slice(0, 80) || existing.authorName,
       creatorSlug:
         existing.creatorSlug || toCreatorSlug(existing.authorName, user),
       title,
@@ -353,10 +377,9 @@ export async function saveStory(
     id: randomUUID(),
     user,
     authorName: input.authorName.trim().slice(0, 80) || "Syaahi creator",
-    creatorSlug: toCreatorSlug(
-      input.authorName.trim() || "Syaahi creator",
-      user,
-    ),
+    creatorSlug:
+      input.creatorSlug ||
+      toCreatorSlug(input.authorName.trim() || "Syaahi creator", user),
     title,
     summary,
     body,

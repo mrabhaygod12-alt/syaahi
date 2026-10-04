@@ -1,88 +1,112 @@
 import { notFound } from "next/navigation";
 import { publicGuides } from "@/lib/writing/public";
-const listPublicStoriesByCreator = (slug: string) =>
-  publicGuides("creator", slug);
+import { publicCreator } from "@/lib/writing/public-profile";
 import { pageMeta } from "@/lib/seo";
-
 export const dynamic = "force-dynamic";
-
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const stories = await listPublicStoriesByCreator(slug);
-  if (!stories.length)
-    return pageMeta({
-      title: "Creator not found",
-      description: "This Syaahi creator profile is unavailable.",
-      path: "/community",
-      noindex: true,
-    });
+  const [profile, stories] = await Promise.all([
+    publicCreator(slug),
+    publicGuides("creator", slug),
+  ]);
+  const name = profile?.name || stories[0]?.authorName;
   return pageMeta({
-    title: `${stories[0].authorName} | Syaahi Author`,
-    description: `Read reviewed articles and guides from ${stories[0].authorName} on Syaahi.`,
-    path: `/creators/${stories[0].creatorSlug}`,
+    title: name ? `${name} | Syaahi Author` : "Creator not found",
+    description: profile?.bio || `Read reviewed stories on Syaahi.`,
+    path: `/creators/${slug}`,
+    noindex: !name,
   });
 }
-
 export default async function CreatorPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const stories = await listPublicStoriesByCreator(slug);
-  if (!stories.length) notFound();
-  const creator = stories[0];
-  const firstPublished = stories
-    .map((story) => story.publishedAt || story.createdAt)
-    .sort()[0];
+  const [profile, stories] = await Promise.all([
+    publicCreator(slug),
+    publicGuides("creator", slug),
+  ]);
+  if (!profile && !stories.length) notFound();
+  const name = profile?.name || stories[0].authorName;
   return (
-    <main className="wrap feature-section">
-      <section className="interactive-panel" style={{ maxWidth: 860 }}>
-        <span className="eyebrow">PUBLIC SYAAHI CREATOR PROFILE</span>
-        <h1>{creator.authorName}</h1>
-        <p className="small">
-          This profile is created only from articles approved by Syaahi’s
-          editorial review. It does not disclose the creator’s email or private
-          drafts.
-        </p>
-        <p className="small">
-          First published {new Date(firstPublished).toLocaleDateString()}
-        </p>
-      </section>
-      <section style={{ marginTop: 24 }}>
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">REVIEWED ARTICLES AND GUIDES</span>
-            <h2>Published by {creator.authorName}</h2>
+    <div className="writer-app">
+      <div className="writer-content-layout">
+        <section className="writer-primary">
+          <p className="writer-kicker">SYAAHI WRITERS</p>
+          <h1>{name}</h1>
+          <div className="writer-tabs">
+            <a href="#stories">Stories</a>
+            <a href="#about">About</a>
           </div>
-        </div>
-        <div className="steps-grid">
-          {stories.map((story) => (
-            <article key={story.slug} className="interactive-panel">
-              <h3>{story.title}</h3>
-              <p>{story.summary}</p>
-              <div className="about-tags">
-                {story.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-              <p className="small">
-                Published{" "}
-                {new Date(
-                  story.publishedAt || story.createdAt,
-                ).toLocaleDateString()}
+          <div id="stories">
+            {stories.length ? (
+              stories.map((story) => (
+                <article key={story.slug} className="writer-story-row">
+                  <div>
+                    <p className="writer-story-byline">
+                      {name} ·{" "}
+                      {new Date(
+                        story.publishedAt || story.createdAt,
+                      ).toLocaleDateString("en-IN")}
+                    </p>
+                    <a
+                      className="writer-story-title"
+                      href={`/guides/${story.slug}`}
+                    >
+                      <h2>{story.title}</h2>
+                    </a>
+                    <p className="writer-story-summary">{story.summary}</p>
+                    <div className="writer-story-meta">
+                      {story.tags.map((tag) => (
+                        <span key={tag} className="writer-topic">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="writer-empty">
+                Published stories will appear here.
               </p>
-              <a className="btn dark" href={`/guides/${story.slug}`}>
-                Read article →
-              </a>
-            </article>
-          ))}
-        </div>
-      </section>
-    </main>
+            )}
+          </div>
+          {profile?.about && (
+            <section className="writer-about" id="about">
+              <h2>About {name}</h2>
+              <p>{profile.about}</p>
+            </section>
+          )}
+        </section>
+        <aside className="writer-right-rail">
+          {profile?.avatar ? (
+            <span className="writer-avatar" style={{ width: 88, height: 88 }}>
+              <img src={profile.avatar} alt={name} />
+            </span>
+          ) : (
+            <span className="writer-avatar" style={{ width: 88, height: 88 }}>
+              {name.charAt(0)}
+            </span>
+          )}
+          <h3>
+            {name} <small>{profile?.pronouns?.join(" · ")}</small>
+          </h3>
+          <p>{profile?.bio}</p>
+          {profile?.website && (
+            <a href={profile.website} target="_blank" rel="noopener noreferrer">
+              Visit website ↗
+            </a>
+          )}
+          <hr />
+          <a href="/community">Discover more stories →</a>
+        </aside>
+      </div>
+    </div>
   );
 }

@@ -56,7 +56,11 @@ async function handlePATCH(req: NextRequest) {
         { error: "Choose student or writer." },
         { status: 400 },
       );
-    await setWorkspace(user.id, workspaceKind(body.workspace)!);
+    if (body.workspace === "writer") {
+      const { writerAccess } = await import("@/lib/writing/profile");
+      const access = await writerAccess(user.id);
+      if (access) return access;
+    }
     updates.workspace = workspaceKind(body.workspace);
   }
 
@@ -114,6 +118,9 @@ async function handlePATCH(req: NextRequest) {
       { status: 400 },
     );
   }
+  // Validate the entire request before applying the workspace change.
+  if (updates.workspace)
+    await setWorkspace(user.id, updates.workspace as "student" | "writer");
 
   if (useMongo()) {
     await (
@@ -150,7 +157,10 @@ async function handlePATCH(req: NextRequest) {
           .run(avatarVal, user.id);
       }
     } catch {
-      /* ignore local SQLite schema difference */
+      return NextResponse.json(
+        { error: "Profile could not be saved. Please retry." },
+        { status: 500 },
+      );
     }
   }
 

@@ -1,5 +1,9 @@
 # Syaahi release status
 
+## Writer redesign — 4 October 2026
+
+The local checkout now includes an accessible in-page auth dialog, explicit same-email writer enrollment, independent writer profiles, dedicated writer navigation/pages and a functional rich-text ribbon. Writing without a title autosaves a private draft. Safe formatting and tables persist through preview/public rendering. Student accounts cannot gain writing access by changing their workspace preference or upgrading billing; both workspaces use the same existing wallet/subscription. See [detailed findings, verification and 54 improvements](WRITER-PLATFORM-AUDIT-2026-10-04.md). Complete Medium/Word parity and deployed provider/payment behavior are not claimed. These changes require coordinated frontend/API deployment.
+
 ## Latest change: signup and referral wallets
 
 New signup allowance is 19 credits (6⅓ tokens), replacing the historical five-section offer. Existing users retain their balances. An eligible verified signup gives the inviter five reward credits. Password users verify by a one-hour emailed link; Google uses its confirmed identity. Reward credits transfer atomically into study balance; repeated login, verification and transfer retries do not mint extra credits. Both SQLite and MongoDB tests cover these rules and the 20-reward monthly cap. Resend sender/key configuration and actual email delivery still need deployment verification.
