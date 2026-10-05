@@ -358,6 +358,11 @@ export default function AuthForm({
           </p>
         )}
       </form>
+      {mode === "login" && (
+        <p className="small">
+          <a href="/forgot-password">Forgot your password?</a>
+        </p>
+      )}
       <p className="small">
         {mode === "signup" ? (
           <>

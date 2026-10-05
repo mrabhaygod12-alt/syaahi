@@ -44,6 +44,9 @@ export interface PageBrief {
   brief?: string;
   /** Note language chosen by the student before generation. */
   language?: Lang;
+  sections?: Array<{ objective: string; prerequisite: string }>;
+  objective?: string;
+  prerequisite?: string;
 }
 
 export function pagePrompt(
@@ -85,6 +88,12 @@ export function pagePrompt(
       content:
         `Topic: ${topic}\nLength: ${words}` +
         (brief ? `\nStudent profile: ${brief}` : "") +
+        (extra?.objective
+          ? `\nLearning objective (learner-reviewed): ${extra.objective.slice(0, 400)}`
+          : "") +
+        (extra?.prerequisite
+          ? `\nAssumed prior knowledge (learner-reviewed): ${extra.prerequisite.slice(0, 400)}`
+          : "") +
         (context ? `\nSource material:\n${context}` : ""),
     },
   ];

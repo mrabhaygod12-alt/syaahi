@@ -16,6 +16,8 @@ import { normalizeLang } from "@/lib/ai/prompts";
 import { balance } from "@/lib/credits/store";
 import { rateLimit } from "@/lib/ratelimit";
 import { getDocument } from "@/lib/documents/store";
+import { sectionGoals } from "@/lib/lesson/sections";
+import { scanReviews } from "@/lib/study/scans";
 import {
   heuristicLessonPlan,
   parsePlanJson,
@@ -41,6 +43,26 @@ async function handlePOST(req: NextRequest) {
   const limited = await rateLimit(req, "jobs", 30, 60_000);
   if (limited) return limited;
   const body = await req.json().catch(() => ({}));
+  const fingerprint = createHash("sha256")
+    .update(
+      JSON.stringify([
+        body.topics,
+        body.style,
+        body.context,
+        body.brief,
+        body.sourceUrl,
+        body.sourceKind,
+        body.sourceName,
+        body.documentId,
+        body.documentRange,
+        body.language,
+        body.research,
+        body.intelligentPlan,
+        body.sections,
+        body.sourceScans,
+      ]),
+    )
+    .digest("hex");
   const requestId = /^[-\w]{10,80}$/.test(String(body.requestId || ""))
     ? createHash("sha256")
         .update(user + "\n" + body.requestId)
@@ -50,6 +72,14 @@ async function handlePOST(req: NextRequest) {
   if (requestId) {
     const old = await getJob(requestId);
     if (old?.user === user) {
+      if (old.requestFingerprint && old.requestFingerprint !== fingerprint)
+        return NextResponse.json(
+          {
+            error:
+              "This request already started a different outline. Review the changed outline and start a new request.",
+          },
+          { status: 409 },
+        );
       kickWorker();
       return NextResponse.json(
         { jobId: old.id, total: old.total, credits: old.total, reused: true },
@@ -180,7 +210,13 @@ async function handlePOST(req: NextRequest) {
   let job;
   try {
     job = await createJob(user, topics, style, {
+      sourceScans: scanReviews(body.sourceScans),
+      sections:
+        body.sections !== undefined
+          ? sectionGoals(topics, body.sections)
+          : undefined,
       requestId,
+      requestFingerprint: fingerprint,
       documentId,
       documentRange,
       context: sourceContext,

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLesson } from "./LessonProvider";
 import { requestJson } from "@/lib/http-client";
-import { questionId, answerCorrect } from "@/lib/study/quiz";
+import { questionId, answerCorrect, quizVersion } from "@/lib/study/quiz";
 interface Attempt {
   id: string;
   mode: "practice" | "exam";
@@ -13,7 +13,7 @@ interface Attempt {
   total: number;
 }
 export default function QuizWorkspace() {
-  const { job } = useLesson();
+  const { job, refresh } = useLesson();
   const quiz = job?.practice?.quiz || [];
   const [attempt, setAttempt] = useState<Attempt | null>(null),
     [mode, setMode] = useState("practice"),
@@ -23,6 +23,7 @@ export default function QuizWorkspace() {
     [error, setError] = useState(""),
     [format, setFormat] = useState("mixed"),
     [difficulty, setDifficulty] = useState("standard");
+  const [showHint, setShowHint] = useState(false);
   useEffect(() => {
     if (!job) return;
     let alive = true;
@@ -41,7 +42,10 @@ export default function QuizWorkspace() {
     revealed =
       !!attempt &&
       (attempt.submitted || (attempt.mode === "practice" && !!stored));
-  useEffect(() => setAnswer(stored || ""), [key, stored]);
+  useEffect(() => {
+    setAnswer(stored || "");
+    setShowHint(false);
+  }, [key, stored]);
   async function act(action: string, extra: Record<string, unknown> = {}) {
     if (!job) return;
     setBusy(true);
@@ -67,7 +71,17 @@ export default function QuizWorkspace() {
   }
   async function build() {
     if (!job) return;
+    if (
+      quiz.length &&
+      attempt &&
+      !attempt.submitted &&
+      attempt.version === quizVersion(quiz)
+    ) {
+      setError("Submit your current attempt before rebuilding practice.");
+      return;
+    }
     setBusy(true);
+    setError("");
     try {
       const { response, data } = await requestJson(
         "/api/practice",
@@ -90,7 +104,9 @@ export default function QuizWorkspace() {
         90000,
       );
       if (!response.ok) throw new Error(data.error);
-      location.reload();
+      await refresh();
+      setAttempt(null);
+      setIndex(0);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -163,7 +179,7 @@ export default function QuizWorkspace() {
               Generate practice
             </button>
           </>
-        ) : !attempt || attempt.version !== quiz.map(questionId).join("|") ? (
+        ) : !attempt || attempt.version !== quizVersion(quiz) ? (
           <>
             <label>
               Mode
@@ -210,6 +226,18 @@ export default function QuizWorkspace() {
               <span className="quiz-chip">{attempt.mode}</span>
             </div>
             <h2>{q.q}</h2>
+            {attempt.mode === "practice" && !revealed && q.hint && (
+              <div>
+                <button
+                  className="btn light"
+                  onClick={() => setShowHint((h) => !h)}
+                  aria-expanded={showHint}
+                >
+                  Show a hint
+                </button>
+                {showHint && <p role="status">{q.hint}</p>}
+              </div>
+            )}
             {q.type === "mcq" && q.options?.length ? (
               <div className="quiz-options">
                 {q.options.map((o, i) => (
@@ -263,7 +291,7 @@ export default function QuizWorkspace() {
                 </strong>
                 <p>Expected answer: {q.answer}</p>
                 <p>
-                  {(q as any).explanation ||
+                  {q.explanation ||
                     "Typed answers accept differences in case, spacing and trailing punctuation, plus saved accepted variants. Broader paraphrases require human review."}
                 </p>
               </div>
@@ -289,10 +317,22 @@ export default function QuizWorkspace() {
                 <h2>
                   {attempt.correct}/{attempt.total} · saved practice result
                 </h2>
+                <label>
+                  Next attempt mode
+                  <select
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value)}
+                  >
+                    <option value="practice">Practice with feedback</option>
+                    <option value="exam">
+                      Exam practice, delayed feedback
+                    </option>
+                  </select>
+                </label>
                 <button
                   className="btn light"
                   disabled={busy}
-                  onClick={() => void act("start", { mode: attempt.mode })}
+                  onClick={() => void act("start", { mode })}
                 >
                   Start another attempt
                 </button>
@@ -313,6 +353,50 @@ export default function QuizWorkspace() {
               the server; these are study results, not proctored grades.
             </p>
           </>
+        )}
+        {quiz.length > 0 && (
+          <details className="source-review">
+            <summary>Rebuild practice questions</summary>
+            <p className="small">
+              New questions replace this lesson’s current quiz and flashcards.
+              Submitted results remain in your study history. Finish any active
+              attempt first.
+            </p>
+            <label>
+              Question style
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+              >
+                <option value="mixed">Mixed</option>
+                <option value="mcq">Multiple choice</option>
+                <option value="short">Typed answer</option>
+              </select>
+            </label>
+            <label>
+              Difficulty
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+              >
+                <option value="foundation">Foundation</option>
+                <option value="standard">Standard</option>
+                <option value="challenge">Challenge</option>
+              </select>
+            </label>
+            <button
+              className="btn light"
+              disabled={
+                busy ||
+                (!!attempt &&
+                  !attempt.submitted &&
+                  attempt.version === quizVersion(quiz))
+              }
+              onClick={() => void build()}
+            >
+              {busy ? "Working…" : "Rebuild quiz and flashcards"}
+            </button>
+          </details>
         )}
       </div>
     </section>

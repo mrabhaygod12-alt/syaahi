@@ -13,8 +13,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm run check
       - run: npm run test:security
+      - run: npm run test:monthly-catalog
+      - run: npm run test:student-studio
       - run: npm test
       - run: npx tsx scripts/test-study.ts
       - run: npx tsx scripts/test-referrals.ts
@@ -24,3 +27,6 @@ jobs:
       - run: npx tsx scripts/test-office.ts
       - run: npx tsx scripts/test-proxy.ts
       - run: npm run build
+        env:
+          NEXT_DIST_DIR: .next-validation
+      - run: npm run test:student-studio-browser

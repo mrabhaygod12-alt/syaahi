@@ -1,3 +1,5 @@
+import { sectionGoals } from "@/lib/lesson/sections";
+import { scanReviews } from "@/lib/study/scans";
 const strings = (value: unknown, max: number, limit: number) =>
   Array.isArray(value)
     ? value
@@ -75,6 +77,19 @@ export function composerDraft(value: unknown): Record<string, unknown> | null {
       throw new Error("Invalid planned page count.");
     d.pages = v.pages;
   }
+  if (v.sections !== undefined)
+    d.sections = sectionGoals(
+      typeof d.outline === "string"
+        ? d.outline
+            .split("\n")
+            .map((t) => t.trim())
+            .filter(Boolean)
+            .slice(0, 24)
+        : [],
+      v.sections,
+    );
+  if ([1, 2, 3].includes(v.stage)) d.stage = v.stage;
+  if (v.scans !== undefined) d.scans = scanReviews(v.scans);
   if (
     v.document &&
     typeof v.document.id === "string" &&

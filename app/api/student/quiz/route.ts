@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { getJob } from "@/lib/jobs/store";
 import { accessRole } from "@/lib/study/collaboration";
 import { readState, mutateState } from "@/lib/study/state";
-import { answerCorrect, questionId } from "@/lib/study/quiz";
+import { answerCorrect, questionId, quizVersion } from "@/lib/study/quiz";
 import { studyActivity } from "@/lib/study/hub";
 interface Attempt {
   id: string;
@@ -44,7 +44,15 @@ export const POST = apiHandler(async (req: NextRequest) => {
       { status: 404 },
     );
   const questions = job.practice.quiz,
-    version = questions.map(questionId).join("|");
+    version = quizVersion(questions);
+  if (new Set(questions.map(questionId)).size !== questions.length)
+    return NextResponse.json(
+      {
+        error:
+          "This quiz contains duplicate questions. Ask its owner to rebuild practice.",
+      },
+      { status: 409 },
+    );
   try {
     const attempt = await mutateState<Attempt | null>(
       owner,

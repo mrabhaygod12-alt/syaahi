@@ -1,0 +1,108 @@
+.reader-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid var(--line, #deddd5);
+  border-radius: 16px;
+  background: var(--paper, #fff);
+  align-items: end;
+}
+.reader-controls label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.reader-controls label:has(input) {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.reader-controls select {
+  min-height: 44px;
+  max-width: 100%;
+}
+.reading-page {
+  max-width: min(100%, var(--reading-width, 68ch));
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 40px);
+  font-family: Arial, "Nirmala UI", sans-serif;
+  font-size: var(--reading-size, 20px);
+  line-height: var(--reading-line, 1.7);
+  background: #fffdf5;
+  color: #262924;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+}
+.reading-page.white {
+  background: #fff;
+  color: #222;
+}
+.reading-page.night {
+  background: #202620;
+  color: #f4f1e7;
+}
+.reading-page h1 {
+  font-size: 1.5em;
+  line-height: 1.3;
+}
+.reading-page h2 {
+  font-size: 1.2em;
+  line-height: 1.4;
+}
+.reading-page .block {
+  margin: 1em 0;
+}
+.reading-page table {
+  display: block;
+  overflow: auto;
+  width: 100%;
+  font-size: 0.9em;
+}
+.reading-page th,
+.reading-page td {
+  padding: 8px;
+  border: 1px solid #9d9f93;
+}
+.reading-page pre {
+  white-space: pre-wrap;
+}
+.reading-page .bullet-dot {
+  margin-right: 0.5em;
+}
+.reading-page .term strong {
+  display: inline;
+}
+.reading-page .katex {
+  font-size: 1em;
+}
+.reading-page .katex-display {
+  overflow: auto;
+}
+.reading-page .diagram-node,
+.reading-page .concepts span {
+  display: block;
+  margin: 0.6em 0;
+  padding: 0.4em;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+.reading-page .diagram-node span {
+  margin-right: 0.8em;
+}
+.reader-focus .notes-tpl-blurb,
+.reader-focus .note-template-picker,
+.reader-focus .section-heading,
+.reader-focus .note-history,
+.reader-focus .notes-dots {
+  display: none;
+}
+.reader-focus .notes-toolbar {
+  position: static;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notes-room * {
+    scroll-behavior: auto !important;
+  }
+}

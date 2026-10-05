@@ -19,6 +19,14 @@ export async function mongoCreateJob(job: Job) {
     if (existing) {
       if (existing.user !== job.user)
         throw new Error("Invalid generation request.");
+      if (
+        job.requestFingerprint &&
+        existing.requestFingerprint &&
+        job.requestFingerprint !== existing.requestFingerprint
+      )
+        throw new Error(
+          "This generation request belongs to a different outline.",
+        );
       Object.assign(job, existing);
       return;
     }

@@ -3,6 +3,7 @@ import { orderedKeys } from "@/lib/ai/keys";
 import { NextRequest, NextResponse } from "next/server";
 import { authError } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
+import { prepareScan } from "@/lib/intake/image";
 export const runtime = "nodejs";
 async function handlePOST(req: NextRequest) {
   const denied =
@@ -41,6 +42,27 @@ async function handlePOST(req: NextRequest) {
       { status: 400 },
     );
   try {
+    let preparation;
+    try {
+      preparation = JSON.parse(String(form?.get("preparation") || "null"));
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid scan preparation." },
+        { status: 400 },
+      );
+    }
+    let scan;
+    try {
+      scan = await prepareScan(bytes, preparation);
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "Could not prepare this scan. Use a valid crop and an image under 20 megapixels.",
+        },
+        { status: 400 },
+      );
+    }
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
       {
@@ -56,8 +78,8 @@ async function handlePOST(req: NextRequest) {
                 },
                 {
                   inline_data: {
-                    mime_type: file.type,
-                    data: bytes.toString("base64"),
+                    mime_type: "image/png",
+                    data: scan.bytes.toString("base64"),
                   },
                 },
               ],
@@ -97,6 +119,8 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({
       text,
       source: file.name,
+      preparation: scan.provenance,
+      unclearCount: (text.match(/\[unclear\]/gi) || []).length,
       warning: "Check this transcription against your image before generating.",
     });
   } catch {

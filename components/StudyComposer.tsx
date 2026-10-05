@@ -1,13 +1,18 @@
 "use client";
-import { tokenLabel } from "@/lib/billing/packs";
 import { useEffect, useRef, useState } from "react";
 import LectureRecorder from "./LectureRecorder";
 import { useRouter } from "next/navigation";
 import { COURSE_PACKS } from "@/lib/course-packs";
 import { useAccount } from "./WorkspaceProvider";
 import { requestJson } from "@/lib/http-client";
+import ImagePreparation from "./ImagePreparation";
+import type { ScanPreparation } from "@/lib/intake/image";
+import "./study-composer.css";
+import { sectionGoals, type SectionGoal } from "@/lib/lesson/sections";
+import { scanReviews, type ScanReview } from "@/lib/study/scans";
 interface Plan {
   topics: string[];
+  sections?: SectionGoal[];
   context: string;
   sources: Array<{ title: string; url: string }>;
   readingLinks: Array<{
@@ -35,6 +40,16 @@ export default function StudyComposer({
     generationRequest = useRef("");
   const [draftStatus, setDraftStatus] = useState(""),
     [confirmed, setConfirmed] = useState(false);
+  const [stage, setStage] = useState<1 | 2 | 3>(1);
+  const [sections, setSections] = useState<SectionGoal[]>([]);
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scans, setScans] = useState<ScanReview[]>([]);
+  const stageTitle = useRef<HTMLHeadingElement>(null);
+  function goToStage(next: 1 | 2 | 3) {
+    setStage(next);
+    setError("");
+    requestAnimationFrame(() => stageTitle.current?.focus());
+  }
   const saveAgain = useRef(false);
   const [draftPulse, setDraftPulse] = useState(0);
   const [localReady, setLocalReady] = useState(false);
@@ -133,8 +148,10 @@ export default function StudyComposer({
         Array.isArray(d.plan.sources) &&
         Array.isArray(d.plan.readingLinks) &&
         typeof d.plan.context === "string"
-      )
+      ) {
         setPlan(d.plan);
+        setStage(2);
+      }
       if (
         d.document &&
         typeof d.document.id === "string" &&
@@ -151,6 +168,20 @@ export default function StudyComposer({
       if (Number.isInteger(d.pages) && d.pages >= 0 && d.pages <= 24)
         setPages(d.pages);
       if (typeof d.research === "boolean") setResearch(d.research);
+      if (Array.isArray(d.sections))
+        setSections(
+          sectionGoals(
+            typeof d.outline === "string"
+              ? d.outline
+                  .split("\n")
+                  .map((s: string) => s.trim())
+                  .filter(Boolean)
+              : [],
+            d.sections,
+          ),
+        );
+      if (d.plan && [2, 3].includes(d.stage)) setStage(d.stage);
+      setScans(scanReviews(d.scans));
     };
     void requestJson("/api/student/hub")
       .then(({ response, data }) => {
@@ -189,7 +220,7 @@ export default function StudyComposer({
   useEffect(() => {
     setConfirmed(false);
     generationRequest.current = "";
-  }, [outline, plan, language, detail]);
+  }, [outline, plan, language, detail, sections]);
   useEffect(() => {
     if (!user?.id || !localReady) return;
     const draft = {
@@ -206,6 +237,9 @@ export default function StudyComposer({
       documentRange,
       pages,
       research,
+      sections,
+      stage,
+      scans,
     };
     const key = `syaahi-composer:${user.id}`;
     try {
@@ -264,6 +298,9 @@ export default function StudyComposer({
     learningGoal,
     outline,
     plan,
+    sections,
+    stage,
+    scans,
     document,
     documentRange,
     pages,
@@ -288,6 +325,10 @@ export default function StudyComposer({
         .join("\n"),
     );
     setSource(`${pack.institution} course-pack starter`);
+    setSourceUrl("");
+    setDocument(null);
+    setScans([]);
+    setScanFile(null);
     setPlan(null);
   }, []);
   useEffect(() => {
@@ -308,7 +349,12 @@ export default function StudyComposer({
   const scrollToTarget = (ref: React.RefObject<HTMLElement | null>) => {
     if (!ref.current) return;
     const y = ref.current.getBoundingClientRect().top + window.pageYOffset - 36;
-    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    window.scrollTo({
+      top: Math.max(0, y),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
   };
 
   useEffect(() => {
@@ -324,7 +370,24 @@ export default function StudyComposer({
       return () => clearTimeout(timer);
     }
   }, [plan, busy]);
-  async function upload(file: File) {
+  async function upload(file: File, preparation?: ScanPreparation) {
+    if (file.type.startsWith("image/") && !preparation) {
+      if (scans.length >= 6) {
+        setError(
+          "Keep at most six scans in one draft. Start another lesson for additional scans.",
+        );
+        return;
+      }
+      if (
+        !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+        file.size > 8 * 1024 * 1024
+      ) {
+        setError("Use PNG, JPEG or WebP under 8 MB.");
+        return;
+      }
+      setScanFile(file);
+      return;
+    }
     setDocument(null);
     setBusy("Reading your material...");
     setError("");
@@ -338,6 +401,7 @@ export default function StudyComposer({
           : "syllabus";
       const form = new FormData();
       form.append("file", file);
+      if (preparation) form.append("preparation", JSON.stringify(preparation));
       const response = await fetch(`/api/${endpoint}`, {
         method: "POST",
         body: form,
@@ -346,6 +410,24 @@ export default function StudyComposer({
       if (!response.ok)
         throw new Error(data.error || "Could not read this file.");
       const extracted = data.text || data.context || data.transcript || "";
+      if (preparation) {
+        setScanFile(null);
+        setScans((old) =>
+          [
+            ...old,
+            {
+              id: crypto.randomUUID(),
+              name: file.name,
+              ...data.preparation,
+              unclearCount: data.unclearCount || 0,
+              reviewed: false,
+            },
+          ].slice(-6),
+        );
+        setSourceNotice(
+          `Scan prepared at ${data.preparation?.rotation || 0}°. ${data.unclearCount || 0} unreadable markers. Extraction accuracy is unverified; correct the text below before planning.`,
+        );
+      }
       setContext((previous) =>
         (
           (previous ? previous + "\n\n" : "") +
@@ -387,6 +469,7 @@ export default function StudyComposer({
         ...items.filter((item) => item.id !== data.id),
       ]);
       setContext("");
+      setScans([]);
       setSource(data.name);
       setSourceUrl("");
       setSourceNotice(
@@ -399,6 +482,18 @@ export default function StudyComposer({
     }
   }
   async function prepare(pageOverride?: number) {
+    if (busy) return;
+    if (scanFile) {
+      setError("Read or cancel the prepared scan before planning.");
+      return;
+    }
+    if (scans.some((s) => !s.reviewed)) {
+      goToStage(1);
+      setError(
+        "Review the extracted scan text and confirm its unreadable areas before planning.",
+      );
+      return;
+    }
     const targetPages = typeof pageOverride === "number" ? pageOverride : pages;
     setBusy("Finding sources and planning...");
     setError("");
@@ -458,6 +553,8 @@ export default function StudyComposer({
       if (!response.ok) throw new Error(data.error || "Planning failed.");
       setPlan(data);
       setOutline(data.topics.join("\n"));
+      setSections(sectionGoals(data.topics, data.sections));
+      goToStage(2);
       setTimeout(() => {
         scrollToTarget(planSectionRef);
       }, 120);
@@ -468,7 +565,7 @@ export default function StudyComposer({
     }
   }
   async function generate() {
-    if (!plan || !confirmed || busy) return;
+    if (!plan || !confirmed || busy || stage !== 3) return;
     generationRequest.current ||= crypto.randomUUID();
     setBusy("Starting your study workspace...");
     setError("");
@@ -483,6 +580,8 @@ export default function StudyComposer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topics,
+          sections: sectionGoals(topics, sections),
+          sourceScans: scans,
           requestId: generationRequest.current,
           documentId: document?.id,
           documentRange,
@@ -513,6 +612,29 @@ export default function StudyComposer({
   }
   return (
     <div className="composer-area">
+      <nav aria-label="Lesson creation steps" className="composer-stepper">
+        {([1, 2, 3] as const).map((step) => (
+          <button
+            key={step}
+            type="button"
+            aria-current={stage === step ? "step" : undefined}
+            disabled={
+              !!busy || (step > 1 && !plan) || (step === 3 && !outline.trim())
+            }
+            onClick={() => goToStage(step)}
+          >
+            <span>{step}</span>
+            {["Input", "Outline", "Credits"][step - 1]}
+          </button>
+        ))}
+      </nav>
+      <h2 ref={stageTitle} tabIndex={-1} className="composer-stage-title">
+        {stage === 1
+          ? "Choose your material"
+          : stage === 2
+            ? "Shape your study outline"
+            : "Review before generation"}
+      </h2>
       <p role="status" className="small">
         {draftStatus}
       </p>
@@ -537,6 +659,9 @@ export default function StudyComposer({
                       documentRange,
                       pages,
                       research,
+                      sections,
+                      stage,
+                      scans,
                     },
                     null,
                     2,
@@ -555,340 +680,398 @@ export default function StudyComposer({
           Download your unsaved draft before reloading
         </button>
       )}
-      <div className="study-composer">
-        <label className="sr-only" htmlFor="study-request">
-          What would you like to understand?
-        </label>
-        <textarea
-          id="study-request"
-          rows={3}
-          maxLength={100000}
-          placeholder="Ask about a topic, paste your notes, or add a YouTube lecture..."
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setPlan(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && text.trim()) {
-              if (
-                !text.includes("\n") ||
-                /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(
-                  text.trim(),
-                )
-              ) {
-                e.preventDefault();
-                if (!busy) void prepare();
-              }
-            }
-          }}
-        />
-        <div className="composer-actions">
-          <div className="attachment-actions">
-            <button
-              onClick={() => input.current?.click()}
-              disabled={!!busy}
-              className="attach-btn"
-            >
-              <span aria-hidden>＋</span> Add material
-            </button>
-            <LectureRecorder
-              onFile={(file) => void upload(file)}
-              disabled={!!busy}
-            />
-            <span className="attachment-help">Documents, images, audio</span>
-            <input
-              ref={input}
-              type="file"
-              accept=".pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.webm"
-              hidden
-              onChange={(e) => {
-                if (e.target.files?.[0]) void upload(e.target.files[0]);
-                e.target.value = "";
-              }}
-            />
-          </div>
-          <button
-            className="send-btn"
-            aria-label="Plan my notes"
-            disabled={!!busy || !text.trim()}
-            onClick={() => void prepare()}
-          >
-            ↗
-          </button>
-        </div>
-      </div>
-      <fieldset className="study-goal-cards">
-        <legend>What would help you most?</legend>
-        {[
-          "Understand the basics",
-          "Prepare for an exam",
-          "Apply it to a problem",
-        ].map((g) => (
-          <button
-            type="button"
-            key={g}
-            aria-pressed={learningGoal === g}
-            onClick={() => {
-              setLearningGoal(g);
+      <div hidden={stage !== 1}>
+        {scanFile && (
+          <ImagePreparation
+            key={scanFile.name + scanFile.lastModified}
+            file={scanFile}
+            busy={!!busy}
+            onCancel={() => setScanFile(null)}
+            onRead={(p) => void upload(scanFile, p)}
+          />
+        )}
+        <div className="study-composer">
+          <label className="sr-only" htmlFor="study-request">
+            What would you like to understand?
+          </label>
+          <textarea
+            id="study-request"
+            rows={3}
+            maxLength={100000}
+            placeholder="Ask about a topic, paste your notes, or add a YouTube lecture..."
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
               setPlan(null);
             }}
-          >
-            {g}
-          </button>
-        ))}
-      </fieldset>
-      <details
-        className="source-review"
-        onToggle={(event) => {
-          if (event.currentTarget.open) void loadDocuments();
-        }}
-      >
-        <summary>Study a textbook chapter with page citations</summary>
-        <p className="small">
-          Upload a text PDF up to 10 MB, 500 pages, and 3 million extracted
-          characters. Scanned books need OCR first. Extracted pages are stored
-          privately for retrieval.
-        </p>
-        <input
-          type="file"
-          accept=".pdf"
-          aria-label="Upload textbook PDF"
-          disabled={!!busy}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void uploadTextbook(file);
-            e.target.value = "";
-          }}
-        />
-        <label>
-          Saved textbook
-          <select
-            disabled={!!busy}
-            value={document?.id || ""}
-            onChange={(event) => {
-              const selected =
-                savedDocuments.find((item) => item.id === event.target.value) ||
-                null;
-              setDocument(selected);
-              setDocumentRange({ from: 1, to: selected?.pageCount || 1 });
-              setPlan(null);
-              setContext("");
-              setSource(selected?.name || "");
-              setSourceUrl("");
-            }}
-          >
-            <option value="">Select a private textbook</option>
-            {savedDocuments.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} ({item.pageCount} pages)
-              </option>
-            ))}
-          </select>
-        </label>
-        {document && (
-          <div>
-            <p>
-              {document.name} · {document.pageCount} pages
-            </p>
-            <label>
-              First PDF page{" "}
-              <input
-                type="number"
-                min={1}
-                max={document.pageCount}
-                value={documentRange.from}
-                onChange={(e) => {
-                  setDocumentRange((r) => ({
-                    ...r,
-                    from: Number(e.target.value),
-                  }));
-                  setPlan(null);
-                }}
-              />
-            </label>
-            <label>
-              Last PDF page{" "}
-              <input
-                type="number"
-                min={documentRange.from}
-                max={document.pageCount}
-                value={documentRange.to}
-                onChange={(e) => {
-                  setDocumentRange((r) => ({
-                    ...r,
-                    to: Number(e.target.value),
-                  }));
-                  setPlan(null);
-                }}
-              />
-            </label>
-            <button
-              className="btn light"
-              disabled={!!busy}
-              onClick={async () => {
-                setBusy("Deleting textbook…");
-                try {
-                  const response = await fetch(
-                    `/api/documents/${document.id}`,
-                    { method: "DELETE" },
-                  );
-                  if (response.ok) {
-                    setSavedDocuments((items) =>
-                      items.filter((item) => item.id !== document.id),
-                    );
-                    setDocument(null);
-                    setSource("");
-                    setPlan(null);
-                    setSourceNotice("");
-                  } else
-                    setError("Could not delete this textbook. Please retry.");
-                } catch {
-                  setError(
-                    "Could not reach the service. Please retry deleting this textbook.",
-                  );
-                } finally {
-                  setBusy("");
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && text.trim()) {
+                if (
+                  !text.includes("\n") ||
+                  /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(
+                    text.trim(),
+                  )
+                ) {
+                  e.preventDefault();
+                  if (!busy) void prepare();
                 }
+              }
+            }}
+          />
+          <div className="composer-actions">
+            <div className="attachment-actions">
+              <button
+                onClick={() => input.current?.click()}
+                disabled={!!busy}
+                className="attach-btn"
+              >
+                <span aria-hidden>＋</span> Add material
+              </button>
+              <LectureRecorder
+                onFile={(file) => void upload(file)}
+                disabled={!!busy}
+              />
+              <span className="attachment-help">Documents, images, audio</span>
+              <input
+                ref={input}
+                type="file"
+                accept=".pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.webm"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files?.[0]) void upload(e.target.files[0]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <button
+              className="send-btn"
+              aria-label="Plan my notes"
+              disabled={!!busy || !text.trim()}
+              onClick={() => void prepare()}
+            >
+              ↗
+            </button>
+          </div>
+        </div>
+        <fieldset className="study-goal-cards">
+          <legend>What would help you most?</legend>
+          {[
+            "Understand the basics",
+            "Prepare for an exam",
+            "Apply it to a problem",
+          ].map((g) => (
+            <button
+              type="button"
+              key={g}
+              aria-pressed={learningGoal === g}
+              onClick={() => {
+                setLearningGoal(g);
+                setPlan(null);
               }}
             >
-              Delete stored textbook
+              {g}
+            </button>
+          ))}
+        </fieldset>
+        <details
+          className="source-review"
+          onToggle={(event) => {
+            if (event.currentTarget.open) void loadDocuments();
+          }}
+        >
+          <summary>Study a textbook chapter with page citations</summary>
+          <p className="small">
+            Upload a text PDF up to 10 MB, 500 pages, and 3 million extracted
+            characters. Scanned books need OCR first. Extracted pages are stored
+            privately for retrieval.
+          </p>
+          <input
+            type="file"
+            accept=".pdf"
+            aria-label="Upload textbook PDF"
+            disabled={!!busy}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void uploadTextbook(file);
+              e.target.value = "";
+            }}
+          />
+          <label>
+            Saved textbook
+            <select
+              disabled={!!busy}
+              value={document?.id || ""}
+              onChange={(event) => {
+                const selected =
+                  savedDocuments.find(
+                    (item) => item.id === event.target.value,
+                  ) || null;
+                setDocument(selected);
+                setDocumentRange({ from: 1, to: selected?.pageCount || 1 });
+                setPlan(null);
+                setContext("");
+                setScans([]);
+                setSource(selected?.name || "");
+                setSourceUrl("");
+              }}
+            >
+              <option value="">Select a private textbook</option>
+              {savedDocuments.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ({item.pageCount} pages)
+                </option>
+              ))}
+            </select>
+          </label>
+          {document && (
+            <div>
+              <p>
+                {document.name} · {document.pageCount} pages
+              </p>
+              <label>
+                First PDF page{" "}
+                <input
+                  type="number"
+                  min={1}
+                  max={document.pageCount}
+                  value={documentRange.from}
+                  onChange={(e) => {
+                    setDocumentRange((r) => ({
+                      ...r,
+                      from: Number(e.target.value),
+                    }));
+                    setPlan(null);
+                  }}
+                />
+              </label>
+              <label>
+                Last PDF page{" "}
+                <input
+                  type="number"
+                  min={documentRange.from}
+                  max={document.pageCount}
+                  value={documentRange.to}
+                  onChange={(e) => {
+                    setDocumentRange((r) => ({
+                      ...r,
+                      to: Number(e.target.value),
+                    }));
+                    setPlan(null);
+                  }}
+                />
+              </label>
+              <button
+                className="btn light"
+                disabled={!!busy}
+                onClick={async () => {
+                  setBusy("Deleting textbook…");
+                  try {
+                    const response = await fetch(
+                      `/api/documents/${document.id}`,
+                      { method: "DELETE" },
+                    );
+                    if (response.ok) {
+                      setSavedDocuments((items) =>
+                        items.filter((item) => item.id !== document.id),
+                      );
+                      setDocument(null);
+                      setSource("");
+                      setPlan(null);
+                      setSourceNotice("");
+                    } else
+                      setError("Could not delete this textbook. Please retry.");
+                  } catch {
+                    setError(
+                      "Could not reach the service. Please retry deleting this textbook.",
+                    );
+                  } finally {
+                    setBusy("");
+                  }
+                }}
+              >
+                Delete stored textbook
+              </button>
+            </div>
+          )}
+        </details>
+        <details className="source-review course-pack-picker">
+          <summary>Start from a university course-pack outline</summary>
+          <p className="small">
+            These starters are not official syllabi. Confirm the current
+            university outline before generating.
+          </p>
+          <div className="course-pack-options">
+            {COURSE_PACKS.map((pack) => (
+              <button
+                key={pack.slug}
+                type="button"
+                onClick={() => {
+                  setText(
+                    `${pack.institution} · ${pack.programme}: ${pack.title}`,
+                  );
+                  setContext(
+                    pack.topics
+                      .map((topic, index) => `Unit ${index + 1}: ${topic}`)
+                      .join("\n"),
+                  );
+                  setSource(`${pack.institution} course-pack starter`);
+                  setSourceUrl("");
+                  setDocument(null);
+                  setScans([]);
+                  setScanFile(null);
+                  setPlan(null);
+                }}
+              >
+                <b>{pack.title}</b>
+                <br />
+                <span>
+                  {pack.institution} · {pack.term}
+                </span>
+              </button>
+            ))}
+          </div>
+          <a className="small" href="/course-packs">
+            Browse all course-pack starters →
+          </a>
+        </details>
+        <div className="composer-options">
+          <label>
+            Target pages
+            <select
+              value={pages}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setPages(val);
+                setPlan(null);
+              }}
+            >
+              <option value={0}>Auto · match my topic</option>
+              {[1, 2, 3, 5, 8, 12, 16, 24].map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 1 ? "page" : "pages"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="generation-language-control">
+            Note language
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            >
+              <option value="english">English</option>
+              <option value="hindi">हिंदी</option>
+              <option value="hinglish">Hinglish</option>
+              <option value="german">Deutsch</option>
+              <option value="french">Français</option>
+              <option value="spanish">Español</option>
+            </select>
+            <small>Applies to this lesson and future note creation.</small>
+          </label>
+          <label>
+            Depth
+            <select value={detail} onChange={(e) => setDetail(e.target.value)}>
+              <option value="detailed">Explain & apply</option>
+              <option value="concise">Quick revision</option>
+            </select>
+          </label>
+          <label className="research-toggle">
+            <input
+              type="checkbox"
+              checked={research}
+              onChange={(e) => {
+                setResearch(e.target.checked);
+                setPlan(null);
+              }}
+            />{" "}
+            Find sources
+          </label>
+        </div>
+        {source && (
+          <div className="source-chip">
+            ▤ {source}
+            <button
+              aria-label="Remove attachment"
+              onClick={() => {
+                setSourceNotice("");
+                setDocument(null);
+                setSourceUrl("");
+                setSource("");
+                setContext("");
+                setPlan(null);
+                setScans([]);
+              }}
+            >
+              ×
             </button>
           </div>
         )}
-      </details>
-      <details className="source-review course-pack-picker">
-        <summary>Start from a university course-pack outline</summary>
-        <p className="small">
-          These starters are not official syllabi. Confirm the current
-          university outline before generating.
-        </p>
-        <div className="course-pack-options">
-          {COURSE_PACKS.map((pack) => (
-            <button
-              key={pack.slug}
-              type="button"
-              onClick={() => {
-                setText(
-                  `${pack.institution} · ${pack.programme}: ${pack.title}`,
-                );
-                setContext(
-                  pack.topics
-                    .map((topic, index) => `Unit ${index + 1}: ${topic}`)
-                    .join("\n"),
-                );
-                setSource(`${pack.institution} course-pack starter`);
-                setSourceUrl("");
-                setDocument(null);
+        {sourceNotice && (
+          <p className="source-notice" role="status">
+            {sourceNotice}
+          </p>
+        )}
+        {context && (
+          <details className="source-review">
+            <summary>Review extracted text before generation</summary>
+            <textarea
+              aria-label="Extracted source text"
+              rows={8}
+              value={context}
+              onChange={(e) => {
+                setContext(e.target.value);
                 setPlan(null);
+                setScans((old) => old.map((s) => ({ ...s, reviewed: false })));
               }}
-            >
-              <b>{pack.title}</b>
-              <br />
-              <span>
-                {pack.institution} · {pack.term}
-              </span>
-            </button>
-          ))}
-        </div>
-        <a className="small" href="/course-packs">
-          Browse all course-pack starters →
-        </a>
-      </details>
-      <div className="composer-options">
-        <label>
-          Target pages
-          <select
-            value={pages}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setPages(val);
-              if (text.trim()) {
-                void prepare(val);
-              } else {
-                setPlan(null);
-              }
-            }}
-          >
-            <option value={0}>Auto · match my topic</option>
-            {[1, 2, 3, 5, 8, 12, 16, 24].map((n) => (
-              <option key={n} value={n}>
-                {n} {n === 1 ? "page" : "pages"}
-              </option>
+            />
+          </details>
+        )}
+        {scans.length > 0 && (
+          <fieldset className="section-goals">
+            <legend>Scan extraction review</legend>
+            <p className="small">
+              Unreadable markers show extraction gaps. A zero marker count does
+              not prove that OCR is accurate. Compare technical terms, equations
+              and tables against the image.
+            </p>
+            {scans.map((s) => (
+              <label key={s.id}>
+                <span>
+                  {s.name} · rotated {s.rotation}° · crop {s.crop.width}% ×{" "}
+                  {s.crop.height}% · {s.unclearCount} unreadable markers
+                </span>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={s.reviewed}
+                    onChange={(e) =>
+                      setScans((old) =>
+                        old.map((o) =>
+                          o.id === s.id
+                            ? { ...o, reviewed: e.target.checked }
+                            : o,
+                        ),
+                      )
+                    }
+                  />{" "}
+                  I checked this extraction and corrected uncertain text
+                </span>
+              </label>
             ))}
-          </select>
-        </label>
-        <label className="generation-language-control">
-          Note language
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-          >
-            <option value="english">English</option>
-            <option value="hindi">हिंदी</option>
-            <option value="hinglish">Hinglish</option>
-            <option value="german">Deutsch</option>
-            <option value="french">Français</option>
-            <option value="spanish">Español</option>
-          </select>
-          <small>Applies to this lesson and future note creation.</small>
-        </label>
-        <label>
-          Depth
-          <select value={detail} onChange={(e) => setDetail(e.target.value)}>
-            <option value="detailed">Explain & apply</option>
-            <option value="concise">Quick revision</option>
-          </select>
-        </label>
-        <label className="research-toggle">
-          <input
-            type="checkbox"
-            checked={research}
-            onChange={(e) => {
-              setResearch(e.target.checked);
-              setPlan(null);
-            }}
-          />{" "}
-          Find sources
-        </label>
-      </div>
-      {source && (
-        <div className="source-chip">
-          ▤ {source}
-          <button
-            aria-label="Remove attachment"
-            onClick={() => {
-              setSourceNotice("");
-              setDocument(null);
-              setSourceUrl("");
-              setSource("");
-              setContext("");
-              setPlan(null);
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {sourceNotice && (
-        <p className="source-notice" role="status">
-          {sourceNotice}
+          </fieldset>
+        )}
+        <button
+          className="btn dark"
+          disabled={!!busy || !text.trim()}
+          onClick={() => void prepare()}
+        >
+          Review my outline →
+        </button>
+        <p className="small">
+          Planning does not reserve lesson credits. You approve the final cost
+          in the next steps.
         </p>
-      )}
-      {context && (
-        <details className="source-review">
-          <summary>Review extracted text before generation</summary>
-          <textarea
-            aria-label="Extracted source text"
-            rows={8}
-            value={context}
-            onChange={(e) => {
-              setContext(e.target.value);
-              setPlan(null);
-            }}
-          />
-        </details>
-      )}
+      </div>
       {busy && (
         <div ref={statusRef} role="status" className="composer-status">
           <span className="status-dot" />
@@ -900,7 +1083,7 @@ export default function StudyComposer({
           {error}
         </p>
       )}
-      {plan && (
+      {plan && stage !== 1 && (
         <section ref={planSectionRef} className="plan-review">
           <div className="section-heading">
             <div>
@@ -908,82 +1091,195 @@ export default function StudyComposer({
               <h3>A little structure. A clearer mind.</h3>
             </div>
             <span className="badge">
-              {tokenLabel(outline.split("\n").filter((t) => t.trim()).length)}
+              {outline.split("\n").filter((t) => t.trim()).length} credits
             </span>
           </div>
           <p>{plan.reason}</p>
-          <textarea
-            aria-label="Edit your note pages, one per line"
-            value={outline}
-            onChange={(e) => setOutline(e.target.value)}
-            rows={Math.min(8, plan.topics.length + 1)}
-          />
-          <div className="evidence-label">
-            {plan.evidence === "mixed"
-              ? "Web references plus your supplied material"
-              : plan.evidence === "retrieved"
-                ? "Wikipedia references retrieved"
-                : plan.evidence === "supplied"
-                  ? "Grounded in your supplied material"
-                  : "General knowledge · no external sources retrieved"}
-          </div>
-          {plan.sources.map((s) => (
-            <a
-              key={s.url}
-              href={s.url}
-              target="_blank"
-              rel="noreferrer"
-              className="source-link"
-            >
-              {s.title} ↗
-            </a>
-          ))}
-          {plan.readingLinks.length > 0 && (
-            <div className="reading-links">
-              <span className="small">More technical reading</span>
-              {plan.readingLinks.map((link) => (
+          {stage === 2 ? (
+            <>
+              <textarea
+                aria-label="Edit your note pages, one per line"
+                value={outline}
+                onChange={(e) => setOutline(e.target.value)}
+                rows={Math.min(8, plan.topics.length + 1)}
+              />
+              <p className="small">
+                One section per line, up to 24. Add, remove or reorder lines
+                before confirming credits.
+              </p>
+              <details className="source-review">
+                <summary>Learning outcomes & prerequisites</summary>
+                <p className="small">
+                  State what you want to learn and what you already know. Goals
+                  follow their matching section title when you reorder. Renamed
+                  sections need a new goal.
+                </p>
+                {sectionGoals(
+                  outline
+                    .split("\n")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .slice(0, 24),
+                  sections,
+                ).map((s, index) => (
+                  <fieldset key={`${s.id}-${index}`} className="section-goals">
+                    <legend>
+                      {index + 1}. {s.title}
+                    </legend>
+                    {(["objective", "prerequisite"] as const).map((field) => (
+                      <label key={field}>
+                        {field === "objective"
+                          ? "After this section I can…"
+                          : "I already understand…"}
+                        <input
+                          maxLength={400}
+                          value={s[field]}
+                          onChange={(e) =>
+                            setSections((old) => [
+                              ...old.filter((o) => o.title !== s.title),
+                              { ...s, [field]: e.target.value },
+                            ])
+                          }
+                        />
+                      </label>
+                    ))}
+                    <button
+                      className="btn light"
+                      onClick={() =>
+                        setOutline((old) =>
+                          old
+                            .split("\n")
+                            .map((t) => t.trim())
+                            .filter(Boolean)
+                            .filter((_, i) => i !== index)
+                            .join("\n"),
+                        )
+                      }
+                    >
+                      Remove section I already know
+                    </button>
+                  </fieldset>
+                ))}
+              </details>
+              <div className="evidence-label">
+                {plan.evidence === "mixed"
+                  ? "Web references plus your supplied material"
+                  : plan.evidence === "retrieved"
+                    ? "Wikipedia references retrieved"
+                    : plan.evidence === "supplied"
+                      ? "Grounded in your supplied material"
+                      : "General knowledge · no external sources retrieved"}
+              </div>
+              {plan.sources.map((s) => (
                 <a
-                  key={link.url}
-                  href={link.url}
+                  key={s.url}
+                  href={s.url}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noreferrer"
                   className="source-link"
                 >
-                  {link.title} ↗
+                  {s.title} ↗
                 </a>
               ))}
-              <span className="small">
-                GeeksforGeeks and W3Schools links open an external search. Their
-                article text is not fetched or used to generate these notes.
-              </span>
-            </div>
+              {plan.readingLinks.length > 0 && (
+                <div className="reading-links">
+                  <span className="small">More technical reading</span>
+                  {plan.readingLinks.map((link) => (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="source-link"
+                    >
+                      {link.title} ↗
+                    </a>
+                  ))}
+                  <span className="small">
+                    GeeksforGeeks and W3Schools links open an external search.
+                    Their article text is not fetched or used to generate these
+                    notes.
+                  </span>
+                </div>
+              )}
+              <p className="small">
+                {plan.note} 1 token covers 3 pages. Each page uses ⅓ token;
+                continuation sheets are free. Check the outline before starting.
+              </p>
+              <div className="composer-stage-actions">
+                <button
+                  className="btn light"
+                  disabled={!!busy}
+                  onClick={() => goToStage(1)}
+                >
+                  ← Back to input
+                </button>
+                <button
+                  className="btn dark"
+                  disabled={
+                    !!busy ||
+                    !outline.trim() ||
+                    outline.split("\n").filter((t) => t.trim()).length > 24
+                  }
+                  onClick={() => goToStage(3)}
+                >
+                  Review credits →
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <ol className="composer-final-outline">
+                {outline
+                  .split("\n")
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+                  .slice(0, 24)
+                  .map((topic, i) => (
+                    <li key={i}>{topic}</li>
+                  ))}
+              </ol>
+              <p>
+                {language} ·{" "}
+                {detail === "detailed" ? "Explain & apply" : "Quick revision"} ·{" "}
+                {learningGoal}
+              </p>
+              <p className="small">
+                Each section reserves one credit. Failed, unused sections are
+                refunded; PDF continuation sheets cost no extra credits.
+              </p>
+              <label className="credit-confirmation">
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                />
+                I approve this outline and the reservation of{" "}
+                {
+                  outline
+                    .split("\n")
+                    .filter((t) => t.trim())
+                    .slice(0, 24).length
+                }{" "}
+                credits. Unused reserved sections are refunded if generation
+                fails.
+              </label>
+              <button
+                className="btn dark"
+                disabled={!!busy || !outline.trim() || !confirmed}
+                onClick={generate}
+              >
+                Create my study workspace <span>→</span>
+              </button>
+              <button
+                className="btn light"
+                disabled={!!busy}
+                onClick={() => goToStage(2)}
+              >
+                ← Edit outline
+              </button>
+            </>
           )}
-          <p className="small">
-            {plan.note} 1 token covers 3 pages. Each page uses ⅓ token;
-            continuation sheets are free. Check the outline before starting.
-          </p>
-          <label className="credit-confirmation">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
-            I approve this outline and the reservation of{" "}
-            {
-              outline
-                .split("\n")
-                .filter((t) => t.trim())
-                .slice(0, 24).length
-            }{" "}
-            credits. Unused reserved sections are refunded if generation fails.
-          </label>
-          <button
-            className="btn dark"
-            disabled={!!busy || !outline.trim() || !confirmed}
-            onClick={generate}
-          >
-            Create my study workspace <span>→</span>
-          </button>
         </section>
       )}
     </div>

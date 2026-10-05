@@ -1,0 +1,115 @@
+.composer-area [hidden] {
+  display: none !important;
+}
+.composer-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 24px;
+}
+.composer-stepper button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px;
+  color: var(--ink, #30372e);
+  background: transparent;
+  border: 1px solid var(--line, #ddd);
+  border-radius: 12px;
+  font: inherit;
+  cursor: pointer;
+}
+.composer-stepper button[aria-current="step"] {
+  background: var(--ink, #30372e);
+  color: #fff;
+}
+.composer-stepper button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.composer-stepper button span {
+  font-size: 12px;
+}
+.composer-stage-title {
+  font-size: clamp(22px, 4vw, 32px);
+  letter-spacing: -0.025em;
+}
+.composer-stage-title:focus {
+  outline: none;
+}
+.composer-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0;
+}
+.composer-final-outline {
+  padding-left: 24px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.section-goals {
+  border: 1px solid var(--line, #ddd);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.section-goals label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.section-goals input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+.scan-preparation {
+  background: var(--paper, #fff);
+  padding: 20px;
+  border: 1px solid var(--line, #ddd);
+  border-radius: 16px;
+  margin: 16px 0;
+}
+.scan-preparation canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  margin: 16px auto;
+  background: #f1f0eb;
+}
+.scan-preparation fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+}
+.scan-preparation label {
+  display: grid;
+  gap: 6px;
+  max-width: 150px;
+  font-size: 13px;
+}
+.scan-preparation input,
+.scan-preparation select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  width: 100%;
+}
+@media (max-width: 400px) {
+  .composer-stepper button {
+    font-size: 12px;
+    gap: 4px;
+  }
+  .scan-preparation {
+    padding: 12px;
+  }
+}

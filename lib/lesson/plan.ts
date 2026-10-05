@@ -1,3 +1,4 @@
+import { sectionGoals, type SectionGoal } from "./sections";
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";
 
 export interface PlanInput {
@@ -125,7 +126,7 @@ export function planPromptForKind(
 
 export function parsePlanJson(
   text: string,
-): { topics: string[]; reason: string } | null {
+): { topics: string[]; reason: string; sections?: SectionGoal[] } | null {
   try {
     const clean = text.replace(/```json|```/g, "").trim();
     const m = clean.match(/\{[\s\S]*\}/);
@@ -141,7 +142,13 @@ export function parsePlanJson(
       .filter(Boolean)
       .slice(0, MAX);
     if (topics.length < 1) return null;
-    return { topics, reason: String(j.reason ?? "").slice(0, 160) };
+    return {
+      topics,
+      reason: String(j.reason ?? "").slice(0, 160),
+      ...(Array.isArray(j.sections)
+        ? { sections: sectionGoals(topics, j.sections) }
+        : {}),
+    };
   } catch {
     return null;
   }

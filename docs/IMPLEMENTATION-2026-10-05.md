@@ -8,6 +8,7 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 - Hosted authenticated writer billing check returned **Monthly checkout is ready. No subscription or payment was started.** Live merchant authentication and all three monthly catalogue mappings are verified. Screenshot: output/live-audit/monthly-catalog-ready.jpg.
 - Legacy one-time pack sales are disabled by default. Historical receipts, signature verification, settlement and webhook replay handling remain available; existing paid subscriptions were not cancelled.
 - Public deployment check passed 13/13 for cf8e916. A captured payment and its resulting live credit grant remain unverified; the readiness check never charges anyone.
+- Baseline studio release 8842696 passed GitHub CI and 17 strict public checks, with matching frontend/backend revisions and all three monthly plans available. Follow-up source/reading/quiz changes are tracked below.
 
 ## Student acceptance status
 
@@ -15,15 +16,15 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 | --- | --- | --- |
 | 1 · Sessions | OAuth retry context, writer/student routes, verification/session regressions; password reset uses a hashed, single-use 30-minute token and atomically revokes existing sessions. Reset replay/concurrency tests pass on SQLite and Mongo. | Hosted reset-email delivery and broader authentication accessibility checks. |
 | 2 · Today | New responsive dashboard with owned lessons, continuation, due count, weak-question evidence, exam tasks and ledger. Authenticated browser checks pass at 320/390/768/1440px. | Expanded dataset usability review. |
-| 3 · Creation | Explicit outline/credit confirmation and reuse of generation request IDs. | Separate stage navigation and accessible validation summary. |
+| 3 · Creation | Input → Outline → Credits navigation, restored stage, keyboard heading focus, explicit approval, request-ID replay and rejection of changed retry payloads. Browser refresh and SQLite/Mongo checks pass. | Accessible validation summary across every error path. |
 | 4 · Drafts | Account drafts, optimistic revisions, device fallback, stale-device rejection and downloadable conflict recovery. | Automatic reconnect synchronization and explicit choice between conflicting drafts. |
 | 5 · Sources | Upload text appends rather than overwrites; presentation imports enforce owned source access. | Student source chips, per-source removal and durable provenance registry. |
-| 6 · OCR | Existing extracted-text review remains editable. | Crop/rotate preparation and uncertainty review. |
+| 6 · OCR | Bounded browser preview with crop/quarter-turn rotation; server auto-orientation and actual pixel crop tested. Scan preparation, transcription hash and reviewed state persist with the draft/lesson. Unclear text must be reviewed before planning. | Live OCR-provider Hindi/English fixtures; browser transcription uses a fixture response. This is descriptive provenance, not a claim of verified accuracy. |
 | 7 · Lecture timing | Real VTT cues preserve timestamps; source room links to exact video offsets. Unit check covers VTT parsing; unanchored AI digests are labelled. | Live caption fixtures across languages and timestamp-aligned uploaded audio. |
 | 8 · Evidence | PDF passage labels link to physical pages; document reader honors page deep links. | Claim-level evidence drawer and unsupported-label validation. |
-| 9 · Outcomes | Learning-goal controls preserved. | Per-section objectives/prerequisites and mismatch checks. |
-| 10 · Attempts | Server-owned practice/exam attempts, first-answer lock, delayed exam feedback, stable question keys, saved resumption and authoritative scoring. Tests cover modes, replay and cross-account denial. | Broader question-format browser fixtures. |
-| 11 · Typed answers | Unicode/case/space/punctuation normalization and saved variants; no claim of semantic essay grading. | Generation and validation of acceptable variants/rubrics. |
+| 9 · Outcomes | Editable objectives and prerequisites follow stable section identities through outline reordering, account drafts, saved jobs and resumed generation; notes display them. Planner requests matching section goals, with manual editing/fallback. | Generated-content mismatch checks and hosted model review. |
+| 10 · Attempts | Server-owned practice/exam attempts, first-answer lock, delayed exam feedback, saved resumption and authoritative scoring. Question IDs survive display reordering and invalidate on scoring changes. Rebuild is blocked during matching unfinished attempts. | Broader question-format browser fixtures; atomic protection against the narrow attempt-start/rebuild race. |
+| 11 · Typed answers | Unicode/case/space/punctuation normalization; bounded generated answer variants and rubric version. Malformed variants cannot alter scoring. No semantic essay-grading claim. | Hosted generated-answer review and learner challenge flow. |
 | 12 · Mastery | Recent attempts and recurring weak-question counts are real saved evidence. | Longitudinal topic mastery and incomplete-evidence labels. |
 | 13 · Review | Cross-lesson due queue and replay-safe ratings; browser and backend tests pass. | Offline reconciliation, historical card-version reconciliation. |
 | 14 · Streak | Account days derived from saved completion/review/quiz events in a validated timezone. | Migration of earlier device-only activity and DST-boundary fixtures. |
@@ -32,10 +33,10 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 | 17 · Search | Authenticated search of owned note/source/card content, 30-result bound; cross-account isolation test passes. | Indexed pagination for more than the latest 100 lessons. |
 | 18 · History | Saved section snapshots, compare and revision-checked restore; practice/audio invalidated after restore. | Browser history/restore fixture and simultaneous editor conflict flow. |
 | 19 · Groups | New invitations expire in seven days; shared-with-you library preserved; revocation/access checks pass. | Paragraph anchors, invitation expiry UI and collaboration activity feed. |
-| 20 · Reading | Focus states, mobile layouts, keyboard quiz controls and reduced motion. | Reader font/line-width presets and full accessibility audit. |
+| 20 · Reading | Account-saved reading/print mode, bounded font/width/line-height/tone/focus controls, optimistic conflict protection, escaped structured text and MathML. Browser checks cover 320/390/768px, 200% zoom, persistence and one-based section links. | Full accessibility audit and assistive-technology review. |
 | 21 · Audio | Existing real script/TTS/download flow preserved. | Chapter audio, versioned assets and cross-device listening position. |
 | 22 · Offline | Service worker continues to cache only the public offline fallback. | Explicit private offline downloads, TTL/delete/logout clearing and replay-safe offline review. |
-| 23 · Credits | Account ledger with real references, confirmation estimates and tested deck/regeneration refunds. | Reserved-versus-consumed reconciliation view for note generation. |
+| 23 · Credits | Account ledger with real references, confirmation in credits and tested deck/regeneration refunds. Identical lesson retries reserve once; changed request payloads are rejected. | Reserved-versus-consumed reconciliation view for note generation. |
 | 24 · Retention | Owned source listing/delete, access tombstones and explicit explanation that generated text remains in lessons. | Extracted-source export and derived cache/search revocation. |
 
 ## Presentation acceptance status
@@ -52,7 +53,7 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 | 8 · Progress | Persisted stages, leases, partial slides, worker recovery and indexed pending selection. | Progress ETA and cancellation UX. |
 | 9 · Regeneration | One saved slide, one-credit explicit approval, stable retry ID, durable lease, race rejection, applied-event recovery and one-time failure refund. Both storage backend tests pass. | Hosted AI regeneration smoke check. |
 | 10 · Slides | Stable IDs, add/duplicate/remove/reorder, stale-edit rejection and server plan limits; paid history survives downgrade. | Large history usability review. |
-| 11 · Preview/export | Common object geometry, private assets, actual PNG/PDF/notes generation and native editable PPTX. PNG visually inspected; PPTX ZIP format verified. | Actual PPTX rendering/PowerPoint comparison remains outstanding; fonts/chart styling may differ. |
+| 11 · Preview/export | Common object geometry, private assets, actual PNG/PDF/notes generation and native editable PPTX. Four exported PPTX slides imported/rendered with Artifact Tool and visually inspected, including table blank cells and signed chart values. Native chart fonts/colors/value formatting configured. | PowerPoint comparison and all-layout multilingual fixtures remain outstanding. Artifact Tool's imported signed chart omits one negative-bar category label despite the label being present in the native chart data; do not claim full chart parity. |
 | 12 · Data | Rectangular table grids retain empty cells; finite signed charts use a zero baseline; rendered negative chart inspected. | More data-density fixtures. |
 | 13 · Presenting | Keyboard presenter view, separate audience window that receives no speaker notes, timer and saved rehearsal records. Audience privacy and rehearsal browser check pass. | Per-slide timing and optional speaking feedback. |
 | 14 · Collaboration | Bounded snapshots, optimistic restore, duplication, seven-day revocable links, authenticated comments and owner moderation. Public APIs exclude private source text, notes, owner identity and history; comment replay/revocation tests pass. | Share expiry UI polish. |
@@ -70,7 +71,7 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 - npm run check; production Next build in .next-validation.
 - test:student-studio on SQLite and --mongo: quiz scoring, private content search, draft conflicts, streak, review replay, imports/assets, single-charge generation, history, regeneration refunds, private revocable sharing, actual exports, sanitized honeypot, single-use recovery/session revocation.
 - test:student-studio-browser: real authenticated dashboard review, quiz refresh, durable outline and deck edits, audience-note exclusion, saved rehearsal, responsive widths and no page errors.
-- Existing study/auth/security/proxy/workspace/SEO regression suites passed. Latest changes must pass required release checks again before push.
+- Existing study/auth/security/proxy/workspace/SEO regression suites passed. Follow-up production build, typecheck, SQLite/Mongo student-studio tests, browser tests, monthly catalogue, referrals/rewards, provider configuration, consent/support, office and proxy checks passed locally. Browser follow-up covers crop/review controls, reading persistence/private access, saved wizard stages and 200% zoom. Live OCR/model output and live payment capture are separate checks.
 - Local screenshots and actual exported files: output/live-audit/studio/. These are test fixtures, not customer content.
 
 Unfinished acceptance work is explicitly listed above. Do not represent the full 40-item audit or live payment capture as complete.

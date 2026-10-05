@@ -32,6 +32,64 @@ async function main() {
       .split(";")[0];
   const own = await cookie(owner),
     foreign = await cookie(other);
+  const { prepareScan, scanPreparation } = await import("../lib/intake/image"),
+    { renderReadingBody } = await import("../lib/pdf/document");
+  const fixtureImage = await sharp({
+    create: { width: 80, height: 40, channels: 3, background: "red" },
+  })
+    .composite([
+      {
+        input: Buffer.from(
+          '<svg width="40" height="40"><rect width="40" height="40" fill="blue"/></svg>',
+        ),
+        left: 40,
+        top: 0,
+      },
+    ])
+    .png()
+    .toBuffer();
+  const cropped = await prepareScan(fixtureImage, {
+    rotation: 90,
+    crop: { x: 0, y: 0, width: 100, height: 50 },
+  });
+  assert.equal(cropped.provenance.width, 40);
+  assert.equal(cropped.provenance.height, 40);
+  const pixels = await sharp(cropped.bytes)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const atPixel = (20 * pixels.info.width + 20) * pixels.info.channels;
+  assert(
+    pixels.data[atPixel] > 200 && pixels.data[atPixel + 2] < 20,
+    "Crop is applied after clockwise rotation",
+  );
+  assert.throws(() => scanPreparation({ rotation: 45 }));
+  assert.throws(() =>
+    scanPreparation({ crop: { x: 90, y: 0, width: 20, height: 100 } }),
+  );
+  const readerHtml = renderReadingBody(
+    "## Safe\n<script>alert(1)</script>\n$E=mc^2$",
+  );
+  assert(!readerHtml.includes("<script>"));
+  assert(readerHtml.includes("<math"));
+  const { sectionGoals } = await import("../lib/lesson/sections");
+  const sectionFixture = sectionGoals(
+    ["Cells", "DNA"],
+    [
+      {
+        title: "Cells",
+        objective: "Describe a cell",
+        prerequisite: "Basic biology",
+      },
+    ],
+  );
+  assert.equal(
+    sectionGoals(["DNA", "Cells"], sectionFixture)[1].id,
+    sectionFixture[0].id,
+  );
+  assert.equal(
+    sectionGoals(["DNA", "Cells"], sectionFixture)[1].objective,
+    "Describe a cell",
+  );
   const req = (c: string, b?: unknown, path = "/api/student/quiz") =>
     new NextRequest("http://localhost:3150" + path, {
       method: b ? "POST" : "GET",
@@ -45,6 +103,88 @@ async function main() {
     { questionId, answerCorrect } = await import("../lib/study/quiz"),
     { streakFor, dayAt, scheduleExam, stableCardId } =
       await import("../lib/study/hub");
+  const readerRoute = await import("../app/api/student/preferences/route"),
+    { readerDefaults } = await import("../lib/study/preferences");
+  const saveReader = (c: string, b: unknown) =>
+    readerRoute.PATCH(
+      new NextRequest("http://localhost:3150/api/student/preferences", {
+        method: "PATCH",
+        headers: { cookie: c, "Content-Type": "application/json" },
+        body: JSON.stringify(b),
+      }),
+    );
+  const savedReader = await saveReader(own, {
+    ...readerDefaults(),
+    mode: "reading",
+    size: 28,
+  });
+  assert.equal(savedReader.status, 200);
+  assert.equal(
+    (
+      await (
+        await readerRoute.GET(req(own, undefined, "/api/student/preferences"))
+      ).json()
+    ).reader.size,
+    28,
+  );
+  assert.equal(
+    (
+      await (
+        await readerRoute.GET(
+          req(foreign, undefined, "/api/student/preferences"),
+        )
+      ).json()
+    ).reader.size,
+    20,
+    "Preferences are private to the account",
+  );
+  assert.equal(
+    (await saveReader(own, { ...readerDefaults(), mode: "reading" })).status,
+    409,
+    "Stale settings cannot overwrite a newer device",
+  );
+  assert.equal(
+    (await saveReader(own, { ...readerDefaults(), revision: 1, size: 500 }))
+      .status,
+    409,
+  );
+  const jobRoute = await import("../app/api/jobs/route");
+  const generationBody = {
+    requestId: randomUUID(),
+    topics: ["Replay fixture"],
+    style: "concise",
+    intelligentPlan: false,
+    research: false,
+  };
+  const startReplay = await jobRoute.POST(
+    req(own, generationBody, "/api/jobs"),
+  );
+  assert.equal(startReplay.status, 202);
+  const replayJob = await startReplay.json(),
+    replayBalance = await balance(owner.id);
+  assert.equal(
+    (await jobRoute.POST(req(own, generationBody, "/api/jobs"))).status,
+    202,
+  );
+  assert.equal(
+    await balance(owner.id),
+    replayBalance,
+    "An identical lesson request only reserves credits once",
+  );
+  assert.equal(
+    (
+      await jobRoute.POST(
+        req(
+          own,
+          { ...generationBody, topics: ["Changed replay fixture"] },
+          "/api/jobs",
+        ),
+      )
+    ).status,
+    409,
+  );
+  const replayLease = (await jobs.claimJob(replayJob.jobId))!;
+  await jobs.finishJob(replayJob.jobId, replayLease.token, "Fixture cleanup");
   const { timestampedVtt } = await import("../lib/youtube/transcript");
   assert.equal(
     timestampedVtt(
@@ -80,7 +220,35 @@ async function main() {
     },
   });
   assert(answerCorrect(questions[1], " eukaryote. "));
+  assert.equal(
+    questionId(questions[0], 0),
+    questionId(questions[0], 7),
+    "Question identities survive display reordering",
+  );
+  assert.notEqual(
+    questionId(questions[1]),
+    questionId({ ...questions[1], acceptedAnswers: ["Eukaryotic cell"] }),
+    "Scoring changes invalidate the attempt version",
+  );
   assert(!answerCorrect(questions[1], "Prokaryote"));
+  assert(
+    answerCorrect(
+      { ...questions[1], acceptedAnswers: ["Eukaryotic cell"] },
+      "eukaryotic cell!",
+    ),
+  );
+  assert(
+    !answerCorrect(
+      { ...questions[1], acceptedAnswers: "Prokaryote" as any },
+      "P",
+    ),
+  );
+  assert(
+    !answerCorrect(
+      { ...questions[1], acceptedAnswers: [null, {}, ""] as any },
+      "Prokaryote",
+    ),
+  );
   assert.equal(
     (
       await quiz.POST(
@@ -96,6 +264,15 @@ async function main() {
   };
   let a = await act({ action: "start", mode: "practice" });
   const first = a.attempt.id;
+  const practice = await import("../app/api/practice/route");
+  const rebuildBlocked = await practice.POST(
+    req(own, { jobId: job.id, regenerate: true }, "/api/practice"),
+  );
+  assert.equal(
+    rebuildBlocked.status,
+    409,
+    "Rebuilding must preserve an unfinished attempt",
+  );
   a = await act({
     action: "answer",
     attempt: first,

@@ -5,6 +5,8 @@ export interface JobPage {
   model: string;
 }
 export interface QuizQ {
+  acceptedAnswers?: string[];
+  rubricVersion?: number;
   q: string;
   type: string;
   options?: string[];
@@ -14,6 +16,13 @@ export interface QuizQ {
   explanation?: string;
 }
 export interface LessonJob {
+  sourceScans?: import("@/lib/study/scans").ScanReview[];
+  sections?: Array<{
+    id: string;
+    title: string;
+    objective: string;
+    prerequisite: string;
+  }>;
   documentId?: string;
   documentRange?: { from: number; to: number };
   revision?: number;

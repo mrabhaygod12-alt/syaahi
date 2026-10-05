@@ -66,6 +66,24 @@ export default function SourceView() {
           lesson.
         </p>
       </div>
+      {!!job.sourceScans?.length && (
+        <section className="card">
+          <h2>Scan preparation & learner review</h2>
+          <p className="small">
+            Saved extraction metadata describes the material used for this
+            lesson. Learner review is not an OCR accuracy guarantee. Original
+            images are not stored by this extraction flow.
+          </p>
+          {job.sourceScans.map((s) => (
+            <p key={s.id}>
+              {s.name} · rotated {s.rotation}° · crop {s.crop.width}% ×{" "}
+              {s.crop.height}% · {s.width} × {s.height} pixels ·{" "}
+              {s.unclearCount} unreadable markers ·{" "}
+              {s.reviewed ? "reviewed by learner" : "review pending"}
+            </p>
+          ))}
+        </section>
+      )}
       {vid && (
         <div style={{ marginTop: 16 }}>
           <div className="yt-frame">
@@ -85,10 +103,10 @@ export default function SourceView() {
       )}
       {vid && !!timestamped.length && (
         <section className="card" style={{ marginTop: 16 }}>
-          <h2>Verified caption timestamps</h2>
+          <h2>Caption jump points</h2>
           <p>
-            These jump points come from caption timing. They are not inferred
-            from an AI summary.
+            These jump points use timestamps supplied with the source captions.
+            Check the video to confirm their timing and transcription.
           </p>
           <div style={{ maxHeight: 420, overflow: "auto" }}>
             {timestamped.map((line, i) => {

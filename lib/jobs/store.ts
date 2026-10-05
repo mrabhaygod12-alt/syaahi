@@ -3,6 +3,9 @@ import { useMongo, collection } from "@/lib/storage/mongo";
 import * as cloud from "@/lib/storage/mongo-jobs";
 import { randomUUID } from "node:crypto";
 import { db, transaction } from "@/lib/db";
+import type { Question } from "@/lib/study/quiz";
+import type { SectionGoal } from "@/lib/lesson/sections";
+import type { ScanReview } from "@/lib/study/scans";
 
 export interface JobPage {
   topic: string;
@@ -11,7 +14,7 @@ export interface JobPage {
   model: string;
 }
 export interface JobPractice {
-  quiz: Array<{ q: string; type: string; options?: string[]; answer: string }>;
+  quiz: Question[];
   flashcards: Array<{
     front: string;
     back: string;
@@ -39,6 +42,9 @@ export interface JobProgress {
 }
 
 export interface Job {
+  requestFingerprint?: string;
+  sourceScans?: ScanReview[];
+  sections?: SectionGoal[];
   noteHistory?: Array<{
     id: string;
     section: number;
@@ -106,6 +112,8 @@ export async function createJob(
   topics: string[],
   style: "detailed" | "concise",
   extra?: {
+    sourceScans?: ScanReview[];
+    sections?: SectionGoal[];
     documentId?: string;
     documentRange?: { from: number; to: number };
     context?: string;
@@ -117,9 +125,13 @@ export async function createJob(
     planNote?: string;
     language?: string;
     requestId?: string;
+    requestFingerprint?: string;
   },
 ): Promise<Job> {
   const job: Job = {
+    requestFingerprint: extra?.requestFingerprint,
+    sourceScans: extra?.sourceScans,
+    sections: extra?.sections,
     documentId: extra?.documentId,
     documentRange: extra?.documentRange,
     id: extra?.requestId || randomUUID(),
@@ -157,6 +169,14 @@ export async function createJob(
     if (existing) {
       const saved = decode(existing.payload);
       if (saved.user !== user) throw new Error("Invalid generation request.");
+      if (
+        job.requestFingerprint &&
+        saved.requestFingerprint &&
+        job.requestFingerprint !== saved.requestFingerprint
+      )
+        throw new Error(
+          "This generation request belongs to a different outline.",
+        );
       Object.assign(job, saved);
       return;
     }

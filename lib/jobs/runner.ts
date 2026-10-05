@@ -180,7 +180,12 @@ export async function generatePages(
         slots[i] = await makeOnePage(
           topics[i],
           style,
-          { ...extra, context },
+          {
+            ...extra,
+            context,
+            objective: extra?.sections?.[i]?.objective,
+            prerequisite: extra?.sections?.[i]?.prerequisite,
+          },
           chat,
           i,
         );
@@ -226,6 +231,7 @@ export async function processJob(id: string): Promise<void> {
         context: job.context || undefined,
         brief: job.brief || undefined,
         language: normalizeLang(job.language),
+        sections: job.sections?.slice(offset),
       },
       job.documentId
         ? async (topic) => {

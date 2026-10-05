@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { chromium } from "playwright";
+import sharp from "sharp";
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "syaahi-studio-browser-"));
 process.env.DATA_BACKEND = "sqlite";
 process.env.MONGODB_URI = "";
@@ -25,6 +26,28 @@ async function main() {
     "safe-browser-password",
   );
   await markEmailVerified(user.id);
+  const state = await import("../lib/study/state"),
+    { freshHub } = await import("../lib/study/hub"),
+    { composerDraft } = await import("../lib/study/drafts");
+  await state.mutateState(user.id, "hub", freshHub(), (old) => ({
+    ...old,
+    revision: 1,
+    draft: composerDraft({
+      text: "Cells",
+      outline: "Cells\nDNA",
+      stage: 2,
+      sections: [],
+      plan: {
+        topics: ["Cells", "DNA"],
+        context: "Fixture private source",
+        sources: [],
+        readingLinks: [],
+        reason: "Fixture saved outline",
+        note: "",
+        evidence: "supplied",
+      },
+    }),
+  }));
   const [name, value] = (
     await auth.startSession(user, new Request("http://localhost:3151"))
   ).headers
@@ -37,7 +60,7 @@ async function main() {
     lease = (await jobs.claimJob(job.id))!;
   await jobs.commitPage(job.id, lease.token, 0, {
     topic: "Cells",
-    markdown: "## Cells\nCells contain genetic information.",
+    markdown: "## Cells\nCells contain genetic information.\n$E=mc^2$",
     provider: "fixture",
     model: "fixture",
   });
@@ -131,9 +154,9 @@ async function main() {
       viewport: { width: 1440, height: 1000 },
     });
     await context.addCookies([{ name, value, domain: "localhost", path: "/" }]);
-    await context.addInitScript(() =>
-      localStorage.setItem("syaahi-privacy-v1", "essential"),
-    );
+    await context.addInitScript(() => {
+      if (window === window.top) localStorage.setItem("syaahi-privacy-v1", "essential");
+    });
     const page = await context.newPage(),
       errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -184,8 +207,129 @@ async function main() {
       });
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
+    const { balance } = await import("../lib/credits/store"),
+      beforePlanning = await balance(user.id);
+    await page.getByRole("button", { name: /New lesson/ }).click();
+    await page
+      .getByRole("heading", { name: "Shape your study outline" })
+      .waitFor();
+    await page
+      .getByText("Learning outcomes & prerequisites", { exact: true })
+      .click();
+    await page
+      .getByLabel("After this section I can…")
+      .first()
+      .fill("Describe a cell");
+    await page
+      .getByLabel("Edit your note pages, one per line")
+      .fill("DNA\nCells");
+    assert.equal(
+      await page.getByLabel("After this section I can…").nth(1).inputValue(),
+      "Describe a cell",
+    );
+    await page.getByRole("button", { name: "Review credits →" }).click();
+    await page
+      .getByRole("heading", { name: "Review before generation" })
+      .waitFor();
+    assert(
+      !(await page
+        .getByRole("button", { name: /Create my study workspace/ })
+        .isEnabled()),
+    );
+    await page.getByText("Saved to your account", { exact: true }).waitFor();
+    await page.reload();
+    await page.getByRole("button", { name: /New lesson/ }).click();
+    await page
+      .getByRole("heading", { name: "Review before generation" })
+      .waitFor();
+    await page.getByRole("button", { name: "← Edit outline" }).click();
+    await page.getByRole("button", { name: "← Back to input" }).click();
+    assert.equal(
+      await page.getByLabel("What would you like to understand?").inputValue(),
+      "Cells",
+    );
+    const scanImage = await sharp({
+      create: { width: 80, height: 40, channels: 3, background: "white" },
+    })
+      .png()
+      .toBuffer();
+    const { prepareScan } = await import("../lib/intake/image"),
+      preparedScan = await prepareScan(scanImage, {
+        rotation: 90,
+        crop: { x: 0, y: 0, width: 100, height: 50 },
+      });
+    await page.route("**/api/image", async (route) => {
+      assert(
+        route.request().postDataBuffer()?.toString().includes('"rotation":90'),
+      );
+      await route.fulfill({
+        json: {
+          text: "Cells contain genetic information. [unclear] कोशिका",
+          preparation: preparedScan.provenance,
+          unclearCount: 1,
+          warning: "Fixture transcription; not a provider test",
+        },
+      });
+    });
+    await page
+      .locator('input[type="file"]')
+      .first()
+      .setInputFiles({
+        name: "scan-fixture.png",
+        mimeType: "image/png",
+        buffer: scanImage,
+      });
+    await page.getByRole("heading", { name: "Prepare this scan" }).waitFor();
+    await page.getByLabel("Rotation").selectOption("90");
+    await page.getByLabel("Crop height (%)").fill("50");
+    await page.screenshot({
+      path: "output/live-audit/studio/scan-preparation.png",
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Read prepared scan" }).click();
+    await page
+      .getByRole("button", { name: "Review my outline →", exact: true })
+      .click();
+    await page
+      .getByText(
+        "Review the extracted scan text and confirm its unreadable areas before planning.",
+        { exact: true },
+      )
+      .waitFor();
+    await page
+      .getByText("Review extracted text before generation", { exact: true })
+      .click();
+    await page
+      .getByLabel("Extracted source text")
+      .fill("Cells contain genetic information. कोशिका");
+    await page
+      .getByRole("checkbox", { name: /I checked this extraction/ })
+      .check();
+    await page.getByLabel("Target pages").selectOption("1");
+    await page.getByRole("checkbox", { name: "Find sources" }).uncheck();
+    await page
+      .getByRole("button", { name: "Review my outline →", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Shape your study outline" })
+      .waitFor();
+    assert.equal(
+      await balance(user.id),
+      beforePlanning,
+      "Planning and scan review do not reserve generation credits",
+    );
+    await page.screenshot({
+      path: "output/live-audit/studio/lesson-outline.png",
+      fullPage: true,
+    });
     await page.goto(`http://localhost:3151/lesson/${job.id}/quiz`);
     await page.getByRole("button", { name: "Start saved attempt" }).click();
+    await page.getByText("Rebuild practice questions", { exact: true }).click();
+    assert(
+      !(await page
+        .getByRole("button", { name: "Rebuild quiz and flashcards" })
+        .isEnabled()),
+    );
     await page.getByRole("button", { name: /Genetic information/ }).click();
     await page
       .getByRole("button", { name: "Save answer", exact: true })
@@ -195,6 +339,57 @@ async function main() {
     await page
       .getByText("1/1 · saved practice result", { exact: false })
       .waitFor();
+    await page.getByText("Rebuild practice questions", { exact: true }).click();
+    assert(
+      await page
+        .getByRole("button", { name: "Rebuild quiz and flashcards" })
+        .isEnabled(),
+    );
+    await page.goto(`http://localhost:3151/lesson/${job.id}/notes#page-1`);
+    await page.getByText("Reading & accessibility", { exact: true }).click();
+    await page.getByLabel("View", { exact: true }).selectOption("reading");
+    await page.getByLabel("Text size", { exact: true }).selectOption("28");
+    await page.getByLabel("Line width", { exact: true }).selectOption("56");
+    await page.getByLabel("Hide secondary tools", { exact: true }).check();
+    await page
+      .getByRole("button", { name: "Save reading preferences", exact: true })
+      .click();
+    await page.getByText(/Preferences saved to your account/).waitFor();
+    await page.reload();
+    await page.locator(".reading-page").waitFor();
+    assert.equal(await page.locator(".reading-page math").count(), 1);
+    assert.equal(await page.locator("#page-1").count(), 1);
+    for (const width of [768, 390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 2,
+        ),
+        `Reader overflow at ${width}`,
+      );
+      await page.screenshot({
+        path: `output/live-audit/studio/reader-${width}.png`,
+        fullPage: true,
+      });
+    }
+    await page.setViewportSize({ width: 768, height: 1000 });
+    await page.evaluate(() => {
+      document.body.style.zoom = "2";
+    });
+    assert(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 2,
+      ),
+      "Reader overflow at 200% zoom",
+    );
+    await page.screenshot({
+      path: "output/live-audit/studio/reader-zoom.png",
+      fullPage: true,
+    });
+    await page.evaluate(() => {
+      document.body.style.zoom = "1";
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`http://localhost:3151/presentations?draft=${draft.id}`);
     await page.getByLabel("Slide 2 outline").fill("Cell structure");
     await page

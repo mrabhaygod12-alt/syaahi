@@ -35,7 +35,7 @@ function rich(s: string): string {
               throwOnError: true,
               trust: false,
               maxExpand: 1000,
-              output: "html",
+              output: "htmlAndMathml",
             },
           );
         } catch {
@@ -45,6 +45,11 @@ function rich(s: string): string {
       return escapeHtml(part);
     })
     .join("");
+}
+
+/** Escaped structured content shared by the accessible reader and print renderer. */
+export function renderReadingBody(markdown: string): string {
+  return parseNote(markdown).map(block).join("");
 }
 function block(b: Block): string {
   switch (b.kind) {
@@ -204,8 +209,13 @@ export function renderDocument(
       // appearance in preview and PDF, while still looking less typeset.
       const rendered = parseNote(note.markdown)
         .map((item, index) => {
-          const variation = jitter ? ` hand-${(index * 7 + item.kind.length) % 5}` : "";
-          return block(item).replace(/class="block\b/g, `class="block${variation}`);
+          const variation = jitter
+            ? ` hand-${(index * 7 + item.kind.length) % 5}`
+            : "";
+          return block(item).replace(
+            /class="block\b/g,
+            `class="block${variation}`,
+          );
         })
         .join("");
       return `<section class="source" data-paper="${paper} template-${["classic", "poster", "lab", "magazine", "study", "exam", "annotated"].includes(note.template || "") ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${rendered}</section>`;

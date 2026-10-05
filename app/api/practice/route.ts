@@ -9,6 +9,7 @@ import { authError } from "@/lib/auth/server";
 import { NextRequest, NextResponse } from "next/server";
 import { chatWithFallback } from "@/lib/ai/router";
 import { languageLine, normalizeLang } from "@/lib/ai/prompts";
+import { acceptedVariants, quizVersion } from "@/lib/study/quiz";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -21,6 +22,8 @@ export interface QuizQ {
   hint?: string;
   topic?: string;
   explanation?: string;
+  acceptedAnswers?: string[];
+  rubricVersion?: number;
 }
 export interface Flash {
   front: string;
@@ -70,15 +73,51 @@ async function handlePOST(req: NextRequest) {
       { error: "Ask the lesson owner to generate or rebuild practice." },
       { status: 403 },
     );
+  if (owned && body.regenerate === true) {
+    const active = await readState<any>(
+      (await currentUser(req))!.id,
+      `quiz:${owned.id}`,
+      null,
+    );
+    if (
+      active &&
+      !active.submitted &&
+      active.version === quizVersion(owned.practice?.quiz || [])
+    )
+      return NextResponse.json(
+        {
+          error:
+            "Submit your current attempt before rebuilding practice. Your saved answers remain available.",
+        },
+        { status: 409 },
+      );
+  }
   if (body.action === "attach-image") {
     const cardIndex = Number(body.cardIndex);
     const imageData = typeof body.imageData === "string" ? body.imageData : "";
-    if (!owned || !Number.isInteger(cardIndex) || !owned.practice?.flashcards?.[cardIndex])
-      return NextResponse.json({ error: "Choose an existing flashcard." }, { status: 400 });
-    if (!/^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(imageData) || imageData.length > 700_000)
-      return NextResponse.json({ error: "Use a PNG, JPEG, WebP, or GIF under 500 KB." }, { status: 400 });
+    if (
+      !owned ||
+      !Number.isInteger(cardIndex) ||
+      !owned.practice?.flashcards?.[cardIndex]
+    )
+      return NextResponse.json(
+        { error: "Choose an existing flashcard." },
+        { status: 400 },
+      );
+    if (
+      !/^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(
+        imageData,
+      ) ||
+      imageData.length > 700_000
+    )
+      return NextResponse.json(
+        { error: "Use a PNG, JPEG, WebP, or GIF under 500 KB." },
+        { status: 400 },
+      );
     const flashcards = owned.practice.flashcards.map((card, index) =>
-      index === cardIndex ? { ...card, type: "image" as const, imageData } : card,
+      index === cardIndex
+        ? { ...card, type: "image" as const, imageData }
+        : card,
     );
     await updateJob(owned.id, { practice: { ...owned.practice, flashcards } });
     return NextResponse.json({ flashcards });
@@ -148,6 +187,7 @@ async function handlePOST(req: NextRequest) {
             '{"quiz":[{"q":"...","type":"mcq","options":["option text","...","...","..."],"answer":"option text","hint":"...","topic":"...","explanation":"why the correct option follows from the notes"}],' +
             '"flashcards":[{"front":"...","back":"...","type":"basic|cloze|ordering|image","topic":"...","items":["..."],"imageAlt":"..."}]}\n' +
             `Exactly ${size} quiz items in format ${format} + ${cardCount} flashcards. Each flashcard must test a single meaningful idea; distribute cards across all supplied topics and avoid duplicate or trivial cards. Make roughly one third type cloze: front has exactly one {{c1::answer}} marker. Make one or two type ordering: front asks for a process order, items contains 3-6 ordered short steps, and back explains the sequence. Make one or two type image: imageAlt is a 3-12 word visual mnemonic grounded in the notes, while front still asks a recall question. Remaining cards are basic question/answer cards. Mixed means a balance of mcq, blank, and short. For mcq use 4 options and answer MUST equal an option. For blank include ___ in the question and a brief exact answer, with no options. For short ask for a precise term, not an essay, and omit options. ` +
+            `For blank/short include acceptedAnswers: an array of up to 8 brief equivalent terms grounded in the notes (synonyms, full name/acronym, supported Hindi/English equivalents). Do not include partially correct or broader terms. These are exact accepted variants, not semantic essay grading. ` +
             `Answerable ONLY from the notes. Difficulty: ${difficulty}. Focus: ${focus || "all supplied topics"}. Include a clear explanation for every answer. Hints nudge, they do not leak the answer.`,
         },
         { role: "user", content: material },
@@ -191,7 +231,22 @@ async function handlePOST(req: NextRequest) {
             (x) => x.q.trim().toLowerCase() === q.q.trim().toLowerCase(),
           ) === i,
       )
-      .slice(0, size);
+      .slice(0, size)
+      .map((q: QuizQ) => ({
+        q: q.q.slice(0, 2000),
+        type: q.type,
+        answer: q.answer.slice(0, 2000),
+        options:
+          q.type === "mcq"
+            ? q.options?.map((o) => o.slice(0, 2000))
+            : undefined,
+        explanation: q.explanation?.slice(0, 4000),
+        hint: typeof q.hint === "string" ? q.hint.slice(0, 500) : undefined,
+        topic: typeof q.topic === "string" ? q.topic.slice(0, 160) : undefined,
+        acceptedAnswers:
+          q.type === "mcq" ? [] : acceptedVariants(q.acceptedAnswers),
+        rubricVersion: 1,
+      }));
     const flashcards: Flash[] = (
       Array.isArray(j.flashcards) ? j.flashcards : []
     )
@@ -224,6 +279,21 @@ async function handlePOST(req: NextRequest) {
       )
       .slice(0, cardCount);
     if (!quiz.length) throw new Error("empty-quiz");
+    if (owned && body.regenerate === true) {
+      const active = await readState<any>(owner, `quiz:${owned.id}`, null);
+      if (
+        active &&
+        !active.submitted &&
+        active.version === quizVersion(owned.practice?.quiz || [])
+      )
+        return NextResponse.json(
+          {
+            error:
+              "A saved attempt started while practice was being built. Submit it before retrying.",
+          },
+          { status: 409 },
+        );
+    }
     if (owned && owned.status === "done")
       await updateJob(owned.id, { practice: { quiz, flashcards } });
     const result = {
