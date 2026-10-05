@@ -48,7 +48,7 @@ export async function records<T extends WorkspaceRecord>(
 export async function mutateRecord<T extends WorkspaceRecord>(
   id: string,
   change: (old: T | null) => T,
-  credit?: { delta: number; event: string },
+  credit?: { delta: number; event: string; reason?: string },
 ): Promise<T> {
   if (useMongo())
     return mongoTransaction(async (database, session) => {
@@ -61,29 +61,25 @@ export async function mutateRecord<T extends WorkspaceRecord>(
           .collection<any>("ledger")
           .findOne({ _id: credit.event }, { session }))
       ) {
-        const wallet = await database
-          .collection<any>("wallets")
-          .updateOne(
-            {
-              _id: next.owner,
-              ...(credit.delta < 0 ? { balance: { $gte: -credit.delta } } : {}),
-            },
-            { $inc: { balance: credit.delta } },
-            { session },
-          );
+        const wallet = await database.collection<any>("wallets").updateOne(
+          {
+            _id: next.owner,
+            ...(credit.delta < 0 ? { balance: { $gte: -credit.delta } } : {}),
+          },
+          { $inc: { balance: credit.delta } },
+          { session },
+        );
         if (!wallet.matchedCount) throw new Error("Insufficient credits.");
-        await database
-          .collection<any>("ledger")
-          .insertOne(
-            {
-              _id: credit.event,
-              user: next.owner,
-              delta: credit.delta,
-              reason: "Presentation",
-              createdAt: new Date(),
-            },
-            { session },
-          );
+        await database.collection<any>("ledger").insertOne(
+          {
+            _id: credit.event,
+            user: next.owner,
+            delta: credit.delta,
+            reason: credit.reason || "Presentation",
+            createdAt: new Date(),
+          },
+          { session },
+        );
       }
       await c.updateOne(
         { _id: id },
@@ -120,7 +116,7 @@ export async function mutateRecord<T extends WorkspaceRecord>(
           credit.event,
           next.owner,
           credit.delta,
-          "Presentation",
+          credit.reason || "Presentation",
           new Date().toISOString(),
         );
     }

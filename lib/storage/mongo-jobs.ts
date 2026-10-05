@@ -13,6 +13,15 @@ export async function mongoGetJob(id: string) {
 export async function mongoCreateJob(job: Job) {
   await mongoTransaction(async (d, session) => {
     const opts = { session };
+    const existing = clean(
+      await d.collection<any>("jobs").findOne({ _id: job.id }, opts),
+    );
+    if (existing) {
+      if (existing.user !== job.user)
+        throw new Error("Invalid generation request.");
+      Object.assign(job, existing);
+      return;
+    }
     const wallet = await d
       .collection<any>("wallets")
       .updateOne(

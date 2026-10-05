@@ -1,6 +1,12 @@
 import PresentationStudio from "@/components/PresentationStudio";
 import { Faq } from "@/components/site";
-import { pageMeta, jsonLd, faqSchema } from "@/lib/seo";
+import {
+  pageMeta,
+  jsonLd,
+  faqSchema,
+  presentationSchema,
+  breadcrumbSchema,
+} from "@/lib/seo";
 export const metadata = pageMeta({
   title: "AI Presentations: Editable PowerPoint from Your Brief",
   description:
@@ -14,17 +20,19 @@ const answers = [
   },
   {
     q: "How much does a presentation cost?",
-    a: "A completed deck costs five credits. The slide limit depends on your plan. Failed jobs return the charge.",
+    a: "Preparing and editing an outline is free. Approving generation reserves five credits. Regenerating one saved slide costs one credit. Failed generation returns the corresponding charge. Slide limits depend on your plan.",
   },
 ];
 export default function Page() {
   return (
-    <div className="container">
+    <div className="presentation-page">
       <p className="eyebrow">From brief to slides</p>
       <h1>Explain your topic. Build a presentation you can edit.</h1>
       <p>
         Choose your audience, language and template. Review every slide before
-        downloading a PowerPoint file. Your presentations stay private.
+        downloading editable PowerPoint, slide PDF, a slide PNG or speaker-note
+        handout. Your presentations are private until you explicitly create a
+        share link.
       </p>
       <PresentationStudio />
       <section className="card">
@@ -33,12 +41,18 @@ export default function Page() {
           <li>
             Describe your topic and audience; paste relevant references or data.
           </li>
-          <li>Choose a slide count and visual template.</li>
           <li>
-            Watch saved progress, reopen the deck, and edit its copy or sources.
+            Choose a slide count and visual template; review, reorder and save
+            the free outline.
           </li>
           <li>
-            Download editable PPTX with speaker notes, without a watermark.
+            Approve the five-credit generation cost. Follow saved progress,
+            reopen the deck, and edit slides and speaker notes.
+          </li>
+          <li>
+            Preview slides and export editable PPTX or a slide PDF. Fonts and
+            text wrapping can vary in PowerPoint, so review the exported file
+            before presenting.
           </li>
         </ol>
         <h2>Can I use my own data?</h2>
@@ -55,6 +69,21 @@ export default function Page() {
         </p>
       </section>
       <Faq items={answers} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(presentationSchema()) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd(
+            breadcrumbSchema([
+              { name: "Home", path: "/" },
+              { name: "Presentation studio", path: "/presentations" },
+            ]),
+          ),
+        }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

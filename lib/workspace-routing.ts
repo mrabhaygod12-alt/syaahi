@@ -4,6 +4,7 @@ export const workspaceHome = (workspace: Workspace) =>
 export const publishingPath = (path: string) =>
   /^\/(writing|community|creators|guides)(\/|$)/.test(path);
 export const studentPath = (path: string) =>
+  !/^\/presentations\/(shared|audience)(\/|\?|$)/.test(path) &&
   /^\/(dashboard|generate|lesson|presentations|interview|refer)(\/|$)/.test(
     path,
   );

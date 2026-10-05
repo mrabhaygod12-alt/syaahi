@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { releaseRevision } from "./lib/release";
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname.toLowerCase();
-  if (
+  const isTrap =
     /(?:^|\/)\.(?:env|git|svn)(?:[/.]|$)/.test(path) ||
-    /^\/(?:data|backups)(?:\/|$)/.test(path)
-  )
-    return new NextResponse(null, { status: 404 });
+    /^\/(?:data|backups|wp-admin|phpmyadmin|cgi-bin)(?:\/|$)/.test(path) ||
+    /^\/(?:wp-login\.php|xmlrpc\.php)$/.test(path);
   // Keep one indexable/public origin even if the Vercel alias or apex domain
   // remains attached without a redirect in the hosting dashboard.
   const hostname = req.nextUrl.hostname.toLowerCase();
@@ -24,7 +23,7 @@ export function middleware(req: NextRequest) {
     role === "frontend" ||
     process.env.VERCEL === "1" ||
     (!!backend && role !== "backend" && role !== "worker");
-  const isApiRequest = req.nextUrl.pathname.startsWith("/api/");
+  const isApiRequest = req.nextUrl.pathname.startsWith("/api/") || isTrap;
   const frontendResponse = (response: NextResponse) => {
     const revision = releaseRevision(process.env.VERCEL_GIT_COMMIT_SHA);
     if (revision) response.headers.set("x-syaahi-frontend-revision", revision);
@@ -48,7 +47,12 @@ export function middleware(req: NextRequest) {
       const base = new URL(backend);
       if (base.username || base.password || base.hostname === hostname)
         throw new Error("Invalid backend origin");
-      target = new URL(req.nextUrl.pathname + req.nextUrl.search, base);
+      target = new URL(
+        isTrap
+          ? "/api/security/trap"
+          : req.nextUrl.pathname + req.nextUrl.search,
+        base,
+      );
     } catch {
       return NextResponse.json(
         {
@@ -97,6 +101,8 @@ export function middleware(req: NextRequest) {
         { status: 403 },
       );
   }
+  if (isTrap)
+    return NextResponse.rewrite(new URL("/api/security/trap", req.url));
   return NextResponse.next();
 }
 export const config = {

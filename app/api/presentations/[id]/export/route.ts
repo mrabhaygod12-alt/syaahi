@@ -4,6 +4,7 @@ import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { ownedDeck } from "@/lib/presentations/store";
 import { exportDeck } from "@/lib/presentations/export";
+import { visualExport } from "@/lib/presentations/visual-export";
 export const runtime = "nodejs";
 export const GET = apiHandler(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
@@ -25,12 +26,31 @@ export const GET = apiHandler(
         { error: "Wait for the presentation to finish." },
         { status: 409 },
       );
-    const bytes = await exportDeck(deck);
+    const format = req.nextUrl.searchParams.get("format") || "pptx";
+    if (!["pptx", "pdf", "png", "notes"].includes(format))
+      return NextResponse.json(
+        { error: "Choose PPTX, PDF, notes PDF or a slide image." },
+        { status: 400 },
+      );
+    const bytes =
+      format === "pptx"
+        ? await exportDeck(deck)
+        : await visualExport(
+            deck,
+            format as "pdf" | "png" | "notes",
+            Number(req.nextUrl.searchParams.get("slide") || 0),
+          );
+    const extension =
+      format === "pptx" ? "pptx" : format === "png" ? "png" : "pdf";
     return new Response(new Uint8Array(bytes), {
       headers: {
         "Content-Type":
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "Content-Disposition": `attachment; filename="syaahi-${deck.id}.pptx"`,
+          format === "pptx"
+            ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            : format === "png"
+              ? "image/png"
+              : "application/pdf",
+        "Content-Disposition": `attachment; filename="syaahi-${deck.id}.${extension}"`,
         "Cache-Control": "private, no-store",
       },
     });

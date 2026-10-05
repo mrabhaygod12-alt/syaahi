@@ -13,6 +13,13 @@ import { records } from "@/lib/workspace-records";
 import { normalizeLang } from "@/lib/ai/prompts";
 import { kickWorker } from "@/lib/jobs/worker";
 import { eligibleProviders } from "@/lib/ai/providers";
+import {
+  planDeck,
+  ownedDraft,
+  approveDraft,
+  ownedSources,
+} from "@/lib/presentations/drafts";
+import { ownedDeck } from "@/lib/presentations/store";
 export const runtime = "nodejs";
 export const GET = apiHandler(async (req: NextRequest) => {
   const denied = await authError(req);
@@ -42,6 +49,51 @@ export const POST = apiHandler(async (req: NextRequest) => {
     body = await req.json().catch(() => ({})),
     count = Number(body.count),
     max = await presentationLimit(owner);
+  if (typeof body.draftId === "string") {
+    const id = `deck-${body.draftId}`;
+    const existing = await ownedDeck(owner, id);
+    if (existing)
+      return NextResponse.json({ deck: safeDeck(existing), reused: true });
+    const old = await ownedDraft(owner, body.draftId);
+    if (!old || old.count > max)
+      return NextResponse.json(
+        { error: "Outline not found or plan limit changed." },
+        { status: 409 },
+      );
+    try {
+      if (body.confirmCredits !== true)
+        throw new Error("Approve the five-credit charge before generating.");
+      const draft = await approveDraft(
+        owner,
+        old.id,
+        body.revision,
+        body.outline,
+      );
+      const deck = await createDeck(
+        owner,
+        {
+          prompt: `${draft.prompt}\nAudience: ${draft.audience}; format: ${draft.format}`,
+          context: draft.sources
+            .map((s) => `SOURCE ${s.id}: ${s.name}\n${s.text}`)
+            .join("\n")
+            .slice(0, 18000),
+          language: draft.language,
+          template: draft.template,
+          count: draft.count,
+          outline: draft.outline,
+          sources: draft.sources,
+        },
+        id,
+      );
+      kickWorker();
+      return NextResponse.json({ deck: safeDeck(deck) }, { status: 201 });
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "Could not start." },
+        { status: 409 },
+      );
+    }
+  }
   if (
     typeof body.prompt !== "string" ||
     body.prompt.trim().length < 20 ||
@@ -58,16 +110,24 @@ export const POST = apiHandler(async (req: NextRequest) => {
       { status: 400 },
     );
   try {
-    const deck = await createDeck(owner, {
+    if (body.action !== "outline")
+      throw new Error(
+        "Prepare and approve an outline before generating a deck.",
+      );
+    const sources = await ownedSources(
+      owner,
+      Array.isArray(body.sources) ? body.sources : [],
+    );
+    const draft = await planDeck(owner, {
       prompt: body.prompt.trim(),
-      context:
-        typeof body.context === "string" ? body.context.slice(0, 18000) : "",
+      sources,
+      audience: String(body.audience || "Students").slice(0, 120),
+      format: body.format === "presenter" ? "presenter" : "detailed",
       count,
       template: body.template,
       language: normalizeLang(body.language),
     });
-    kickWorker();
-    return NextResponse.json({ deck: safeDeck(deck) }, { status: 201 });
+    return NextResponse.json({ draft }, { status: 201 });
   } catch (e) {
     return NextResponse.json(
       {

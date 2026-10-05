@@ -9,6 +9,7 @@ import { useLesson } from "./LessonProvider";
 
 import { useToast } from "@/components/Toasts";
 import { lessonTitle } from "./types";
+import NoteHistory from "./NoteHistory";
 
 export default function NotesView() {
   const { job, setTemplate, refresh, openChat } = useLesson();
@@ -53,7 +54,10 @@ export default function NotesView() {
       job?.sourceUrl
         ? `- Original input: [${job.sourceName || job.sourceUrl}](${job.sourceUrl})`
         : "- Original input: learner-selected topic or supplied material.",
-      ...references.map((reference) => `- ${reference.kind === "source" ? "Retrieved reference" : "Further reading"}: [${reference.title}](${reference.url})`),
+      ...references.map(
+        (reference) =>
+          `- ${reference.kind === "source" ? "Retrieved reference" : "Further reading"}: [${reference.title}](${reference.url})`,
+      ),
     ];
     return {
       topic: "Sources & citation appendix",
@@ -153,7 +157,11 @@ export default function NotesView() {
         continue onto extra sheets. Downloads include a sources and citation
         appendix.
       </p>
-      <div className="note-template-picker" role="list" aria-label="PDF template previews">
+      <div
+        className="note-template-picker"
+        role="list"
+        aria-label="PDF template previews"
+      >
         {PDF_TEMPLATES.map((template) => (
           <button
             key={template.id}
@@ -166,7 +174,10 @@ export default function NotesView() {
               setTemplate(template.id);
             }}
           >
-            <span className={`note-template-thumb template-${template.id}`} aria-hidden="true">
+            <span
+              className={`note-template-thumb template-${template.id}`}
+              aria-hidden="true"
+            >
               <i />
               <i />
               <i />
@@ -179,20 +190,30 @@ export default function NotesView() {
 
       {(job.status === "working" || job.status === "queued") && (
         <div className="card" role="status" style={{ marginBottom: 16 }}>
-          <b>{job.status === "queued" ? "Generation is queued" : "Generating your lesson"}</b>
+          <b>
+            {job.status === "queued"
+              ? "Generation is queued"
+              : "Generating your lesson"}
+          </b>
           <p className="small">
             Section {Math.min(pages.length + 1, planned)} of {planned} is next.
-            {pages.at(-1)?.provider && ` Last completed section used ${pages.at(-1)?.provider}.`}
+            {pages.at(-1)?.provider &&
+              ` Last completed section used ${pages.at(-1)?.provider}.`}
           </p>
         </div>
       )}
       {job.status === "error" && pages.length < planned && (
         <div className="card" role="alert" style={{ marginBottom: 16 }}>
-          <b>Generation paused after section {pages.length} of {planned}.</b>
+          <b>
+            Generation paused after section {pages.length} of {planned}.
+          </b>
           <p className="small">
-            Your completed sections are saved. Resume continues with section {pages.length + 1}; it does not recreate or charge completed work.
+            Your completed sections are saved. Resume continues with section{" "}
+            {pages.length + 1}; it does not recreate or charge completed work.
           </p>
-          {job.error && <p className="small">Last provider response: {job.error}</p>}
+          {job.error && (
+            <p className="small">Last provider response: {job.error}</p>
+          )}
           <button
             className="btn dark"
             disabled={resuming}
@@ -205,11 +226,17 @@ export default function NotesView() {
                   body: JSON.stringify({ action: "resume" }),
                 });
                 const data = await response.json();
-                if (!response.ok) throw new Error(data.error || "Could not resume generation.");
+                if (!response.ok)
+                  throw new Error(data.error || "Could not resume generation.");
                 toast(`Continuing from section ${data.resumeFrom + 1}.`);
                 await refresh();
               } catch (error) {
-                toast(error instanceof Error ? error.message : "Could not resume generation.", true);
+                toast(
+                  error instanceof Error
+                    ? error.message
+                    : "Could not resume generation.",
+                  true,
+                );
               } finally {
                 setResuming(false);
               }
@@ -254,6 +281,12 @@ export default function NotesView() {
                 </button>
               </div>
             </div>
+            <NoteHistory
+              lesson={job.id}
+              section={i}
+              current={p.markdown}
+              onRestore={() => void refresh()}
+            />
             {editing === i && (
               <div className="card">
                 {editingRevision !== (job.revision || 0) && (

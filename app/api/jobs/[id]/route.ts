@@ -8,6 +8,8 @@ import { resumeJob } from "@/lib/jobs/store";
 import { kickWorker } from "@/lib/jobs/worker";
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, updateJob, deleteJob } from "@/lib/jobs/store";
+import { randomUUID } from "node:crypto";
+import { studyActivity } from "@/lib/study/hub";
 
 export const runtime = "nodejs";
 
@@ -22,6 +24,13 @@ async function handleGET(
   const role = job ? await accessRole(job, (await currentUser(req))!.id) : null;
   if (!job || !role)
     return NextResponse.json({ error: "Unknown job." }, { status: 404 });
+  if (new URL(req.url).searchParams.get("history") === "1")
+    return NextResponse.json(
+      role === "viewer"
+        ? { error: "History requires editor access." }
+        : { revision: job.revision || 0, history: job.noteHistory || [] },
+      { status: role === "viewer" ? 403 : 200 },
+    );
   if (new URL(req.url).searchParams.get("revision") === "1")
     return NextResponse.json(
       {
@@ -43,6 +52,7 @@ async function handleGET(
             brief: null,
             sourceUrl: null,
             sourceName: null,
+            ...(role === "viewer" ? { noteHistory: undefined } : {}),
             progress: await readState(
               (await currentUser(req))!.id,
               `progress:${job.id}`,
@@ -88,7 +98,7 @@ async function handlePOST(
   if (
     role !== "owner" &&
     body.action !== "progress" &&
-    (role !== "editor" || body.action !== "edit-page")
+    (role !== "editor" || !["edit-page", "restore-page"].includes(body.action))
   )
     return NextResponse.json(
       { error: "This action requires owner access." },
@@ -127,16 +137,66 @@ async function handlePOST(
     }
     const updated = await updateJob((await params).id, {
       progress: {
-        completed: Array.from(new Set(completed)).slice(0, 48),
+        completed: Array.from(new Set(completed))
+          .filter((n) => n < owned.pages.length)
+          .slice(0, 48),
         lastRoom,
+        visitedAt: new Date().toISOString(),
       },
       ...(pdfTemplate ? { pdfTemplate: pdfTemplate as any } : {}),
     });
+    if (
+      completed.some(
+        (n) => n < owned.pages.length && !owned.progress?.completed.includes(n),
+      )
+    )
+      await studyActivity(
+        (await currentUser(req))!.id,
+        `complete:${owned.id}:${owned.revision || 0}:${completed.join("-")}`,
+      );
     return NextResponse.json({
       ok: true,
       progress: updated?.progress,
       pdfTemplate: updated?.pdfTemplate,
     });
+  }
+  if (body.action === "restore-page") {
+    try {
+      const updated = await reviseJob(owned.id, (job) => {
+        if (
+          ["queued", "working"].includes(job.status) ||
+          body.revision !== (job.revision || 0)
+        )
+          throw new Error("Notes changed. Reload history before restoring.");
+        const version = job.noteHistory?.find((v) => v.id === body.version);
+        if (!version || !job.pages[version.section])
+          throw new Error("Version not found.");
+        job.noteHistory = [
+          {
+            id: randomUUID(),
+            section: version.section,
+            markdown: job.pages[version.section].markdown,
+            at: new Date().toISOString(),
+            author: role,
+          },
+          ...(job.noteHistory || []),
+        ].slice(0, 20);
+        job.pages[version.section] = {
+          ...job.pages[version.section],
+          markdown: version.markdown,
+        };
+        job.practice = null;
+        job.podcastScript = null;
+        job.revision = (job.revision || 0) + 1;
+        return job;
+      });
+      return NextResponse.json({ ok: true, revision: updated?.revision });
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "Restore failed." },
+        { status: 409 },
+      );
+    }
   }
   if (body.action === "append-page" || body.action === "edit-page") {
     const markdown =
@@ -158,8 +218,19 @@ async function handlePOST(
             );
           if (!Number.isInteger(index) || !job.pages[index])
             throw new Error("Unknown section.");
+          job.noteHistory = [
+            {
+              id: randomUUID(),
+              section: index,
+              markdown: job.pages[index].markdown,
+              at: new Date().toISOString(),
+              author: role,
+            },
+            ...(job.noteHistory || []),
+          ].slice(0, 20);
           job.pages[index] = { ...job.pages[index], markdown };
           job.practice = null;
+          job.podcastScript = null;
           job.revision = (job.revision || 0) + 1;
         } else {
           if (job.pages.length >= 48)

@@ -7,6 +7,7 @@ export interface Collaboration {
     hash: string;
     role: "viewer" | "editor";
     created: string;
+    expires?: number;
   }>;
   members: Array<{
     user: string;
@@ -40,7 +41,11 @@ export async function accessRole(
   const state = await getCollaboration(job.id);
   return (
     state.members.find(
-      (m) => m.user === user && state.links.some((l) => l.id === m.link),
+      (m) =>
+        m.user === user &&
+        state.links.some(
+          (l) => l.id === m.link && (!l.expires || l.expires > Date.now()),
+        ),
     )?.role || null
   );
 }
@@ -51,7 +56,13 @@ export async function createShare(job: Job, role: "viewer" | "editor") {
   await mutateState("collaboration", job.id, emptyCollaboration(), (s) => {
     if (s.links.length >= 20)
       throw new Error("Revoke an old link before creating more.");
-    s.links.push({ id, hash, role, created: new Date().toISOString() });
+    s.links.push({
+      id,
+      hash,
+      role,
+      created: new Date().toISOString(),
+      expires: Date.now() + 7 * 86400000,
+    });
     return s;
   });
   await mutateState("share-index", hash, { lesson: job.id, id }, () => ({
@@ -71,5 +82,7 @@ export async function resolveShare(token: string) {
   if (!index) return null;
   const state = await getCollaboration(index.lesson);
   const link = state.links.find((l) => l.id === index.id && l.hash === hash);
-  return link ? { lesson: index.lesson, link } : null;
+  return link && (!link.expires || link.expires > Date.now())
+    ? { lesson: index.lesson, link }
+    : null;
 }

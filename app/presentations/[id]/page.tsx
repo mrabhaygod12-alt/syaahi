@@ -9,7 +9,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <div className="container">
+    <div className="presentation-page">
       <PresentationStudio id={(await params).id} />
     </div>
   );

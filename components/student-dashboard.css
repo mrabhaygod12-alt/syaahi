@@ -1,0 +1,464 @@
+.student-hub {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  max-width: 1660px;
+  margin: auto;
+  min-height: 85vh;
+  color: #173f35;
+  background: #f4f6f1;
+}
+.hub-rail {
+  padding: 32px 16px;
+  background: #e9eee4;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #d6ded0;
+  position: sticky;
+  top: 76px;
+  align-self: start;
+  height: calc(100dvh - 76px);
+}
+.hub-wordmark {
+  font-weight: 700;
+  padding: 12px;
+  font-size: 15px;
+  margin-bottom: 26px;
+}
+.hub-rail nav {
+  display: grid;
+  gap: 5px;
+}
+.hub-rail nav button,
+.hub-rail nav a {
+  display: flex;
+  text-align: left;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hub-rail nav [aria-current="page"] {
+  background: #173f35;
+  color: white;
+  box-shadow: 0 6px 18px #173f351f;
+}
+.hub-rail nav small {
+  margin-left: auto;
+}
+.hub-rail-bottom {
+  margin-top: auto;
+  padding: 14px;
+  font-size: 13px;
+}
+.hub-body {
+  padding: 40px clamp(16px, 4vw, 64px);
+  min-width: 0;
+  animation: hub-appear 0.35s ease-out;
+}
+.hub-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.hub-top h1 {
+  font-size: clamp(25px, 3vw, 42px);
+  line-height: 1.18;
+  font-weight: 550;
+  letter-spacing: -1px;
+  margin: 8px 0;
+}
+.hub-balance {
+  background: white;
+  padding: 14px 22px;
+  border: 1px solid #d6ded0;
+  border-radius: 18px;
+  font-size: 27px;
+  text-decoration: none;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.hub-balance span {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+}
+.hub-tools {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.hub-tools input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid #d3ddcd;
+  background: #fff;
+  padding: 14px 18px;
+  min-height: 48px;
+}
+.hub-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.hub-summary article {
+  border: 1px solid #d9e1d3;
+  border-radius: 18px;
+  background: #fff;
+  padding: 24px;
+}
+.hub-summary strong {
+  font-size: 36px;
+  letter-spacing: -1px;
+  font-weight: 550;
+}
+.hub-summary p {
+  margin: 2px 0 14px;
+}
+.hub-summary button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #176247;
+  cursor: pointer;
+  font: inherit;
+}
+.hub-summary small {
+  color: #5a6b64;
+}
+.hub-continue {
+  padding: 32px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #dce9d0;
+  border: 1px solid #cedfc1;
+  margin-bottom: 24px;
+}
+.hub-continue h2 {
+  font-size: clamp(23px, 2.5vw, 34px);
+  margin: 8px 0;
+}
+.hub-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.hub-panel {
+  background: white;
+  border: 1px solid #dbe2d5;
+  border-radius: 20px;
+  padding: 28px;
+  min-width: 0;
+}
+.hub-panel h2 {
+  font-size: 25px;
+  margin: 8px 0 18px;
+}
+.hub-panel p {
+  color: #5a6b64;
+  line-height: 1.65;
+}
+.hub-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid #e3e8de;
+  background: none;
+  padding: 18px 0;
+  color: inherit;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.hub-result h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.hub-result p {
+  font-size: 13px;
+  margin: 0;
+}
+.hub-result small {
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.hub-lessons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+.hub-lessons a {
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid #dce5d4;
+  background: #f7f9f4;
+  text-decoration: none;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.hub-lessons a:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px #163c3512;
+}
+.hub-lessons h2 {
+  font-size: 20px;
+}
+.hub-lessons p {
+  font-size: 13px;
+}
+.hub-lessons small {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.hub-error {
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff0e9;
+  border: 1px solid #ecc4b8;
+  margin-bottom: 20px;
+  overflow-wrap: anywhere;
+}
+.hub-error button {
+  margin-left: 12px;
+}
+.hub-form {
+  max-width: 660px;
+  display: grid;
+  gap: 16px;
+}
+.hub-form label {
+  display: grid;
+  gap: 7px;
+}
+.hub-form input,
+.hub-form textarea {
+  padding: 12px;
+  border: 1px solid #cbd8c5;
+  border-radius: 10px;
+  max-width: 100%;
+}
+.hub-exam {
+  border-top: 1px solid #dee5d7;
+  margin-top: 28px;
+  padding-top: 24px;
+}
+.hub-exam ul,
+.hub-ledger {
+  list-style: none;
+  padding: 0;
+}
+.hub-exam li label {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+}
+.hub-exam small,
+.hub-ledger small {
+  display: block;
+  font-size: 12px;
+  color: #68786c;
+  overflow-wrap: anywhere;
+}
+.hub-exam input {
+  width: 22px;
+  height: 22px;
+}
+.hub-answer {
+  padding: 32px;
+  background: #f2f7ea;
+  border-radius: 16px;
+  margin: 24px 0;
+  font-size: 22px;
+}
+.hub-ratings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.hub-review {
+  min-height: 400px;
+}
+.hub-review h2 {
+  font-size: clamp(24px, 3vw, 38px);
+}
+.hub-ledger li {
+  display: flex;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5ebe0;
+}
+.hub-ledger strong {
+  min-width: 50px;
+}
+.hub-source {
+  padding: 20px 0;
+  border-top: 1px solid #dce5d6;
+}
+.hub-source button {
+  margin-left: 18px;
+}
+.student-hub :is(button, a, input, textarea):focus-visible {
+  outline: 3px solid #357a59;
+  outline-offset: 3px;
+}
+.hub-composer .composer-area {
+  max-width: 100%;
+}
+.hub-composer .study-composer {
+  background: #f7faf2;
+}
+.hub-panel .btn {
+  min-height: 44px;
+}
+@keyframes hub-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 1050px) {
+  .student-hub {
+    grid-template-columns: 185px minmax(0, 1fr);
+  }
+  .hub-body {
+    padding: 28px 20px;
+  }
+  .hub-summary article {
+    padding: 18px;
+  }
+  .hub-split {
+    grid-template-columns: 1fr;
+  }
+  .hub-continue {
+    flex-direction: column;
+    align-items: start;
+  }
+}
+@media (max-width: 720px) {
+  .student-hub {
+    display: block;
+  }
+  .hub-rail {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid #d6ded0;
+  }
+  .hub-wordmark,
+  .hub-rail-bottom {
+    display: none;
+  }
+  .hub-rail nav {
+    max-width: 100%;
+    min-width: 0;
+    display: flex;
+    overflow: auto;
+    gap: 6px;
+    scrollbar-width: thin;
+  }
+  .hub-rail nav button,
+  .hub-rail nav a {
+    flex: none;
+    min-height: 44px;
+    padding: 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .hub-body {
+    padding: 24px 14px;
+  }
+  .hub-top {
+    gap: 12px;
+  }
+  .hub-top h1 {
+    letter-spacing: -0.5px;
+  }
+  .hub-balance {
+    padding: 10px 12px;
+    font-size: 22px;
+  }
+  .hub-balance span {
+    font-size: 9px;
+  }
+  .hub-tools {
+    flex-wrap: wrap;
+  }
+  .hub-tools input {
+    flex-basis: 100%;
+  }
+  .hub-tools button {
+    width: 100%;
+  }
+  .hub-summary {
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .hub-summary article {
+    padding: 14px 10px;
+  }
+  .hub-summary strong {
+    font-size: 27px;
+  }
+  .hub-summary p {
+    font-size: 12px;
+  }
+  .hub-summary small {
+    font-size: 10px;
+  }
+  .hub-summary button {
+    font-size: 11px;
+    min-height: 44px;
+  }
+  .hub-panel {
+    padding: 20px 16px;
+  }
+  .hub-continue {
+    padding: 24px;
+  }
+  .hub-source button {
+    margin: 12px 0;
+    display: block;
+  }
+  .hub-form input,
+  .hub-form textarea {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-body {
+    animation: none;
+  }
+  .hub-lessons a {
+    transition: none;
+  }
+  .hub-lessons a:hover {
+    transform: none;
+  }
+}

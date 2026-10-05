@@ -13,6 +13,7 @@ import {
 import { rateLimit } from "@/lib/ratelimit";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 import { enrollWriter, writerAccess } from "@/lib/writing/profile";
+import { recordTrap } from "@/lib/security/abuse";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handleGET(req: NextRequest) {
@@ -26,6 +27,13 @@ async function handlePOST(req: NextRequest) {
     originError(req) || (await rateLimit(req, "auth", 10, 60_000));
   if (limited) return limited;
   const body = await req.json().catch(() => ({}));
+  if (typeof body.website === "string" && body.website.trim()) {
+    await recordTrap(req, "form-trap");
+    return NextResponse.json(
+      { error: "Sign-in could not be completed. Please retry." },
+      { status: 400 },
+    );
+  }
   if (!hasConsent(body))
     return NextResponse.json(
       {

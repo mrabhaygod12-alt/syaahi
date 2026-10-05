@@ -1,4 +1,5 @@
 import { QueueCapacityError } from "@/lib/jobs/capacity";
+import { createHash } from "node:crypto";
 import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import {
@@ -9,7 +10,7 @@ import {
 } from "@/lib/research";
 import { kickWorker } from "@/lib/jobs/worker";
 import { NextRequest, NextResponse } from "next/server";
-import { createJob, listJobs, clearFailed } from "@/lib/jobs/store";
+import { createJob, listJobs, clearFailed, getJob } from "@/lib/jobs/store";
 import { chatWithFallback } from "@/lib/ai/router";
 import { normalizeLang } from "@/lib/ai/prompts";
 import { balance } from "@/lib/credits/store";
@@ -40,6 +41,22 @@ async function handlePOST(req: NextRequest) {
   const limited = await rateLimit(req, "jobs", 30, 60_000);
   if (limited) return limited;
   const body = await req.json().catch(() => ({}));
+  const requestId = /^[-\w]{10,80}$/.test(String(body.requestId || ""))
+    ? createHash("sha256")
+        .update(user + "\n" + body.requestId)
+        .digest("hex")
+        .slice(0, 36)
+    : undefined;
+  if (requestId) {
+    const old = await getJob(requestId);
+    if (old?.user === user) {
+      kickWorker();
+      return NextResponse.json(
+        { jobId: old.id, total: old.total, credits: old.total, reused: true },
+        { status: 202 },
+      );
+    }
+  }
   if (body.action === "clear-failed") {
     const cleared = await clearFailed(user);
     return NextResponse.json({ ok: true, cleared });
@@ -163,6 +180,7 @@ async function handlePOST(req: NextRequest) {
   let job;
   try {
     job = await createJob(user, topics, style, {
+      requestId,
       documentId,
       documentRange,
       context: sourceContext,

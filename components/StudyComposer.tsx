@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import LectureRecorder from "./LectureRecorder";
 import { useRouter } from "next/navigation";
 import { COURSE_PACKS } from "@/lib/course-packs";
+import { useAccount } from "./WorkspaceProvider";
+import { requestJson } from "@/lib/http-client";
 interface Plan {
   topics: string[];
   context: string;
@@ -25,6 +27,17 @@ export default function StudyComposer({
   onCreated?: () => void;
 }) {
   const router = useRouter();
+  const { user } = useAccount();
+  const draftRevision = useRef(0),
+    draftLoaded = useRef(false),
+    draftSaving = useRef(false),
+    draftConflict = useRef(false),
+    generationRequest = useRef("");
+  const [draftStatus, setDraftStatus] = useState(""),
+    [confirmed, setConfirmed] = useState(false);
+  const saveAgain = useRef(false);
+  const [draftPulse, setDraftPulse] = useState(0);
+  const [localReady, setLocalReady] = useState(false);
   const [document, setDocument] = useState<{
     id: string;
     name: string;
@@ -84,6 +97,181 @@ export default function StudyComposer({
     [sourceUrl, setSourceUrl] = useState("");
   const planSectionRef = useRef<HTMLElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    draftLoaded.current = false;
+    draftConflict.current = false;
+    setLocalReady(false);
+    const key = `syaahi-composer:${user.id}`;
+    const restore = (d: any) => {
+      if (!d || initialTopic) return;
+      for (const [field, set] of [
+        ["text", setText],
+        ["context", setContext],
+        ["source", setSource],
+        ["sourceUrl", setSourceUrl],
+        ["outline", setOutline],
+        ["learningGoal", setLearningGoal],
+      ] as const)
+        if (typeof d[field] === "string") set(d[field].slice(0, 100000));
+      if (
+        [
+          "english",
+          "hindi",
+          "hinglish",
+          "german",
+          "french",
+          "spanish",
+        ].includes(d.language)
+      )
+        setLanguage(d.language);
+      if (["detailed", "concise"].includes(d.detail)) setDetail(d.detail);
+      if (
+        d.plan &&
+        Array.isArray(d.plan.topics) &&
+        Array.isArray(d.plan.sources) &&
+        Array.isArray(d.plan.readingLinks) &&
+        typeof d.plan.context === "string"
+      )
+        setPlan(d.plan);
+      if (
+        d.document &&
+        typeof d.document.id === "string" &&
+        typeof d.document.name === "string" &&
+        Number.isInteger(d.document.pageCount)
+      )
+        setDocument(d.document);
+      if (
+        d.documentRange &&
+        Number.isInteger(d.documentRange.from) &&
+        Number.isInteger(d.documentRange.to)
+      )
+        setDocumentRange(d.documentRange);
+      if (Number.isInteger(d.pages) && d.pages >= 0 && d.pages <= 24)
+        setPages(d.pages);
+      if (typeof d.research === "boolean") setResearch(d.research);
+    };
+    void requestJson("/api/student/hub")
+      .then(({ response, data }) => {
+        if (!alive) return;
+        if (!response.ok) throw new Error(data.error);
+        draftRevision.current = data.state.revision;
+        let local: any;
+        try {
+          local = JSON.parse(localStorage.getItem(key) || "null");
+        } catch {}
+        restore(
+          local?.revision === data.state.revision
+            ? local.draft
+            : data.state.draft,
+        );
+        draftLoaded.current = true;
+        setDraftStatus(
+          data.state.draft ? "Draft restored" : "Ready to save your draft",
+        );
+        setLocalReady(true);
+      })
+      .catch(() => {
+        if (!alive) return;
+        try {
+          restore(JSON.parse(localStorage.getItem(key) || "null")?.draft);
+        } catch {}
+        setDraftStatus(
+          "Local recovery available. Reconnect before saving to your account.",
+        );
+        setLocalReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
+  useEffect(() => {
+    setConfirmed(false);
+    generationRequest.current = "";
+  }, [outline, plan, language, detail]);
+  useEffect(() => {
+    if (!user?.id || !localReady) return;
+    const draft = {
+      text,
+      context,
+      source,
+      sourceUrl,
+      language,
+      detail,
+      learningGoal,
+      outline,
+      plan,
+      document,
+      documentRange,
+      pages,
+      research,
+    };
+    const key = `syaahi-composer:${user.id}`;
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify({ revision: draftRevision.current, draft }),
+      );
+    } catch {}
+    if (!draftLoaded.current || draftConflict.current) return;
+    const timer = setTimeout(async () => {
+      if (draftSaving.current) {
+        saveAgain.current = true;
+        return;
+      }
+      draftSaving.current = true;
+      setDraftStatus("Saving draft…");
+      try {
+        const { response, data } = await requestJson("/api/student/hub", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "draft",
+            revision: draftRevision.current,
+            draft,
+          }),
+        });
+        if (response.status === 409) draftConflict.current = true;
+        if (!response.ok) throw new Error(data.error);
+        draftRevision.current = data.state.revision;
+        localStorage.setItem(
+          key,
+          JSON.stringify({ revision: data.state.revision, draft }),
+        );
+        setDraftStatus("Saved to your account");
+      } catch (e) {
+        setDraftStatus(
+          e instanceof Error ? e.message : "Saved locally. Reconnect to sync.",
+        );
+      } finally {
+        draftSaving.current = false;
+        if (saveAgain.current) {
+          saveAgain.current = false;
+          setDraftPulse((n) => n + 1);
+        }
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [
+    user?.id,
+    text,
+    context,
+    source,
+    sourceUrl,
+    language,
+    detail,
+    learningGoal,
+    outline,
+    plan,
+    document,
+    documentRange,
+    pages,
+    research,
+    localReady,
+    draftStatus === "Draft restored",
+    draftPulse,
+  ]);
   useEffect(() => {
     if (initialTopic) setText(initialTopic);
   }, [initialTopic]);
@@ -157,8 +345,17 @@ export default function StudyComposer({
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Could not read this file.");
-      setContext(data.text || data.context || data.transcript || "");
-      setSource(file.name);
+      const extracted = data.text || data.context || data.transcript || "";
+      setContext((previous) =>
+        (
+          (previous ? previous + "\n\n" : "") +
+          `SOURCE: ${file.name}\n` +
+          extracted
+        ).slice(0, 100000),
+      );
+      setSource((previous) =>
+        [previous, file.name].filter(Boolean).join(" · ").slice(0, 160),
+      );
       setSourceUrl("");
       if (!text.trim())
         setText(`Help me understand ${file.name.replace(/\.[^.]+$/, "")}`);
@@ -225,7 +422,10 @@ export default function StudyComposer({
         const data = await response.json();
         if (!response.ok)
           throw new Error(data.error || "Could not read this lecture.");
-        material = data.transcript;
+        material =
+          (data.transcriptSource === "video-digest"
+            ? "SOURCE TYPE: AI-extracted video digest, not verbatim captions. No verified timestamps.\n\n"
+            : "") + data.transcript;
         selectedDocument = null;
         setDocument(null);
         studyTitle = data.title || "Study the supplied video";
@@ -252,7 +452,7 @@ export default function StudyComposer({
       });
       const data = await response.json();
       if (response.status === 401) {
-        router.push("/login");
+        router.push("/login?workspace=student&next=%2Fdashboard");
         return;
       }
       if (!response.ok) throw new Error(data.error || "Planning failed.");
@@ -268,7 +468,8 @@ export default function StudyComposer({
     }
   }
   async function generate() {
-    if (!plan) return;
+    if (!plan || !confirmed || busy) return;
+    generationRequest.current ||= crypto.randomUUID();
     setBusy("Starting your study workspace...");
     setError("");
     const topics = outline
@@ -282,6 +483,7 @@ export default function StudyComposer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topics,
+          requestId: generationRequest.current,
           documentId: document?.id,
           documentRange,
           context: plan.context,
@@ -311,6 +513,48 @@ export default function StudyComposer({
   }
   return (
     <div className="composer-area">
+      <p role="status" className="small">
+        {draftStatus}
+      </p>
+      {draftStatus.includes("another device") && (
+        <button
+          className="btn light"
+          onClick={() => {
+            const blob = new Blob(
+                [
+                  JSON.stringify(
+                    {
+                      text,
+                      context,
+                      source,
+                      sourceUrl,
+                      language,
+                      detail,
+                      learningGoal,
+                      outline,
+                      plan,
+                      document,
+                      documentRange,
+                      pages,
+                      research,
+                    },
+                    null,
+                    2,
+                  ),
+                ],
+                { type: "application/json" },
+              ),
+              url = URL.createObjectURL(blob),
+              a = window.document.createElement("a");
+            a.href = url;
+            a.download = "syaahi-draft-recovery.json";
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}
+        >
+          Download your unsaved draft before reloading
+        </button>
+      )}
       <div className="study-composer">
         <label className="sr-only" htmlFor="study-request">
           What would you like to understand?
@@ -718,9 +962,24 @@ export default function StudyComposer({
             {plan.note} 1 token covers 3 pages. Each page uses ⅓ token;
             continuation sheets are free. Check the outline before starting.
           </p>
+          <label className="credit-confirmation">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+            />
+            I approve this outline and the reservation of{" "}
+            {
+              outline
+                .split("\n")
+                .filter((t) => t.trim())
+                .slice(0, 24).length
+            }{" "}
+            credits. Unused reserved sections are refunded if generation fails.
+          </label>
           <button
             className="btn dark"
-            disabled={!!busy || !outline.trim()}
+            disabled={!!busy || !outline.trim() || !confirmed}
             onClick={generate}
           >
             Create my study workspace <span>→</span>

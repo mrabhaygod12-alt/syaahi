@@ -1,4 +1,65 @@
 /* Keep the navigation independent of legacy, general nav/media rules. */
+.experience-header .experience-header-inner {
+  margin: 12px auto;
+  max-width: 1400px;
+  border: 1px solid #d9e2d3;
+  border-radius: 22px;
+  background: #fffffff0;
+  box-shadow: 0 8px 25px #173f3508;
+  padding: 8px 20px;
+  backdrop-filter: blur(18px);
+}
+.experience-header .experience-nav {
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid #e4e9df;
+  border-radius: 32px;
+  background: #f3f6ee;
+}
+.experience-header .experience-nav a {
+  padding: 9px 18px;
+  border-radius: 25px;
+  position: relative;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+}
+.experience-header .experience-nav a[aria-current="page"] {
+  background: #173f35;
+  color: white;
+  box-shadow: 0 3px 9px #173f351a;
+}
+.experience-header .experience-nav a:hover {
+  background: #dce8d3;
+  transform: translateY(-1px);
+}
+.experience-header .experience-nav a[aria-current="page"]:hover {
+  background: #173f35;
+}
+@media (max-width: 800px) {
+  .experience-header .experience-header-inner {
+    margin: 6px 8px;
+    padding: 8px 12px;
+    border-radius: 16px;
+  }
+  .experience-header .experience-nav {
+    border-radius: 16px;
+    padding: 12px;
+    background: white;
+  }
+  .experience-header .experience-nav a {
+    border-radius: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .experience-header .experience-nav a {
+    transition: none;
+  }
+  .experience-header .experience-nav a:hover {
+    transform: none;
+  }
+}
 header.site-header .header-row {
   width: 100%;
   position: relative;

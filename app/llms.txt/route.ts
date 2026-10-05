@@ -44,7 +44,7 @@ ${SITE.description}
 - Plans: Free, Starter, Pro, Max and Team. Paid self-service plans are recurring monthly subscriptions in INR; Team is contact sales. Unused wallet credits are retained. International payment availability depends on the merchant account.
 - Monthly plans (INR):
 ${offers}
-- Presentations: five credits per completed deck, editable PPTX with speaker notes, no watermark. Free supports six slides, Starter eight, Pro twelve, Max fifteen.
+- Presentations: free outline planning and approval before five-credit generation; one credit for a saved slide regeneration, returned on failure. Preview, editable objects, native PPTX, slide PDF/PNG and speaker-note handouts. Private source imports and revocable seven-day share links. Free supports six slides, Starter eight, Pro twelve, Max fifteen.
 - Creators: Chandan Pandey and Manish Kumar Singh. Their backgrounds are described on the About page.
 - Review generated output and public claims against original sources. Syaahi is not affiliated with an exam board, employer or professional accreditation body.
 

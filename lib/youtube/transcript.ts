@@ -158,6 +158,29 @@ function stripVtt(s: string): string {
     .slice(0, 100000);
 }
 
+export function timestampedVtt(text: string) {
+  const cues = [
+    ...text.matchAll(
+      /(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3}) --> [^\n]+\n([\s\S]*?)(?=\n\s*\n|$)/g,
+    ),
+  ];
+  return cues
+    .map((c) => {
+      const seconds =
+        Number(c[1] || 0) * 3600 +
+        Number(c[2]) * 60 +
+        Number(c[3]) +
+        Number(c[4]) / 1000;
+      const words = stripVtt(c[5]);
+      return seconds >= 0 && seconds <= MAX_SECONDS && words
+        ? `[T:${seconds.toFixed(3)}] ${words}`
+        : "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 100000);
+}
+
 async function viaWatchPage(id: string, debug: string[]): Promise<string> {
   try {
     const r = await fetch(`https://www.youtube.com/watch?v=${id}&hl=en`, {
@@ -197,7 +220,8 @@ async function viaWatchPage(id: string, debug: string[]): Promise<string> {
       debug.push(`watch:cap-http-${t2.status}`);
       return "";
     }
-    return stripVtt(await t2.text());
+    const vtt = await t2.text();
+    return timestampedVtt(vtt) || stripVtt(vtt);
   } catch (e: any) {
     debug.push(`watch:${String(e?.message).slice(0, 100)}`);
     return "";
@@ -224,13 +248,14 @@ export async function fetchYouTube(url: string): Promise<YTResult> {
     );
   }
 
-  const [{ title, author }, libText] = await Promise.all([
+  const [{ title, author }, libText, watchText] = await Promise.all([
     oembed(id, debug),
     viaLibrary(id, debug),
+    viaWatchPage(id, debug),
   ]);
   const realTitle = title ?? dur.title;
 
-  if (libText.trim().length > 200) {
+  if (libText.trim().length > 200 && !watchText.includes("[T:")) {
     return {
       videoId: id,
       title: realTitle,
@@ -245,7 +270,6 @@ export async function fetchYouTube(url: string): Promise<YTResult> {
   }
   debug.push(`lib:too-short(${libText.length})`);
 
-  const watchText = await viaWatchPage(id, debug);
   if (watchText.trim().length > 200) {
     return {
       videoId: id,

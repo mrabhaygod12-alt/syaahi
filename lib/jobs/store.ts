@@ -35,9 +35,17 @@ export interface JobProgress {
   /** 0-based section indices the learner marked complete (Learn room). */
   completed: number[];
   lastRoom?: string;
+  visitedAt?: string;
 }
 
 export interface Job {
+  noteHistory?: Array<{
+    id: string;
+    section: number;
+    markdown: string;
+    at: string;
+    author: string;
+  }>;
   documentId?: string;
   documentRange?: { from: number; to: number };
   revision?: number;
@@ -108,12 +116,13 @@ export async function createJob(
     referenceLinks?: JobReference[];
     planNote?: string;
     language?: string;
+    requestId?: string;
   },
 ): Promise<Job> {
   const job: Job = {
     documentId: extra?.documentId,
     documentRange: extra?.documentRange,
-    id: randomUUID(),
+    id: extra?.requestId || randomUUID(),
     user,
     topics,
     style,
@@ -142,6 +151,15 @@ export async function createJob(
   };
   if (useMongo()) return cloud.mongoCreateJob(job);
   transaction(() => {
+    const existing = db()
+      .prepare("SELECT payload FROM jobs WHERE id=?")
+      .get(job.id);
+    if (existing) {
+      const saved = decode(existing.payload);
+      if (saved.user !== user) throw new Error("Invalid generation request.");
+      Object.assign(job, saved);
+      return;
+    }
     const active = Number(
       db()
         .prepare(

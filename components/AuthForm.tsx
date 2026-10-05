@@ -24,6 +24,7 @@ export default function AuthForm({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [website, setWebsite] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -77,6 +78,7 @@ export default function AuthForm({
         mode === "signup" ? ref : null,
         workspace,
         controller.signal,
+        website,
       );
       if (res.requireVerification) {
         setVerifyLink(res.verifyUrl || "/verify-email");
@@ -240,6 +242,27 @@ export default function AuthForm({
         style={{ display: "grid", gap: 16, marginTop: 24 }}
         onSubmit={submit}
       >
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: -10000,
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+          }}
+        >
+          <label>
+            Leave this field empty
+            <input
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </label>
+        </div>
         {mode === "signup" && (
           <label>
             Full name

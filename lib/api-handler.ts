@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { originError } from "@/lib/auth/server";
+import { abuseGuard } from "@/lib/security/abuse";
 /** Keep infrastructure errors and credentials out of public responses. */
 export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
   handler: T,
@@ -12,6 +13,8 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
       if (req) {
         const crossOrigin = originError(req);
         if (crossOrigin) return crossOrigin;
+        const abuse = await abuseGuard(req);
+        if (abuse) return abuse;
         const bytes = Number(req.headers.get("content-length") || 0);
         const limit = req.headers
           .get("content-type")

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useAccount } from "./WorkspaceProvider";
 interface Folder {
   id: string;
   name: string;
@@ -15,6 +16,8 @@ interface Reminder {
   enabled: boolean;
   hour: number;
   timezone: string;
+  email?: boolean;
+  history?: Array<{ day: string; status: string }>;
 }
 export default function StudyOrganisation({
   lessons,
@@ -23,6 +26,7 @@ export default function StudyOrganisation({
   lessons: Array<{ id: string; title: string }>;
   onFilter: (ids: string[] | null) => void;
 }) {
+  const { user } = useAccount();
   const [folders, setFolders] = useState<Folder[]>([]),
     [selected, setSelected] = useState(""),
     [name, setName] = useState(""),
@@ -30,8 +34,13 @@ export default function StudyOrganisation({
     [error, setError] = useState(""),
     [weak, setWeak] = useState<string[]>([]),
     [attempts, setAttempts] = useState<Attempt[]>([]),
-    [reminder, setReminder] = useState<Reminder>({ enabled: false, hour: 19, timezone: "UTC" }),
+    [reminder, setReminder] = useState<Reminder>({
+      enabled: false,
+      hour: 19,
+      timezone: "UTC",
+    }),
     [busy, setBusy] = useState(false);
+  const [emailReady, setEmailReady] = useState(false);
   useEffect(() => {
     fetch("/api/study")
       .then((r) => r.json())
@@ -39,7 +48,9 @@ export default function StudyOrganisation({
         setFolders(d.folders || []);
         setWeak(d.attempts?.[0]?.weak?.slice(0, 3) || []);
         setAttempts(d.attempts || []);
-        if (d.reminder && Number.isInteger(d.reminder.hour)) setReminder(d.reminder);
+        if (d.reminder && Number.isInteger(d.reminder.hour))
+          setReminder(d.reminder);
+        setEmailReady(d.reminderChannels?.email === true);
       })
       .catch(() => setError("Folders could not be loaded."));
   }, []);
@@ -47,11 +58,32 @@ export default function StudyOrganisation({
     if (!reminder.enabled || !("Notification" in window)) return;
     const notifyIfDue = () => {
       const now = new Date();
-      if (Notification.permission !== "granted" || now.getHours() !== reminder.hour || now.getMinutes() > 4)
+      const hour = Number(
+        new Intl.DateTimeFormat("en", {
+          timeZone: reminder.timezone,
+          hour: "numeric",
+          hourCycle: "h23",
+        }).format(now),
+      );
+      if (
+        Notification.permission !== "granted" ||
+        hour !== reminder.hour ||
+        now.getMinutes() > 4
+      )
         return;
-      const key = `syaahi-reminder:${now.toDateString()}:${reminder.hour}`;
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, "sent");
+      const day = new Intl.DateTimeFormat("en-CA", {
+        timeZone: reminder.timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(now);
+      const key = `syaahi-reminder:${user?.id}:${day}`;
+      try {
+        if (localStorage.getItem(key)) return;
+        localStorage.setItem(key, "sent");
+      } catch {
+        return;
+      }
       new Notification("Syaahi study reminder", {
         body: "Your next small review session is ready.",
         icon: "/icon.svg",
@@ -60,7 +92,7 @@ export default function StudyOrganisation({
     notifyIfDue();
     const timer = window.setInterval(notifyIfDue, 60_000);
     return () => window.clearInterval(timer);
-  }, [reminder]);
+  }, [reminder, user?.id]);
   async function change(body: unknown) {
     setBusy(true);
     setError("");
@@ -88,26 +120,45 @@ export default function StudyOrganisation({
   const latest = attempts[0];
   const average = attempts.length
     ? Math.round(
-        (attempts.reduce((sum, attempt) => sum + attempt.correct / Math.max(1, attempt.total), 0) /
-          attempts.length) * 100,
+        (attempts.reduce(
+          (sum, attempt) => sum + attempt.correct / Math.max(1, attempt.total),
+          0,
+        ) /
+          attempts.length) *
+          100,
       )
     : null;
   async function saveReminder(next: Reminder) {
-    if (next.enabled && "Notification" in window && Notification.permission === "default") {
+    if (
+      next.enabled &&
+      !reminder.enabled &&
+      "Notification" in window &&
+      Notification.permission === "default"
+    ) {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setError("Browser notifications were not allowed. Your reminder preference was not enabled.");
+        setError(
+          "Browser notifications were not allowed. Your reminder preference was not enabled.",
+        );
         return;
       }
     }
-    await change({ action: "reminder", ...next, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" });
+    await change({
+      action: "reminder",
+      ...next,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    });
   }
   return (
     <div className="study-organisation">
       <section className="study-dashboard card" aria-label="Study progress">
         <div>
           <span className="eyebrow">STUDY DASHBOARD</span>
-          <h2>{average === null ? "Start your first recall session" : `${average}% average across recent quizzes`}</h2>
+          <h2>
+            {average === null
+              ? "Start your first recall session"
+              : `${average}% average across recent quizzes`}
+          </h2>
           <p className="small">
             {latest
               ? `Latest result: ${latest.correct}/${latest.total} on ${new Date(latest.at).toLocaleDateString()}.`
@@ -120,7 +171,12 @@ export default function StudyOrganisation({
               type="checkbox"
               checked={reminder.enabled}
               disabled={busy}
-              onChange={(event) => void saveReminder({ ...reminder, enabled: event.target.checked })}
+              onChange={(event) =>
+                void saveReminder({
+                  ...reminder,
+                  enabled: event.target.checked,
+                })
+              }
             />
             Daily browser reminder
           </label>
@@ -128,19 +184,55 @@ export default function StudyOrganisation({
             aria-label="Study reminder hour"
             disabled={busy || !reminder.enabled}
             value={reminder.hour}
-            onChange={(event) => void saveReminder({ ...reminder, hour: Number(event.target.value) })}
+            onChange={(event) =>
+              void saveReminder({
+                ...reminder,
+                hour: Number(event.target.value),
+              })
+            }
           >
             {Array.from({ length: 24 }, (_, hour) => (
-              <option value={hour} key={hour}>{`${String(hour).padStart(2, "0")}:00`}</option>
+              <option
+                value={hour}
+                key={hour}
+              >{`${String(hour).padStart(2, "0")}:00`}</option>
             ))}
           </select>
-          <p className="small">Works while Syaahi is open. System notifications need browser permission.</p>
+          <p className="small">
+            Works while Syaahi is open. System notifications need browser
+            permission.
+          </p>
+          <label>
+            <input
+              type="checkbox"
+              checked={reminder.email === true}
+              disabled={busy || !emailReady}
+              onChange={(e) =>
+                void saveReminder({ ...reminder, email: e.target.checked })
+              }
+            />
+            Email reminders
+          </label>
+          <p className="small">
+            {emailReady
+              ? "Background delivery available. Uncheck to unsubscribe."
+              : "Email delivery needs a scheduled worker and configured sender; it is unavailable here."}{" "}
+            Time zone: {reminder.timezone}
+          </p>
+          {reminder.history?.slice(-3).map((h) => (
+            <p className="small" key={h.day}>
+              {h.day}: {h.status}
+            </p>
+          ))}
         </div>
       </section>
       {weak.length > 0 && (
         <details className="card">
           <summary>Adaptive weak-topic plan</summary>
-          <p className="small">These topics came from missed answers in your latest quiz. Build focused notes, then return to flashcards.</p>
+          <p className="small">
+            These topics came from missed answers in your latest quiz. Build
+            focused notes, then return to flashcards.
+          </p>
           <ul>
             {weak.map((t) => (
               <li key={t}>

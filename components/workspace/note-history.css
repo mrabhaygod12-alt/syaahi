@@ -1,0 +1,23 @@
+.note-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.note-compare section {
+  min-width: 0;
+}
+.note-compare pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 14px/1.6 system-ui;
+  padding: 16px;
+  background: #f4f6ef;
+}
+.note-history > .btn {
+  margin: 8px 8px 8px 0;
+}
+@media (max-width: 720px) {
+  .note-compare {
+    grid-template-columns: 1fr;
+  }
+}

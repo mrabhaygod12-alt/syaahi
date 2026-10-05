@@ -144,3 +144,28 @@ export function breadcrumbSchema(items: Array<{ name: string; path: string }>) {
     })),
   };
 }
+export function presentationSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": `${SITE.url}/presentations#software`,
+    name: "Syaahi Presentation Studio",
+    url: `${SITE.url}/presentations`,
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Web browser",
+    inLanguage: ["en", "hi", "de", "fr", "es"],
+    description:
+      "Import your private lesson or document sources, approve an outline, edit slides, and export presentations.",
+    featureList: [
+      "Source imports",
+      "Outline approval",
+      "Editable slide objects",
+      "Slide preview",
+      "PowerPoint export",
+      "PDF export",
+      "Speaker notes",
+      "Revocable sharing",
+    ],
+    publisher: { "@id": `${SITE.url}/#organization` },
+  };
+}

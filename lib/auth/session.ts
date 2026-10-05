@@ -35,6 +35,7 @@ export async function signIn(
   referralCode?: string | null,
   workspace?: "student" | "writer",
   signal?: AbortSignal,
+  website = "",
 ): Promise<SignInResult> {
   const { response, data } = await requestJson(
     "/api/auth",
@@ -49,6 +50,7 @@ export async function signIn(
         acceptTerms,
         referralCode,
         workspace,
+        website,
         termsVersion: "2026-10-03",
       }),
       signal,
@@ -85,4 +87,11 @@ export async function signOut() {
   if (!response.ok)
     throw new Error(data.error || "Could not sign out. Please retry.");
   localStorage.removeItem(KEY);
+  for (const key of Object.keys(localStorage))
+    if (
+      /^syaahi-(composer|offline|review-queue|deck-draft|deck-selection):/.test(
+        key,
+      )
+    )
+      localStorage.removeItem(key);
 }

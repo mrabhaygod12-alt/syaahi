@@ -6,6 +6,13 @@ export default function SourceView() {
   const { job } = useLesson();
   if (!job) return null;
   const vid = ytId(job.sourceUrl);
+  const timestamped = (job.context || "")
+    .split("\n")
+    .filter((line) => /^\[T:\d+(?:\.\d+)?\]/.test(line))
+    .slice(0, 500);
+  const passages = Array.from(
+    new Set(job.pages.flatMap((p) => p.markdown.match(/\[P\d+C\d+\]/g) || [])),
+  ).slice(0, 100);
   const researchExcerpt =
     job.sourceKind === "topic" &&
     Boolean(
@@ -75,6 +82,53 @@ export default function SourceView() {
             </a>
           </p>
         </div>
+      )}
+      {vid && !!timestamped.length && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2>Verified caption timestamps</h2>
+          <p>
+            These jump points come from caption timing. They are not inferred
+            from an AI summary.
+          </p>
+          <div style={{ maxHeight: 420, overflow: "auto" }}>
+            {timestamped.map((line, i) => {
+              const match = line.match(/^\[T:(\d+(?:\.\d+)?)\]\s*(.*)$/)!;
+              const seconds = Math.floor(Number(match[1]));
+              return (
+                <p key={i}>
+                  <a
+                    href={`https://www.youtube.com/watch?v=${vid}&t=${seconds}s`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {Math.floor(seconds / 60)}:
+                    {String(seconds % 60).padStart(2, "0")} ↗
+                  </a>{" "}
+                  {match[2]}
+                </p>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {job.documentId && !!passages.length && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2>Passages cited in your notes</h2>
+          <p>
+            Open the physical PDF page and match the exact passage label. A
+            label indicates a reference, not a guarantee that the generated
+            claim is correct.
+          </p>
+          {passages.map((label) => (
+            <a
+              className="btn light"
+              key={label}
+              href={`/documents/${job.documentId}?page=${label.match(/P(\d+)/)![1]}`}
+            >
+              {label} ↗
+            </a>
+          ))}
+        </section>
       )}
       {job.context ? (
         researchExcerpt ? (

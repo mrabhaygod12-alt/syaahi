@@ -6,6 +6,8 @@ import { authError, currentUser } from "@/lib/auth/server";
 import { getJob } from "@/lib/jobs/store";
 import { mutateState, readState } from "@/lib/study/state";
 import { rateLimit } from "@/lib/ratelimit";
+import { studyActivity } from "@/lib/study/hub";
+import { answerCorrect } from "@/lib/study/quiz";
 interface Folder {
   id: string;
   name: string;
@@ -16,6 +18,7 @@ interface CardReview {
   interval: number;
   repetitions: number;
   lastEvent: string;
+  events?: string[];
 }
 interface Study {
   folders: Folder[];
@@ -31,6 +34,7 @@ interface Study {
     enabled: boolean;
     hour: number;
     timezone: string;
+    email?: boolean;
   };
 }
 const fresh = (): Study => ({
@@ -47,13 +51,26 @@ const cardId = (f: { front: string; back: string }) =>
 async function handleGET(req: Request) {
   const denied = await authError(req);
   if (denied) return denied;
-  const state = await readState((await currentUser(req))!.id, "learning", fresh());
+  const state = await readState(
+    (await currentUser(req))!.id,
+    "learning",
+    fresh(),
+  );
   // Older saved study records predate reminders. Fill defaults on read so the
   // client never has to guess at a malformed preference.
   if (!state.reminder || typeof state.reminder !== "object")
     state.reminder = { enabled: false, hour: 19, timezone: "UTC" };
   return NextResponse.json(
-    state,
+    {
+      ...state,
+      reminderChannels: {
+        browser: true,
+        email:
+          !!process.env.RESEND_API_KEY &&
+          !!process.env.EMAIL_FROM &&
+          process.env.WORKER_MODE === "external",
+      },
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -98,7 +115,8 @@ async function handlePOST(req: Request) {
           repetitions: 0,
           lastEvent: "",
         };
-        if (old.lastEvent === b.event) return s;
+        if (old.lastEvent === b.event || old.events?.includes(b.event))
+          return s;
         const interval =
           b.rating === "again"
             ? 0
@@ -112,6 +130,10 @@ async function handlePOST(req: Request) {
           interval,
           repetitions: old.repetitions + 1,
           lastEvent: b.event,
+          events: [
+            b.event,
+            ...(old.events || (old.lastEvent ? [old.lastEvent] : [])),
+          ].slice(0, 1000),
         };
         s.reviews[lesson.id] = reviews;
       } else if (b.action === "quiz-attempt") {
@@ -129,9 +151,11 @@ async function handlePOST(req: Request) {
           throw new Error(
             "This quiz was rebuilt. Reload it before saving a result.",
           );
-        const correct = qs.filter((q, i) => q.answer === b.answers[i]).length;
+        const correct = qs.filter((q, i) =>
+          answerCorrect(q, String(b.answers[i] || "")),
+        ).length;
         const weak = qs
-          .filter((q, i) => q.answer !== b.answers[i])
+          .filter((q, i) => !answerCorrect(q, String(b.answers[i] || "")))
           .map((q) => (q as any).topic || q.q);
         s.attempts = [
           {
@@ -145,14 +169,26 @@ async function handlePOST(req: Request) {
         ].slice(0, 100);
       } else if (b.action === "reminder") {
         const hour = Number(b.hour);
-        const timezone = typeof b.timezone === "string" ? b.timezone.slice(0, 80) : "UTC";
+        const timezone =
+          typeof b.timezone === "string" ? b.timezone.slice(0, 80) : "UTC";
         if (!Number.isInteger(hour) || hour < 0 || hour > 23)
           throw new Error("Choose a reminder hour between 0 and 23.");
-        try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }); } catch { throw new Error("Choose a valid reminder time zone."); }
-        s.reminder = { enabled: b.enabled === true, hour, timezone };
+        try {
+          new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+        } catch {
+          throw new Error("Choose a valid reminder time zone.");
+        }
+        s.reminder = {
+          ...s.reminder,
+          enabled: b.enabled === true,
+          email: b.email === true,
+          hour,
+          timezone,
+        };
       } else throw new Error("Unknown study action.");
       return s;
     });
+    if (b.action === "review") await studyActivity(user, `review:${b.event}`);
     return NextResponse.json(next);
   } catch (e) {
     return NextResponse.json(

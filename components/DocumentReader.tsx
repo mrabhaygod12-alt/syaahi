@@ -10,6 +10,11 @@ export default function DocumentReader({ id }: { id: string }) {
     text: string;
   } | null>(null);
   useEffect(() => {
+    const requested = Number(new URLSearchParams(location.search).get("page"));
+    if (Number.isInteger(requested) && requested > 0 && requested <= 500)
+      setPage(requested);
+  }, [id]);
+  useEffect(() => {
     const controller = new AbortController();
     setError("");
     setDocument(null);
@@ -27,7 +32,7 @@ export default function DocumentReader({ id }: { id: string }) {
     return () => controller.abort();
   }, [id, page]);
   return (
-    <main className="wrap feature-section">
+    <section className="wrap feature-section">
       <a href="/dashboard">← Workspace</a>
       <h1>{document?.name || "Private textbook"}</h1>
       <p>
@@ -54,6 +59,6 @@ export default function DocumentReader({ id }: { id: string }) {
       ) : (
         !error && <p role="status">Loading page…</p>
       )}
-    </main>
+    </section>
   );
 }

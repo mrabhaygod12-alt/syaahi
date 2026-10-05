@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:student-studio": "tsx scripts/test-student-studio.ts",
+    "test:student-studio-browser": "tsx scripts/test-student-studio-browser.ts",
     "test:monthly-catalog": "tsx scripts/test-monthly-catalog.ts",
     "test:writer-platform": "tsx scripts/test-writer-platform.ts",
     "test:writer-browser": "tsx scripts/test-writer-browser.ts",

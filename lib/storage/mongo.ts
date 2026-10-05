@@ -47,17 +47,24 @@ export async function mongo() {
 async function indexes(d: Db) {
   await Promise.all([
     d
+      .collection("password_resets")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    d
+      .collection("password_resets")
+      .createIndex({ tokenHash: 1 }, { unique: true }),
+    d
+      .collection("security_incidents")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    d
       .collection("workspace_records")
       .createIndex({ kind: 1, owner: 1, updatedAt: -1 }),
     d.collection("writing_images").createIndex({ owner: 1 }),
-    d
-      .collection("workspace_records")
-      .createIndex({
-        kind: 1,
-        "payload.status": 1,
-        "payload.leaseUntil": 1,
-        "payload.createdAt": 1,
-      }),
+    d.collection("workspace_records").createIndex({
+      kind: 1,
+      "payload.status": 1,
+      "payload.leaseUntil": 1,
+      "payload.createdAt": 1,
+    }),
     d.collection("support_index").createIndex({ user: 1, createdAt: -1 }),
     d.collection("referral_codes").createIndex({ code: 1 }, { unique: true }),
     d.collection("referrals").createIndex({ inviter: 1, rewardedAt: 1 }),
