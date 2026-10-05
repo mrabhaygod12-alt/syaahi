@@ -9,6 +9,7 @@ import {
   saveStory,
   deleteDraft,
 } from "@/lib/writing/stories";
+import { writerReaderStats } from "@/lib/writing/social";
 
 async function handleGET(req: NextRequest) {
   const denied = await authError(req);
@@ -22,7 +23,10 @@ async function handleGET(req: NextRequest) {
       ...story,
       authorName: profile.name,
     })),
-    analytics: await creatorAnalytics(user.id),
+    analytics: {
+      ...(await creatorAnalytics(user.id)),
+      ...(await writerReaderStats(user.id)),
+    },
   });
 }
 
@@ -54,6 +58,8 @@ async function handlePOST(req: NextRequest) {
         typeof body.expectedUpdatedAt === "string"
           ? body.expectedUpdatedAt
           : undefined,
+      canonicalUrl:
+        typeof body.canonicalUrl === "string" ? body.canonicalUrl : undefined,
     });
     return NextResponse.json({ story });
   } catch (error) {

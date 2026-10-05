@@ -1,3 +1,4 @@
+import { validateArchetype, type ArchetypeSlide } from "./archetypes";
 export const DECK_TEMPLATES = {
   editorial: {
     name: "Editorial",
@@ -16,6 +17,42 @@ export const DECK_TEMPLATES = {
     background: "FFFFFF",
     ink: "18354A",
     accent: "296BC0",
+  },
+  studio: {
+    name: "Studio violet",
+    background: "F7F4FC",
+    ink: "30274E",
+    accent: "7253C7",
+  },
+  terracotta: {
+    name: "Clay journal",
+    background: "FBF5ED",
+    ink: "492E24",
+    accent: "AE4E32",
+  },
+  ocean: {
+    name: "Ocean research",
+    background: "F1F8FA",
+    ink: "143E50",
+    accent: "087A87",
+  },
+  graphite: {
+    name: "Graphite report",
+    background: "F5F5F3",
+    ink: "24282C",
+    accent: "AD4A19",
+  },
+  botanical: {
+    name: "Botanical",
+    background: "F4F7ED",
+    ink: "303F24",
+    accent: "54752E",
+  },
+  rose: {
+    name: "Rose paper",
+    background: "FCF3F5",
+    ink: "4F2540",
+    accent: "A43E72",
   },
 } as const;
 export type DeckTemplate = keyof typeof DECK_TEMPLATES;
@@ -58,6 +95,7 @@ export interface BrandKit {
   font: "Arial" | "Aptos" | "Georgia" | "Nirmala UI";
 }
 export interface DeckSlide {
+  semantic?: ArchetypeSlide;
   id?: string;
   title: string;
   layout: (typeof SLIDE_LAYOUTS)[number];
@@ -137,6 +175,9 @@ export function validateSlide(input: unknown): DeckSlide {
   if (objects && new Set(objects.map((o) => o.id)).size !== objects.length)
     throw new Error("Object IDs must be unique.");
   return {
+    ...(s.semantic
+      ? { semantic: validateArchetype({ ...s.semantic, title: s.title }) }
+      : {}),
     ...(typeof s.id === "string" && /^[-\w]{8,80}$/.test(s.id)
       ? { id: s.id }
       : {}),

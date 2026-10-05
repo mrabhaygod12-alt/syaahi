@@ -3,6 +3,7 @@ import {
   MONTHLY_PLANS,
   type MonthlyTier,
   SUBSCRIPTION_CYCLES,
+  purchasableMonthlyTier,
 } from "./subscription-plans";
 import { paymentConfiguration, razorpayCredentials } from "./configuration";
 import {
@@ -94,6 +95,10 @@ export async function createSubscription(
   tier: MonthlyTier,
   api: ProviderRequest = subscriptionRequest,
 ) {
+  if (!purchasableMonthlyTier(tier))
+    throw new Error(
+      "This plan is retired for new purchases. Existing subscriptions retain their agreed terms.",
+    );
   if (!subscriptionReady(tier))
     throw new Error("Monthly checkout is unavailable. Please contact support.");
   const old = await currentSubscription(owner);

@@ -187,16 +187,14 @@ async function main() {
     await page.goto("http://localhost:3139/pricing");
     await page.waitForURL("**/writer/membership");
     await page.getByRole("heading", { name: "Free", exact: true }).waitFor();
-    for (const tier of ["Free", "Starter", "Pro", "Max", "Team"])
+    for (const tier of ["Free", "Max"])
       assert(
         await page
           .getByRole("heading", { name: tier, exact: true })
           .isVisible(),
       );
-    await page
-      .getByRole("link", { name: "Choose Starter", exact: false })
-      .click();
-    await page.waitForURL("**/writer/subscribe/starter");
+    await page.getByRole("link", { name: "Choose Max", exact: false }).click();
+    await page.waitForURL("**/writer/subscribe/max");
     await page.getByRole("button", { name: "Continue to Razorpay" }).waitFor();
     assert(
       await page
@@ -262,15 +260,25 @@ async function main() {
       .waitFor();
     await page.goto("http://localhost:3139/presentations");
     await page
-      .getByRole("heading", { name: "Create a presentation", exact: true })
+      .getByRole("heading", {
+        name: "What will you explain today?",
+        exact: true,
+      })
       .waitFor();
     assert(
       await page
-        .getByRole("heading", { name: "Create a presentation", exact: true })
+        .getByRole("heading", {
+          name: "What will you explain today?",
+          exact: true,
+        })
         .isVisible(),
     );
     assert.equal(
-      await page.locator('input[type="number"]').getAttribute("max"),
+      await page
+        .getByLabel("Slides", { exact: true })
+        .locator("option")
+        .last()
+        .textContent(),
       "6",
     );
     assert.equal(

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
-import { monthlyTier } from "@/lib/billing/subscription-plans";
+import {
+  purchasableMonthlyTier,
+  MONTHLY_PLANS,
+  STUDENT_MONTHLY_TIERS,
+  WRITER_MONTHLY_TIERS,
+} from "@/lib/billing/subscription-plans";
 import { razorpayCredentials } from "@/lib/billing/configuration";
 import {
   currentSubscription,
@@ -34,11 +39,18 @@ export const GET = apiHandler(async (req: NextRequest) => {
   return NextResponse.json({
     subscription: publicSubscription(subscription),
     authenticated: !!user,
-    available: {
-      starter: subscriptionReady("starter"),
-      pro: subscriptionReady("pro"),
-      max: subscriptionReady("max"),
-    },
+    available: Object.fromEntries(
+      (user?.workspace === "writer"
+        ? WRITER_MONTHLY_TIERS
+        : STUDENT_MONTHLY_TIERS
+      ).map((tier) => [tier, subscriptionReady(tier)]),
+    ),
+    plans: Object.fromEntries(
+      (user?.workspace === "writer"
+        ? WRITER_MONTHLY_TIERS
+        : STUDENT_MONTHLY_TIERS
+      ).map((tier) => [tier, MONTHLY_PLANS[tier]]),
+    ),
     currency: "INR",
   });
 });
@@ -47,18 +59,19 @@ export const POST = apiHandler(async (req: NextRequest) => {
     (await authError(req)) ||
     (await rateLimit(req, "subscription-create", 3, 60000));
   if (denied) return denied;
+  const user = (await currentUser(req))!;
   const body = await req.json().catch(() => ({})),
-    tier = monthlyTier(body.tier);
+    tier = purchasableMonthlyTier(
+      body.tier,
+      user.workspace === "writer" ? "writer" : "student",
+    );
   if (!tier || body.acceptRecurring !== true)
     return NextResponse.json(
       { error: "Choose a plan and accept monthly recurring charges." },
       { status: 400 },
     );
   try {
-    const subscription = await createSubscription(
-      (await currentUser(req))!.id,
-      tier,
-    );
+    const subscription = await createSubscription(user.id, tier);
     return NextResponse.json({
       subscription: publicSubscription(subscription),
       keyId: razorpayCredentials().keyId,

@@ -11,8 +11,10 @@ import { SITE, orgSchema, websiteSchema, jsonLd } from "@/lib/seo";
 import PrivacyPreferences from "@/components/PrivacyPreferences";
 import AuthDialog from "@/components/AuthDialog";
 import "./writer-experience.css";
+import "@/components/writer/reader.css";
 import WorkspaceProvider from "@/components/WorkspaceProvider";
 import "./experience-upgrade.css";
+import "./product-public.css";
 import "katex/dist/katex.min.css";
 
 const instrument = Instrument_Sans({
@@ -43,6 +45,12 @@ const patrickHand = Patrick_Hand({
 });
 
 export const metadata: Metadata = {
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : {},
+  },
   metadataBase: new URL(SITE.url),
   title: {
     default: `${SITE.name} : ${SITE.tagline}`,

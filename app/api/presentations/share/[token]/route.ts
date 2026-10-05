@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { audienceSlide } from "@/lib/presentations/public-view";
 import { apiHandler } from "@/lib/api-handler";
 import {
   sharedDeck,
@@ -25,10 +26,8 @@ export const GET = apiHandler(
               title: deck.title,
               template: deck.template,
               brand: deck.brand,
-              slides: deck.slides.map(({ notes, ...slide }) => {
-                void notes;
-                return { ...slide, notes: "" };
-              }),
+              language: deck.language,
+              slides: deck.slides.map(audienceSlide),
             },
           }
         : { error: "Share expired or revoked." },

@@ -167,6 +167,11 @@ function DashboardContent({ view }: { view: View }) {
                 ? "Stories you saved, ready when you are."
                 : "See how your published stories are finding readers."}
         </p>
+        {view === "library" && (
+          <a className="btn light" href="/writer/reading">
+            Continue reading, highlights & following →
+          </a>
+        )}
         {view === "stories" && (
           <div className="writer-tabs" role="tablist" aria-label="Story status">
             {[
@@ -226,6 +231,7 @@ function DashboardContent({ view }: { view: View }) {
                 [analytics?.published || 0, "Published stories"],
                 [analytics?.drafts || 0, "Drafts"],
                 [analytics?.inReview || 0, "In review"],
+                [analytics?.qualifiedReaders || 0, "Signed-in readers · 30s"],
               ].map(([value, label]) => (
                 <div key={label}>
                   <strong>{value}</strong>
@@ -235,8 +241,10 @@ function DashboardContent({ view }: { view: View }) {
             </div>
             <p className="writer-fine-print">
               Story opens are approximate page views, including repeat visits.
-              They do not measure completed reads or unique readers. Counts
-              below cover your latest 50 stories.
+              Qualified reader counts reflect signed-in accounts with at least
+              30 seconds of reported active reading, bounded by server time.
+              They do not prove completion or attention. Story opens cover your
+              latest 50 stories.
             </p>
             <div className="writer-impact-chart">
               <h2>Your most opened stories</h2>
@@ -271,6 +279,7 @@ function DashboardContent({ view }: { view: View }) {
                     <th>Story</th>
                     <th>Status</th>
                     <th>Opens</th>
+                    <th>Readers · 30s</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -289,6 +298,7 @@ function DashboardContent({ view }: { view: View }) {
                       </td>
                       <td>{s.status.replaceAll("_", " ")}</td>
                       <td>{s.analytics?.views || 0}</td>
+                      <td>{analytics?.byStory?.[s.id] || 0}</td>
                     </tr>
                   ))}
                 </tbody>

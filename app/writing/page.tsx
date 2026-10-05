@@ -1,9 +1,9 @@
-import { pageMeta } from "@/lib/seo";
+import { pageMeta, writingSchema, jsonLd } from "@/lib/seo";
 import { PaperScene } from "@/components/LandingPage";
 import LandingMotion from "@/components/LandingMotion";
 import WriterStartLink from "@/components/writer/WriterStartLink";
 export const metadata = pageMeta({
-  title: "A home for your words",
+  title: "Blog writing, public profiles and reviewed publishing",
   path: "/writing",
   description:
     "A focused writing space with private drafts, article design and a public writer profile. Write on Syaahi.",
@@ -11,6 +11,10 @@ export const metadata = pageMeta({
 export default function Writing() {
   return (
     <div className="landing-page writer-public-landing">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd(writingSchema()) }}
+      />
       <LandingMotion />
       <section className="landing-hero">
         <div className="landing-wrap landing-hero-grid">
@@ -104,6 +108,11 @@ export default function Writing() {
         </div>
       </section>
       <section className="landing-wrap writing-faq" data-reveal>
+        <div className="product-link-row">
+          <a href="/writing/features">All writer features</a>
+          <a href="/writing/pricing">Free and Max pricing</a>
+          <a href="/writing/medium-comparison">Medium capability comparison</a>
+        </div>
         <h2>A space that stays yours.</h2>
         <details>
           <summary>Already a student on Syaahi?</summary>

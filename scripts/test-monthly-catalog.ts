@@ -9,7 +9,7 @@ process.env.MONGODB_URI = "";
 process.env.RAZORPAY_KEY_ID = "rzp_test_catalog";
 process.env.RAZORPAY_KEY_SECRET = "fixture-secret";
 process.env.RAZORPAY_WEBHOOK_SECRET = "fixture-webhook";
-for (const tier of ["STARTER", "PRO", "MAX"])
+for (const tier of ["TRY", "STARTER", "POPULAR", "PRO", "MAX"])
   delete process.env[`RAZORPAY_PLAN_${tier}_INR`];
 async function main() {
   const { resolveMonthlyPlan, monthlyCheckoutConfigured, registeredPlanId } =
@@ -89,6 +89,39 @@ async function main() {
   );
   assert.equal(rejectedCalls.length, 1);
   assert.equal(creates, 1);
+  const {
+    MONTHLY_PLANS,
+    STUDENT_MONTHLY_TIERS,
+    WRITER_MONTHLY_TIERS,
+    purchasableMonthlyTier,
+  } = await import("../lib/billing/subscription-plans");
+  assert.deepEqual(
+    STUDENT_MONTHLY_TIERS.map((t) => MONTHLY_PLANS[t].inr),
+    [9, 39, 79, 399],
+  );
+  assert.deepEqual(
+    STUDENT_MONTHLY_TIERS.map((t) => MONTHLY_PLANS[t].credits),
+    [3, 15, 36, 360],
+  );
+  assert.deepEqual(WRITER_MONTHLY_TIERS, ["max"]);
+  assert.equal(purchasableMonthlyTier("pro"), null);
+  assert.equal(purchasableMonthlyTier("popular", "writer"), null);
+  assert.equal(purchasableMonthlyTier("max", "writer"), "max");
+  const { createSubscription } = await import("../lib/billing/subscriptions");
+  await assert.rejects(
+    () =>
+      createSubscription("unused-owner", "pro", async () => {
+        throw new Error("Must never call provider");
+      }),
+    /retired/,
+  );
+  for (const tier of ["try", "popular", "max"] as const) {
+    const id = await resolveMonthlyPlan(tier, provider);
+    const plan = plans.get(id);
+    assert.equal(plan.item.amount, MONTHLY_PLANS[tier].inr * 100);
+    assert.equal(plan.period, "monthly");
+    assert.equal(plan.interval, 1);
+  }
   const { register, startSession } = await import("../lib/auth/server");
   const { markEmailVerified } = await import("../lib/billing/rewards");
   const user = await register(
@@ -102,6 +135,52 @@ async function main() {
     new Request("https://www.syaahii.in/api/auth"),
   );
   const cookie = session.headers.get("set-cookie")!.split(";")[0];
+  const { GET: catalogState, POST: checkout } =
+    await import("../app/api/billing/subscription/route");
+  const read = new NextRequest(
+    "https://www.syaahii.in/api/billing/subscription",
+    { headers: { cookie } },
+  );
+  assert.deepEqual(
+    Object.keys((await (await catalogState(read)).json()).plans),
+    ["try", "starter", "popular", "max"],
+  );
+  const retired = await checkout(
+    new NextRequest(read.url, {
+      method: "POST",
+      headers: {
+        cookie,
+        origin: "https://www.syaahii.in",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ tier: "pro", acceptRecurring: true }),
+    }),
+  );
+  assert.equal(retired.status, 400);
+  const { enrollWriter } = await import("../lib/writing/profile"),
+    { setWorkspace } = await import("../lib/workspace-preference");
+  await enrollWriter(user);
+  await setWorkspace(user.id, "writer");
+  assert.deepEqual(
+    Object.keys((await (await catalogState(read)).json()).plans),
+    ["max"],
+  );
+  const hidden = await checkout(
+    new NextRequest(read.url, {
+      method: "POST",
+      headers: {
+        cookie,
+        origin: "https://www.syaahii.in",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ tier: "popular", acceptRecurring: true }),
+    }),
+  );
+  assert.equal(
+    hidden.status,
+    400,
+    "Writer checkout cannot bypass the two-plan offer policy",
+  );
   delete process.env.LEGACY_CREDIT_PACK_CHECKOUT;
   for (const [path, post] of [
     ["razorpay", (await import("../app/api/razorpay/order/route")).POST],

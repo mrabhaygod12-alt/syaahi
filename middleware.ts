@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { releaseRevision } from "./lib/release";
+import { purchasableMonthlyTier } from "./lib/billing/subscription-plans";
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname.toLowerCase();
   const isTrap =
@@ -29,6 +30,19 @@ export function middleware(req: NextRequest) {
     if (revision) response.headers.set("x-syaahi-frontend-revision", revision);
     return response;
   };
+  const checkout = /^\/(writer\/)?subscribe\/([^/]+)\/?$/.exec(path);
+  if (
+    checkout &&
+    role !== "backend" &&
+    role !== "worker" &&
+    !purchasableMonthlyTier(checkout[2], checkout[1] ? "writer" : "student")
+  )
+    return frontendResponse(
+      NextResponse.redirect(
+        new URL(checkout[1] ? "/writer/membership" : "/pricing", req.url),
+        307,
+      ),
+    );
 
   // Vercel owns and serves every page, static asset, sitemap and robots file.
   // Only same-origin API calls should cross the private proxy to Render.

@@ -2,7 +2,10 @@
 import WriterShell from "./WriterShell";
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
-import { MONTHLY_PLANS } from "@/lib/billing/subscription-plans";
+import {
+  MONTHLY_PLANS,
+  WRITER_MONTHLY_TIERS,
+} from "@/lib/billing/subscription-plans";
 import SubscriptionBilling from "../SubscriptionBilling";
 import SubscriptionCheckout from "../SubscriptionCheckout";
 import PaymentStatus from "../payments/PaymentStatus";
@@ -58,47 +61,32 @@ function Membership() {
             Start a story
           </a>
         </article>
-        {Object.entries(MONTHLY_PLANS).map(([id, plan]) => (
-          <article
-            key={id}
-            className={`writer-plan ${id === "pro" ? "featured" : ""}`}
-          >
-            <p className="writer-kicker">
-              {id === "pro" ? "FOR REGULAR CREATORS" : "MONTHLY CREDIT BUDGET"}
-            </p>
-            <h2>{plan.label}</h2>
-            <p className="writer-plan-price">
-              ₹{plan.inr}
-              <small>/ month</small>
-            </p>
-            <p>{plan.credits} credits each paid month.</p>
-            <ul>
-              <li>Every Free writer feature</li>
-              <li>One wallet across your account</li>
-              <li>
-                Up to {plan.maxSlides} slides per deck in the learning workspace
-              </li>
-              <li>Unused credits stay in your wallet</li>
-            </ul>
-            <a className="btn dark" href={`/writer/subscribe/${id}`}>
-              Choose {plan.label} ↗
-            </a>
-          </article>
-        ))}
-        <article className="writer-plan">
-          <p className="writer-kicker">LET'S BUILD TOGETHER</p>
-          <h2>Team</h2>
-          <p className="writer-plan-price">Let’s talk</p>
-          <p>Discuss your group's requirements with our team.</p>
-          <ul>
-            <li>Agree on seats, billing and support before rollout</li>
-            <li>Discuss publishing and workspace requirements</li>
-            <li>Requires a quote; no automatic purchase</li>
-          </ul>
-          <a className="btn light" href="/writer/support">
-            Ask about Team ↗
-          </a>
-        </article>
+        {WRITER_MONTHLY_TIERS.map((id) => {
+          const plan = MONTHLY_PLANS[id];
+          return (
+            <article key={id} className="writer-plan featured">
+              <p className="writer-kicker">FOR REGULAR CREATORS</p>
+              <h2>{plan.label}</h2>
+              <p className="writer-plan-price">
+                ₹{plan.inr}
+                <small>/ month</small>
+              </p>
+              <p>{plan.credits} credits each paid month.</p>
+              <ul>
+                <li>Every Free writer feature</li>
+                <li>One wallet across your account</li>
+                <li>
+                  Up to {plan.maxSlides} slides per deck in the learning
+                  workspace
+                </li>
+                <li>Unused credits stay in your wallet</li>
+              </ul>
+              <a className="btn dark" href={`/writer/subscribe/${id}`}>
+                Choose {plan.label} ↗
+              </a>
+            </article>
+          );
+        })}
       </div>
       <section className="writer-membership-faq">
         <h2>A few things to know.</h2>

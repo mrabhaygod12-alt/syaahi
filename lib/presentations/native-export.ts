@@ -8,6 +8,10 @@ import {
   presentationFont,
 } from "./layout";
 import type { Deck } from "./store";
+import { archetypeScene } from "./scene";
+import { semanticTheme } from "./theme";
+import { iconSvg } from "./artwork-html";
+import { citationCaption } from "./public-view";
 export async function exportDeck(deck: Deck) {
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
@@ -22,7 +26,12 @@ export async function exportDeck(deck: Deck) {
     { data: string; width: number; height: number }
   >();
   for (const content of deck.slides)
-    for (const o of slideObjects(content, theme.ink, theme.accent))
+    for (const o of slideObjects(
+      content,
+      theme.ink,
+      theme.accent,
+      theme.background,
+    ))
       if (o.type === "image" && o.imageId && !assets.has(o.imageId)) {
         const image = await writingImage(o.imageId);
         if (!image || image.owner !== deck.owner)
@@ -38,15 +47,44 @@ export async function exportDeck(deck: Deck) {
   for (const [index, content] of deck.slides.entries()) {
     const slide = pptx.addSlide();
     slide.background = { color: theme.background };
-    slide.addShape(pptx.ShapeType.rect, {
-      x: 0.5,
-      y: 0.48,
-      w: 0.55,
-      h: 0.06,
-      fill: { color: theme.accent },
-      line: { color: theme.accent },
-    });
-    for (const o of slideObjects(content, theme.ink, theme.accent)) {
+    if (content.semantic) {
+      for (const p of archetypeScene(
+        content.semantic,
+        semanticTheme(deck.template, deck.brand),
+      )) {
+        const box = { x: p.x / 96, y: p.y / 96, w: p.w / 96, h: p.h / 96 };
+        if (p.type === "surface")
+          slide.addShape(pptx.ShapeType.roundRect, {
+            ...box,
+            rectRadius: p.radius / 96,
+            fill: { color: p.color },
+            line: { color: p.stroke || p.color, width: 0.7 },
+          });
+        if (p.type === "icon") {
+          const svg = iconSvg(p.icon, p.color);
+          const png = await sharp(Buffer.from(svg)).png().toBuffer();
+          slide.addImage({
+            ...box,
+            data: "image/png;base64," + png.toString("base64"),
+            altText: p.icon,
+          });
+        }
+      }
+    } else
+      slide.addShape(pptx.ShapeType.rect, {
+        x: 0.5,
+        y: 0.48,
+        w: 0.55,
+        h: 0.06,
+        fill: { color: theme.accent },
+        line: { color: theme.accent },
+      });
+    for (const o of slideObjects(
+      content,
+      theme.ink,
+      theme.accent,
+      theme.background,
+    )) {
       const box = {
         x: (o.x / 100) * SLIDE_SIZE.width,
         y: (o.y / 100) * SLIDE_SIZE.height,
@@ -137,19 +175,24 @@ export async function exportDeck(deck: Deck) {
         },
       );
     if (content.citations.length)
-      slide.addText(content.citations.join(" · "), {
-        x: 0.7,
-        y: 6.75,
-        w: 11.5,
-        h: 0.35,
-        fontFace: font,
-        fontSize: 9,
-        color: theme.ink,
-        margin: 0,
-      });
+      slide.addText(
+        content.semantic
+          ? citationCaption(content)
+          : content.citations.join(" · "),
+        {
+          x: 0.7,
+          y: content.semantic ? 640 / 96 : 6.75,
+          w: 11.5,
+          h: 0.35,
+          fontFace: font,
+          fontSize: 9,
+          color: theme.ink,
+          margin: 0,
+        },
+      );
     slide.addText(`${index + 1} / ${deck.slides.length}`, {
       x: 11.9,
-      y: 7.05,
+      y: content.semantic ? 640 / 96 : 7.05,
       w: 0.7,
       h: 0.22,
       fontFace: font,

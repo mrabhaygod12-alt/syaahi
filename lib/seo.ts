@@ -93,11 +93,14 @@ export function orgSchema() {
     "@type": "Organization",
     "@id": `${SITE.url}/#organization`,
     name: SITE.name,
-    alternateName: "Syaahii",
+    alternateName: ["Syaahii", "Syaahi at syaahii.in"],
     url: SITE.url,
     slogan: SITE.tagline,
     description: SITE.description,
     logo: `${SITE.url}/icon-512.png`,
+    founder: [
+      { "@type": "Person", name: "Chandan Pandey", url: `${SITE.url}/about` },
+    ],
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
@@ -148,9 +151,9 @@ export function presentationSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "@id": `${SITE.url}/presentations#software`,
+    "@id": `${SITE.url}/ai-presentations#software`,
     name: "Syaahi Presentation Studio",
-    url: `${SITE.url}/presentations`,
+    url: `${SITE.url}/ai-presentations`,
     applicationCategory: "EducationalApplication",
     operatingSystem: "Web browser",
     inLanguage: ["en", "hi", "de", "fr", "es"],
@@ -158,6 +161,9 @@ export function presentationSchema() {
       "Import your private lesson or document sources, approve an outline, edit slides, and export presentations.",
     featureList: [
       "Source imports",
+      "Public article research",
+      "Saved narrative plan",
+      "Six fixed visual archetypes",
       "Outline approval",
       "Editable slide objects",
       "Slide preview",
@@ -165,6 +171,30 @@ export function presentationSchema() {
       "PDF export",
       "Speaker notes",
       "Revocable sharing",
+    ],
+    publisher: { "@id": `${SITE.url}/#organization` },
+  };
+}
+export function writingSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": `${SITE.url}/writing/features#software`,
+    name: "Syaahi Write & Publish",
+    url: `${SITE.url}/writing/features`,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web browser",
+    description:
+      "Rich article editing, private drafts and revisions, distinct public writer profiles and editorially reviewed publication.",
+    featureList: [
+      "Rich article editor",
+      "Private drafts and revisions",
+      "Separate writer profiles",
+      "Editorial submission",
+      "Following and public responses",
+      "Private reading notes",
+      "Story statistics",
+      "Canonical links",
     ],
     publisher: { "@id": `${SITE.url}/#organization` },
   };

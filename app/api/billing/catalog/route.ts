@@ -5,18 +5,15 @@ import { rateLimit } from "@/lib/ratelimit";
 import { paymentConfiguration } from "@/lib/billing/configuration";
 import { subscriptionRequest } from "@/lib/billing/subscriptions";
 import { resolveMonthlyPlan } from "@/lib/billing/monthly-catalog";
-import {
-  MONTHLY_PLANS,
-  type MonthlyTier,
-} from "@/lib/billing/subscription-plans";
-/** Prepares the three public catalogue plans without starting a customer subscription. */
+import { STUDENT_MONTHLY_TIERS } from "@/lib/billing/subscription-plans";
+/** Prepares public catalogue plans without starting a customer subscription. */
 export const POST = apiHandler(async (req: NextRequest) => {
   const denied =
     (await authError(req)) ||
     (await rateLimit(req, "catalog-prepare", 2, 60000));
   if (denied) return denied;
   try {
-    for (const tier of Object.keys(MONTHLY_PLANS) as MonthlyTier[])
+    for (const tier of STUDENT_MONTHLY_TIERS)
       await resolveMonthlyPlan(tier, subscriptionRequest);
     return NextResponse.json({
       ready: true,

@@ -27,7 +27,11 @@ export const POST = apiHandler(async (req: NextRequest) => {
   const b = await req.json().catch(() => ({}));
   try {
     return NextResponse.json({
-      sources: await ownedSources((await currentUser(req))!.id, b.sources),
+      sources: await ownedSources(
+        (await currentUser(req))!.id,
+        b.sources,
+        b.designEngine === 2 ? 48000 : 18000,
+      ),
     });
   } catch (e) {
     return NextResponse.json(

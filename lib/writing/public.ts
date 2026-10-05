@@ -13,6 +13,7 @@ export type PublicGuide = Pick<
   | "creatorSlug"
   | "publishedAt"
   | "createdAt"
+  | "canonicalUrl"
 >;
 export function publicGuide(story: Story): PublicGuide {
   const {
@@ -26,6 +27,7 @@ export function publicGuide(story: Story): PublicGuide {
     creatorSlug,
     publishedAt,
     createdAt,
+    canonicalUrl,
   } = story;
   return {
     slug,
@@ -38,6 +40,7 @@ export function publicGuide(story: Story): PublicGuide {
     creatorSlug,
     publishedAt,
     createdAt,
+    ...(canonicalUrl ? { canonicalUrl } : {}),
   };
 }
 export async function publicStoryViews(

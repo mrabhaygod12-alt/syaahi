@@ -7,6 +7,16 @@ const origin = "https://www.syaahii.in";
 const checks = [
   ["/", 200, "landing-page"],
   ["/writing", 200, "writer-public-landing"],
+  ["/syaahi", 200, "Syaahi: learn, present and publish."],
+  ["/writing/features", 200, "A complete home for your writing."],
+  ["/writing/pricing", 200, "Two writer plans."],
+  ["/writing/medium-comparison", 200, "Choose the tools your writing needs."],
+  ["/ai-presentations", 200, "Build a story your audience can follow."],
+  ["/product-facts.json", 200, '"Write & publish"'],
+  ["/feed.xml", 200, "Syaahi reviewed stories"],
+  ["/llms.txt", 200, "exactly Free and Max ₹399"],
+  ["/subscribe/pro", 307, undefined, "/pricing"],
+  ["/writer/subscribe/starter", 307, undefined, "/writer/membership"],
   ["/writer/welcome", 200],
   ["/writer/membership", 200],
   ["/writer/support", 200],
@@ -21,10 +31,11 @@ const checks = [
   ["/api/presentations/sources", 401],
 ];
 const results = await Promise.all(
-  checks.map(async ([path, status, marker]) => {
+  checks.map(async ([path, status, marker, redirect]) => {
     const started = Date.now();
     try {
       const response = await fetch(origin + path, {
+        ...(redirect ? { redirect: "manual" } : {}),
         cache: "no-store",
         signal: AbortSignal.timeout(45000),
       });
@@ -38,6 +49,9 @@ const results = await Promise.all(
         passed:
           response.status === status &&
           (!marker || body.includes(marker)) &&
+          (!redirect ||
+            new URL(response.headers.get("location") || "", origin).href ===
+              origin + redirect) &&
           (!expected || revision === expected),
       };
     } catch {
@@ -84,7 +98,10 @@ try {
     passed:
       response.ok &&
       billing.authenticated === false &&
-      billing.subscription === null,
+      billing.subscription === null &&
+      JSON.stringify(
+        Object.values(billing.plans || {}).map((plan) => plan.inr),
+      ) === JSON.stringify([9, 39, 79, 399]),
   });
   // Availability is configuration metadata, not proof of provider authentication or settlement.
 } catch {

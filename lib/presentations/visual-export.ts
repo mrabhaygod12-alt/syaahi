@@ -10,6 +10,10 @@ import {
   presentationFont,
 } from "./layout";
 import type { Deck } from "./store";
+import { archetypeScene } from "./scene";
+import { semanticTheme } from "./theme";
+import { artworkHtml } from "./artwork-html";
+import { citationCaption } from "./public-view";
 const escape = (s: string) =>
   s.replace(
     /[&<>"']/g,
@@ -26,7 +30,12 @@ export async function deckHtml(deck: Deck) {
   const theme = deckTheme(deck.template, deck.brand),
     images = new Map<string, string>();
   for (const slide of deck.slides)
-    for (const object of slideObjects(slide, theme.ink, theme.accent))
+    for (const object of slideObjects(
+      slide,
+      theme.ink,
+      theme.accent,
+      theme.background,
+    ))
       if (
         object.type === "image" &&
         object.imageId &&
@@ -46,7 +55,20 @@ export async function deckHtml(deck: Deck) {
   );
   const slides = deck.slides
     .map((slide, index) => {
-      const objects = slideObjects(slide, theme.ink, theme.accent)
+      const artwork = slide.semantic
+        ? artworkHtml(
+            archetypeScene(
+              slide.semantic,
+              semanticTheme(deck.template, deck.brand),
+            ),
+          )
+        : `<div class="deck-accent" style="background:#${theme.accent}"></div>`;
+      const objects = slideObjects(
+        slide,
+        theme.ink,
+        theme.accent,
+        theme.background,
+      )
         .map(
           (o) =>
             `<div class="deck-object" style="position:absolute;left:${o.x}%;top:${o.y}%;width:${o.w}%;height:${o.h}%;font-size:${o.fontSize / 9.6}cqw;font-weight:${o.bold ? 700 : 400};color:${o.color};text-align:${o.align}">${o.type === "image" ? `<img src="${images.get(o.imageId!)}" alt="${escape(o.imageAlt || "")}">` : escape(o.text)}</div>`,
@@ -67,7 +89,7 @@ export async function deckHtml(deck: Deck) {
               })
               .join("")}</div>`
           : "";
-      return `<article class="deck-canvas" style="background:#${theme.background};color:#${theme.ink};font-family:'${presentationFont(deck.language, theme.font)}',Arial,sans-serif"><div class="deck-accent" style="background:#${theme.accent}"></div>${objects}${table}${bars}<footer><span>${escape(slide.citations.join(" · "))}</span><b>${index + 1}</b></footer></article>`;
+      return `<article class="deck-canvas${slide.semantic ? " semantic-canvas" : ""}" style="background:#${theme.background};color:#${theme.ink};font-family:'${presentationFont(deck.language, theme.font)}',Arial,sans-serif">${artwork}${objects}${table}${bars}<footer><span>${escape(slide.semantic ? citationCaption(slide) : slide.citations.join(" · "))}</span><b>${index + 1}</b></footer></article>`;
     })
     .join("");
   return `<!doctype html><html lang="${presentationLanguage(deck.language)}"><head><meta charset="utf-8"><title>${escape(deck.title)}</title><style>${css}\n@page{size:13.333333in 7.5in;margin:0}body{margin:0;background:white}.deck-canvas{width:1280px;height:720px;box-shadow:none;break-after:page}*{box-sizing:border-box}@media print{.deck-canvas{break-after:page}.deck-canvas:last-child{break-after:auto}}</style></head><body>${slides}</body></html>`;

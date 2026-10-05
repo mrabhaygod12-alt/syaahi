@@ -32,6 +32,8 @@ export default function SiteHeader() {
   }, []);
   if (
     path.startsWith("/lesson/") ||
+    path === "/presentations" ||
+    path.startsWith("/presentations/") ||
     path === "/write" ||
     path === "/writer" ||
     path.startsWith("/writer/")

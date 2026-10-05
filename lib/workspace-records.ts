@@ -89,6 +89,9 @@ export async function mutateRecord<T extends WorkspaceRecord>(
             kind: next.kind,
             updatedAt: next.updatedAt,
             payload: next,
+            ...(next.kind === "presentation-source"
+              ? { sourceCacheExpiresAt: new Date(Date.now() + 86400000) }
+              : {}),
           },
         },
         { upsert: true, session },

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { monthlyTier } from "@/lib/billing/subscription-plans";
+import { purchasableMonthlyTier } from "@/lib/billing/subscription-plans";
 import SubscriptionCheckout from "@/components/SubscriptionCheckout";
 export const metadata = {
   title: "Monthly checkout",
@@ -10,7 +10,7 @@ export default async function Page({
 }: {
   params: Promise<{ tier: string }>;
 }) {
-  const tier = monthlyTier((await params).tier);
+  const tier = purchasableMonthlyTier((await params).tier);
   if (!tier) notFound();
   return <SubscriptionCheckout tier={tier} />;
 }

@@ -15,6 +15,8 @@ import { slideObjects, deckTheme } from "@/lib/presentations/layout";
 import type { DeckDraft, DeckSource } from "@/lib/presentations/drafts";
 import type { Deck } from "@/lib/presentations/store";
 import SlideCanvas, { type PreviewMeasurement } from "./SlideCanvas";
+import { audienceSlide } from "@/lib/presentations/public-view";
+import SemanticSlideEditor from "./SemanticSlideEditor";
 import "./presentation-studio.css";
 type View = Omit<Deck, "context" | "prompt" | "lease">;
 const blankSlide = (): DeckSlide => ({
@@ -68,6 +70,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
     [regenConsent, setRegenConsent] = useState(false),
     [shareUrl, setShareUrl] = useState(""),
     [editTab, setEditTab] = useState("content");
+  const [showSources, setShowSources] = useState(false);
   const [comments, setComments] = useState<any[]>([]),
     [comment, setComment] = useState("");
   const [measurement, setMeasurement] = useState<PreviewMeasurement | null>(
@@ -219,15 +222,14 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
   const active = Math.min(selected, Math.max(0, slides.length - 1)),
     slide = slides[active],
     theme = deckTheme(deck?.template || template, deck?.brand),
-    objects = slide ? slideObjects(slide, theme.ink, theme.accent) : [],
+    objects = slide
+      ? slideObjects(slide, theme.ink, theme.accent, theme.background)
+      : [],
     selectedObject = objects.find((o) => o.id === object);
   useEffect(() => {
     if (!slide) return;
-    const { notes, evidence, ...visible } = slide;
-    void notes;
-    void evidence;
     audienceState.current = {
-      slide: { ...visible, notes: "", evidence: [] },
+      slide: audienceSlide(slide),
       template: deck?.template || template,
       language: deck?.language || language,
       brand: deck?.brand,
@@ -294,7 +296,21 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
     setDirty(true);
   }
   function changeSlide(patch: Partial<DeckSlide>) {
-    changeSlides(slides.map((s, i) => (i === active ? { ...s, ...patch } : s)));
+    changeSlides(
+      slides.map((s, i) => {
+        if (i !== active) return s;
+        const next = { ...s, ...patch };
+        if (patch.layout && !patch.semantic) next.semantic = undefined;
+        else if (next.semantic)
+          next.semantic = {
+            ...next.semantic,
+            title: next.title,
+            notes: next.notes,
+            evidence: next.evidence || [],
+          };
+        return next;
+      }),
+    );
   }
   function changeObject(patch: Partial<SlideObject>) {
     if (!selectedObject) return;
@@ -524,6 +540,15 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
           </p>
         </div>
         <div className="studio-actions">
+          {id && deck?.designEngine === 2 && (
+            <button
+              className="btn light pw-editor-sources-toggle"
+              aria-expanded={showSources}
+              onClick={() => setShowSources(!showSources)}
+            >
+              {showSources ? "Hide research" : "Show research"}
+            </button>
+          )}
           {id && (
             <>
               <a className="btn light" href="/presentations">
@@ -593,12 +618,15 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
           </button>
         ))}
       </nav>
-      <div className={`studio-grid mobile-${mobile}`}>
+      <div
+        className={`studio-grid mobile-${mobile}${id && deck?.designEngine === 2 && !showSources ? " sources-collapsed" : ""}`}
+      >
         <aside className="studio-sources">
           <h3>Sources</h3>
           <p>
-            Up to six owned sources; 18,000 characters are used across the
-            selected sources.
+            Up to six owned sources;{" "}
+            {deck?.designEngine === 2 ? "48,000" : "18,000"} characters are used
+            across the selected sources.
           </p>
           {(deck?.sources || sources).map((s) => (
             <details key={s.id}>
@@ -1183,344 +1211,369 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
               </nav>
               {editTab === "content" && (
                 <>
-                  <label>
-                    Title
-                    <input
-                      value={slide.title}
-                      maxLength={110}
-                      onChange={(e) =>
+                  {slide.semantic && (
+                    <SemanticSlideEditor
+                      slide={slide.semantic}
+                      onChange={(semantic) =>
                         changeSlide({
-                          title: e.target.value,
-                          objects: slide.objects?.map((o) =>
-                            o.id === "title-box"
-                              ? { ...o, text: e.target.value }
-                              : o,
-                          ),
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Layout
-                    <select
-                      value={slide.layout}
-                      onChange={(e) => {
-                        const layout = e.target.value as DeckSlide["layout"];
-                        changeSlide({
-                          layout,
+                          semantic,
+                          title: semantic.title,
+                          subtitle: semantic.eyebrow,
                           objects: undefined,
-                          ...(["comparison", "case"].includes(layout) &&
-                          !slide.columns.length
-                            ? {
-                                columns: [
-                                  { title: "First", points: ["Point"] },
-                                  { title: "Second", points: ["Point"] },
-                                ],
-                              }
-                            : {}),
-                          ...(["process", "timeline"].includes(layout) &&
-                          !slide.steps.length
-                            ? { steps: ["First step", "Next step"] }
-                            : {}),
-                          ...(layout === "table" && !slide.table.length
-                            ? {
-                                table: [
-                                  ["Label", "Value"],
-                                  ["Item", ""],
-                                ],
-                              }
-                            : {}),
-                          ...(layout === "chart" && !slide.chart
-                            ? {
-                                chart: {
-                                  labels: ["First", "Second"],
-                                  values: [0, 0],
-                                  label: "Add units",
-                                },
-                              }
-                            : {}),
-                        });
-                      }}
-                    >
-                      {SLIDE_LAYOUTS.map((l) => (
-                        <option key={l}>{l}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <p>
-                    Changing layout resets canvas objects. Undo can restore
-                    them.
-                  </p>
-                  <label>
-                    Subtitle
-                    <textarea
-                      value={slide.subtitle}
-                      maxLength={220}
-                      rows={2}
-                      onChange={(e) =>
-                        changeSlide({
-                          subtitle: e.target.value,
-                          objects: slide.objects?.map((o) =>
-                            o.id === "subtitle-box"
-                              ? { ...o, text: e.target.value }
-                              : o,
-                          ),
                         })
                       }
                     />
-                  </label>
-                  {![
-                    "table",
-                    "chart",
-                    "process",
-                    "timeline",
-                    "comparison",
-                    "image",
-                  ].includes(slide.layout) && (
+                  )}
+                  <div hidden={!!slide.semantic}>
                     <label>
-                      Points, one per line
-                      <textarea
-                        value={slide.bullets.join("\n")}
-                        rows={6}
+                      Title
+                      <input
+                        value={slide.title}
+                        maxLength={110}
                         onChange={(e) =>
                           changeSlide({
-                            bullets: e.target.value.split("\n").slice(0, 5),
-                            objects: undefined,
+                            title: e.target.value,
+                            objects: slide.objects?.map((o) =>
+                              o.id === "title-box"
+                                ? { ...o, text: e.target.value }
+                                : o,
+                            ),
                           })
                         }
                       />
                     </label>
-                  )}
-                  {["process", "timeline"].includes(slide.layout) && (
                     <label>
-                      Steps
+                      Layout
+                      <select
+                        value={slide.layout}
+                        onChange={(e) => {
+                          const layout = e.target.value as DeckSlide["layout"];
+                          changeSlide({
+                            layout,
+                            objects: undefined,
+                            ...(["comparison", "case"].includes(layout) &&
+                            !slide.columns.length
+                              ? {
+                                  columns: [
+                                    { title: "First", points: ["Point"] },
+                                    { title: "Second", points: ["Point"] },
+                                  ],
+                                }
+                              : {}),
+                            ...(["process", "timeline"].includes(layout) &&
+                            !slide.steps.length
+                              ? { steps: ["First step", "Next step"] }
+                              : {}),
+                            ...(layout === "table" && !slide.table.length
+                              ? {
+                                  table: [
+                                    ["Label", "Value"],
+                                    ["Item", ""],
+                                  ],
+                                }
+                              : {}),
+                            ...(layout === "chart" && !slide.chart
+                              ? {
+                                  chart: {
+                                    labels: ["First", "Second"],
+                                    values: [0, 0],
+                                    label: "Add units",
+                                  },
+                                }
+                              : {}),
+                          });
+                        }}
+                      >
+                        {SLIDE_LAYOUTS.map((l) => (
+                          <option key={l}>{l}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <p>
+                      Changing layout resets canvas objects. Undo can restore
+                      them.
+                    </p>
+                    <label>
+                      Subtitle
                       <textarea
-                        value={slide.steps.join("\n")}
-                        rows={5}
+                        value={slide.subtitle}
+                        maxLength={220}
+                        rows={2}
                         onChange={(e) =>
                           changeSlide({
-                            steps: e.target.value.split("\n").slice(0, 5),
-                            objects: undefined,
+                            subtitle: e.target.value,
+                            objects: slide.objects?.map((o) =>
+                              o.id === "subtitle-box"
+                                ? { ...o, text: e.target.value }
+                                : o,
+                            ),
                           })
                         }
                       />
                     </label>
-                  )}
-                  {["comparison", "case"].includes(slide.layout) &&
-                    slide.columns.map((c, i) => (
-                      <fieldset key={i}>
-                        <legend>Column {i + 1}</legend>
-                        <input
-                          aria-label={`Column ${i + 1} heading`}
-                          value={c.title}
-                          onChange={(e) =>
-                            changeSlide({
-                              columns: slide.columns.map((o, j) =>
-                                j === i ? { ...o, title: e.target.value } : o,
-                              ),
-                              objects: undefined,
-                            })
-                          }
-                        />
-                        <textarea
-                          aria-label={`Column ${i + 1} points`}
-                          value={c.points.join("\n")}
-                          onChange={(e) =>
-                            changeSlide({
-                              columns: slide.columns.map((o, j) =>
-                                j === i
-                                  ? {
-                                      ...o,
-                                      points: e.target.value
-                                        .split("\n")
-                                        .slice(0, 4),
-                                    }
-                                  : o,
-                              ),
-                              objects: undefined,
-                            })
-                          }
-                        />
-                      </fieldset>
-                    ))}
-                  {slide.layout === "table" && (
-                    <>
-                      <div className="studio-grid-input">
-                        <table>
-                          <tbody>
-                            {slide.table.map((row, i) => (
-                              <tr key={i}>
-                                {row.map((cell, j) => (
-                                  <td key={j}>
-                                    <input
-                                      aria-label={`Row ${i + 1}, column ${j + 1}`}
-                                      value={cell}
-                                      maxLength={100}
-                                      onChange={(e) =>
-                                        changeSlide({
-                                          table: slide.table.map((r, n) =>
-                                            n === i
-                                              ? r.map((v, k) =>
-                                                  k === j ? e.target.value : v,
-                                                )
-                                              : r,
-                                          ),
-                                        })
-                                      }
-                                    />
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <button
-                        disabled={slide.table.length >= 6}
-                        onClick={() =>
-                          changeSlide({
-                            table: [
-                              ...slide.table,
-                              slide.table[0].map(() => ""),
-                            ],
-                          })
-                        }
-                      >
-                        ＋ Row
-                      </button>
-                      <button
-                        disabled={(slide.table[0]?.length || 0) >= 4}
-                        onClick={() =>
-                          changeSlide({
-                            table: slide.table.map((r) => [...r, ""]),
-                          })
-                        }
-                      >
-                        ＋ Column
-                      </button>
-                      <button
-                        disabled={slide.table.length <= 2}
-                        onClick={() =>
-                          changeSlide({ table: slide.table.slice(0, -1) })
-                        }
-                      >
-                        Remove row
-                      </button>
-                    </>
-                  )}
-                  {slide.layout === "chart" && slide.chart && (
-                    <>
+                    {![
+                      "table",
+                      "chart",
+                      "process",
+                      "timeline",
+                      "comparison",
+                      "image",
+                    ].includes(slide.layout) && (
                       <label>
-                        Series label and units
-                        <input
-                          value={slide.chart.label}
-                          maxLength={70}
+                        Points, one per line
+                        <textarea
+                          value={slide.bullets.join("\n")}
+                          rows={6}
                           onChange={(e) =>
                             changeSlide({
-                              chart: { ...slide.chart!, label: e.target.value },
+                              bullets: e.target.value.split("\n").slice(0, 5),
+                              objects: undefined,
                             })
                           }
                         />
                       </label>
-                      {slide.chart.labels.map((l, i) => (
-                        <div
-                          className="studio-chart-input"
-                          key={`${slide.id}-${i}`}
-                        >
+                    )}
+                    {["process", "timeline"].includes(slide.layout) && (
+                      <label>
+                        Steps
+                        <textarea
+                          value={slide.steps.join("\n")}
+                          rows={5}
+                          onChange={(e) =>
+                            changeSlide({
+                              steps: e.target.value.split("\n").slice(0, 5),
+                              objects: undefined,
+                            })
+                          }
+                        />
+                      </label>
+                    )}
+                    {["comparison", "case"].includes(slide.layout) &&
+                      slide.columns.map((c, i) => (
+                        <fieldset key={i}>
+                          <legend>Column {i + 1}</legend>
                           <input
-                            aria-label={`Chart category ${i + 1}`}
-                            value={l}
-                            maxLength={35}
+                            aria-label={`Column ${i + 1} heading`}
+                            value={c.title}
+                            onChange={(e) =>
+                              changeSlide({
+                                columns: slide.columns.map((o, j) =>
+                                  j === i ? { ...o, title: e.target.value } : o,
+                                ),
+                                objects: undefined,
+                              })
+                            }
+                          />
+                          <textarea
+                            aria-label={`Column ${i + 1} points`}
+                            value={c.points.join("\n")}
+                            onChange={(e) =>
+                              changeSlide({
+                                columns: slide.columns.map((o, j) =>
+                                  j === i
+                                    ? {
+                                        ...o,
+                                        points: e.target.value
+                                          .split("\n")
+                                          .slice(0, 4),
+                                      }
+                                    : o,
+                                ),
+                                objects: undefined,
+                              })
+                            }
+                          />
+                        </fieldset>
+                      ))}
+                    {slide.layout === "table" && (
+                      <>
+                        <div className="studio-grid-input">
+                          <table>
+                            <tbody>
+                              {slide.table.map((row, i) => (
+                                <tr key={i}>
+                                  {row.map((cell, j) => (
+                                    <td key={j}>
+                                      <input
+                                        aria-label={`Row ${i + 1}, column ${j + 1}`}
+                                        value={cell}
+                                        maxLength={100}
+                                        onChange={(e) =>
+                                          changeSlide({
+                                            table: slide.table.map((r, n) =>
+                                              n === i
+                                                ? r.map((v, k) =>
+                                                    k === j
+                                                      ? e.target.value
+                                                      : v,
+                                                  )
+                                                : r,
+                                            ),
+                                          })
+                                        }
+                                      />
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <button
+                          disabled={slide.table.length >= 6}
+                          onClick={() =>
+                            changeSlide({
+                              table: [
+                                ...slide.table,
+                                slide.table[0].map(() => ""),
+                              ],
+                            })
+                          }
+                        >
+                          ＋ Row
+                        </button>
+                        <button
+                          disabled={(slide.table[0]?.length || 0) >= 4}
+                          onClick={() =>
+                            changeSlide({
+                              table: slide.table.map((r) => [...r, ""]),
+                            })
+                          }
+                        >
+                          ＋ Column
+                        </button>
+                        <button
+                          disabled={slide.table.length <= 2}
+                          onClick={() =>
+                            changeSlide({ table: slide.table.slice(0, -1) })
+                          }
+                        >
+                          Remove row
+                        </button>
+                      </>
+                    )}
+                    {slide.layout === "chart" && slide.chart && (
+                      <>
+                        <label>
+                          Series label and units
+                          <input
+                            value={slide.chart.label}
+                            maxLength={70}
                             onChange={(e) =>
                               changeSlide({
                                 chart: {
                                   ...slide.chart!,
-                                  labels: slide.chart!.labels.map((v, j) =>
-                                    j === i ? e.target.value : v,
-                                  ),
+                                  label: e.target.value,
                                 },
                               })
                             }
                           />
-                          <input
-                            aria-label={`Chart value ${i + 1}`}
-                            type="number"
-                            step="any"
-                            key={`${slide.id}-${i}-${slide.chart!.values[i]}`}
-                            defaultValue={slide.chart!.values[i]}
-                            onBlur={(e) => {
-                              const value = Number(e.target.value);
-                              if (
-                                !e.target.value.trim() ||
-                                !Number.isFinite(value) ||
-                                Math.abs(value) >= 1e12
-                              ) {
-                                setMessage(
-                                  "Enter a finite number under one trillion; negative values are supported.",
-                                );
-                                e.target.value = String(slide.chart!.values[i]);
-                                return;
+                        </label>
+                        {slide.chart.labels.map((l, i) => (
+                          <div
+                            className="studio-chart-input"
+                            key={`${slide.id}-${i}`}
+                          >
+                            <input
+                              aria-label={`Chart category ${i + 1}`}
+                              value={l}
+                              maxLength={35}
+                              onChange={(e) =>
+                                changeSlide({
+                                  chart: {
+                                    ...slide.chart!,
+                                    labels: slide.chart!.labels.map((v, j) =>
+                                      j === i ? e.target.value : v,
+                                    ),
+                                  },
+                                })
                               }
-                              changeSlide({
-                                chart: {
-                                  ...slide.chart!,
-                                  values: slide.chart!.values.map((v, j) =>
-                                    j === i ? value : v,
-                                  ),
-                                },
-                              });
-                            }}
-                          />
-                        </div>
-                      ))}
-                      <button
-                        disabled={slide.chart.labels.length >= 6}
-                        onClick={() =>
-                          changeSlide({
-                            chart: {
-                              ...slide.chart!,
-                              labels: [...slide.chart!.labels, "New category"],
-                              values: [...slide.chart!.values, 0],
-                            },
-                          })
-                        }
-                      >
-                        ＋ Data row
-                      </button>
-                      <button
-                        disabled={slide.chart.labels.length <= 2}
-                        onClick={() =>
-                          changeSlide({
-                            chart: {
-                              ...slide.chart!,
-                              labels: slide.chart!.labels.slice(0, -1),
-                              values: slide.chart!.values.slice(0, -1),
-                            },
-                          })
-                        }
-                      >
-                        Remove data row
-                      </button>
-                      <p>
-                        Charts include a real zero baseline for positive and
-                        negative values.
-                      </p>
-                    </>
-                  )}
-                  {slide.layout === "image" && (
-                    <label>
-                      Add private image
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        disabled={busy}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) void uploadImage(f);
-                        }}
-                      />
-                    </label>
-                  )}
+                            />
+                            <input
+                              aria-label={`Chart value ${i + 1}`}
+                              type="number"
+                              step="any"
+                              key={`${slide.id}-${i}-${slide.chart!.values[i]}`}
+                              defaultValue={slide.chart!.values[i]}
+                              onBlur={(e) => {
+                                const value = Number(e.target.value);
+                                if (
+                                  !e.target.value.trim() ||
+                                  !Number.isFinite(value) ||
+                                  Math.abs(value) >= 1e12
+                                ) {
+                                  setMessage(
+                                    "Enter a finite number under one trillion; negative values are supported.",
+                                  );
+                                  e.target.value = String(
+                                    slide.chart!.values[i],
+                                  );
+                                  return;
+                                }
+                                changeSlide({
+                                  chart: {
+                                    ...slide.chart!,
+                                    values: slide.chart!.values.map((v, j) =>
+                                      j === i ? value : v,
+                                    ),
+                                  },
+                                });
+                              }}
+                            />
+                          </div>
+                        ))}
+                        <button
+                          disabled={slide.chart.labels.length >= 6}
+                          onClick={() =>
+                            changeSlide({
+                              chart: {
+                                ...slide.chart!,
+                                labels: [
+                                  ...slide.chart!.labels,
+                                  "New category",
+                                ],
+                                values: [...slide.chart!.values, 0],
+                              },
+                            })
+                          }
+                        >
+                          ＋ Data row
+                        </button>
+                        <button
+                          disabled={slide.chart.labels.length <= 2}
+                          onClick={() =>
+                            changeSlide({
+                              chart: {
+                                ...slide.chart!,
+                                labels: slide.chart!.labels.slice(0, -1),
+                                values: slide.chart!.values.slice(0, -1),
+                              },
+                            })
+                          }
+                        >
+                          Remove data row
+                        </button>
+                        <p>
+                          Charts include a real zero baseline for positive and
+                          negative values.
+                        </p>
+                      </>
+                    )}
+                    {slide.layout === "image" && (
+                      <label>
+                        Add private image
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          disabled={busy}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void uploadImage(f);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
                   <label>
                     Speaker notes
                     <textarea

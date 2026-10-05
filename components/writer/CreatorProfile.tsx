@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { PublicGuide } from "@/lib/writing/public";
 import { useAccount } from "../WorkspaceProvider";
 import { StoryRow } from "../WriterDashboard";
+import FollowWriter from "./FollowWriter";
 type Profile = {
   slug: string;
   name: string;
@@ -79,6 +80,7 @@ export default function CreatorProfile({
                 </a>
               )}
             </div>
+            <FollowWriter slug={profile.slug} />
           </div>
           <button className="btn light" onClick={share}>
             Share profile ↗

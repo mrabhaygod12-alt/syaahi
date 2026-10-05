@@ -59,6 +59,26 @@ async function indexes(d: Db) {
       .collection("workspace_records")
       .createIndex({ kind: 1, owner: 1, updatedAt: -1 }),
     d.collection("writing_images").createIndex({ owner: 1 }),
+    d
+      .collection("workspace_records")
+      .createIndex({ kind: 1, "payload.creator": 1, "payload.active": 1 }),
+    d
+      .collection("workspace_records")
+      .createIndex({ kind: 1, "payload.creator": 1, "payload.qualified": 1 }),
+    d.collection("workspace_records").createIndex({
+      kind: 1,
+      "payload.storyId": 1,
+      "payload.hidden": 1,
+      updatedAt: -1,
+    }),
+    d.collection("workspace_records").createIndex(
+      { sourceCacheExpiresAt: 1 },
+      {
+        name: "presentation_source_cache_expiry",
+        expireAfterSeconds: 0,
+        partialFilterExpression: { kind: "presentation-source" },
+      },
+    ),
     d.collection("workspace_records").createIndex({
       kind: 1,
       "payload.status": 1,

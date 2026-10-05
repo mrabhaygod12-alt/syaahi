@@ -18,6 +18,7 @@ import {
   ownedDraft,
   approveDraft,
   ownedSources,
+  type DeckDraft,
 } from "@/lib/presentations/drafts";
 import { ownedDeck } from "@/lib/presentations/store";
 export const runtime = "nodejs";
@@ -26,8 +27,23 @@ export const GET = apiHandler(async (req: NextRequest) => {
   if (denied) return denied;
   const owner = (await currentUser(req))!.id;
   kickWorker();
+  const [decks, drafts] = await Promise.all([
+    records<Deck>("presentation", owner),
+    records<DeckDraft>("presentation-draft", owner),
+  ]);
+  const generated = new Set(decks.map((d) => d.id));
   return NextResponse.json({
-    decks: (await records<Deck>("presentation", owner)).map(safeDeck),
+    decks: decks.map(safeDeck),
+    drafts: drafts
+      .filter((d) => !generated.has(`deck-${d.id}`))
+      .map((d) => ({
+        id: d.id,
+        title: d.outline[0],
+        count: d.count,
+        template: d.template,
+        updatedAt: d.updatedAt,
+        designEngine: d.designEngine || 1,
+      })),
     maxSlides: await presentationLimit(owner),
     cost: 5,
   });
@@ -82,6 +98,9 @@ export const POST = apiHandler(async (req: NextRequest) => {
           count: draft.count,
           outline: draft.outline,
           sources: draft.sources,
+          ...(draft.designEngine === 2
+            ? { designEngine: 2, storyboard: draft.storyboard }
+            : {}),
         },
         id,
       );
@@ -114,9 +133,21 @@ export const POST = apiHandler(async (req: NextRequest) => {
       throw new Error(
         "Prepare and approve an outline before generating a deck.",
       );
+    const requested = Array.isArray(body.sources) ? [...body.sources] : [];
+    if (body.designEngine === 2) {
+      const links = body.prompt.match(/https:\/\/[^\s<>"'\)]+/g) || [];
+      for (const url of links.slice(0, 6))
+        if (
+          !requested.some(
+            (s) => s.kind === "web" && (s.url === url || s.locator === url),
+          )
+        )
+          requested.push({ kind: "web", url });
+    }
     const sources = await ownedSources(
       owner,
-      Array.isArray(body.sources) ? body.sources : [],
+      requested,
+      body.designEngine === 2 ? 48000 : 18000,
     );
     const draft = await planDeck(owner, {
       prompt: body.prompt.trim(),
@@ -126,6 +157,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
       count,
       template: body.template,
       language: normalizeLang(body.language),
+      ...(body.designEngine === 2 ? { designEngine: 2 as const } : {}),
     });
     return NextResponse.json({ draft }, { status: 201 });
   } catch (e) {

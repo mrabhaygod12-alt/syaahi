@@ -24,6 +24,18 @@ async function main() {
   assert(urls.includes("https://www.syaahii.in/"));
   assert(urls.includes("https://www.syaahii.in/subjects/physics"));
   assert(urls.includes("https://www.syaahii.in/writing"));
+  for (const path of [
+    "syaahi",
+    "writing/features",
+    "writing/pricing",
+    "writing/medium-comparison",
+    "ai-presentations",
+  ])
+    assert(urls.includes("https://www.syaahii.in/" + path));
+  assert(
+    !urls.some((u) => u.endsWith("/presentations")),
+    "Private studio is not a public discovery page",
+  );
   assert(
     !urls.some((url) =>
       /\/(writer|write|dashboard|subscribe|account)(\/|$)/.test(url),
@@ -43,6 +55,36 @@ async function main() {
   assert(rules[0].allow.includes("/api/writing/images/"));
   assert(rules[0].disallow.includes("/api/"));
   assert(facts.includes("students, teachers, professionals and writers"));
+  assert(facts.includes("Try ₹9"));
+  assert(facts.includes("Popular ₹79"));
+  assert(facts.includes("exactly Free and Max ₹399"));
+  assert(facts.includes("public plain-text responses"));
+  const { GET: publicFacts } = await import("../app/product-facts.json/route");
+  const product = await publicFacts().json();
+  assert.equal(product.workspaces.length, 3);
+  assert.equal(product.pricing.writer.length, 2);
+  assert.deepEqual(
+    product.pricing.student.map((p: any) => p.inr),
+    [9, 39, 79, 399],
+  );
+  const { publicationFeed } = await import("../lib/writing/feed");
+  const feed = publicationFeed([
+    {
+      slug: "safe-story",
+      title: "A <source> & story",
+      summary: "<script>bad</script>",
+      body: "PUBLIC BODY",
+      authorName: "Writer & name",
+      creatorSlug: "writer",
+      tags: [],
+      createdAt: "2026-10-05T00:00:00Z",
+      publishedAt: "2026-10-05T00:00:00Z",
+    },
+  ]);
+  assert(feed.includes("A &lt;source&gt; &amp; story"));
+  assert(!feed.includes("<script>"));
+  assert(!feed.includes("PUBLIC BODY"));
+  assert(feed.includes("/guides/safe-story"));
   assert(
     facts.includes("[Writing and publishing](https://www.syaahii.in/writing)"),
   );

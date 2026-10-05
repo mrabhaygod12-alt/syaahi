@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MONTHLY_PLANS } from "@/lib/billing/subscription-plans";
+import {
+  MONTHLY_PLANS,
+  STUDENT_MONTHLY_TIERS,
+} from "@/lib/billing/subscription-plans";
 import { requestJson } from "@/lib/http-client";
 export default function PricingClient() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -44,31 +47,36 @@ export default function PricingClient() {
             Start free
           </a>
         </article>
-        {Object.entries(MONTHLY_PLANS).map(([id, plan]) => (
-          <article className="card" key={id}>
-            <h2>{plan.label}</h2>
-            <p className="plan-price">
-              ₹{plan.inr}
-              <small>/month</small>
-            </p>
-            <strong>{plan.credits} credits each paid month</strong>
-            <p>
-              {id === "starter"
-                ? "For occasional notes and presentations."
-                : id === "pro"
-                  ? "For regular learning, teaching and presentations."
-                  : "For a larger monthly generation workload."}
-            </p>
-            <ul>
-              <li>All core study tools</li>
-              <li>Up to {plan.maxSlides} slides per presentation</li>
-              <li>No watermark on exported PPTX</li>
-            </ul>
-            <a className="btn dark" href={`/subscribe/${id}`}>
-              Choose {plan.label}
-            </a>
-          </article>
-        ))}
+        {STUDENT_MONTHLY_TIERS.map((id) => {
+          const plan = MONTHLY_PLANS[id];
+          return (
+            <article className="card" key={id}>
+              <h2>{plan.label}</h2>
+              <p className="plan-price">
+                ₹{plan.inr}
+                <small>/month</small>
+              </p>
+              <strong>{plan.credits} credits each paid month</strong>
+              <p>
+                {id === "try"
+                  ? "A small monthly note budget. A presentation needs five available credits."
+                  : id === "starter"
+                    ? "For occasional notes and presentations."
+                    : id === "popular"
+                      ? "For regular learning, teaching and presentations."
+                      : "For a larger monthly generation workload."}
+              </p>
+              <ul>
+                <li>All core study tools</li>
+                <li>Up to {plan.maxSlides} slides per presentation</li>
+                <li>No watermark on exported PPTX</li>
+              </ul>
+              <a className="btn dark" href={`/subscribe/${id}`}>
+                Choose {plan.label}
+              </a>
+            </article>
+          );
+        })}
         <article className="card">
           <h2>Team</h2>
           <p className="plan-price">Let’s talk</p>
@@ -90,7 +98,7 @@ export default function PricingClient() {
             <thead>
               <tr>
                 <th>Feature</th>
-                <th>Free / Starter / Pro / Max</th>
+                <th>Free / Try / Starter / Popular / Max</th>
                 <th>Credit use</th>
               </tr>
             </thead>

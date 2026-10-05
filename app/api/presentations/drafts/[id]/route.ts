@@ -3,6 +3,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { ownedDraft, approveDraft } from "@/lib/presentations/drafts";
 import { rateLimit } from "@/lib/ratelimit";
+import { isDeckTemplate } from "@/lib/presentations/store";
 export const GET = apiHandler(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const denied = await authError(req);
@@ -31,6 +32,10 @@ export const PATCH = apiHandler(
           (await ctx.params).id,
           b.revision,
           b.outline,
+          {
+            ...(isDeckTemplate(b.template) ? { template: b.template } : {}),
+            ...(b.storyboard ? { storyboard: b.storyboard } : {}),
+          },
         ),
       });
     } catch (e) {

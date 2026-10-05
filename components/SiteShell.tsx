@@ -10,6 +10,8 @@ export function SiteFooter() {
   const { user } = useAccount();
   if (
     pathname?.startsWith("/lesson/") ||
+    pathname === "/presentations" ||
+    pathname?.startsWith("/presentations/") ||
     pathname === "/write" ||
     pathname === "/writer" ||
     pathname?.startsWith("/writer/")
@@ -23,6 +25,9 @@ export function SiteFooter() {
         <nav aria-label="Publication footer">
           <a href="/community">Discover stories</a>
           <a href="/writing">For writers</a>
+          <a href="/writing/features">Writer features</a>
+          <a href="/writing/pricing">Writer pricing</a>
+          <a href="/feed.xml">Story feed</a>
           <a href="/writer/support">Help</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
@@ -61,6 +66,8 @@ export function SiteFooter() {
           ],
           [
             "Resources",
+            ["What is Syaahi?", "/syaahi"],
+            ["Presentation guide", "/ai-presentations"],
             ["About the creators", "/about"],
             ["Study blog", "/blog"],
             ["How it works", "/how-it-works"],

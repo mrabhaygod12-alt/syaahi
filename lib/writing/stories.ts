@@ -31,6 +31,7 @@ export interface ModerationEvent {
   note: string | null;
 }
 export interface Story {
+  canonicalUrl?: string;
   id: string;
   user: string;
   authorName: string;
@@ -258,11 +259,30 @@ export async function saveStory(
     creatorSlug?: string;
     document?: unknown;
     expectedUpdatedAt?: string;
+    canonicalUrl?: string;
   },
 ): Promise<Story> {
   const now = new Date().toISOString();
   const title = input.title.trim().slice(0, 140);
   const summary = input.summary.trim().slice(0, 320);
+  let canonicalUrl = input.canonicalUrl;
+  if (canonicalUrl !== undefined) {
+    canonicalUrl = canonicalUrl.trim();
+    if (canonicalUrl) {
+      const url = new URL(canonicalUrl);
+      if (
+        url.protocol !== "https:" ||
+        url.username ||
+        url.password ||
+        url.href.length > 2000 ||
+        url.hostname === "localhost"
+      )
+        throw new Error(
+          "Use a public HTTPS canonical URL without credentials.",
+        );
+      canonicalUrl = url.href;
+    }
+  }
   const document =
     input.document === undefined
       ? undefined
@@ -307,6 +327,7 @@ export async function saveStory(
       throw new Error("This submission is under editorial review.");
     const story: Story = {
       ...existing,
+      ...(canonicalUrl !== undefined ? { canonicalUrl } : {}),
       authorName: input.authorName.trim().slice(0, 80) || existing.authorName,
       creatorSlug:
         existing.creatorSlug || toCreatorSlug(existing.authorName, user),
@@ -374,6 +395,7 @@ export async function saveStory(
     return story;
   }
   const story: Story = {
+    ...(canonicalUrl ? { canonicalUrl } : {}),
     id: randomUUID(),
     user,
     authorName: input.authorName.trim().slice(0, 80) || "Syaahi creator",

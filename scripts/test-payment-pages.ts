@@ -15,6 +15,7 @@ async function main() {
       env: {
         ...process.env,
         APP_ROLE: "all",
+        NEXT_DIST_DIR: ".next-validation",
         BACKEND_URL: "",
         NEXT_PUBLIC_APP_URL: base,
       },
@@ -78,13 +79,13 @@ async function main() {
 
     await page.goto(`${base}/pricing`);
     await page.getByRole("heading", { name: "Free", exact: true }).waitFor();
-    for (const tier of ["Free", "Starter", "Pro", "Max", "Team"])
+    for (const tier of ["Free", "Try", "Starter", "Popular", "Max", "Team"])
       assert(
         await page
           .getByRole("heading", { name: tier, exact: true })
           .isVisible(),
       );
-    for (const price of ["₹39/month", "₹179/month", "₹399/month"])
+    for (const price of ["₹9/month", "₹39/month", "₹79/month", "₹399/month"])
       assert(await page.getByText(price, { exact: true }).isVisible());
     assert.equal(
       await page.getByText("$5", { exact: true }).count(),

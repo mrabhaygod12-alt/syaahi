@@ -1,5 +1,9 @@
 "use client";
 import { useEffect, useRef } from "react";
+import ArchetypeArtwork from "./ArchetypeArtwork";
+import { archetypeScene } from "@/lib/presentations/scene";
+import { semanticTheme } from "@/lib/presentations/theme";
+import { citationCaption } from "@/lib/presentations/public-view";
 import type {
   DeckSlide,
   DeckTemplate,
@@ -90,14 +94,14 @@ export default function SlideCanvas({
     };
   }, [slide, template, brand, language, onMeasure]);
   const theme = deckTheme(template, brand),
-    objects = slideObjects(slide, theme.ink, theme.accent),
+    objects = slideObjects(slide, theme.ink, theme.accent, theme.background),
     chart = slide.chart,
     range = chart ? chartRange(chart.values) : null;
   return (
     <article
       ref={canvas}
       lang={presentationLanguage(language)}
-      className="deck-canvas"
+      className={"deck-canvas" + (slide.semantic ? " semantic-canvas" : "")}
       aria-label={`Slide ${index + 1}: ${slide.title}`}
       style={{
         background: "#" + theme.background,
@@ -105,7 +109,19 @@ export default function SlideCanvas({
         fontFamily: `'${presentationFont(language, theme.font)}', Arial, sans-serif`,
       }}
     >
-      <div className="deck-accent" style={{ background: "#" + theme.accent }} />
+      {slide.semantic ? (
+        <ArchetypeArtwork
+          elements={archetypeScene(
+            slide.semantic,
+            semanticTheme(template, brand),
+          )}
+        />
+      ) : (
+        <div
+          className="deck-accent"
+          style={{ background: "#" + theme.accent }}
+        />
+      )}
       {objects.map((o) => {
         const style: React.CSSProperties = {
           position: "absolute",
@@ -193,7 +209,11 @@ export default function SlideCanvas({
         </div>
       )}
       <footer>
-        <span>{slide.citations.join(" · ")}</span>
+        <span>
+          {slide.semantic
+            ? citationCaption(slide)
+            : slide.citations.join(" · ")}
+        </span>
         <b>{index + 1}</b>
       </footer>
     </article>

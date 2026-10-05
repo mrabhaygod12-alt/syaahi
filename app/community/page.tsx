@@ -7,6 +7,10 @@ export const metadata = pageMeta({
     "Discover reviewed stories, guides and new perspectives on Syaahi.",
   path: "/community",
 });
+metadata.alternates = {
+  ...metadata.alternates,
+  types: { "application/rss+xml": "/feed.xml" },
+};
 export default function CommunityPage() {
   return (
     <div className="community-editorial-page">
@@ -22,6 +26,7 @@ export default function CommunityPage() {
           time.
         </p>
         <a href="/writing">Have a story to tell? ↗</a>
+        <a href="/feed.xml">Follow the reviewed story feed ↗</a>
         <span aria-hidden="true">✦</span>
       </header>
       <div className="community-editorial-wrap">

@@ -127,7 +127,7 @@ async function main() {
     await modal.waitFor({ state: "hidden" });
     await context.addCookies([{ name, value, domain: "localhost", path: "/" }]);
     await page.goto("http://localhost:3147/dashboard");
-    await page.locator(".workspace-main").waitFor();
+    await page.locator(".student-hub").waitFor();
     assert.equal(
       await page
         .locator(
@@ -485,8 +485,8 @@ async function main() {
       .waitFor();
     await page.goto("http://localhost:3147/pricing");
     await page.waitForURL("**/writer/membership");
-    await page.getByRole("link", { name: "Choose Pro", exact: false }).click();
-    await page.waitForURL("**/writer/subscribe/pro");
+    await page.getByRole("link", { name: "Choose Max", exact: false }).click();
+    await page.waitForURL("**/writer/subscribe/max");
     await page.getByRole("checkbox").check();
     assert.equal(
       await page
@@ -590,7 +590,7 @@ async function main() {
           "/writer/membership",
           "/writer/billing",
           "/writer/support",
-          "/writer/subscribe/pro",
+          "/writer/subscribe/max",
           `/creators/${wp.slug}`,
           "/community",
           "/writing",

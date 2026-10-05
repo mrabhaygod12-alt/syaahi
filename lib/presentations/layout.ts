@@ -5,6 +5,7 @@ import {
   type BrandKit,
   type SlideObject,
 } from "./model";
+import { semanticObjects } from "./scene";
 export const SLIDE_SIZE = { width: 13.333333, height: 7.5 };
 export function presentationLanguage(language: string) {
   return (
@@ -30,8 +31,16 @@ export function slideObjects(
   slide: DeckSlide,
   ink: string,
   accent: string,
+  background?: string,
 ): SlideObject[] {
   if (slide.objects) return slide.objects;
+  if (slide.semantic)
+    return semanticObjects(
+      { ...slide.semantic, title: slide.title },
+      ink,
+      accent,
+      background,
+    );
   const objects: SlideObject[] = [];
   const add = (
     id: string,

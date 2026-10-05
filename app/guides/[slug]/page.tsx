@@ -9,6 +9,8 @@ import ReportPublication from "@/components/ReportPublication";
 import PublicationEngagement from "@/components/PublicationEngagement";
 import PublicationActions from "@/components/PublicationActions";
 import StoryDocument from "@/components/StoryDocument";
+import StoryReader from "@/components/writer/StoryReader";
+import FollowWriter from "@/components/writer/FollowWriter";
 import { SITE, jsonLd, breadcrumbSchema } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +28,7 @@ export async function generateMetadata({
       path: "/community",
       noindex: true,
     });
-  return pageMeta({
+  const metadata = pageMeta({
     title: story.title,
     description: story.summary,
     path: `/guides/${story.slug}`,
@@ -35,6 +37,9 @@ export async function generateMetadata({
       publishedAt: story.publishedAt || story.createdAt,
     },
   });
+  return story.canonicalUrl
+    ? { ...metadata, alternates: { canonical: story.canonicalUrl } }
+    : metadata;
 }
 
 export default async function GuidePage({
@@ -56,6 +61,7 @@ export default async function GuidePage({
           {new Date(story.publishedAt || story.createdAt).toLocaleDateString()}
         </p>
         <p style={{ fontSize: 18 }}>{story.summary}</p>
+        <FollowWriter slug={story.creatorSlug} />
         <div className="about-tags">
           {story.tags.map((tag) => (
             <span key={tag}>{tag}</span>
@@ -91,7 +97,9 @@ export default async function GuidePage({
             ),
           }}
         />
-        <StoryDocument document={story.document} fallback={story.body} />
+        <StoryReader slug={story.slug!}>
+          <StoryDocument document={story.document} fallback={story.body} />
+        </StoryReader>
         <PublicationActions slug={story.slug!} />
         <ReportPublication slug={story.slug!} />
       </article>

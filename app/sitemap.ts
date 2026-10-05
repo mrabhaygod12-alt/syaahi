@@ -13,8 +13,12 @@ const STATIC = [
   "/subjects",
   "/interview",
   "/pricing",
-  "/presentations",
+  "/ai-presentations",
+  "/syaahi",
   "/writing",
+  "/writing/features",
+  "/writing/pricing",
+  "/writing/medium-comparison",
   "/features",
   "/how-it-works",
   "/examples",
@@ -62,6 +66,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...new Set(published.map((story) => story.creatorSlug).filter(Boolean)),
     ];
     guideSlugs = published
+      .filter(
+        (story) =>
+          !story.canonicalUrl ||
+          new URL(story.canonicalUrl).origin === SITE.url,
+      )
       .map((story) => story.slug)
       .filter((slug): slug is string => !!slug);
   } catch {

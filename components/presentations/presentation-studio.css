@@ -386,6 +386,27 @@
   overflow-wrap: break-word;
   user-select: text;
 }
+.semantic-canvas .deck-object {
+  line-height: 1.3;
+  white-space: pre-wrap;
+}
+.semantic-canvas > div > svg {
+  width: 100%;
+  height: 100%;
+}
+.semantic-canvas footer {
+  top: 88.9%;
+  left: 5%;
+  width: 90%;
+  height: 2.3%;
+  align-items: start;
+  font-size: 0.9cqw;
+  line-height: 1.25;
+}
+.semantic-canvas footer span {
+  max-width: 90%;
+  overflow: hidden;
+}
 .deck-object[role="button"] {
   cursor: pointer;
 }

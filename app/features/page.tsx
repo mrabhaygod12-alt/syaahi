@@ -133,6 +133,11 @@ export default function Features() {
         </div>
       </section>
       <section className="wrap feature-safety-note">
+        <div className="product-link-row">
+          <a href="/writing/features">Writer and publishing tools</a>
+          <a href="/ai-presentations">Presentation design engine</a>
+          <a href="/syaahi">What is Syaahi?</a>
+        </div>
         <p className="eyebrow">A STUDY AID, NOT A SHORTCUT</p>
         <h2>Keep the evidence close.</h2>
         <p>

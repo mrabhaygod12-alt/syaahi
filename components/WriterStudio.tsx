@@ -33,6 +33,7 @@ function StudioContent() {
   const [active, setActive] = useState<Story | null>(null),
     [title, setTitle] = useState(""),
     [summary, setSummary] = useState(""),
+    [canonicalUrl, setCanonicalUrl] = useState(""),
     [tags, setTags] = useState("");
   const [document, setDocument] = useState<RichNode>(textDocument("")),
     [busy, setBusy] = useState(false),
@@ -119,6 +120,7 @@ function StudioContent() {
         setActive(story);
         setTitle(story?.title || "");
         setSummary(story?.summary || "");
+        setCanonicalUrl(story?.canonicalUrl || "");
         setTags(story?.tags.join(", ") || "");
         const nextDocument = story?.document || textDocument(story?.body || "");
         readyDocument.current = nextDocument;
@@ -164,6 +166,7 @@ function StudioContent() {
           expectedUpdatedAt: activeRef.current?.updatedAt,
           title: title.trim() || "Untitled story",
           summary,
+          canonicalUrl,
           document: editor?.getJSON() || document,
           body: "",
           tags: tags.split(","),
@@ -213,7 +216,18 @@ function StudioContent() {
       return;
     const timer = setTimeout(() => void saveRef.current("save"), 2500);
     return () => clearTimeout(timer);
-  }, [title, summary, tags, document, dirty, locked, busy, paused, loaded]);
+  }, [
+    title,
+    summary,
+    canonicalUrl,
+    tags,
+    document,
+    dirty,
+    locked,
+    busy,
+    paused,
+    loaded,
+  ]);
   async function insertImage() {
     if (!file || !alt.trim() || !editor) return;
     setBusy(true);
@@ -468,6 +482,23 @@ function StudioContent() {
                   }}
                 />
                 <small>{summary.length}/320</small>
+              </label>
+              <label>
+                Original article / canonical URL (optional)
+                <input
+                  type="url"
+                  placeholder="https://your-site.example/original-article"
+                  maxLength={2000}
+                  value={canonicalUrl}
+                  onChange={(e) => {
+                    setCanonicalUrl(e.target.value);
+                    edited();
+                  }}
+                />
+                <small>
+                  Use this when cross-posting an article you own. The public
+                  page points search engines to that original URL.
+                </small>
               </label>
               <label>
                 Topics (up to five)

@@ -1,13 +1,18 @@
-import { MONTHLY_PLANS } from "../lib/billing/subscription-plans";
+import {
+  MONTHLY_PLANS,
+  STUDENT_MONTHLY_TIERS,
+} from "../lib/billing/subscription-plans";
 import { loadEnvConfig } from "@next/env";
 const apply = process.argv.includes("--apply");
 async function main() {
   if (!apply) {
     console.log("Preview only. No provider requests or changes.");
-    for (const [tier, plan] of Object.entries(MONTHLY_PLANS))
+    for (const tier of STUDENT_MONTHLY_TIERS) {
+      const plan = MONTHLY_PLANS[tier];
       console.log(
         `${tier}: INR ${plan.inr}/month, ${plan.credits} credits; RAZORPAY_PLAN_${tier.toUpperCase()}_INR`,
       );
+    }
     return;
   }
   const at = process.argv.indexOf("--env-file");
@@ -49,7 +54,8 @@ async function main() {
         "Too many existing plans. Reconcile manually before creating more.",
       );
   }
-  for (const [tier, plan] of Object.entries(MONTHLY_PLANS)) {
+  for (const tier of STUDENT_MONTHLY_TIERS) {
+    const plan = MONTHLY_PLANS[tier];
     const name = `Syaahi ${plan.label} monthly INR v1`;
     let remote = existing.find(
       (p) =>

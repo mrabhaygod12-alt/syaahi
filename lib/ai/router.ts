@@ -10,6 +10,10 @@ export interface ChatMsg {
   role: "system" | "user" | "assistant";
   content: string;
 }
+export interface OutputSchema {
+  name: string;
+  schema: Record<string, unknown>;
+}
 export interface Usage {
   prompt: number;
   completion: number;
@@ -28,6 +32,16 @@ export function breakerStatus() {
 }
 export function isRateLimitError(error: unknown) {
   return Number((error as { status?: number })?.status) === 429;
+}
+export class AIUnavailableError extends Error {
+  constructor(
+    message: string,
+    public retryable: boolean,
+    public retryAfterMs: number,
+  ) {
+    super(message);
+    this.name = "AIUnavailableError";
+  }
 }
 // Retained API compatibility. Do not send user content to unreviewed stealth providers.
 export async function getLiveStealthModel(): Promise<string | null> {
@@ -65,6 +79,8 @@ async function callOne(
   messages: ChatMsg[],
   maxTokens: number,
   timeout: number,
+  json = false,
+  schema?: OutputSchema,
 ) {
   const keys = orderedKeys(providerEnvKey(p.type));
   let lastError: unknown;
@@ -83,6 +99,18 @@ async function callOne(
         messages,
         max_tokens: Math.min(8000, maxTokens),
         temperature: 0.25,
+        ...(schema &&
+        p.type === "groq" &&
+        /^openai\/gpt-oss-(20b|120b)$/.test(p.model)
+          ? {
+              response_format: {
+                type: "json_schema" as const,
+                json_schema: { ...schema, strict: true },
+              },
+            }
+          : json && ["groq", "gemini", "mistral"].includes(p.type)
+            ? { response_format: { type: "json_object" as const } }
+            : {}),
       });
       const choice = result.choices?.[0];
       if (choice?.finish_reason === "length")
@@ -112,7 +140,13 @@ async function callOne(
 }
 export async function chatWithFallback(
   messages: ChatMsg[],
-  opts?: { maxTokens?: number; onlyConfigured?: boolean; rotateBy?: number },
+  opts?: {
+    maxTokens?: number;
+    onlyConfigured?: boolean;
+    rotateBy?: number;
+    json?: boolean;
+    schema?: OutputSchema;
+  },
 ) {
   const candidates = eligibleProviders().sort(
     (a, b) => a.priority - b.priority,
@@ -123,6 +157,7 @@ export async function chatWithFallback(
     );
   const start = Date.now();
   const errors: string[] = [];
+  let temporary = false;
   // Keep the best available model first; spread only when its organization is busy.
   const queue = [
     ...candidates.filter((p) => (active.get(p.type) || 0) < 1),
@@ -147,11 +182,14 @@ export async function chatWithFallback(
         messages,
         budget,
         Math.max(1000, Math.min(30000, 90000 - (Date.now() - start))),
+        opts?.json,
+        opts?.schema,
       );
       breaker.delete(p.type);
       return response;
     } catch (error) {
       const status = Number((error as { status?: number })?.status) || 0;
+      if (status === 429 || status >= 500 || status === 0) temporary = true;
       const message =
         error instanceof Error ? error.message : "Provider failed";
       const kind = message.includes("TRUNCATED")
@@ -181,8 +219,13 @@ export async function chatWithFallback(
       active.set(p.type, Math.max(0, (active.get(p.type) || 1) - 1));
     }
   }
-  throw new Error(
+  const cooldowns = candidates
+    .map((p) => (breaker.get(p.type)?.until || 0) - Date.now())
+    .filter((n) => n > 0);
+  throw new AIUnavailableError(
     `AI providers unavailable. ${errors.join("; ") || "Quotas are cooling down; retry shortly."}`,
+    temporary || (!attempts && cooldowns.some((n) => n <= 120000)),
+    Math.max(30000, Math.min(120000, ...cooldowns)),
   );
 }
 
