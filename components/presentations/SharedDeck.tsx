@@ -51,6 +51,7 @@ export default function SharedDeck({ token }: { token: string }) {
           <div key={s.id || i} style={{ marginBottom: 24 }}>
             <SlideCanvas
               slide={s}
+              language={deck.language}
               template={deck.template}
               brand={deck.brand}
               index={i}

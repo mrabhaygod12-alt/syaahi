@@ -13,6 +13,7 @@ export default function AudienceView() {
     template: DeckTemplate;
     brand?: BrandKit;
     index: number;
+    language?: string;
   } | null>(null);
   useEffect(() => {
     const token = new URLSearchParams(location.search).get("channel");

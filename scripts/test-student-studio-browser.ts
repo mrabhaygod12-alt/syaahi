@@ -155,7 +155,8 @@ async function main() {
     });
     await context.addCookies([{ name, value, domain: "localhost", path: "/" }]);
     await context.addInitScript(() => {
-      if (window === window.top) localStorage.setItem("syaahi-privacy-v1", "essential");
+      if (window === window.top)
+        localStorage.setItem("syaahi-privacy-v1", "essential");
     });
     const page = await context.newPage(),
       errors: string[] = [];
@@ -271,14 +272,11 @@ async function main() {
         },
       });
     });
-    await page
-      .locator('input[type="file"]')
-      .first()
-      .setInputFiles({
-        name: "scan-fixture.png",
-        mimeType: "image/png",
-        buffer: scanImage,
-      });
+    await page.locator('input[type="file"]').first().setInputFiles({
+      name: "scan-fixture.png",
+      mimeType: "image/png",
+      buffer: scanImage,
+    });
     await page.getByRole("heading", { name: "Prepare this scan" }).waitFor();
     await page.getByLabel("Rotation").selectOption("90");
     await page.getByLabel("Crop height (%)").fill("50");
@@ -444,6 +442,36 @@ async function main() {
       .waitFor();
     await page.getByRole("button", { name: "Exit · Esc", exact: true }).click();
     await audiencePage.close();
+    await page.getByRole("button", { name: "objects", exact: true }).click();
+    await page
+      .getByRole("button", { name: "＋ Text box", exact: true })
+      .click();
+    await page
+      .getByLabel("Object text", { exact: true })
+      .fill("लंबा पाठ और English text ".repeat(25));
+    await page.getByLabel("Width %", { exact: true }).fill("10");
+    await page.getByLabel("Height %", { exact: true }).fill("5");
+    await page.getByLabel("Font pt", { exact: true }).fill("72");
+    await page
+      .getByRole("status", { name: "Preview clipping warnings" })
+      .waitFor();
+    await page.screenshot({
+      path: "output/live-audit/studio/measured-clipping.png",
+      fullPage: true,
+    });
+    await page
+      .getByLabel("Object text", { exact: true })
+      .fill("Review this short statement.");
+    await page.getByLabel("Width %", { exact: true }).fill("70");
+    await page.getByLabel("Height %", { exact: true }).fill("20");
+    await page.getByLabel("Font pt", { exact: true }).fill("18");
+    await page
+      .getByRole("status", { name: "Preview clipping warnings" })
+      .waitFor({ state: "detached" });
+    await page
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await page.getByText("Saved to your account.", { exact: true }).waitFor();
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
       assert(

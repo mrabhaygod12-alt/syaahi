@@ -18,6 +18,7 @@ jobs:
       - run: npm run test:security
       - run: npm run test:monthly-catalog
       - run: npm run test:student-studio
+      - run: npm run test:presentation-preview
       - run: npm test
       - run: npx tsx scripts/test-study.ts
       - run: npx tsx scripts/test-referrals.ts

@@ -2,7 +2,13 @@ import { chromium, type Browser } from "playwright";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writingImage } from "@/lib/writing/images";
-import { deckTheme, slideObjects, chartRange } from "./layout";
+import {
+  deckTheme,
+  slideObjects,
+  chartRange,
+  presentationLanguage,
+  presentationFont,
+} from "./layout";
 import type { Deck } from "./store";
 const escape = (s: string) =>
   s.replace(
@@ -61,10 +67,10 @@ export async function deckHtml(deck: Deck) {
               })
               .join("")}</div>`
           : "";
-      return `<article class="deck-canvas" style="background:#${theme.background};color:#${theme.ink};font-family:'${theme.font}',Arial,sans-serif"><div class="deck-accent" style="background:#${theme.accent}"></div>${objects}${table}${bars}<footer><span>${escape(slide.citations.join(" · "))}</span><b>${index + 1}</b></footer></article>`;
+      return `<article class="deck-canvas" style="background:#${theme.background};color:#${theme.ink};font-family:'${presentationFont(deck.language, theme.font)}',Arial,sans-serif"><div class="deck-accent" style="background:#${theme.accent}"></div>${objects}${table}${bars}<footer><span>${escape(slide.citations.join(" · "))}</span><b>${index + 1}</b></footer></article>`;
     })
     .join("");
-  return `<!doctype html><html lang="${deck.language}"><head><meta charset="utf-8"><title>${escape(deck.title)}</title><style>${css}\n@page{size:13.333333in 7.5in;margin:0}body{margin:0;background:white}.deck-canvas{width:1280px;height:720px;box-shadow:none;break-after:page}*{box-sizing:border-box}@media print{.deck-canvas{break-after:page}.deck-canvas:last-child{break-after:auto}}</style></head><body>${slides}</body></html>`;
+  return `<!doctype html><html lang="${presentationLanguage(deck.language)}"><head><meta charset="utf-8"><title>${escape(deck.title)}</title><style>${css}\n@page{size:13.333333in 7.5in;margin:0}body{margin:0;background:white}.deck-canvas{width:1280px;height:720px;box-shadow:none;break-after:page}*{box-sizing:border-box}@media print{.deck-canvas{break-after:page}.deck-canvas:last-child{break-after:auto}}</style></head><body>${slides}</body></html>`;
 }
 export async function visualExport(
   deck: Deck,
@@ -95,7 +101,7 @@ export async function visualExport(
     const page = await context.newPage();
     const html =
       format === "notes"
-        ? `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:18mm}body{font:14px Arial,sans-serif;color:#173f35}section{break-inside:avoid;margin:24px 0;border-top:1px solid #ddd;padding:20px 0}p{white-space:pre-wrap;line-height:1.6}</style></head><body><h1>${escape(deck.title)}</h1>${deck.slides.map((s, i) => `<section><h2>${i + 1}. ${escape(s.title)}</h2><p>${escape(s.notes)}</p><small>${escape(s.citations.join(" · "))}</small></section>`).join("")}</body></html>`
+        ? `<!doctype html><html lang="${presentationLanguage(deck.language)}"><head><meta charset="utf-8"><style>@page{size:A4;margin:18mm}body{font:14px Arial,sans-serif;color:#173f35}section{break-inside:avoid;margin:24px 0;border-top:1px solid #ddd;padding:20px 0}p{white-space:pre-wrap;line-height:1.6}</style></head><body><h1>${escape(deck.title)}</h1>${deck.slides.map((s, i) => `<section><h2>${i + 1}. ${escape(s.title)}</h2><p>${escape(s.notes)}</p><small>${escape(s.citations.join(" · "))}</small></section>`).join("")}</body></html>`
         : await deckHtml(deck);
     await page.setContent(html, { waitUntil: "load", timeout: 30000 });
     await page.evaluate(() => document.fonts.ready);

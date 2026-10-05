@@ -14,7 +14,7 @@ import {
 import { slideObjects, deckTheme } from "@/lib/presentations/layout";
 import type { DeckDraft, DeckSource } from "@/lib/presentations/drafts";
 import type { Deck } from "@/lib/presentations/store";
-import SlideCanvas from "./SlideCanvas";
+import SlideCanvas, { type PreviewMeasurement } from "./SlideCanvas";
 import "./presentation-studio.css";
 type View = Omit<Deck, "context" | "prompt" | "lease">;
 const blankSlide = (): DeckSlide => ({
@@ -70,6 +70,14 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
     [editTab, setEditTab] = useState("content");
   const [comments, setComments] = useState<any[]>([]),
     [comment, setComment] = useState("");
+  const [measurement, setMeasurement] = useState<PreviewMeasurement | null>(
+    null,
+  );
+  const measurePreview = useCallback((next: PreviewMeasurement) => {
+    setMeasurement((previous) =>
+      JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
+    );
+  }, []);
   const regenerationRequest = useRef("");
   const rehearsalEvent = useRef("");
   const [rehearsals, setRehearsals] = useState<any[]>([]);
@@ -221,6 +229,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
     audienceState.current = {
       slide: { ...visible, notes: "", evidence: [] },
       template: deck?.template || template,
+      language: deck?.language || language,
       brand: deck?.brand,
       index: active,
     };
@@ -228,7 +237,15 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
       type: "slide",
       view: audienceState.current,
     });
-  }, [slide, deck?.template, deck?.brand, template, active]);
+  }, [
+    slide,
+    deck?.template,
+    deck?.brand,
+    deck?.language,
+    template,
+    language,
+    active,
+  ]);
   function openAudience() {
     audienceChannel.current?.close();
     const token = crypto.randomUUID(),
@@ -807,6 +824,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                       {d.slides[0] ? (
                         <SlideCanvas
                           slide={d.slides[0]}
+                          language={d.language}
                           template={d.template}
                           brand={d.brand}
                         />
@@ -933,6 +951,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                       <span>{i + 1}</span>
                       <SlideCanvas
                         slide={s}
+                        language={deck?.language || language}
                         template={deck?.template || template}
                         brand={deck?.brand}
                         index={i}
@@ -946,15 +965,38 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                     <>
                       <SlideCanvas
                         slide={slide}
+                        language={deck?.language || language}
                         template={deck?.template || template}
                         brand={deck?.brand}
                         index={active}
                         selected={object}
+                        onMeasure={measurePreview}
                         onSelect={(o) => {
                           setObject(o.id);
                           setEditTab("objects");
                         }}
                       />
+                      {measurement?.slide === (slide.id || slide.title) &&
+                        measurement.issues.length > 0 && (
+                          <aside
+                            className="studio-overflow-warning"
+                            role="status"
+                            aria-label="Preview clipping warnings"
+                          >
+                            <strong>Some text is clipped</strong>
+                            <ul>
+                              {measurement.issues.map((issue) => (
+                                <li key={issue}>{issue}</li>
+                              ))}
+                            </ul>
+                            <p>
+                              Shorten the text, reduce its font size or enlarge
+                              the object in Properties. This check measures the
+                              current browser preview; PowerPoint fonts can wrap
+                              differently.
+                            </p>
+                          </aside>
+                        )}
                       <div className="studio-reorder">
                         <button
                           disabled={active === 0}
@@ -1593,6 +1635,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                       <label>
                         Text
                         <textarea
+                          aria-label="Object text"
                           value={selectedObject.text}
                           rows={4}
                           maxLength={1500}
@@ -1617,6 +1660,17 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                               )[field]
                             }
                             <input
+                              aria-label={
+                                (
+                                  {
+                                    x: "Left %",
+                                    y: "Top %",
+                                    w: "Width %",
+                                    h: "Height %",
+                                    fontSize: "Font pt",
+                                  } as Record<string, string>
+                                )[field]
+                              }
                               type="number"
                               min={field === "fontSize" ? 10 : 0}
                               max={field === "fontSize" ? 72 : 100}
@@ -1643,6 +1697,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                       <label>
                         Alignment
                         <select
+                          aria-label="Object alignment"
                           value={selectedObject.align}
                           onChange={(e) =>
                             changeObject({ align: e.target.value as any })
@@ -1965,6 +2020,7 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
           <div className="presenter-audience">
             <SlideCanvas
               slide={slide}
+              language={deck?.language || language}
               template={deck?.template || template}
               brand={deck?.brand}
               index={active}

@@ -399,6 +399,23 @@
   height: 100%;
   object-fit: contain;
 }
+.studio-overflow-warning {
+  margin-top: 14px;
+  padding: 14px 18px;
+  border: 1px solid #b57724;
+  border-radius: 12px;
+  background: #fff6df;
+  color: #593900;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.studio-overflow-warning ul {
+  padding-left: 20px;
+}
+.studio-overflow-warning p {
+  margin-bottom: 0;
+}
 .deck-accent {
   position: absolute;
   left: 3.75%;

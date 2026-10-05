@@ -1,7 +1,12 @@
 import PptxGenJS from "pptxgenjs";
 import sharp from "sharp";
 import { writingImage } from "@/lib/writing/images";
-import { deckTheme, slideObjects, SLIDE_SIZE } from "./layout";
+import {
+  deckTheme,
+  slideObjects,
+  SLIDE_SIZE,
+  presentationFont,
+} from "./layout";
 import type { Deck } from "./store";
 export async function exportDeck(deck: Deck) {
   const pptx = new PptxGenJS();
@@ -10,7 +15,7 @@ export async function exportDeck(deck: Deck) {
   pptx.subject = "Presentation";
   pptx.title = deck.title;
   const theme = deckTheme(deck.template, deck.brand),
-    font = deck.language === "hindi" ? "Nirmala UI" : theme.font;
+    font = presentationFont(deck.language, theme.font);
   pptx.theme = { headFontFace: font, bodyFontFace: font };
   const assets = new Map<
     string,

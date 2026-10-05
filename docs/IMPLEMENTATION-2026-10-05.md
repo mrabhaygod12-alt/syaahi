@@ -9,6 +9,7 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 - Legacy one-time pack sales are disabled by default. Historical receipts, signature verification, settlement and webhook replay handling remain available; existing paid subscriptions were not cancelled.
 - Public deployment check passed 13/13 for cf8e916. A captured payment and its resulting live credit grant remain unverified; the readiness check never charges anyone.
 - Baseline studio release 8842696 passed GitHub CI and 17 strict public checks, with matching frontend/backend revisions and all three monthly plans available. Follow-up source/reading/quiz changes are tracked below.
+- Study intake release 7413582 also passed GitHub CI and all 17 strict live checks. A fresh authenticated writer readiness check confirmed merchant setup without creating a subscription or payment. Writer Membership remained in the writer workspace. Evidence: output/live-audit/monthly-catalog-ready-7413582.png.
 
 ## Student acceptance status
 
@@ -46,19 +47,19 @@ Scope: the 24 student and 16 presentation recommendations in STUDENT-PRESENTATIO
 | 1 · Studio | Source panel, stable thumbnails, common 16:9 canvas, properties, mobile panel switcher; saved selected slide and browser layout checks. | Wider UX review on touch/tablet. |
 | 2 · Outline | Free owned planning, edit/reorder, explicit Save outline, durable reload, revision check and five-credit approval before generation. Idempotent generation/charging tests pass. | Autosave before navigating away. |
 | 3 · Objects | Validated geometry, font/color/alignment, text/image objects, undo/redo, local edit recovery; foreign object images rejected. | Drag/resize handles and advanced object grouping. |
-| 4 · Layouts | Agenda, quote, timeline, image, recap and case added to six existing layouts and generation schema. | Render fixtures for every layout with long multilingual text. |
+| 4 · Layouts | Twelve layouts have English/Hindi browser-rendered fixtures with owned images, blank table cells and signed chart data. Normal samples fit all 24 rendered slides; deliberately dense custom text demonstrably clips. | Full long-content fixtures across all supported languages, fonts and templates. |
 | 5 · Brands | Owned, version-checked brand kits with saved colors/fonts and reversible application. | Logo placement presets. |
 | 6 · Imports | Owned lessons/PDFs and supplied text, up to six sources with a shared 18,000-character limit; cross-account imports denied. | Token-aware source balancing. |
 | 7 · Evidence | Known-source IDs filtered, imported-source citations and source drawer; fabricated source IDs rejected on edit. | Claim-level support verification. |
 | 8 · Progress | Persisted stages, leases, partial slides, worker recovery and indexed pending selection. | Progress ETA and cancellation UX. |
 | 9 · Regeneration | One saved slide, one-credit explicit approval, stable retry ID, durable lease, race rejection, applied-event recovery and one-time failure refund. Both storage backend tests pass. | Hosted AI regeneration smoke check. |
 | 10 · Slides | Stable IDs, add/duplicate/remove/reorder, stale-edit rejection and server plan limits; paid history survives downgrade. | Large history usability review. |
-| 11 · Preview/export | Common object geometry, private assets, actual PNG/PDF/notes generation and native editable PPTX. Four exported PPTX slides imported/rendered with Artifact Tool and visually inspected, including table blank cells and signed chart values. Native chart fonts/colors/value formatting configured. | PowerPoint comparison and all-layout multilingual fixtures remain outstanding. Artifact Tool's imported signed chart omits one negative-bar category label despite the label being present in the native chart data; do not claim full chart parity. |
+| 11 · Preview/export | Common object geometry, private assets, actual PNG/PDF/notes generation and native editable PPTX. English/Hindi PPTX fixtures for all twelve layouts imported/rendered with Artifact Tool; selected Hindi/English text, columns, process, table, image, quote and chart slides visually inspected. Browser/audience/export language tags and Hindi font choice now agree. | PowerPoint comparison remains outstanding. Artifact Tool's imported signed chart omits one negative-bar category label despite the label being present in the native chart data; do not claim full chart parity. Recipient fonts can change wrapping. |
 | 12 · Data | Rectangular table grids retain empty cells; finite signed charts use a zero baseline; rendered negative chart inspected. | More data-density fixtures. |
 | 13 · Presenting | Keyboard presenter view, separate audience window that receives no speaker notes, timer and saved rehearsal records. Audience privacy and rehearsal browser check pass. | Per-slide timing and optional speaking feedback. |
 | 14 · Collaboration | Bounded snapshots, optimistic restore, duplication, seven-day revocable links, authenticated comments and owner moderation. Public APIs exclude private source text, notes, owner identity and history; comment replay/revocation tests pass. | Share expiry UI polish. |
 | 15 · Exports | Owned saved deck required; rate limit, single active visual renderer, timeout, blocked external requests; PPTX/PDF/PNG/notes controls. | Export job history and retry queue. |
-| 16 · Quality | Deterministic contrast/copy/box/font/source/image warnings. No fabricated quality score. | Real measured overflow across multilingual fonts. |
+| 16 · Quality | Deterministic contrast/copy/box/font/source/image warnings plus actual browser text-clipping checks. Resize and font-load events refresh warnings; shrinking text or enlarging its box clears them. No fabricated quality score. | Claim-level support checks and broader multilingual font fixtures. Browser measurements do not certify PowerPoint rendering. |
 
 ## Security and search visibility
 

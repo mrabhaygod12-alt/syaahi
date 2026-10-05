@@ -6,6 +6,23 @@ import {
   type SlideObject,
 } from "./model";
 export const SLIDE_SIZE = { width: 13.333333, height: 7.5 };
+export function presentationLanguage(language: string) {
+  return (
+    (
+      {
+        english: "en",
+        hindi: "hi",
+        hinglish: "hi-Latn",
+        german: "de",
+        french: "fr",
+        spanish: "es",
+      } as Record<string, string>
+    )[language] || "en"
+  );
+}
+export function presentationFont(language: string, font: string) {
+  return language === "hindi" ? "Nirmala UI" : font;
+}
 export function deckTheme(template: DeckTemplate, brand?: BrandKit) {
   return brand || { ...DECK_TEMPLATES[template], font: "Arial" as const };
 }
