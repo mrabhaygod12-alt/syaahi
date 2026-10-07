@@ -34,6 +34,8 @@ async function main() {
     const cookie = session.headers.get("set-cookie")!.split(";")[0];
     await saveOrder("order_StatusOne", user.id, "try", 900, 3);
     await saveOrder("order_StatusOther", other.id, "try", 900, 3);
+    const metrics = await import("../lib/growth/metrics");
+    await metrics.setMeasurementConsent(user.id, true);
     const get = (path: string, authenticated = true) =>
       GET(
         new NextRequest(origin + path, {
@@ -64,6 +66,7 @@ async function main() {
       ),
     );
     assert.equal((await userOrders(user.id))[0].paid, false);
+    assert.equal((await metrics.metricsReport()).paid, 0);
     const payment = {
       id: "pay_StatusOne",
       order_id: "order_StatusOne",
@@ -78,6 +81,7 @@ async function main() {
     const status = await get("/api/razorpay/orders?order=order_StatusOne");
     assert.equal(status.headers.get("cache-control"), "no-store");
     assert.equal((await status.json()).orders[0].paid, true);
+    assert.equal((await metrics.metricsReport()).paid, 1);
     await saveOrder("order_StatusUsd", user.id, "try", 500, 3, "USD");
     await assert.rejects(
       capturePayment(

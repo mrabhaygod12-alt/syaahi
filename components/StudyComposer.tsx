@@ -26,9 +26,11 @@ interface Plan {
 }
 export default function StudyComposer({
   initialTopic = "",
+  initialLanguage,
   onCreated,
 }: {
   initialTopic?: string;
+  initialLanguage?: string;
   onCreated?: () => void;
 }) {
   const router = useRouter();
@@ -83,6 +85,8 @@ export default function StudyComposer({
   const [sourceNotice, setSourceNotice] = useState("");
   const [pages, setPages] = useState(0),
     [language, setLanguage] = useState(() => {
+      if (initialLanguage === "english" || initialLanguage === "hindi")
+        return initialLanguage;
       if (typeof window === "undefined") return "english";
       const saved = localStorage.getItem("syaahi-note-language");
       if (

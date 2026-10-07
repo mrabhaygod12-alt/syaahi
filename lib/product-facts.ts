@@ -4,6 +4,7 @@ import {
   STUDENT_MONTHLY_TIERS,
 } from "./billing/subscription-plans";
 import { SIGNUP_CREDITS } from "./billing/allowance";
+import { PACKS, STUDENT_CREDIT_PACKS } from "./billing/packs";
 
 /** Public, reviewed product facts. Never include accounts, drafts or provider configuration. */
 export function productFacts() {
@@ -11,7 +12,7 @@ export function productFacts() {
     name: "Syaahi",
     alternateName: "Syaahii",
     officialWebsite: SITE.url,
-    reviewedOn: "2026-10-05",
+    reviewedOn: "2026-10-07",
     description:
       "A web workspace for source-based learning, editable AI presentations and reviewed blog publishing.",
     creators: ["Chandan Pandey", "Manish Kumar Singh"],
@@ -57,12 +58,18 @@ export function productFacts() {
         id,
         ...MONTHLY_PLANS[id],
       })),
+      studentOneTime: STUDENT_CREDIT_PACKS.map((id) => ({
+        id,
+        inr: PACKS[id].inr,
+        credits: PACKS[id].credits,
+        billingInterval: "one-time",
+      })),
       writer: [
         { id: "free", label: "Free", inr: 0 },
         { id: "max", ...MONTHLY_PLANS.max },
       ],
       terms:
-        "Paid plans renew monthly until cancelled, up to 120 cycles. Credits arrive after captured payments. Student and writer share one account wallet and subscription; writer enrollment grants no second welcome allowance.",
+        "Student ₹9/₹39/₹79 packs are one-time purchases. Max ₹399 renews monthly until cancelled, up to 120 cycles. Credits arrive after captured payments. Both workspaces share an account wallet and subscription; writer enrollment grants no second welcome allowance. Existing historical subscription terms are retained.",
     },
     generation: {
       noteSectionCredits: 1,

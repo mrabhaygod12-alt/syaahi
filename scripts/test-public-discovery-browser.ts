@@ -66,9 +66,13 @@ async function main() {
     const facts = await (await fetch(base + "/product-facts.json")).json();
     assert.deepEqual(
       facts.pricing.student.map((p: any) => p.inr),
-      [9, 39, 79, 399],
+      [399],
     );
     assert.equal(facts.pricing.writer.length, 2);
+    assert.deepEqual(
+      facts.pricing.studentOneTime.map((p: any) => p.inr),
+      [9, 39, 79],
+    );
     const retiredStudent = await fetch(base + "/subscribe/pro", {
       redirect: "manual",
     });
@@ -124,7 +128,7 @@ async function main() {
     );
     await nojs.close();
     console.log(
-      "PASS public discovery: server-rendered product areas, canonical/indexable pages, valid JSON-LD, two writer/four paid student offers, retired-checkout rejection, content without JavaScript and 320/390/768/1440px overflow checks.",
+      "PASS public discovery: server-rendered product areas, canonical/indexable pages, valid JSON-LD, two writer offers and three one-time/one monthly student offers, retired-checkout rejection, content without JavaScript and 320/390/768/1440px overflow checks.",
     );
   } finally {
     await browser?.close();

@@ -1,5 +1,11 @@
 // Storage uses integer page units. 1 token = 3 generated note pages.
 export const PAGES_PER_TOKEN = 3;
+export const STUDENT_CREDIT_PACKS = ["try", "starter", "popular"] as const;
+export const purchasablePack = (
+  id: unknown,
+): id is (typeof STUDENT_CREDIT_PACKS)[number] =>
+  typeof id === "string" &&
+  (STUDENT_CREDIT_PACKS as readonly string[]).includes(id);
 export const tokenLabel = (pages: number) =>
   `${Number((pages / PAGES_PER_TOKEN).toFixed(2))} tokens`;
 export type BillingCurrency = "INR" | "USD" | "EUR";

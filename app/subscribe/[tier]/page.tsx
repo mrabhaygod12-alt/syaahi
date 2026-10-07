@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { purchasableMonthlyTier } from "@/lib/billing/subscription-plans";
 import SubscriptionCheckout from "@/components/SubscriptionCheckout";
 export const metadata = {
@@ -11,6 +11,6 @@ export default async function Page({
   params: Promise<{ tier: string }>;
 }) {
   const tier = purchasableMonthlyTier((await params).tier);
-  if (!tier) notFound();
+  if (!tier) redirect("/pricing");
   return <SubscriptionCheckout tier={tier} />;
 }

@@ -14,6 +14,10 @@ import { rateLimit } from "@/lib/ratelimit";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 import { enrollWriter, writerAccess } from "@/lib/writing/profile";
 import { recordTrap } from "@/lib/security/abuse";
+import { learningPreferences } from "@/lib/growth/preferences";
+import { mutateState } from "@/lib/study/state";
+import { freshHub } from "@/lib/study/hub";
+import { recordMetric, setMeasurementConsent } from "@/lib/growth/metrics";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handleGET(req: NextRequest) {
@@ -59,6 +63,10 @@ async function handlePOST(req: NextRequest) {
   }
   if (body.mode === "signup") {
     try {
+      const preferences =
+        body.workspace !== "writer" && body.learningPreferences !== undefined
+          ? learningPreferences(body.learningPreferences)
+          : null;
       // Same email, same identity and wallet. Authenticate before adding a writer profile.
       const existing = await accountByEmail(email);
       if (existing && body.workspace === "writer") {
@@ -101,6 +109,23 @@ async function handlePOST(req: NextRequest) {
         password,
       );
       await recordConsent(user.id);
+      if (preferences)
+        await mutateState(user.id, "hub", freshHub(), (s) => ({
+          ...s,
+          preferences,
+        }));
+      if (req.cookies.get("syaahi-measurement")?.value === "1")
+        try {
+          await setMeasurementConsent(user.id, true);
+          await recordMetric(
+            req.cookies.get("syaahi-visitor")?.value || "",
+            "signup_created",
+            user.id,
+            user.id,
+          );
+        } catch {
+          console.warn("Signup measurement unavailable");
+        }
       if (body.workspace === "writer") await enrollWriter(user);
       if (workspaceKind(body.workspace))
         await setWorkspace(user.id, workspaceKind(body.workspace)!);

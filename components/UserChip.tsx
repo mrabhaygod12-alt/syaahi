@@ -72,7 +72,6 @@ export default function UserChip({ writer = false }: { writer?: boolean }) {
           <span>{displayName.charAt(0)}</span>
         )}
         <b>{displayName.split(" ")[0]}</b>
-        <span aria-hidden="true">⌄</span>
       </button>
       {open && (
         <div className="experience-user-menu">

@@ -22,6 +22,8 @@ const STATIC = [
   "/features",
   "/how-it-works",
   "/examples",
+  "/hi",
+  "/resources",
   "/faq",
   "/support",
   "/enterprise",

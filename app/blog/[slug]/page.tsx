@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { BLOG_POSTS, getPostBySlug } from "@/lib/blog-data";
 import { pageMeta, jsonLd, SITE } from "@/lib/seo";
+import BlogStudyCta from "@/components/growth/BlogStudyCta";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -77,17 +78,37 @@ export default async function BlogPostPage({ params }: PageProps) {
         />
       )}
 
-      <article className="wrap" style={{ maxWidth: 840, padding: "60px 20px 100px" }}>
+      <article
+        className="wrap"
+        style={{ maxWidth: 840, padding: "60px 20px 100px" }}
+      >
         {/* Navigation Breadcrumb */}
         <div style={{ marginBottom: 20 }}>
-          <a href="/blog" className="btn light" style={{ fontSize: "0.85rem", padding: "4px 12px" }}>
+          <a
+            href="/blog"
+            className="btn light"
+            style={{ fontSize: "0.85rem", padding: "4px 12px" }}
+          >
             ← All Articles
           </a>
         </div>
 
         {/* Article Header */}
-        <header style={{ marginBottom: 36, borderBottom: "1px solid #e5e0d8", paddingBottom: 28 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+        <header
+          style={{
+            marginBottom: 36,
+            borderBottom: "1px solid #e5e0d8",
+            paddingBottom: 28,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
             <span
               style={{
                 background: "#fef3c7",
@@ -112,11 +133,20 @@ export default async function BlogPostPage({ params }: PageProps) {
             </span>
           </div>
 
-          <h1 style={{ fontSize: "2.5rem", lineHeight: 1.2, margin: "0 0 16px" }}>
+          <h1
+            style={{ fontSize: "2.5rem", lineHeight: 1.2, margin: "0 0 16px" }}
+          >
             {post.title}
           </h1>
 
-          <p style={{ fontSize: "1.15rem", lineHeight: 1.6, color: "#4b5563", margin: 0 }}>
+          <p
+            style={{
+              fontSize: "1.15rem",
+              lineHeight: 1.6,
+              color: "#4b5563",
+              margin: 0,
+            }}
+          >
             {post.excerpt}
           </p>
 
@@ -146,8 +176,12 @@ export default async function BlogPostPage({ params }: PageProps) {
               {post.author.charAt(0)}
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{post.author}</div>
-              <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>{post.authorRole}</div>
+              <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
+                {post.author}
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
+                {post.authorRole}
+              </div>
             </div>
           </div>
         </header>
@@ -181,10 +215,28 @@ export default async function BlogPostPage({ params }: PageProps) {
               );
             }
             if (p.startsWith("---")) {
-              return <hr key={i} style={{ margin: "36px 0", border: "none", borderTop: "1px solid #e5e0d8" }} />;
+              return (
+                <hr
+                  key={i}
+                  style={{
+                    margin: "36px 0",
+                    border: "none",
+                    borderTop: "1px solid #e5e0d8",
+                  }}
+                />
+              );
             }
+            if (i === 3)
+              return (
+                <div key={i}>
+                  <p>{p}</p>
+                  <BlogStudyCta topic={post.title} />
+                </div>
+              );
             if (p.startsWith("- ")) {
-              const items = p.split("\n").map((item) => item.replace(/^- /, "").trim());
+              const items = p
+                .split("\n")
+                .map((item) => item.replace(/^- /, "").trim());
               return (
                 <ul key={i} style={{ paddingLeft: 24, margin: "16px 0" }}>
                   {items.map((item, idx) => (
@@ -196,7 +248,9 @@ export default async function BlogPostPage({ params }: PageProps) {
               );
             }
             if (p.match(/^\d+\. /)) {
-              const items = p.split("\n").map((item) => item.replace(/^\d+\. /, "").trim());
+              const items = p
+                .split("\n")
+                .map((item) => item.replace(/^\d+\. /, "").trim());
               return (
                 <ol key={i} style={{ paddingLeft: 24, margin: "16px 0" }}>
                   {items.map((item, idx) => (
@@ -215,6 +269,19 @@ export default async function BlogPostPage({ params }: PageProps) {
           })}
         </div>
 
+        <section className="card">
+          <h2>Keep exploring</h2>
+          {BLOG_POSTS.filter(
+            (p) => p.slug !== post.slug && p.category === post.category,
+          )
+            .slice(0, 3)
+            .map((p) => (
+              <p key={p.slug}>
+                <a href={`/blog/${p.slug}`}>{p.title} →</a>
+              </p>
+            ))}
+          <a href="/resources">Free revision resources</a>
+        </section>
         {/* FAQs Section */}
         {post.faqs && post.faqs.length > 0 && (
           <section
@@ -231,11 +298,32 @@ export default async function BlogPostPage({ params }: PageProps) {
             </h3>
             <div style={{ display: "grid", gap: 16 }}>
               {post.faqs.map((faq, idx) => (
-                <div key={idx} style={{ background: "#fff", padding: 18, borderRadius: 10, border: "1px solid #e5e0d8" }}>
-                  <div style={{ fontWeight: 800, fontSize: "1rem", color: "#111827", marginBottom: 6 }}>
+                <div
+                  key={idx}
+                  style={{
+                    background: "#fff",
+                    padding: 18,
+                    borderRadius: 10,
+                    border: "1px solid #e5e0d8",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: "1rem",
+                      color: "#111827",
+                      marginBottom: 6,
+                    }}
+                  >
                     Q: {faq.question}
                   </div>
-                  <div style={{ color: "#4b5563", fontSize: "0.95rem", lineHeight: 1.6 }}>
+                  <div
+                    style={{
+                      color: "#4b5563",
+                      fontSize: "0.95rem",
+                      lineHeight: 1.6,
+                    }}
+                  >
                     {faq.answer}
                   </div>
                 </div>
@@ -274,9 +362,13 @@ export default async function BlogPostPage({ params }: PageProps) {
             {post.author.charAt(0)}
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{post.author}</div>
+            <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>
+              {post.author}
+            </div>
             <p className="small" style={{ margin: 0, color: "#4b5563" }}>
-              {post.authorRole}. Passionate about building intelligent, human-centered study tools for students in India and across the globe.
+              {post.authorRole}. Passionate about building intelligent,
+              human-centered study tools for students in India and across the
+              globe.
             </p>
           </div>
         </div>
@@ -296,8 +388,12 @@ export default async function BlogPostPage({ params }: PageProps) {
           <h2 style={{ color: "#fff", fontSize: "1.7rem", margin: "0 0 10px" }}>
             Ready to study with high-retention handwritten notes?
           </h2>
-          <p className="small" style={{ color: "#d1d5db", maxWidth: 500, margin: "0 auto 20px" }}>
-            Generate structured handwritten PDFs from any topic or lecture. Get 19 free credits on registration.
+          <p
+            className="small"
+            style={{ color: "#d1d5db", maxWidth: 500, margin: "0 auto 20px" }}
+          >
+            Generate structured handwritten PDFs from any topic or lecture. Get
+            19 free credits on registration.
           </p>
           <a
             href="/signup"

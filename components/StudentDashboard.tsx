@@ -6,6 +6,9 @@ import StudyComposer from "./StudyComposer";
 import StudyOrganisation from "./StudyOrganisation";
 import type { hubView } from "@/lib/study/hub";
 import "./student-dashboard.css";
+import LearningSetup from "./growth/LearningSetup";
+import StudyRetention from "./growth/StudyRetention";
+import "./growth/growth.css";
 type Hub = Awaited<ReturnType<typeof hubView>>;
 type Lesson = {
   id: string;
@@ -23,6 +26,7 @@ export default function StudentDashboard() {
     [error, setError] = useState(""),
     [query, setQuery] = useState(""),
     [topic, setTopic] = useState(""),
+    [noteLanguage, setNoteLanguage] = useState(""),
     [folder, setFolder] = useState<string[] | null>(null),
     [tab, setTab] = useState("today"),
     [busy, setBusy] = useState(false),
@@ -36,7 +40,25 @@ export default function StudentDashboard() {
     const r = await requestJson("/api/student/hub");
     if (r.response.status === 401) return;
     if (!r.response.ok) throw new Error(r.data.error);
-    setHub(r.data as Hub);
+    let data = r.data as Hub;
+    const pending = sessionStorage.getItem("syaahi-pending-learning");
+    if (pending && !data.state.preferences) {
+      sessionStorage.removeItem("syaahi-pending-learning");
+      try {
+        const save = await requestJson("/api/student/hub", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "preferences",
+            preferences: JSON.parse(pending),
+          }),
+        });
+        if (save.response.ok) data = { ...data, state: save.data.state };
+      } catch {
+        /* Editable onboarding remains available if OAuth preferences cannot be saved. */
+      }
+    }
+    setHub(data);
     const [j, c] = await Promise.all([
       requestJson("/api/jobs"),
       requestJson("/api/credits"),
@@ -54,6 +76,9 @@ export default function StudentDashboard() {
       setTopic(initial);
       setTab("create");
     }
+    const language = new URLSearchParams(location.search).get("language");
+    if (language === "english" || language === "hindi")
+      setNoteLanguage(language);
     void load().catch((e) => setError(e.message));
   }, [load]);
   useEffect(() => {
@@ -205,6 +230,23 @@ export default function StudentDashboard() {
           <>
             {tab === "today" && (
               <>
+                {hub && (
+                  <LearningSetup
+                    saved={hub.state.preferences}
+                    busy={busy}
+                    onSave={(preferences) =>
+                      change({ action: "preferences", preferences })
+                    }
+                    onTopic={(topic, language) => {
+                      setTopic(topic);
+                      setNoteLanguage(language);
+                      setTab("create");
+                    }}
+                  />
+                )}
+                {hub && (
+                  <StudyRetention hub={hub} change={change} busy={busy} />
+                )}
                 <section className="hub-summary">
                   <article>
                     <strong>{hub?.dueCount ?? "…"}</strong>
@@ -319,6 +361,9 @@ export default function StudentDashboard() {
                 <p className="eyebrow">INPUT → OUTLINE → CONFIRM → GENERATE</p>
                 <StudyComposer
                   initialTopic={topic}
+                  initialLanguage={
+                    noteLanguage || hub?.state.preferences?.language
+                  }
                   onCreated={() => void load()}
                 />
               </section>

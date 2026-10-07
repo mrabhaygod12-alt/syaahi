@@ -7,12 +7,7 @@ export const MONTHLY_PLANS = {
   max: { label: "Max", inr: 399, credits: 360, maxSlides: 15 },
 } as const;
 export type MonthlyTier = keyof typeof MONTHLY_PLANS;
-export const STUDENT_MONTHLY_TIERS = [
-  "try",
-  "starter",
-  "popular",
-  "max",
-] as const;
+export const STUDENT_MONTHLY_TIERS = ["max"] as const;
 export const WRITER_MONTHLY_TIERS = ["max"] as const;
 export function purchasableMonthlyTier(
   value: unknown,

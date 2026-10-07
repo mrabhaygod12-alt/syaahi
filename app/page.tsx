@@ -1,10 +1,10 @@
 import LandingPage, { LANDING_FAQS } from "@/components/LandingPage";
 import { pageMeta, jsonLd, faqSchema, SITE } from "@/lib/seo";
 export const metadata = pageMeta({
-  title: "AI Notes, Presentations & Blog Writing",
+  title: "UG & PG Study Notes, AI Presentations & Writing",
   path: "/",
   description:
-    "Learn, teach and write with Syaahi. Create source-aware notes and editable presentations, or publish reviewed articles with headings, images and your own profile.",
+    "Turn university topics, PDFs and lectures into handwritten-style revision notes. Try UG/PG CS, DBMS and operating systems previews, build presentations, or publish reviewed articles.",
 });
 
 export default function Home() {

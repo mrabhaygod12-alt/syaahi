@@ -1,5 +1,5 @@
 import Razorpay from "razorpay";
-import { useMongo } from "@/lib/storage/mongo";
+import { useMongo, collection } from "@/lib/storage/mongo";
 import { mongoCapture } from "@/lib/storage/mongo-billing";
 import { rewardReferral } from "./referrals";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -70,43 +70,70 @@ export async function capturePayment(
   },
   owner?: string,
 ): Promise<number> {
-  if (useMongo()) return mongoCapture(payment, owner);
-  return transaction(() => {
-    const order = db()
-      .prepare("SELECT * FROM orders WHERE id=?")
-      .get(payment.order_id);
-    if (!order || (owner && order.user_id !== owner))
-      throw new Error("Unknown payment order.");
-    if (
-      payment.status !== "captured" ||
-      payment.currency !== (order.currency || "INR") ||
-      payment.amount !== Number(order.amount)
-    )
-      throw new Error("Payment is not captured or does not match the order.");
-    if (!order.paid) {
-      db()
-        .prepare("UPDATE orders SET paid=1,payment_id=? WHERE id=? AND paid=0")
-        .run(payment.id, payment.order_id);
-      const credited = db()
-        .prepare("UPDATE wallets SET balance=balance+? WHERE user_id=?")
-        .run(Number(order.credits), String(order.user_id));
-      if (!credited.changes) throw new Error("Unknown payment wallet.");
-      db()
-        .prepare("INSERT INTO ledger VALUES (?,?,?,?,?)")
-        .run(
-          `payment:${payment.id}`,
-          String(order.user_id),
-          Number(order.credits),
-          "Captured payment",
-          new Date().toISOString(),
+  const balance = useMongo()
+    ? await mongoCapture(payment, owner)
+    : transaction(() => {
+        const order = db()
+          .prepare("SELECT * FROM orders WHERE id=?")
+          .get(payment.order_id);
+        if (!order || (owner && order.user_id !== owner))
+          throw new Error("Unknown payment order.");
+        if (
+          payment.status !== "captured" ||
+          payment.currency !== (order.currency || "INR") ||
+          payment.amount !== Number(order.amount)
+        )
+          throw new Error(
+            "Payment is not captured or does not match the order.",
+          );
+        if (!order.paid) {
+          db()
+            .prepare(
+              "UPDATE orders SET paid=1,payment_id=? WHERE id=? AND paid=0",
+            )
+            .run(payment.id, payment.order_id);
+          const credited = db()
+            .prepare("UPDATE wallets SET balance=balance+? WHERE user_id=?")
+            .run(Number(order.credits), String(order.user_id));
+          if (!credited.changes) throw new Error("Unknown payment wallet.");
+          db()
+            .prepare("INSERT INTO ledger VALUES (?,?,?,?,?)")
+            .run(
+              `payment:${payment.id}`,
+              String(order.user_id),
+              Number(order.credits),
+              "Captured payment",
+              new Date().toISOString(),
+            );
+          rewardReferral(String(order.user_id), payment.id);
+        } else if (order.payment_id !== payment.id)
+          throw new Error("Order was already settled with another payment.");
+        return Number(
+          db()
+            .prepare("SELECT balance FROM wallets WHERE user_id=?")
+            .get(String(order.user_id))?.balance ?? 0,
         );
-      rewardReferral(String(order.user_id), payment.id);
-    } else if (order.payment_id !== payment.id)
-      throw new Error("Order was already settled with another payment.");
-    return Number(
-      db()
-        .prepare("SELECT balance FROM wallets WHERE user_id=?")
-        .get(String(order.user_id))?.balance ?? 0,
-    );
-  });
+      });
+  // Only confirmed settlement reaches measurement. A replay keeps the same event
+  // key, and an analytics outage must never turn a successful payment into an error.
+  try {
+    const user =
+      owner ??
+      (useMongo()
+        ? (
+            await (
+              await collection("orders")
+            ).findOne({ _id: payment.order_id }, { projection: { user: 1 } })
+          )?.user
+        : db()
+            .prepare("SELECT user_id FROM orders WHERE id=?")
+            .get(payment.order_id)?.user_id);
+    if (typeof user === "string") {
+      const { ownerMetric } = await import("@/lib/growth/metrics");
+      await ownerMetric(user, "paid", payment.id);
+    }
+  } catch {
+    /* Optional, consented measurement does not affect purchased credits. */
+  }
+  return balance;
 }

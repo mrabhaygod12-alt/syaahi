@@ -81,6 +81,7 @@ async function callOne(
   timeout: number,
   json = false,
   schema?: OutputSchema,
+  signal?: AbortSignal,
 ) {
   const keys = orderedKeys(providerEnvKey(p.type));
   let lastError: unknown;
@@ -94,24 +95,27 @@ async function callOne(
     });
     const started = Date.now();
     try {
-      const result = await client.chat.completions.create({
-        model: p.model,
-        messages,
-        max_tokens: Math.min(8000, maxTokens),
-        temperature: 0.25,
-        ...(schema &&
-        p.type === "groq" &&
-        /^openai\/gpt-oss-(20b|120b)$/.test(p.model)
-          ? {
-              response_format: {
-                type: "json_schema" as const,
-                json_schema: { ...schema, strict: true },
-              },
-            }
-          : json && ["groq", "gemini", "mistral"].includes(p.type)
-            ? { response_format: { type: "json_object" as const } }
-            : {}),
-      });
+      const result = await client.chat.completions.create(
+        {
+          model: p.model,
+          messages,
+          max_tokens: Math.min(8000, maxTokens),
+          temperature: 0.25,
+          ...(schema &&
+          p.type === "groq" &&
+          /^openai\/gpt-oss-(20b|120b)$/.test(p.model)
+            ? {
+                response_format: {
+                  type: "json_schema" as const,
+                  json_schema: { ...schema, strict: true },
+                },
+              }
+            : json && ["groq", "gemini", "mistral"].includes(p.type)
+              ? { response_format: { type: "json_object" as const } }
+              : {}),
+        },
+        { signal },
+      );
       const choice = result.choices?.[0];
       if (choice?.finish_reason === "length")
         throw new Error("TRUNCATED_OUTPUT");
@@ -146,6 +150,8 @@ export async function chatWithFallback(
     rotateBy?: number;
     json?: boolean;
     schema?: OutputSchema;
+    timeoutMs?: number;
+    maxAttempts?: number;
   },
 ) {
   const candidates = eligibleProviders().sort(
@@ -156,6 +162,8 @@ export async function chatWithFallback(
       "NO_KEYS: Configure an eligible AI provider in .env.local.",
     );
   const start = Date.now();
+  const deadline = Math.max(1000, Math.min(90000, opts?.timeoutMs || 90000));
+  const deadlineSignal = AbortSignal.timeout(deadline);
   const errors: string[] = [];
   let temporary = false;
   // Keep the best available model first; spread only when its organization is busy.
@@ -165,7 +173,11 @@ export async function chatWithFallback(
   ];
   let attempts = 0;
   for (const p of queue) {
-    if (attempts >= 5 || Date.now() - start > 90000) break;
+    if (
+      attempts >= Math.max(1, Math.min(5, opts?.maxAttempts || 5)) ||
+      Date.now() - start > deadline
+    )
+      break;
     if ((breaker.get(p.type)?.until || 0) > Date.now()) continue;
     const budget = opts?.maxTokens || 2500;
     // Conservative estimate for multilingual text; reserve output room as well.
@@ -181,9 +193,10 @@ export async function chatWithFallback(
         p,
         messages,
         budget,
-        Math.max(1000, Math.min(30000, 90000 - (Date.now() - start))),
+        Math.max(1000, Math.min(30000, deadline - (Date.now() - start))),
         opts?.json,
         opts?.schema,
+        deadlineSignal,
       );
       breaker.delete(p.type);
       return response;

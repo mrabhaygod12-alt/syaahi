@@ -65,7 +65,7 @@ async function main() {
   assert.equal(product.pricing.writer.length, 2);
   assert.deepEqual(
     product.pricing.student.map((p: any) => p.inr),
-    [9, 39, 79, 399],
+    [399],
   );
   const { publicationFeed } = await import("../lib/writing/feed");
   const feed = publicationFeed([

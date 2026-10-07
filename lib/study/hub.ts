@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { listJobs } from "@/lib/jobs/store";
 import { readState, mutateState } from "./state";
+import type { LearningPreferences } from "@/lib/growth/preferences";
 export interface ExamPlan {
   id: string;
   name: string;
@@ -16,6 +17,9 @@ export interface HubState {
   exams: ExamPlan[];
   draft: Record<string, unknown> | null;
   updatedAt: string;
+  preferences?: LearningPreferences;
+  dailyMinutes?: Record<string, number>;
+  readNotifications?: string[];
 }
 export const freshHub = (): HubState => ({
   revision: 0,
@@ -210,12 +214,56 @@ export async function hubView(owner: string, query = "") {
               snippet: p.text.slice(at, at + 220),
             };
           });
+  const today = dayAt(Date.now(), state.timezone);
+  const nextExam = state.exams
+    .filter((e) => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const notifications =
+    state.preferences?.readyNotifications === false
+      ? []
+      : jobs
+          .filter(
+            (j) =>
+              j.status === "done" &&
+              !(state.readNotifications || []).includes(j.id),
+          )
+          .slice(0, 5)
+          .map((j) => ({ id: j.id, title: j.title || j.topics[0] }));
+  const scores = attempts
+    .slice(0, 20)
+    .map((a: any) => ({
+      correct: Number(a.correct) || 0,
+      total: Number(a.total) || 0,
+    }));
   return {
     owner,
     state,
     due: due.slice(0, 200),
     dueCount: due.length,
     streak: streakFor(state.days, state.timezone),
+    retention: {
+      today,
+      minutes: state.dailyMinutes?.[today] || 0,
+      nextExam: nextExam
+        ? {
+            name: nextExam.name,
+            days: Math.max(
+              0,
+              Math.round(
+                (Date.parse(nextExam.date) - Date.parse(today)) / 86400000,
+              ),
+            ),
+            remaining: nextExam.tasks.filter((t) => !t.done).length,
+          }
+        : null,
+      quizAccuracy: scores.reduce((n: any, a: any) => n + a.total, 0)
+        ? Math.round(
+            (100 * scores.reduce((n: any, a: any) => n + a.correct, 0)) /
+              scores.reduce((n: any, a: any) => n + a.total, 0),
+          )
+        : null,
+    },
+    notifications,
     continue: ongoing
       ? {
           id: ongoing.id,

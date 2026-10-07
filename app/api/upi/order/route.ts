@@ -1,3 +1,4 @@
+import { purchasablePack } from "@/lib/billing/packs";
 import QRCode from "qrcode";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
@@ -17,11 +18,12 @@ import {
  * Create a new UPI payment order with QR code data.
  */
 async function handlePOST(req: NextRequest) {
-  if (process.env.LEGACY_CREDIT_PACK_CHECKOUT !== "1")
+  const body = await req.json().catch(() => ({}));
+  const pack = String(body.pack || "");
+  if (process.env.LEGACY_CREDIT_PACK_CHECKOUT !== "1" && !purchasablePack(pack))
     return NextResponse.json(
       {
-        error:
-          "Legacy UPI packs have been retired. Choose a monthly plan through Razorpay.",
+        error: "Choose a current student credit pack or the ₹399 monthly plan.",
         plans: "/pricing",
       },
       { status: 410 },
@@ -30,8 +32,6 @@ async function handlePOST(req: NextRequest) {
     (await authError(req)) || (await rateLimit(req, "upi-order", 10, 60000));
   if (denied) return denied;
 
-  const body = await req.json().catch(() => ({}));
-  const pack = String(body.pack || "");
   if (body.method && body.method !== "upi_qr")
     return NextResponse.json(
       { error: "Use /pricing for automatic Razorpay checkout." },

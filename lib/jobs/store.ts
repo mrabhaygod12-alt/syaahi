@@ -1,3 +1,4 @@
+import { ownerMetric } from "@/lib/growth/metrics";
 import { activeJobLimit, QueueCapacityError } from "./capacity";
 import { useMongo, collection } from "@/lib/storage/mongo";
 import * as cloud from "@/lib/storage/mongo-jobs";
@@ -327,6 +328,16 @@ export async function commitPage(
   });
 }
 export async function finishJob(id: string, token: string, error?: string) {
+  await finishJobStored(id, token, error);
+  try {
+    const job = await getJob(id);
+    if (job?.status === "done")
+      await ownerMetric(job.user, "note_ready", job.id);
+  } catch {
+    console.warn("Lesson measurement unavailable");
+  }
+}
+async function finishJobStored(id: string, token: string, error?: string) {
   if (useMongo()) return cloud.mongoFinish(id, token, error);
   transaction(() => {
     const row = db()

@@ -17,6 +17,8 @@ jobs:
       - run: npm run check
       - run: npm run test:security
       - run: npm run test:monthly-catalog
+      - run: npm run test:growth
+      - run: npm run test:payment-status
       - run: npm run test:seo
       - run: npm run test:student-studio
       - run: npm run test:presentation-preview
@@ -36,6 +38,7 @@ jobs:
           NEXT_DIST_DIR: .next-validation
           NEXT_PUBLIC_APP_URL: https://www.syaahii.in
       - run: npm run test:student-studio-browser
+      - run: npm run test:growth-browser
       - run: npm run test:presentation-workspace-browser
       - run: npm run test:payment-pages
       - run: npm run test:public-discovery-browser

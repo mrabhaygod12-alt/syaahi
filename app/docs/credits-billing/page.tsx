@@ -9,7 +9,7 @@ import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
     "Monthly study plans and PPTX",
-    "Free includes 19 signup credits. Starter: ₹39/month for 15 credits; Pro: ₹179/month for 90; Max: ₹399/month for 360. Monthly plans currently bill in INR. Each captured invoice grants the plan allowance once. Unused credits remain in the wallet. Manage or cancel renewals at /account/billing. Presentation generation costs 5 credits per completed deck; failed jobs return the charge and retries reserve it again. Larger paid plans allow larger decks. Previously purchased credits and legacy receipts are retained.",
+    "Free includes 19 credits after email verification. Student packs are one-time: ₹9 for 3 credits, ₹39 for 15, ₹79 for 36. Max is ₹399/month for 360 credits per captured invoice. Only Max is offered as a new recurring plan; historical subscription terms remain unchanged. Unused credits remain in the wallet. Manage or cancel renewals at /account/billing. Presentation generation costs 5 credits per completed deck; failed jobs return the charge and retries reserve it again. Previously purchased credits and receipts are retained.",
   ],
   [
     "Welcome credits",

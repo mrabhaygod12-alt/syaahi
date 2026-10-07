@@ -1,3 +1,4 @@
+import { ownerMetric } from "@/lib/growth/metrics";
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
@@ -138,6 +139,11 @@ export const POST = apiHandler(async (req: NextRequest) => {
         },
       );
       await studyActivity(owner, `quiz:${attempt.id}`);
+      try {
+        await ownerMetric(owner, "quiz_used", attempt.id);
+      } catch {
+        console.warn("Quiz measurement unavailable");
+      }
     }
     // Exam mode receives no server feedback until submission.
     const feedback =

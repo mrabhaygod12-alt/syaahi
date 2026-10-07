@@ -64,8 +64,8 @@ async function main() {
           await page.waitForLoadState("networkidle");
           const nav = page.locator("#site-navigation");
           await page.getByRole("button", { name: "Open navigation" }).click();
-          assert.equal(await nav.getByRole("link").count(), 3);
-          for (const label of ["Workspace", "Subjects", "Plans"])
+          assert.equal(await nav.getByRole("link").count(), 4);
+          for (const label of ["Workspace", "Subjects", "About", "Plans"])
             assert(
               await nav
                 .getByRole("link", { name: label, exact: true })
@@ -144,7 +144,7 @@ async function main() {
       for (const label of [
         "For learners",
         "For writers",
-        "Read stories",
+        "Examples",
         "Plans",
       ])
         assert(
@@ -162,7 +162,7 @@ async function main() {
         0,
         "Optional analytics absent before consent",
       );
-      await page.getByRole("button", { name: "Essential only" }).click();
+      await page.getByRole("button", { name: "Essential only", exact: true }).click();
       assert.equal(
         await page.locator(".nav-popover").count(),
         0,
@@ -301,7 +301,7 @@ async function main() {
       );
       assert.equal(
         await reducedPage
-          .locator(".scene-sheet")
+          .locator(".growth-hero-note")
           .first()
           .evaluate((n) => getComputedStyle(n).animationName),
         "none",
@@ -315,14 +315,14 @@ async function main() {
       await plainPage.goto("http://localhost:3138/");
       assert.equal(
         await plainPage
-          .locator(".landing-hero-copy")
+          .locator(".growth-hero-copy")
           .evaluate((n) => getComputedStyle(n).opacity),
         "1",
         "Landing copy remains visible without JavaScript",
       );
       assert(
         await plainPage
-          .getByRole("link", { name: "Start learning ↗", exact: true })
+          .locator('a[href="#try-preview"]')
           .first()
           .isVisible(),
       );

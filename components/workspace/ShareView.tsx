@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useLesson } from "./LessonProvider";
+import { growthEvent } from "@/lib/growth/events-client";
 export default function ShareView() {
   const { job } = useLesson();
   const [data, setData] = useState<any>(null),
@@ -92,6 +93,24 @@ export default function ShareView() {
               >
                 Copy link
               </button>
+              <a
+                className="btn light"
+                href={`https://wa.me/?text=${encodeURIComponent("Study notes: " + url)}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => growthEvent("note_share")}
+              >
+                WhatsApp
+              </a>
+              <a
+                className="btn light"
+                href={`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent("Study notes")}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => growthEvent("note_share")}
+              >
+                Telegram
+              </a>
             </div>
           )}
           <h3>Active links</h3>

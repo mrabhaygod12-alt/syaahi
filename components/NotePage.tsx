@@ -15,13 +15,7 @@ export default function NotePage({
   footer: string;
   seedKey?: string;
   template?:
-    | "classic"
-    | "poster"
-    | "lab"
-    | "magazine"
-    | "study"
-    | "exam"
-    | "annotated";
+    "classic" | "poster" | "lab" | "magazine" | "study" | "exam" | "annotated";
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(1123);
@@ -81,7 +75,16 @@ export default function NotePage({
       {error ? (
         <p role="alert">{error}</p>
       ) : !assets ? (
-        <p className="small">Preparing print layout...</p>
+        <div
+          className="note-preview-skeleton"
+          role="status"
+          aria-label="Loading handwriting preview"
+        >
+          <span>Loading print preview…</span>
+          {Array.from({ length: 6 }, (_, i) => (
+            <i key={i} />
+          ))}
+        </div>
       ) : (
         <iframe
           ref={frame}

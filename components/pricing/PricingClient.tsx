@@ -5,6 +5,7 @@ import {
   STUDENT_MONTHLY_TIERS,
 } from "@/lib/billing/subscription-plans";
 import { requestJson } from "@/lib/http-client";
+import { PACKS, STUDENT_CREDIT_PACKS } from "@/lib/billing/packs";
 export default function PricingClient() {
   const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function PricingClient() {
   return (
     <div className="container pricing-page">
       <p className="eyebrow">Plans for learning and creating</p>
-      <h1>Choose your monthly generation budget.</h1>
+      <h1>A small pack, or a monthly routine.</h1>
       <p>
         Use credits for notes and presentations. Practise recall and return to
         your saved lessons with any plan.
@@ -47,6 +48,25 @@ export default function PricingClient() {
             Start free
           </a>
         </article>
+        {STUDENT_CREDIT_PACKS.map((id) => (
+          <article className="card" key={id}>
+            <h2>
+              {id === "try" ? "Try" : id === "starter" ? "Starter" : "Popular"}
+            </h2>
+            <p className="plan-price">
+              ₹{PACKS[id].inr}
+              <small>one-time</small>
+            </p>
+            <strong>{PACKS[id].credits} generation credits</strong>
+            <p>
+              No subscription, no autopay. Your saved lessons and recall tools
+              stay available.
+            </p>
+            <a className="btn dark" href={`/checkout/${id}`}>
+              Buy {PACKS[id].credits} credits
+            </a>
+          </article>
+        ))}
         {STUDENT_MONTHLY_TIERS.map((id) => {
           const plan = MONTHLY_PLANS[id];
           return (
@@ -57,15 +77,7 @@ export default function PricingClient() {
                 <small>/month</small>
               </p>
               <strong>{plan.credits} credits each paid month</strong>
-              <p>
-                {id === "try"
-                  ? "A small monthly note budget. A presentation needs five available credits."
-                  : id === "starter"
-                    ? "For occasional notes and presentations."
-                    : id === "popular"
-                      ? "For regular learning, teaching and presentations."
-                      : "For a larger monthly generation workload."}
-              </p>
+              <p>For a larger monthly generation workload.</p>
               <ul>
                 <li>All core study tools</li>
                 <li>Up to {plan.maxSlides} slides per presentation</li>
@@ -122,9 +134,10 @@ export default function PricingClient() {
           </table>
         </div>
         <p className="small">
-          Monthly plans renew in INR until cancelled, for up to 120 billing
-          cycles. Unused credits remain in your wallet; cancellation stops
-          future renewals. There is no unlimited generation allowance.
+          Only Max ₹399 is a new monthly subscription. ₹9/₹39/₹79 are one-time
+          credit purchases. Max renews in INR until cancelled, for up to 120
+          billing cycles. Unused credits remain in your wallet; cancellation
+          stops future renewals. There is no unlimited generation allowance.
           Previously purchased credits and receipts stay available.
         </p>
       </section>

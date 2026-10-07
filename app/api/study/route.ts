@@ -188,7 +188,14 @@ async function handlePOST(req: Request) {
       } else throw new Error("Unknown study action.");
       return s;
     });
-    if (b.action === "review") await studyActivity(user, `review:${b.event}`);
+    if (b.action === "review") {
+      await studyActivity(user, `review:${b.event}`);
+      try {
+        await ownerMetric(user, "flashcard_used", String(b.event));
+      } catch {
+        console.warn("Review measurement unavailable");
+      }
+    }
     return NextResponse.json(next);
   } catch (e) {
     return NextResponse.json(
@@ -203,3 +210,4 @@ async function handlePOST(req: Request) {
 
 export const GET = apiHandler(handleGET);
 export const POST = apiHandler(handlePOST);
+import { ownerMetric } from "@/lib/growth/metrics";

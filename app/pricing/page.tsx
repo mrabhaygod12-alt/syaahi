@@ -1,8 +1,8 @@
 import { pageMeta } from "@/lib/seo";
 export const metadata = pageMeta({
-  title: "Student Monthly Plans: ₹9, ₹39, ₹79 and ₹399",
+  title: "Student Credit Packs ₹9, ₹39, ₹79 & Max ₹399/month",
   description:
-    "Compare Syaahi student monthly plans: Try ₹9 for 3 credits, Starter ₹39 for 15, Popular ₹79 for 36, Max ₹399 for 360. Writer plans are Free and Max ₹399/month.",
+    "One-time student packs: ₹9 for 3 credits, ₹39 for 15, ₹79 for 36. Max ₹399/month includes 360 credits per captured renewal. Writer plans are Free and Max ₹399/month.",
   path: "/pricing",
 });
 import PricingClient from "@/components/pricing/PricingClient";

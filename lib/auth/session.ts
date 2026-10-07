@@ -36,6 +36,7 @@ export async function signIn(
   workspace?: "student" | "writer",
   signal?: AbortSignal,
   website = "",
+  learningPreferences?: unknown,
 ): Promise<SignInResult> {
   const { response, data } = await requestJson(
     "/api/auth",
@@ -51,6 +52,7 @@ export async function signIn(
         referralCode,
         workspace,
         website,
+        learningPreferences,
         termsVersion: "2026-10-03",
       }),
       signal,

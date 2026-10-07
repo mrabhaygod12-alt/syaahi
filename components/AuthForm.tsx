@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { signIn } from "@/lib/auth/session";
 import { requestJson } from "@/lib/http-client";
 import { workspaceDestination } from "@/lib/workspace-routing";
+import { DEFAULT_LEARNING } from "@/lib/growth/preferences";
+import { PreferenceFields } from "./growth/LearningSetup";
+import "./growth/growth.css";
 export default function AuthForm({
   mode,
   compact = false,
@@ -15,6 +18,7 @@ export default function AuthForm({
   onModeChange?: (href: string) => void;
 }) {
   const [accepted, setAccepted] = useState(false);
+  const [learning, setLearning] = useState(DEFAULT_LEARNING);
   const [workspace, setWorkspace] = useState<"student" | "writer">(
     params && new URLSearchParams(params).get("workspace") === "writer"
       ? "writer"
@@ -79,6 +83,7 @@ export default function AuthForm({
         workspace,
         controller.signal,
         website,
+        mode === "signup" && workspace === "student" ? learning : undefined,
       );
       if (res.requireVerification) {
         setVerifyLink(res.verifyUrl || "/verify-email");
@@ -181,6 +186,12 @@ export default function AuthForm({
           .
         </span>
       </label>
+      {mode === "signup" && workspace === "student" && (
+        <details className="growth-signup-preferences" open>
+          <summary>Your study preferences (change anytime)</summary>
+          <PreferenceFields value={learning} onChange={setLearning} />
+        </details>
+      )}
       <button
         disabled={!accepted || busy}
         className="btn light"
@@ -219,6 +230,11 @@ export default function AuthForm({
             if (typeof d.url !== "string" || !d.url.startsWith("https://"))
               throw new Error(
                 "Google sign-in could not start. Please try again.",
+              );
+            if (mode === "signup" && workspace === "student")
+              sessionStorage.setItem(
+                "syaahi-pending-learning",
+                JSON.stringify(learning),
               );
             location.assign(d.url);
           } catch (e) {

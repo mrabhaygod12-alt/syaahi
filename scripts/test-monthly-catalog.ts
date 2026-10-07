@@ -97,11 +97,11 @@ async function main() {
   } = await import("../lib/billing/subscription-plans");
   assert.deepEqual(
     STUDENT_MONTHLY_TIERS.map((t) => MONTHLY_PLANS[t].inr),
-    [9, 39, 79, 399],
+    [399],
   );
   assert.deepEqual(
     STUDENT_MONTHLY_TIERS.map((t) => MONTHLY_PLANS[t].credits),
-    [3, 15, 36, 360],
+    [360],
   );
   assert.deepEqual(WRITER_MONTHLY_TIERS, ["max"]);
   assert.equal(purchasableMonthlyTier("pro"), null);
@@ -143,7 +143,7 @@ async function main() {
   );
   assert.deepEqual(
     Object.keys((await (await catalogState(read)).json()).plans),
-    ["try", "starter", "popular", "max"],
+    ["max"],
   );
   const retired = await checkout(
     new NextRequest(read.url, {
@@ -194,7 +194,7 @@ async function main() {
           origin: "https://www.syaahii.in",
           "content-type": "application/json",
         },
-        body: JSON.stringify({ pack: "try" }),
+        body: JSON.stringify({ pack: "pro" }),
       }),
     );
     assert.equal(

@@ -1,3 +1,4 @@
+import { ownerMetric } from "@/lib/growth/metrics";
 import { randomUUID } from "node:crypto";
 import {
   MONTHLY_PLANS,
@@ -243,6 +244,11 @@ export async function settleSubscription(
     throw new Error("Payment has no valid billing period.");
   // The immutable invoice key also protects reconciliation after a crash or webhook replay.
   await grant(local.owner, local.credits, `subscription-invoice:${invoice.id}`);
+  try {
+    await ownerMetric(local.owner, "paid", invoice.id);
+  } catch {
+    console.warn("Payment measurement unavailable");
+  }
   const next = await mutateRecord<Subscription>(id, (old) => ({
     ...old!,
     status: String(remote.status),

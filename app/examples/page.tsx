@@ -5,27 +5,63 @@ export const metadata = pageMeta({
     "Read a free, hand-authored binary search note. Preview Syaahi handwriting, diagrams and page layouts before creating your own study notes.",
   path: "/examples",
 });
-import { PageHero, CtaBand } from "@/components/site";
-import NotePage from "@/components/NotePage";
-import { DEFAULT_STYLE } from "@/lib/handwriting/options";
-const sample =
-  "## Binary search: halve the work\n\n**Definition:** Binary search finds a target in a sorted list by repeatedly discarding half of the remaining items.\n\n### Keep these in mind\n- The list must be **sorted**.\n- Compare the **middle value** with the target.\n- Keep only the half that can contain the target.\n- Stop when found or when the search interval is empty.\n\nDiagram: flow | Choose the middle item | Compare with target | Keep the possible half | Repeat or finish\n\n### A quick example\nIn [2, 4, 6, 8, 10], search for 8: compare 6, then search [8, 10].\n\n> Exam alert: Sorting is a precondition, not a step you can ignore.\n\n**Summary:** Halving a sorted search interval gives logarithmic worst-case search time.";
-export default function Examples() {
+import { PageHero } from "@/components/site";
+import { UNIVERSITY_SAMPLES, learningLink } from "@/lib/growth/samples";
+import { previewMarkdown } from "@/lib/growth/resources";
+import { PreviewPaper } from "@/components/growth/GuestPreview";
+import ResourceLink from "@/components/growth/ResourceLink";
+import PrintSample from "@/components/growth/PrintSample";
+import "@/components/growth/growth.css";
+export default async function Examples({
+  searchParams,
+}: {
+  searchParams: Promise<{ sample?: string; language?: string }>;
+}) {
+  const q = await searchParams,
+    language = q.language === "hindi" ? "hindi" : "english",
+    sample =
+      UNIVERSITY_SAMPLES.find((s) => s.id === q.sample) ||
+      UNIVERSITY_SAMPLES[0];
   return (
     <>
       <PageHero
         kicker="A closer look"
-        title="Readable notes. Ideas you can follow."
-        lede="This hand-authored example demonstrates the same rendering engine used for your generated notes. It is a layout sample, not a live AI result."
+        title="University ideas. A clearer first page."
+        lede="Original UG/PG CS examples for algorithms, DBMS and operating systems. Read immediately, open the handwriting renderer or download the sample PDF."
       />
       <div className="wrap feature-section" style={{ maxWidth: 850 }}>
-        <NotePage
-          markdown={sample}
-          style={{ ...DEFAULT_STYLE, paper: "cream" }}
-          footer="Illustrative example · Syaahi"
-        />
+        <nav className="growth-suggestions" aria-label="Sample notes">
+          {UNIVERSITY_SAMPLES.map((s) => (
+            <a
+              className="btn light"
+              key={s.id}
+              href={`/examples?sample=${s.id}&language=${language}`}
+            >
+              {s.topic}
+            </a>
+          ))}
+          <a
+            className="btn light"
+            href={`/examples?sample=${sample.id}&language=${language === "hindi" ? "english" : "hindi"}`}
+          >
+            {language === "hindi" ? "English" : "हिंदी"}
+          </a>
+        </nav>
+        <PreviewPaper preview={sample[language]} />
+        <div className="growth-suggestions">
+          <ResourceLink id={sample.id} language={language} />
+          <a className="btn dark" href={learningLink(sample.topic, language)}>
+            Generate this topic →
+          </a>
+        </div>
+        <p className="small">
+          Hand-authored sample, not a live AI result.{" "}
+          <a href={sample.reading} rel="noreferrer" target="_blank">
+            Further reading ↗
+          </a>
+        </p>
+        <PrintSample markdown={previewMarkdown(sample[language])} />
       </div>
-      <CtaBand />
     </>
   );
 }

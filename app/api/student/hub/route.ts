@@ -10,6 +10,8 @@ import {
 } from "@/lib/study/hub";
 import { mutateState } from "@/lib/study/state";
 import { composerDraft } from "@/lib/study/drafts";
+import { dayAt } from "@/lib/study/hub";
+import { learningPreferences } from "@/lib/growth/preferences";
 export const GET = apiHandler(async (req: NextRequest) => {
   const denied =
     (await authError(req)) || (await rateLimit(req, "hub-read", 90, 60000));
@@ -29,7 +31,25 @@ export const POST = apiHandler(async (req: NextRequest) => {
     b = await req.json().catch(() => ({}));
   try {
     const state = await mutateState<HubState>(owner, "hub", freshHub(), (s) => {
-      if (b.action === "draft") {
+      if (b.action === "preferences") {
+        s.preferences = learningPreferences(b.preferences);
+      } else if (b.action === "daily-minutes") {
+        if (!Number.isInteger(b.minutes) || b.minutes < 0 || b.minutes > 480)
+          throw new Error("Enter 0–480 study minutes.");
+        // Set a day's total rather than incrementing: retries cannot inflate it.
+        const today = dayAt(Date.now(), s.timezone);
+        s.dailyMinutes = Object.fromEntries(
+          Object.entries({ ...s.dailyMinutes, [today]: b.minutes })
+            .sort(([a], [b]) => a.localeCompare(b))
+            .slice(-90),
+        );
+      } else if (b.action === "notification-read") {
+        if (typeof b.id !== "string" || b.id.length > 100)
+          throw new Error("Invalid notification.");
+        s.readNotifications = [
+          ...new Set([...(s.readNotifications || []), b.id]),
+        ].slice(-200);
+      } else if (b.action === "draft") {
         if (b.revision !== s.revision)
           throw new Error(
             "Draft changed on another device. Reload before saving.",

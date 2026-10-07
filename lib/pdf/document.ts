@@ -167,6 +167,7 @@ const paginate = String.raw`
     sheets.forEach((sheet,i)=>{
       const foot=sheet.querySelector('footer');
       foot.textContent=foot.dataset.label+' · '+(i+1)+' / '+sheets.length;
+      const brand=document.createElement('a');brand.href='https://www.syaahii.in/';brand.textContent=' · Made with Syaahi';brand.style.color='inherit';foot.appendChild(brand);
     });
     document.getElementById('sources').remove();
     document.documentElement.dataset.ready='true';

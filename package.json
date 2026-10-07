@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test:public-discovery-browser":"tsx scripts/test-public-discovery-browser.ts",
+    "test:growth": "tsx scripts/test-growth.ts && tsx scripts/test-growth.ts --mongo",
+    "test:growth-browser": "tsx scripts/test-growth-browser.ts",
+    "test:public-discovery-browser": "tsx scripts/test-public-discovery-browser.ts",
     "test:presentation-engine": "tsx scripts/test-presentation-engine.ts && tsx scripts/test-presentation-engine.ts --mongo",
     "test:presentation-workspace-browser": "tsx scripts/test-presentation-workspace-browser.ts",
     "test:presentation-live": "tsx scripts/test-presentation-live.ts",

@@ -50,7 +50,7 @@ export default function SiteHeader() {
       ? [
           ["For learners", "/#learn"],
           ["For writers", "/writing"],
-          ["Read stories", "/community"],
+          ["Examples", "/examples"],
           ["Plans", "/pricing"],
         ]
       : [
@@ -90,6 +90,15 @@ export default function SiteHeader() {
           ))}
         </nav>
         <div className="experience-account">
+          {!editorial && (
+            <a
+              className="header-language"
+              href={path === "/hi" ? "/" : "/hi"}
+              lang={path === "/hi" ? "en" : "hi"}
+            >
+              {path === "/hi" ? "EN" : "हिंदी"}
+            </a>
+          )}
           <UserChip writer={editorial} />
           <button
             ref={button}

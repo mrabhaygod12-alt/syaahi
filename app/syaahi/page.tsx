@@ -67,8 +67,8 @@ export default function Page() {
       <section className="product-answer">
         <h2>Current plans and limits.</h2>
         <p>
-          Student plans renew monthly at ₹9, ₹39, ₹79 or ₹399. Writer plans are
-          Free and Max at ₹399 per month. Free accounts receive{" "}
+          Student credit packs cost ₹9, ₹39 or ₹79 once. Max is ₹399 monthly.
+          Writer plans are Free and Max at ₹399 per month. Free accounts receive{" "}
           {facts.pricing.welcomeCredits} welcome credits after email
           verification. A generated note section uses one credit and a
           presentation uses five.

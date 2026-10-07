@@ -4,6 +4,7 @@ import { PageHero, Faq, CtaBand } from "@/components/site";
 import { SUBJECTS } from "@/lib/study/subjects";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { STARTER_TOPICS, learningLink } from "@/lib/growth/samples";
 
 export function generateStaticParams() {
   return SUBJECTS.map((s) => ({ subject: s.slug }));
@@ -53,7 +54,7 @@ export default async function SubjectPage({
     },
     {
       q: `My ${s.name} topic is missing. What now?`,
-      a: `Generate it on the Generate page : type the topic, pick a handwriting style, and download the PDF in about a minute.`,
+      a: `Open your workspace with the topic, review the editable outline and credit cost, then generate your private lesson and download its PDF. Generation time varies with the source and lesson length.`,
     },
   ];
   return (
@@ -80,7 +81,7 @@ export default async function SubjectPage({
         lede={s.desc}
       />
       <div className="wrap" style={{ paddingTop: 24, paddingBottom: 8 }}>
-        <div className="grid grid-4">
+        <div className="grid grid-4 subject-starters">
           {mine.map((p) => (
             <a
               key={p.slug}
@@ -94,12 +95,21 @@ export default async function SubjectPage({
               <b>{p.title}</b>
             </a>
           ))}
-          {!mine.length && (
-            <div className="card">
-              No curated packs in this subject yet. Start a private lesson
-              below.
-            </div>
-          )}
+          {(STARTER_TOPICS[s.slug] || []).map((topic) => (
+            <a
+              className="card"
+              key={topic}
+              href={learningLink(
+                topic,
+                s.slug === "hindi-medium" ? "hindi" : "english",
+              )}
+            >
+              <span className="eyebrow">STARTER TOPIC</span>
+              <h2>{topic}</h2>
+              <p>Review an outline, then create your own lesson.</p>
+              <span>Generate this topic →</span>
+            </a>
+          ))}
         </div>
         <div style={{ marginTop: 16 }}>
           <a

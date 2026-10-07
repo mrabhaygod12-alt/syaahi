@@ -1,4 +1,5 @@
 "use client";
+import { growthEvent } from "@/lib/growth/events-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 type Summary = {
   code: string;
@@ -199,6 +200,7 @@ export default function ReferralWallet({
             onClick={async () => {
               const url = `${location.origin}/signup?ref=${data.code}`;
               try {
+                growthEvent("referral_share");
                 if (navigator.share)
                   await navigator.share({
                     title: "Study with me on Syaahi",

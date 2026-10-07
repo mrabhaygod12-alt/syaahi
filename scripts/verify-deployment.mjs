@@ -5,7 +5,7 @@ if (at >= 0 && !/^[a-f0-9]{40}$/.test(expected || ""))
   throw new Error("--commit requires a full Git SHA.");
 const origin = "https://www.syaahii.in";
 const checks = [
-  ["/", 200, "landing-page"],
+  ["/", 200, "growth-landing"],
   ["/writing", 200, "writer-public-landing"],
   ["/syaahi", 200, "Syaahi: learn, present and publish."],
   ["/writing/features", 200, "A complete home for your writing."],
@@ -21,6 +21,11 @@ const checks = [
   ["/writer/membership", 200],
   ["/writer/support", 200],
   ["/pricing", 200],
+  ["/hi", 200, "विश्वविद्यालय"],
+  ["/resources", 200, "revision"],
+  ["/examples?sample=dbms", 200, "Normalization"],
+  ["/subjects/computer-science", 200, "STARTER TOPIC"],
+  ["/api/admin/growth", 403],
   ["/presentations", 200],
   ["/api/jobs", 401],
   ["/api/writer/profile", 401],
@@ -101,7 +106,7 @@ try {
       billing.subscription === null &&
       JSON.stringify(
         Object.values(billing.plans || {}).map((plan) => plan.inr),
-      ) === JSON.stringify([9, 39, 79, 399]),
+      ) === JSON.stringify([399]),
   });
   // Availability is configuration metadata, not proof of provider authentication or settlement.
 } catch {

@@ -16,6 +16,7 @@ import WorkspaceProvider from "@/components/WorkspaceProvider";
 import "./experience-upgrade.css";
 import "./product-public.css";
 import "katex/dist/katex.min.css";
+import GrowthVisit from "@/components/growth/GrowthVisit";
 
 const instrument = Instrument_Sans({
   subsets: ["latin"],
@@ -103,6 +104,7 @@ export default function RootLayout({
           </main>
           <SiteFooter />
           <PrivacyPreferences />
+          <GrowthVisit />
           <AuthDialog />
         </WorkspaceProvider>
       </body>
