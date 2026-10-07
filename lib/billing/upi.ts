@@ -10,6 +10,7 @@ import { UPI_MERCHANTS, type UpiMerchant } from "./upi-merchants";
  */
 
 import { randomUUID } from "node:crypto";
+import { db } from "@/lib/db";
 import { useMongo, collection, mongoTransaction } from "@/lib/storage/mongo";
 
 import { PACKS } from "./packs";
@@ -66,6 +67,27 @@ export function paymentPage(value: unknown): number {
   return n;
 }
 export async function isAdmin(userId: string): Promise<boolean> {
+  const { readState } = await import("@/lib/study/state"),
+    { DEFAULT_CONTROL } = await import("@/lib/auth/session-security");
+  const control = await readState(userId, "account-control", DEFAULT_CONTROL);
+  if (control.status !== "active") return false;
+  if (control.role !== null)
+    return control.role === "admin" || control.role === "billing";
+  const email = useMongo()
+    ? (
+        await (
+          await collection("users")
+        ).findOne({ _id: userId }, { projection: { email: 1 } })
+      )?.email
+    : db().prepare("SELECT email FROM users WHERE id=?").get(userId)?.email;
+  if (
+    email &&
+    (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((x) => x.trim().toLowerCase())
+      .includes(String(email).toLowerCase())
+  )
+    return true;
   if (
     (process.env.PAYMENT_ADMIN_IDS || "")
       .split(",")

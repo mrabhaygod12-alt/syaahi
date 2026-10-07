@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { originError } from "@/lib/auth/server";
+import { originError, AccountAccessError } from "@/lib/auth/server";
 import { abuseGuard } from "@/lib/security/abuse";
 /** Keep infrastructure errors and credentials out of public responses. */
 export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
@@ -62,6 +62,11 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
         response.headers.set("Cache-Control", "no-store");
       return response;
     } catch (error) {
+      if (error instanceof AccountAccessError)
+        return NextResponse.json(
+          { error: error.message, code: "ACCOUNT_DISABLED" },
+          { status: 403, headers: { "Cache-Control": "no-store" } },
+        );
       console.error(
         JSON.stringify({
           event: "api_failure",

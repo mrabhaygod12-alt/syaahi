@@ -105,7 +105,9 @@ export function middleware(req: NextRequest) {
     );
   }
 
-  if (isFrontend) return frontendResponse(NextResponse.next());
+  const pageHeaders = new Headers(req.headers);
+  pageHeaders.set("x-syaahi-pathname", req.nextUrl.pathname);
+  if (isFrontend) return frontendResponse(NextResponse.next({ request: { headers: pageHeaders } }));
 
   if (role === "backend" && req.nextUrl.pathname !== "/api/health") {
     const secret = process.env.BACKEND_PROXY_SECRET;
@@ -117,7 +119,7 @@ export function middleware(req: NextRequest) {
   }
   if (isTrap)
     return NextResponse.rewrite(new URL("/api/security/trap", req.url));
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: pageHeaders } });
 }
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

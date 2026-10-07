@@ -1,0 +1,31 @@
+.session-security {
+  min-width: 0;
+}
+.session-security ul {
+  padding: 0;
+  margin: 24px 0 0;
+  list-style: none;
+}
+.session-security li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid #d8ded7;
+}
+.session-security li > div {
+  min-width: 0;
+}
+.session-security .small {
+  overflow-wrap: anywhere;
+}
+.session-security li .btn {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .session-security li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

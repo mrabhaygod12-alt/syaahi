@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -83,10 +84,17 @@ export default function WriterShell({
     [nav, setNav] = useState(false);
   const path = usePathname();
   const account = useAccount();
+  const profileRequest = useRef<AbortController | null>(null);
   const load = () => {
+    profileRequest.current?.abort();
+    const controller = new AbortController();
+    profileRequest.current = controller;
     setStatus("loading");
-    requestJson("/api/writer/profile")
+    setError("");
+    requestJson("/api/writer/profile", { signal: controller.signal })
       .then(({ response, data }) => {
+        if (controller.signal.aborted || profileRequest.current !== controller)
+          return;
         if (response.status === 401) return setStatus("guest");
         if (data.code === "WRITER_ENROLLMENT_REQUIRED")
           return setStatus("enroll");
@@ -96,11 +104,15 @@ export default function WriterShell({
         setStatus("ready");
       })
       .catch((e) => {
+        if (controller.signal.aborted || profileRequest.current !== controller)
+          return;
         setError(e.message);
         setStatus("error");
       });
   };
   useEffect(() => {
+    profileRequest.current?.abort();
+    setProfile(null);
     if (account.loading) return;
     if (account.error) {
       setError(account.error);
@@ -112,7 +124,18 @@ export default function WriterShell({
       return;
     }
     load();
-  }, [account.loading, account.user?.workspace, account.error]);
+    return () => profileRequest.current?.abort();
+  }, [
+    account.loading,
+    account.user?.id,
+    account.user?.workspace,
+    account.error,
+  ]);
+  const ready =
+    status === "ready" &&
+    !account.loading &&
+    !account.error &&
+    account.user?.workspace === "writer";
   useEffect(() => {
     if (!profile) return;
     const query = window.matchMedia("(prefers-color-scheme: dark)");
@@ -190,7 +213,7 @@ export default function WriterShell({
               <span>Write</span>
             </a>
           )}
-          {profile ? (
+          {profile && ready ? (
             <div className="writer-account">
               <button
                 className="writer-icon-button"
@@ -246,7 +269,7 @@ export default function WriterShell({
           )}
         </div>
       </header>
-      {status !== "ready" ? (
+      {!ready ? (
         <section className="writer-gate">
           <p className="writer-kicker">SYAAHI WRITERS</p>
           <h1>
@@ -261,7 +284,10 @@ export default function WriterShell({
           ) : status === "error" ? (
             <>
               <p role="alert">{error}</p>
-              <button className="btn dark" onClick={load}>
+              <button
+                className="btn dark"
+                onClick={account.error ? account.refresh : load}
+              >
                 Try again
               </button>
             </>

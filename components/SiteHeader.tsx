@@ -31,6 +31,8 @@ export default function SiteHeader() {
     };
   }, []);
   if (
+    path === "/admin" ||
+    path.startsWith("/admin/") ||
     path.startsWith("/lesson/") ||
     path === "/presentations" ||
     path.startsWith("/presentations/") ||

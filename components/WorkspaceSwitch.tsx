@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { requestJson } from "@/lib/http-client";
+import { workspaceHome } from "@/lib/workspace-routing";
 export default function WorkspaceSwitch({
   current,
 }: {
@@ -15,6 +16,7 @@ export default function WorkspaceSwitch({
         disabled={busy}
         onClick={async () => {
           setBusy(true);
+          setError("");
           try {
             const { response, data } = await requestJson("/api/user/profile", {
               method: "PATCH",
@@ -24,12 +26,14 @@ export default function WorkspaceSwitch({
               }),
             });
             if (data.code === "WRITER_ENROLLMENT_REQUIRED") {
-              window.location.assign("/signup?workspace=writer&next=/writer");
+              window.location.assign(
+                "/signup?workspace=writer&next=/writer/welcome",
+              );
               return;
             }
             if (!response.ok) throw new Error(data.error);
             window.location.assign(
-              current === "student" ? "/writer" : "/dashboard?view=student",
+              workspaceHome(current === "student" ? "writer" : "student"),
             );
           } catch (e) {
             setError(

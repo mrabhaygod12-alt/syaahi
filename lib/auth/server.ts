@@ -18,6 +18,24 @@ export interface Account {
   verified?: boolean;
   locale?: string | null;
   workspace?: "student" | "writer";
+  /** Server-only, non-enumerable authorization context; never accepted from clients. */
+  adminRole?: import("./session-security").AdminRole | null;
+  sessionId?: string;
+  adminMfaEnrolled?: boolean;
+  adminAuthenticated?: boolean;
+  legacyPaymentAdmin?: boolean;
+}
+export class AccountAccessError extends Error {}
+export async function assertAccountActive(id: string) {
+  const { DEFAULT_CONTROL } = await import("./session-security");
+  const { readState } = await import("@/lib/study/state");
+  if (
+    (await readState(id, "account-control", DEFAULT_CONTROL)).status !==
+    "active"
+  )
+    throw new AccountAccessError(
+      "This account is unavailable. Contact support.",
+    );
 }
 const COOKIE = "syaahi-session";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -62,16 +80,19 @@ export async function currentUser(req: Request): Promise<Account | null> {
       await (await collection("sessions")).deleteOne({ _id: hash(token) });
       return null;
     }
-    return {
-      id: user._id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
-      avatar: user.avatar || null,
-      verified: true,
-      locale: typeof user.locale === "string" ? user.locale : null,
-      workspace: user.workspace === "writer" ? "writer" : "student",
-    };
+    return (await import("./session-security")).secureAccount(
+      {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt,
+        avatar: user.avatar || null,
+        verified: true,
+        locale: typeof user.locale === "string" ? user.locale : null,
+        workspace: user.workspace === "writer" ? "writer" : "student",
+      },
+      token,
+    );
   }
   const row = db()
     .prepare(
@@ -87,16 +108,19 @@ export async function currentUser(req: Request): Promise<Account | null> {
     }
   }
   return row
-    ? {
-        id: String(row.id),
-        email: String(row.email),
-        name: String(row.name),
-        createdAt: String(row.created_at),
-        avatar: typeof row.avatar === "string" ? row.avatar : null,
-        verified: true,
-        locale: typeof row.locale === "string" ? row.locale : null,
-        workspace: row.workspace === "writer" ? "writer" : "student",
-      }
+    ? (await import("./session-security")).secureAccount(
+        {
+          id: String(row.id),
+          email: String(row.email),
+          name: String(row.name),
+          createdAt: String(row.created_at),
+          avatar: typeof row.avatar === "string" ? row.avatar : null,
+          verified: true,
+          locale: typeof row.locale === "string" ? row.locale : null,
+          workspace: row.workspace === "writer" ? "writer" : "student",
+        },
+        token,
+      )
     : null;
 }
 export function originError(req: Request): NextResponse | null {
@@ -233,7 +257,10 @@ export async function startSession(
   user: Account,
   req: Request,
   extra: Record<string, unknown> = {},
+  method: "password" | "oauth" = "password",
 ): Promise<NextResponse> {
+  const { rememberSession } = await import("./session-security");
+  await assertAccountActive(user.id);
   const token = randomBytes(32).toString("hex");
   if (useMongo())
     await (
@@ -249,6 +276,7 @@ export async function startSession(
       .prepare("INSERT INTO sessions VALUES (?,?,?)")
       .run(hash(token), user.id, Date.now() + 7 * 86400000);
   }
+  await rememberSession(hash(token), user.id, req, method);
   const response = NextResponse.json({ user, ...extra });
   response.cookies.set(COOKIE, token, {
     httpOnly: true,

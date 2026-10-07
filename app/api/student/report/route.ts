@@ -4,8 +4,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { getJob } from "@/lib/jobs/store";
-import { mutateState } from "@/lib/study/state";
-import { saveTicketIndex, listTickets } from "@/lib/support";
+import { changeTicket, listTickets, type SupportTicket } from "@/lib/support";
 export const POST = apiHandler(async (req: NextRequest) => {
   const denied =
     (await authError(req)) || (await rateLimit(req, "note-error", 4, 60000));
@@ -43,26 +42,24 @@ export const POST = apiHandler(async (req: NextRequest) => {
     user: user.id,
     subject,
     category: "generation",
-    status: "open",
+    status: "open" as const,
     createdAt,
     workspace: "student" as const,
     messages: [
       {
-        by: "learner",
+        by: "learner" as const,
         text: `Lesson ${job.id}\n${b.detail.trim()}`,
         at: createdAt,
       },
     ],
   };
-  await mutateState(user.id, `support:${id}`, ticket, () => ticket);
-  await saveTicketIndex({
+  await changeTicket(
+    user.id,
     id,
-    user: user.id,
-    subject,
-    category: ticket.category,
-    status: ticket.status,
-    createdAt,
-    workspace: "student",
-  });
+    () => ticket as SupportTicket,
+    undefined,
+    "create",
+    true,
+  );
   return NextResponse.json({ id }, { status: 201 });
 });

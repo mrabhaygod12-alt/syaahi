@@ -1,4 +1,5 @@
 "use client";
+import SessionSecurity from "./SessionSecurity";
 
 import { useEffect, useState, useRef } from "react";
 import { ANIME_AVATARS, getAnimeAvatar } from "@/lib/avatars";
@@ -633,6 +634,7 @@ export default function ProfileView() {
       {/* TAB 3: Security & Verification */}
       {activeTab === "security" && (
         <div style={{ display: "grid", gap: 24, maxWidth: 640 }}>
+          <SessionSecurity />
           <div className="card" style={{ padding: 24 }}>
             <h3 style={{ margin: "0 0 10px" }}>Email Verification</h3>
             <p className="small" style={{ color: "#4b5563" }}>

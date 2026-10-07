@@ -2,7 +2,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { TERMS_VERSION, recordConsent } from "@/lib/auth/consent";
 import { NextRequest, NextResponse } from "next/server";
 import { oauthClient, googleAccount } from "@/lib/auth/oauth";
-import { startSession } from "@/lib/auth/server";
+import { startSession, assertAccountActive } from "@/lib/auth/server";
 import { markEmailVerified } from "@/lib/billing/rewards";
 import { claimReferral } from "@/lib/billing/referrals";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
@@ -31,13 +31,14 @@ async function handleGET(req: NextRequest) {
     if (verifyError || !data.user)
       throw new Error("Google identity could not be verified.");
     const account = await googleAccount(data.user);
+    await assertAccountActive(account.id);
     if (workspace) {
       if (workspace === "writer") {
         if (req.cookies.get("syaahi-oauth-mode")?.value === "signup")
           await enrollWriter(account);
         else if (!(await writerProfile(account.id))) {
           await markEmailVerified(account.id);
-          const session = await startSession(account, req);
+          const session = await startSession(account, req, {}, "oauth");
           for (const cookie of session.cookies.getAll())
             response.cookies.set(cookie);
           response.headers.set(
@@ -67,7 +68,7 @@ async function handleGET(req: NextRequest) {
     }
     await markEmailVerified(account.id);
     await recordConsent(account.id);
-    const session = await startSession(account, req);
+    const session = await startSession(account, req, {}, "oauth");
     for (const cookie of session.cookies.getAll()) response.cookies.set(cookie);
     await client.auth.signOut({ scope: "local" });
     response.headers.set(

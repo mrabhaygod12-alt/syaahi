@@ -1,98 +1,74 @@
 import { apiHandler } from "@/lib/api-handler";
-import { listTickets, findTicket, saveTicketIndex } from "@/lib/support";
+import {
+  listTickets,
+  findTicket,
+  supportTicket,
+  changeTicket,
+  publicTicket,
+  publicTicketIndex,
+  TicketInputError,
+  type SupportTicket,
+} from "@/lib/support";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { authError, currentUser } from "@/lib/auth/server";
-import { readState, mutateState } from "@/lib/study/state";
+import { currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { writerAccess } from "@/lib/writing/profile";
-interface Message {
-  by: "learner" | "support";
-  text: string;
-  at: string;
-}
-class TicketInputError extends Error {}
-interface Ticket {
-  id: string;
-  user: string;
-  subject: string;
-  category: string;
-  status: "open" | "waiting" | "resolved";
-  createdAt: string;
-  workspace?: "student" | "writer";
-  messages: Message[];
-}
-const admin = (id: string) =>
-  (process.env.SUPPORT_ADMIN_IDS || "")
-    .split(",")
-    .map((v) => v.trim())
-    .includes(id);
-async function handleGET(req: Request) {
-  const denied = await authError(req);
-  if (denied) return denied;
-  const user = (await currentUser(req))!;
+import { adminScopes } from "@/lib/auth/admin";
+async function access(req: Request) {
+  const user = await currentUser(req);
+  if (!user)
+    return {
+      denied: NextResponse.json(
+        { error: "Sign in to contact support." },
+        { status: 401 },
+      ),
+    };
   const workspace = new URL(req.url).pathname.startsWith("/api/writer/")
-    ? "writer"
-    : "student";
+    ? ("writer" as const)
+    : ("student" as const);
   if (workspace === "writer") {
-    const access = await writerAccess(user.id);
-    if (access) return access;
+    const denied = await writerAccess(user.id);
+    if (denied) return { denied };
   }
-  const isAdmin = admin(user.id);
+  return { user, workspace, admin: adminScopes(user).support };
+}
+async function handleGET(req: Request) {
+  const a = await access(req);
+  if (a.denied) return a.denied;
   const id = new URL(req.url).searchParams.get("id");
-  const tickets = await listTickets(isAdmin ? undefined : user.id);
   if (id) {
-    const item = await findTicket(id);
+    const ticket = id.length <= 80 ? await supportTicket(id) : null;
     if (
-      !item ||
-      (!isAdmin &&
-        (item.user !== user.id || (item.workspace || "student") !== workspace))
+      !ticket ||
+      (!a.admin &&
+        (ticket.user !== a.user!.id ||
+          (ticket.workspace || "student") !== a.workspace))
     )
       return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
-    return NextResponse.json(
-      {
-        ticket: await readState<Ticket | null>(
-          item.user,
-          `support:${id}`,
-          null,
-        ),
-        admin: isAdmin,
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    return NextResponse.json({
+      ticket: a.admin ? ticket : publicTicket(ticket),
+      admin: a.admin,
+    });
   }
-  return NextResponse.json(
-    {
-      tickets: tickets
-        .filter(
-          (t) =>
-            isAdmin ||
-            (t.user === user.id && (t.workspace || "student") === workspace),
-        )
-        .slice(0, 100),
-      admin: isAdmin,
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  const tickets = await listTickets(a.admin ? undefined : a.user!.id);
+  return NextResponse.json({
+    tickets: tickets
+      .filter((t) => a.admin || (t.workspace || "student") === a.workspace)
+      .map((t) => (a.admin ? t : publicTicketIndex(t))),
+    admin: a.admin,
+  });
 }
 async function handlePOST(req: Request) {
-  const denied =
-    (await authError(req)) || (await rateLimit(req, "support", 12, 60000));
-  if (denied) return denied;
-  const user = (await currentUser(req))!;
-  const workspace = new URL(req.url).pathname.startsWith("/api/writer/")
-    ? "writer"
-    : "student";
-  if (workspace === "writer") {
-    const access = await writerAccess(user.id);
-    if (access) return access;
-  }
-  const b = await req.json().catch(() => ({}));
-  const isAdmin = admin(user.id);
+  const a = await access(req);
+  if (a.denied) return a.denied;
+  const limited = await rateLimit(req, "support", 12, 60000);
+  if (limited) return limited;
+  const b = await req.json().catch(() => null);
   try {
-    if (b.action === "create") {
-      const subject = String(b.subject || "").trim(),
-        text = String(b.message || "").trim();
+    if (b?.action === "create") {
+      const subject = typeof b.subject === "string" ? b.subject.trim() : "",
+        text = typeof b.message === "string" ? b.message.trim() : "";
       if (
         subject.length < 5 ||
         subject.length > 120 ||
@@ -102,92 +78,101 @@ async function handlePOST(req: Request) {
         throw new TicketInputError(
           "Use a subject of 5–120 characters and a message of 20–4,000 characters.",
         );
-      const existing = await listTickets(user.id);
-      if (
-        existing.filter((t) => t.user === user.id && t.status !== "resolved")
-          .length >= 10
-      )
-        throw new TicketInputError(
-          "You already have 10 active tickets. Reply to an existing ticket.",
-        );
-      const ticket: Ticket = {
-        id: randomUUID(),
-        user: user.id,
-        workspace,
-        subject,
-        category: [
-          "account",
-          "payment",
-          "generation",
-          "writing",
-          "publishing",
-          "privacy",
-          "other",
-        ].includes(b.category)
-          ? b.category
-          : "other",
-        status: "open",
-        createdAt: new Date().toISOString(),
-        messages: [{ by: "learner", text, at: new Date().toISOString() }],
-      };
-      await mutateState<Ticket>(
-        user.id,
-        `support:${ticket.id}`,
-        ticket,
-        () => ticket,
+      const id =
+          typeof b.requestId === "string" &&
+          /^[a-f0-9-]{36}$/i.test(b.requestId)
+            ? b.requestId
+            : randomUUID(),
+        at = new Date().toISOString();
+      const ticket = await changeTicket(
+        a.user!.id,
+        id,
+        () => ({
+          id,
+          user: a.user!.id,
+          workspace: a.workspace!,
+          subject,
+          category: [
+            "account",
+            "payment",
+            "generation",
+            "writing",
+            "publishing",
+            "privacy",
+            "bug",
+            "feature",
+            "other",
+          ].includes(b.category)
+            ? b.category
+            : "other",
+          status: "open",
+          createdAt: at,
+          messages: [{ by: "learner", text, at }],
+        }),
+        undefined,
+        "create",
+        true,
       );
-      await saveTicketIndex({
-        id: ticket.id,
-        user: user.id,
-        subject,
-        category: ticket.category,
-        status: ticket.status,
-        createdAt: ticket.createdAt,
-        workspace,
-      });
-      return NextResponse.json({ ticket }, { status: 201 });
+      return NextResponse.json(
+        { ticket: publicTicket(ticket) },
+        { status: 201 },
+      );
     }
-    const item = await findTicket(String(b.id || ""));
+    const item =
+      typeof b?.id === "string" && b.id.length <= 80
+        ? await findTicket(b.id)
+        : null;
     if (
       !item ||
-      (!isAdmin &&
-        (item.user !== user.id || (item.workspace || "student") !== workspace))
+      (!a.admin &&
+        (item.user !== a.user!.id ||
+          (item.workspace || "student") !== a.workspace))
     )
       return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
-    const ticket = await mutateState<Ticket | null>(
+    const ticket = await changeTicket(
       item.user,
-      `support:${item.id}`,
-      null,
+      item.id,
       (t) => {
-        if (!t) throw new TicketInputError("Ticket unavailable.");
+        if (!t) throw new TicketInputError("Ticket unavailable.", 404);
         if (b.action === "reply") {
-          const text = String(b.message || "").trim();
+          const text = typeof b.message === "string" ? b.message.trim() : "";
+          if (t.status === "closed")
+            throw new TicketInputError(
+              "Reopen this ticket before replying.",
+              409,
+            );
           if (text.length < 2 || text.length > 4000 || t.messages.length >= 100)
             throw new TicketInputError(
               "Use 2–4,000 characters; a ticket supports up to 100 messages.",
             );
-          t.messages.push({
-            by: isAdmin ? "support" : "learner",
-            text,
-            at: new Date().toISOString(),
-          });
-          t.status = isAdmin ? "waiting" : "open";
-        } else if (b.action === "resolve") t.status = "resolved";
-        else if (b.action === "reopen") t.status = "open";
-        else throw new TicketInputError("Unknown ticket action.");
-        return t;
+          return {
+            ...t,
+            messages: [
+              ...t.messages,
+              {
+                by: a.admin ? "support" : "learner",
+                text,
+                at: new Date().toISOString(),
+              },
+            ],
+            status: a.admin ? "waiting" : "open",
+          } as SupportTicket;
+        }
+        if (b.action === "resolve") return { ...t, status: "resolved" };
+        if (b.action === "reopen") return { ...t, status: "open" };
+        if (b.action === "close") return { ...t, status: "closed" };
+        throw new TicketInputError("Unknown ticket action.");
       },
+      a.admin ? a.user!.id : undefined,
+      b.action,
     );
-    await saveTicketIndex({ ...item, status: ticket!.status });
-    return NextResponse.json({ ticket });
+    return NextResponse.json({
+      ticket: a.admin ? ticket : publicTicket(ticket),
+    });
   } catch (e) {
     if (!(e instanceof TicketInputError)) throw e;
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Could not save your ticket." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: e.message }, { status: e.status });
   }
 }
-
 export const GET = apiHandler(handleGET);
 export const POST = apiHandler(handlePOST);

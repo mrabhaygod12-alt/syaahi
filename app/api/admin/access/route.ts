@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { currentUser } from "@/lib/auth/server";
-import { adminScopes } from "@/lib/auth/admin";
+import { adminScopes, adminEligibility } from "@/lib/auth/admin";
 
 export const GET = apiHandler(async (req: Request) => {
   const user = await currentUser(req);
@@ -11,10 +11,17 @@ export const GET = apiHandler(async (req: Request) => {
       { status: 401 },
     );
   const scopes = adminScopes(user);
-  if (!Object.values(scopes).some(Boolean))
+  const eligible = Object.values(adminEligibility(user)).some(Boolean);
+  if (!eligible)
     return NextResponse.json(
       { error: "Administrator access required." },
       { status: 403 },
     );
-  return NextResponse.json({ scopes });
+  return NextResponse.json({
+    scopes,
+    eligible,
+    eligibility: adminEligibility(user),
+    requiresMfa: !Object.values(scopes).some(Boolean),
+    enrolled: !!user.adminMfaEnrolled,
+  });
 });

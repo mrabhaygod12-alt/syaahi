@@ -4,11 +4,16 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
+  useCallback,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
 import { requestJson } from "@/lib/http-client";
-import { workspaceDestination, studentPath } from "@/lib/workspace-routing";
+import {
+  workspaceDestination,
+  workspaceScopedPath,
+} from "@/lib/workspace-routing";
 import type { DemoUser } from "@/lib/auth/session";
 const Context = createContext<{
   user: DemoUser | null;
@@ -26,29 +31,40 @@ export default function WorkspaceProvider({
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   const path = usePathname() || "/";
-  const refresh = () => {
+  const request = useRef<AbortController | null>(null);
+  const refresh = useCallback(() => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     setError("");
     setLoading(true);
-    requestJson("/api/auth")
+    requestJson("/api/auth", { signal: controller.signal })
       .then(({ response, data }) => {
+        if (request.current !== controller || controller.signal.aborted) return;
         if (!response.ok)
           throw new Error(data.error || "Your account could not be loaded.");
         setUser(data.user || null);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  };
+      .catch((e) => {
+        if (request.current !== controller || controller.signal.aborted) return;
+        setUser(null);
+        setError(e.message);
+      })
+      .finally(() => {
+        if (request.current === controller && !controller.signal.aborted)
+          setLoading(false);
+      });
+  }, []);
   useEffect(() => {
     refresh();
     const sync = () => refresh();
     window.addEventListener("syaahi:account-updated", sync);
-    return () => window.removeEventListener("syaahi:account-updated", sync);
-  }, []);
-  const legacy =
-    studentPath(path) ||
-    /^\/(pricing|support|profile|account\/billing|subscribe|payments|pay)(\/|$)/.test(
-      path,
-    );
+    return () => {
+      request.current?.abort();
+      window.removeEventListener("syaahi:account-updated", sync);
+    };
+  }, [refresh]);
+  const legacy = workspaceScopedPath(path);
   const destination =
     user?.workspace === "writer" ? workspaceDestination(path, "writer") : path;
   useEffect(() => {

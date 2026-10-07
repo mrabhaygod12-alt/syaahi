@@ -9,6 +9,8 @@ import {
   passwordMatches,
   register,
   startSession,
+  assertAccountActive,
+  AccountAccessError,
 } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
@@ -79,6 +81,7 @@ async function handlePOST(req: NextRequest) {
             { status: 401 },
           );
         const { rewardSummary } = await import("@/lib/billing/rewards");
+        await assertAccountActive(String(existing.id));
         if (!(await rewardSummary(String(existing.id))).emailVerified)
           return NextResponse.json(
             {
@@ -163,6 +166,7 @@ async function handlePOST(req: NextRequest) {
         { status: 202 },
       );
     } catch (err) {
+      if (err instanceof AccountAccessError) throw err;
       console.error(
         "Signup failed:",
         err instanceof Error ? err.name : "unknown",
@@ -191,6 +195,7 @@ async function handlePOST(req: NextRequest) {
 
   // Verification is required for both local and hosted accounts.
   const userId = String(row.id);
+  await assertAccountActive(userId);
   const { rewardSummary } = await import("@/lib/billing/rewards");
   if (!(await rewardSummary(userId)).emailVerified) {
     let verificationSent = false;

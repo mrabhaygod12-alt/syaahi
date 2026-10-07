@@ -4,6 +4,7 @@ import WriterShell, { useWriter } from "./WriterShell";
 import { ProfileEditor } from "./WriterProfileView";
 import { requestJson } from "@/lib/http-client";
 import { useAccount } from "../WorkspaceProvider";
+import SessionSecurity from "../SessionSecurity";
 function SettingsContent() {
   const { profile, update } = useWriter();
   const { user } = useAccount();
@@ -97,6 +98,7 @@ function SettingsContent() {
         </div>
         <a href="/writer/support">Contact support ↗</a>
       </div>
+      <SessionSecurity />
       {error && <p role="alert">{error}</p>}
       {edit && <ProfileEditor onClose={() => setEdit(false)} />}
     </section>

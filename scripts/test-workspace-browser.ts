@@ -193,6 +193,24 @@ async function main() {
           .getByRole("heading", { name: tier, exact: true })
           .isVisible(),
       );
+    for (const [source, target] of [
+      ["/support", "/writer/support"],
+      ["/profile", "/writer/settings"],
+      ["/account/billing", "/writer/billing"],
+      ["/payments", "/writer/payments"],
+      ["/checkout/9", "/writer/membership"],
+    ]) {
+      await page.goto("http://localhost:3139" + source);
+      await page.waitForURL("**" + target);
+      await page.locator(".writer-workspace").waitFor();
+      assert.equal(
+        await page.locator(".student-studio").count(),
+        0,
+        source + " must stay in the writer workspace",
+      );
+    }
+    await page.goto("http://localhost:3139/pricing");
+    await page.waitForURL("**/writer/membership");
     await page.getByRole("link", { name: "Choose Max", exact: false }).click();
     await page.waitForURL("**/writer/subscribe/max");
     await page.getByRole("button", { name: "Continue to Razorpay" }).waitFor();

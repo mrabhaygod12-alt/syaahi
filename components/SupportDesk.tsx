@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { requestJson } from "@/lib/http-client";
 interface Ticket {
   id: string;
@@ -15,6 +15,7 @@ export default function SupportDesk({
 }) {
   const endpoint =
     workspace === "writer" ? "/api/writer/support" : "/api/support";
+  const requestId = useRef<string | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]),
     [current, setCurrent] = useState<Ticket | null>(null),
     [subject, setSubject] = useState(""),
@@ -224,7 +225,10 @@ export default function SupportDesk({
                       rows={4}
                     />
                   </label>
-                  <button className="btn dark" disabled={busy}>
+                  <button
+                    className="btn dark"
+                    disabled={busy || current.status === "closed"}
+                  >
                     Send reply
                   </button>{" "}
                   <button
@@ -233,13 +237,14 @@ export default function SupportDesk({
                     disabled={busy}
                     onClick={() =>
                       void act({
-                        action:
-                          current.status === "resolved" ? "reopen" : "resolve",
+                        action: ["resolved", "closed"].includes(current.status)
+                          ? "reopen"
+                          : "resolve",
                         id: current.id,
                       })
                     }
                   >
-                    {current.status === "resolved"
+                    {["resolved", "closed"].includes(current.status)
                       ? "Reopen ticket"
                       : "Mark resolved"}
                   </button>
@@ -251,9 +256,18 @@ export default function SupportDesk({
                 onSubmit={async (e) => {
                   e.preventDefault();
                   if (
-                    await act({ action: "create", subject, message, category })
+                    await act({
+                      action: "create",
+                      subject,
+                      message,
+                      category,
+                      requestId:
+                        requestId.current ||
+                        (requestId.current = crypto.randomUUID()),
+                    })
                   ) {
                     setSubject("");
+                    requestId.current = null;
                     setMessage("");
                   }
                 }}

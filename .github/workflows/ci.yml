@@ -15,6 +15,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run check
+      - run: npm run test:admin-security
+      - run: npm run test:workspace-routing
       - run: npm run test:security
       - run: npm run test:monthly-catalog
       - run: npm run test:growth
@@ -41,4 +43,5 @@ jobs:
       - run: npm run test:growth-browser
       - run: npm run test:presentation-workspace-browser
       - run: npm run test:payment-pages
+      - run: npm run test:admin-routing-browser
       - run: npm run test:public-discovery-browser

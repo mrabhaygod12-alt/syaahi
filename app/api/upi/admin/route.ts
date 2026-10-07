@@ -3,8 +3,8 @@ import { PaymentError } from "@/lib/billing/upi";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { authError, currentUser } from "@/lib/auth/server";
+import { adminScopes } from "@/lib/auth/admin";
 import {
-  isAdmin,
   listPendingPayments,
   approvePayment,
   rejectPayment,
@@ -22,7 +22,7 @@ async function handleGET(req: NextRequest) {
   if (denied) return denied;
 
   const user = (await currentUser(req))!;
-  if (!(await isAdmin(user.id)))
+  if (!adminScopes(user).payments)
     return NextResponse.json(
       { error: "Admin access required." },
       { status: 403 },
@@ -171,7 +171,7 @@ async function handlePOST(req: NextRequest) {
   if (denied) return denied;
 
   const user = (await currentUser(req))!;
-  if (!(await isAdmin(user.id)))
+  if (!adminScopes(user).payments)
     return NextResponse.json(
       { error: "Admin access required." },
       { status: 403 },

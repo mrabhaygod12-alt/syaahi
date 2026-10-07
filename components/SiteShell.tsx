@@ -9,6 +9,8 @@ export function SiteFooter() {
   const pathname = usePathname();
   const { user } = useAccount();
   if (
+    pathname === "/admin" ||
+    pathname?.startsWith("/admin/") ||
     pathname?.startsWith("/lesson/") ||
     pathname === "/presentations" ||
     pathname?.startsWith("/presentations/") ||

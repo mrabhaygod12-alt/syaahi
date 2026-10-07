@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:admin-security": "tsx scripts/test-admin-security.ts && tsx scripts/test-admin-security.ts --mongo",
+    "test:admin-routing-browser": "tsx scripts/test-admin-routing-browser.ts",
+    "test:workspace-routing": "tsx scripts/test-workspace-routing.ts",
     "test:growth": "tsx scripts/test-growth.ts && tsx scripts/test-growth.ts --mongo",
     "test:growth-browser": "tsx scripts/test-growth-browser.ts",
     "test:public-discovery-browser": "tsx scripts/test-public-discovery-browser.ts",

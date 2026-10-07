@@ -47,6 +47,10 @@ export async function mongo() {
 async function indexes(d: Db) {
   await Promise.all([
     d
+      .collection("admin_audit")
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    d.collection("sessions").createIndex({ user: 1, expiresAt: -1 }),
+    d
       .collection("password_resets")
       .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     d
