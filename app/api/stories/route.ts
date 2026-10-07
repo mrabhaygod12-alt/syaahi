@@ -8,6 +8,7 @@ import {
   listStories,
   saveStory,
   deleteDraft,
+  ownedStory,
 } from "@/lib/writing/stories";
 import { writerReaderStats } from "@/lib/writing/social";
 
@@ -18,6 +19,13 @@ async function handleGET(req: NextRequest) {
   const access = await writerAccess(user.id);
   if (access) return access;
   const profile = (await writerProfile(user.id))!;
+  const id = req.nextUrl.searchParams.get("id");
+  if (id) {
+    const story = await ownedStory(user.id, id);
+    return story
+      ? NextResponse.json({ stories: [{ ...story, authorName: profile.name }] })
+      : NextResponse.json({ error: "Draft not found." }, { status: 404 });
+  }
   return NextResponse.json({
     stories: (await listStories(user.id)).map((story) => ({
       ...story,

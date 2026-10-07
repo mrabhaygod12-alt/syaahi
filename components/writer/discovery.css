@@ -1,0 +1,121 @@
+.writer-discovery {
+  max-width: 820px;
+  margin: auto;
+  color: #243b2b;
+}
+.writer-discovery > h2 {
+  font:
+    500 clamp(26px, 4vw, 38px) Georgia,
+    serif;
+  margin: 16px 0;
+}
+.writer-discovery p {
+  line-height: 1.7;
+}
+.discovery-checks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+.discovery-checks article {
+  padding: 18px;
+  border: 1px solid #dce4d7;
+  border-radius: 14px;
+  background: #f6f8f2;
+}
+.discovery-checks h3 {
+  font-size: 15px;
+  margin: 12px 0 7px;
+}
+.discovery-checks p {
+  font-size: 12px;
+  margin: 0;
+}
+.discovery-checks span {
+  font-size: 11px;
+  color: #4e634c;
+}
+.discovery-proposal {
+  border-top: 1px solid #d5dfce;
+  margin-top: 28px;
+  padding-top: 28px;
+}
+.discovery-proposal label {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-size: 14px;
+}
+.discovery-proposal input,
+.discovery-proposal textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cdd8c6;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fbfcf9;
+  color: #203e2a;
+  font: inherit;
+  box-sizing: border-box;
+}
+.discovery-proposal small {
+  color: #5d7159;
+  font-size: 11px;
+}
+.discovery-search-preview {
+  border: 1px solid #dbe3d6;
+  border-radius: 14px;
+  padding: 20px;
+  margin: 20px 0;
+  overflow-wrap: anywhere;
+}
+.discovery-search-preview h3 {
+  color: #1f4b9c;
+  font-size: 21px;
+  margin: 8px 0;
+}
+.discovery-search-preview p {
+  margin: 0;
+}
+.discovery-proposal .discovery-approval {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.6;
+}
+.discovery-approval input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.discovery-error,
+.discovery-success {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #dec9bc;
+  background: #fff5eb;
+}
+.discovery-success {
+  background: #edf5e8;
+  border-color: #ccdcbc;
+}
+.discovery-evidence {
+  padding: 16px;
+  margin: 12px 0;
+  background: #f5f7f1;
+  border-radius: 12px;
+}
+.discovery-evidence blockquote {
+  border-left: 2px solid #9bb18d;
+  padding-left: 14px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+@media (max-width: 650px) {
+  .discovery-checks {
+    grid-template-columns: 1fr;
+  }
+}

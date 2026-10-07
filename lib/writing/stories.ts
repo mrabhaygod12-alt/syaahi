@@ -3,6 +3,7 @@ import { db, transaction } from "@/lib/db";
 import { collection, useMongo } from "@/lib/storage/mongo";
 import { normalizeDocument, documentText, type RichNode } from "./document";
 import { assertOwnedImages } from "./images";
+import type { SearchMetadata } from "./discovery-types";
 
 export type StoryStatus =
   "draft" | "submitted" | "changes_requested" | "published" | "removed";
@@ -31,6 +32,7 @@ export interface ModerationEvent {
   note: string | null;
 }
 export interface Story {
+  searchMetadata?: SearchMetadata;
   canonicalUrl?: string;
   id: string;
   user: string;
@@ -117,6 +119,20 @@ export async function listStories(user: string): Promise<Story[]> {
     .all(user)
     .map((row: any) => clean(JSON.parse(String(row.payload))))
     .filter((s): s is Story => !!s);
+}
+export async function ownedStory(
+  user: string,
+  id: string,
+): Promise<Story | null> {
+  if (!id || id.length > 80) return null;
+  if (useMongo())
+    return clean(
+      await (await collection("stories")).findOne({ _id: id, user }),
+    );
+  const row = db()
+    .prepare("SELECT payload FROM stories WHERE id=? AND user_id=?")
+    .get(id, user);
+  return row ? clean(JSON.parse(String(row.payload))) : null;
 }
 
 export async function deleteDraft(user: string, id: string) {
@@ -260,11 +276,36 @@ export async function saveStory(
     document?: unknown;
     expectedUpdatedAt?: string;
     canonicalUrl?: string;
+    searchMetadata?: { title: string; description: string };
   },
 ): Promise<Story> {
   const now = new Date().toISOString();
   const title = input.title.trim().slice(0, 140);
   const summary = input.summary.trim().slice(0, 320);
+  const searchMetadata =
+    input.searchMetadata === undefined
+      ? undefined
+      : (() => {
+          const t = input.searchMetadata;
+          if (
+            !t ||
+            typeof t.title !== "string" ||
+            t.title.trim().length < 5 ||
+            t.title.length > 80 ||
+            typeof t.description !== "string" ||
+            t.description.trim().length < 20 ||
+            t.description.length > 160 ||
+            /[<>\r\n]/.test(t.title + t.description)
+          )
+            throw new Error(
+              "Use a search title of 5–80 characters and description of 20–160 characters, without markup.",
+            );
+          return {
+            title: t.title.trim(),
+            description: t.description.trim(),
+            approvedAt: now,
+          };
+        })();
   let canonicalUrl = input.canonicalUrl;
   if (canonicalUrl !== undefined) {
     canonicalUrl = canonicalUrl.trim();
@@ -327,6 +368,13 @@ export async function saveStory(
       throw new Error("This submission is under editorial review.");
     const story: Story = {
       ...existing,
+      searchMetadata:
+        searchMetadata ||
+        (title !== existing.title ||
+        summary !== existing.summary ||
+        body !== existing.body
+          ? undefined
+          : existing.searchMetadata),
       ...(canonicalUrl !== undefined ? { canonicalUrl } : {}),
       authorName: input.authorName.trim().slice(0, 80) || existing.authorName,
       creatorSlug:
@@ -357,6 +405,7 @@ export async function saveStory(
       Math.max(Date.now(), Date.parse(existing.updatedAt) + 1),
     ).toISOString();
     if (useMongo()) {
+      const { searchMetadata: metadata, ...persisted } = story;
       const changed = await (
         await collection("stories")
       ).updateOne(
@@ -366,7 +415,14 @@ export async function saveStory(
           updatedAt: existing.updatedAt,
           status: existing.status,
         },
-        { $set: { ...story, _id: story.id } },
+        {
+          $set: {
+            ...persisted,
+            _id: story.id,
+            ...(metadata ? { searchMetadata: metadata } : {}),
+          },
+          ...(!metadata ? { $unset: { searchMetadata: "" } } : {}),
+        },
       );
       if (!changed.matchedCount)
         throw new Error(
@@ -395,6 +451,7 @@ export async function saveStory(
     return story;
   }
   const story: Story = {
+    ...(searchMetadata ? { searchMetadata } : {}),
     ...(canonicalUrl ? { canonicalUrl } : {}),
     id: randomUUID(),
     user,

@@ -29,6 +29,7 @@ import {
 } from "./writer/editor-extensions";
 import { articleStyles, normalizeDesign } from "@/lib/writing/design";
 import Modal from "./Modal";
+import WriterDiscovery from "./writer/WriterDiscovery";
 function StudioContent() {
   const [active, setActive] = useState<Story | null>(null),
     [title, setTitle] = useState(""),
@@ -47,9 +48,9 @@ function StudioContent() {
     [preview, setPreview] = useState(false),
     [focus, setFocus] = useState(false),
     [tools, setTools] = useState(true),
-    [dialog, setDialog] = useState<"image" | "publish" | "history" | null>(
-      null,
-    ),
+    [dialog, setDialog] = useState<
+      "image" | "publish" | "history" | "discovery" | null
+    >(null),
     [file, setFile] = useState<File | null>(null),
     [alt, setAlt] = useState(""),
     [caption, setCaption] = useState("");
@@ -106,7 +107,11 @@ function StudioContent() {
   });
   const load = () => {
     setLoadError("");
-    requestJson("/api/stories")
+    const requestedId = new URLSearchParams(location.search).get("draft");
+    requestJson(
+      "/api/stories" +
+        (requestedId ? `?id=${encodeURIComponent(requestedId)}` : ""),
+    )
       .then(({ response, data }) => {
         if (!response.ok)
           throw new Error(data.error || "Unable to load draft.");
@@ -314,6 +319,13 @@ function StudioContent() {
           {preview ? "Edit" : "Preview"}
         </button>
         <button
+          className="writer-text-button"
+          disabled={!active || locked || busy || dirty || submitting}
+          onClick={() => setDialog("discovery")}
+        >
+          Discovery
+        </button>
+        <button
           className="btn dark"
           disabled={busy || locked || !loaded || !title.trim()}
           onClick={() => setDialog("publish")}
@@ -441,6 +453,26 @@ function StudioContent() {
           </button>
         )}
       </div>
+      {dialog === "discovery" && active && (
+        <Modal
+          title="Story discovery"
+          wide
+          onClose={() => {
+            if (!submitting) setDialog(null);
+          }}
+        >
+          <WriterDiscovery
+            story={active}
+            ready={!busy && !dirty && !locked}
+            onBusy={setSubmitting}
+            onApply={(story) => {
+              activeRef.current = story;
+              setActive(story);
+              setMessage("Approved search metadata saved.");
+            }}
+          />
+        </Modal>
+      )}
       {dialog === "publish" && (
         <Modal
           title="Publish your story"

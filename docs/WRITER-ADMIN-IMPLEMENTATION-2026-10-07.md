@@ -73,7 +73,11 @@ roles, passwords or customer subscriptions were changed by these tests.
   canonical metadata, sitemap, story feed, product facts and machine-readable overview.
 - [x] Student pricing: ₹9/₹39/₹79 one-time packs; ₹399 monthly. Existing contractual
   subscriptions are retained; retired offers cannot start new recurring purchases.
-- [ ] Source-bound AI SEO/AEO/GEO suggestions with explicit author approval.
+- [x] Source-bound AI SEO/AEO/GEO suggestions with explicit author approval;
+  validated exact excerpts, private saved reports, revision checks and server-rendered
+  approved search metadata. Editing content clears metadata for fresh review.
+- [x] Direct draft links load the owned story by ID, including older than the recent
+  50-story list. Cross-account IDs return 404.
 - [ ] Published-story revision workflow, owner unpublishing and approved scheduling.
 - [ ] Interest/topic recommendation controls and diversification.
 - [ ] Friendly author URLs and verified custom-domain lifecycle.
@@ -95,6 +99,14 @@ capture or immunity from every attack is asserted.
 - Existing authentication, consent/support, security and growth suites pass.
 - Production build passes. Screenshots: ignored `output/admin/` artifacts, synthetic
   accounts only. Live verification must target the exact deployed commit.
+
+- `test:writer-discovery`: SQLite and MongoDB ownership, verifiable excerpts,
+  report reuse, explicit approval, stale revisions, concurrent edits and review locks.
+- `test:writer-discovery-browser`: real production UI approval and persistence,
+  old draft direct links, 390/768/1440px layout, public SSR metadata and private-field
+  redaction. AI responses are synthetic fixtures, not a live provider claim.
+- Routing/admin increment `93534b3` passed GitHub CI and exact-revision public
+  verification on both frontend and Render backend on 2026-10-07.
 
 Design/security sources: [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238),
 [OWASP MFA guidance](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html).

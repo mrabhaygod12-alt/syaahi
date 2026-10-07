@@ -29,8 +29,8 @@ export async function generateMetadata({
       noindex: true,
     });
   const metadata = pageMeta({
-    title: story.title,
-    description: story.summary,
+    title: story.searchMetadata?.title || story.title,
+    description: story.searchMetadata?.description || story.summary,
     path: `/guides/${story.slug}`,
     article: {
       author: story.authorName,
