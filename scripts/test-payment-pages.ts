@@ -65,14 +65,14 @@ async function main() {
         return;
       }
       const payload = route.request().postDataJSON();
-      assert.equal(payload.tier, "starter");
+      assert.equal(payload.tier, "max");
       assert.equal(payload.acceptRecurring, true);
       created++;
       await route.fulfill({
         contentType: "application/json",
         body: JSON.stringify({
           keyId: "rzp_test_browser",
-          subscription: { id: "sub_BrowserTest", tier: "starter" },
+          subscription: { id: "sub_BrowserTest", tier: "max" },
         }),
       });
     });
@@ -85,17 +85,31 @@ async function main() {
           .getByRole("heading", { name: tier, exact: true })
           .isVisible(),
       );
-    for (const price of ["₹9/month", "₹39/month", "₹79/month", "₹399/month"])
-      assert(await page.getByText(price, { exact: true }).isVisible());
+    const prices = (await page.locator(".plan-price").allTextContents()).map(
+      (p) => p.replace(/\s/g, ""),
+    );
+    for (const price of [
+      "₹9one-time",
+      "₹39one-time",
+      "₹79one-time",
+      "₹399/month",
+    ])
+      assert(
+        prices.includes(price),
+        `${price} must use the confirmed billing interval`,
+      );
+    for (const pack of ["try", "starter", "popular"])
+      assert.equal(
+        await page.locator(`a[href="/checkout/${pack}"]`).count(),
+        1,
+      );
     assert.equal(
       await page.getByText("$5", { exact: true }).count(),
       0,
       "obsolete regional checkout prices must not be shown",
     );
-    await page
-      .getByRole("link", { name: "Choose Starter", exact: true })
-      .click();
-    await page.waitForURL("**/subscribe/starter");
+    await page.getByRole("link", { name: "Choose Max", exact: true }).click();
+    await page.waitForURL("**/subscribe/max");
     const continueButton = page.getByRole("button", {
       name: "Continue to Razorpay",
       exact: true,
@@ -138,7 +152,7 @@ async function main() {
       "subscription page should fit mobile width",
     );
     console.log(
-      "PASS browser payment flow: INR monthly plans, consent-gated Razorpay mandate checkout, dismiss, verification message and mobile layout.",
+      "PASS browser payment flow: current one-time/Max monthly prices, consent-gated Razorpay mandate checkout, dismiss, verification message and mobile layout.",
     );
   } finally {
     await browser?.close();
