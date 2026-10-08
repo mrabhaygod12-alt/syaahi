@@ -43,6 +43,15 @@ async function handlePOST(req: NextRequest) {
     (await authError(req)) || (await rateLimit(req, "stories", 20, 60_000));
   if (denied) return denied;
   const body = await req.json().catch(() => ({}));
+  if (
+    body.id &&
+    (typeof body.expectedUpdatedAt !== "string" ||
+      body.expectedUpdatedAt.length > 50)
+  )
+    return NextResponse.json(
+      { error: "Include the draft's current saved revision before editing." },
+      { status: 409 },
+    );
   try {
     const user = (await currentUser(req))!;
     const access = await writerAccess(user.id);
@@ -68,6 +77,12 @@ async function handlePOST(req: NextRequest) {
           : undefined,
       canonicalUrl:
         typeof body.canonicalUrl === "string" ? body.canonicalUrl : undefined,
+      requestedPublishAt:
+        body.requestedPublishAt === null
+          ? null
+          : typeof body.requestedPublishAt === "string"
+            ? body.requestedPublishAt
+            : undefined,
     });
     return NextResponse.json({ story });
   } catch (error) {

@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { db, transaction } from "@/lib/db";
-import { collection, useMongo } from "@/lib/storage/mongo";
+import { collection, useMongo, mongoTransaction } from "@/lib/storage/mongo";
 import { normalizeDocument, documentText, type RichNode } from "./document";
 import { assertOwnedImages } from "./images";
 import type { SearchMetadata } from "./discovery-types";
 
 export type StoryStatus =
-  "draft" | "submitted" | "changes_requested" | "published" | "removed";
+  | "draft"
+  | "submitted"
+  | "changes_requested"
+  | "published"
+  | "removed"
+  | "scheduled"
+  | "unpublished"
+  | "archived";
 export type ReportReason =
   "spam" | "harmful" | "misleading" | "copyright" | "privacy" | "other";
 export interface ContentReport {
@@ -26,12 +33,26 @@ export interface ModerationEvent {
   storyId: string;
   title: string;
   action:
-    "submitted" | "published" | "changes_requested" | "removed" | "restored";
+    | "submitted"
+    | "published"
+    | "changes_requested"
+    | "removed"
+    | "restored"
+    | "scheduled"
+    | "unpublished"
+    | "revision_created"
+    | "revision_applied"
+    | "schedule_cancelled";
   at: string;
   actor: string | null;
   note: string | null;
 }
 export interface Story {
+  revisionOf?: string;
+  revisionBaseUpdatedAt?: string;
+  pendingRevisionId?: string | null;
+  requestedPublishAt?: string | null;
+  scheduledFor?: string | null;
   searchMetadata?: SearchMetadata;
   canonicalUrl?: string;
   id: string;
@@ -66,8 +87,7 @@ export interface Story {
     tags: string[];
   }>;
   moderationEvents?: Array<{
-    action:
-      "submitted" | "published" | "changes_requested" | "removed" | "restored";
+    action: ModerationEvent["action"];
     at: string;
     actor: string | null;
     note: string | null;
@@ -76,7 +96,9 @@ export interface Story {
 
 function clean(value: unknown): Story | null {
   if (!value || typeof value !== "object") return null;
-  const s = value as Partial<Story>;
+  const { _id: ignoredDatabaseId, ...s } = value as Partial<Story> & {
+    _id?: unknown;
+  };
   if (typeof s.id !== "string" || typeof s.user !== "string") return null;
   return {
     ...s,
@@ -136,25 +158,7 @@ export async function ownedStory(
 }
 
 export async function deleteDraft(user: string, id: string) {
-  if (useMongo()) {
-    const deleted = await (
-      await collection("stories")
-    ).deleteOne({
-      _id: id,
-      user,
-      status: { $in: ["draft", "changes_requested"] },
-    });
-    if (!deleted.deletedCount)
-      throw new Error("Only your editable drafts can be deleted.");
-  } else {
-    const deleted = db()
-      .prepare(
-        "DELETE FROM stories WHERE id=? AND user_id=? AND status IN ('draft','changes_requested')",
-      )
-      .run(id, user);
-    if (!deleted.changes)
-      throw new Error("Only your editable drafts can be deleted.");
-  }
+  return (await import("./publishing")).deletePublicationDraft(user, id);
 }
 
 export async function listReviewStories(): Promise<Story[]> {
@@ -246,7 +250,7 @@ export async function getPublicStory(slug: string): Promise<Story | null> {
   return row ? clean(JSON.parse(String(row.payload))) : null;
 }
 
-const toSlug = (title: string, id: string) =>
+export const toSlug = (title: string, id: string) =>
   `${
     title
       .toLowerCase()
@@ -277,11 +281,29 @@ export async function saveStory(
     expectedUpdatedAt?: string;
     canonicalUrl?: string;
     searchMetadata?: { title: string; description: string };
+    requestedPublishAt?: string | null;
   },
 ): Promise<Story> {
   const now = new Date().toISOString();
   const title = input.title.trim().slice(0, 140);
   const summary = input.summary.trim().slice(0, 320);
+  const requestedPublishAt =
+    input.requestedPublishAt === undefined
+      ? undefined
+      : input.requestedPublishAt === null
+        ? null
+        : (() => {
+            const time = Date.parse(input.requestedPublishAt);
+            if (
+              !Number.isFinite(time) ||
+              time < Date.now() + 60000 ||
+              time > Date.now() + 365 * 86400000
+            )
+              throw new Error(
+                "Choose a publication time at least one minute from now and within the next year.",
+              );
+            return new Date(time).toISOString();
+          })();
   const searchMetadata =
     input.searchMetadata === undefined
       ? undefined
@@ -366,8 +388,23 @@ export async function saveStory(
       );
     if (!["draft", "changes_requested"].includes(existing.status))
       throw new Error("This submission is under editorial review.");
+    if (
+      input.submit &&
+      (requestedPublishAt === undefined
+        ? existing.requestedPublishAt
+        : requestedPublishAt) &&
+      Date.parse(
+        (requestedPublishAt === undefined
+          ? existing.requestedPublishAt
+          : requestedPublishAt)!,
+      ) <= Date.now()
+    )
+      throw new Error(
+        "The requested publication time has passed. Choose a new time or publish after review.",
+      );
     const story: Story = {
       ...existing,
+      ...(requestedPublishAt !== undefined ? { requestedPublishAt } : {}),
       searchMetadata:
         searchMetadata ||
         (title !== existing.title ||
@@ -451,6 +488,7 @@ export async function saveStory(
     return story;
   }
   const story: Story = {
+    ...(requestedPublishAt ? { requestedPublishAt } : {}),
     ...(searchMetadata ? { searchMetadata } : {}),
     ...(canonicalUrl ? { canonicalUrl } : {}),
     id: randomUUID(),
@@ -506,55 +544,18 @@ export async function reviewStory(
   action: "publish" | "changes",
   note: string,
   moderator: string | null = null,
+  expectedUpdatedAt?: string,
 ): Promise<Story> {
-  const now = new Date().toISOString();
-  const existing = useMongo()
-    ? clean(await (await collection("stories")).findOne({ _id: id }))
-    : clean(
-        (() => {
-          const row = db()
-            .prepare("SELECT payload FROM stories WHERE id=?")
-            .get(id) as any;
-          return row ? JSON.parse(String(row.payload)) : null;
-        })(),
-      );
-  if (!existing || existing.status !== "submitted")
-    throw new Error("Only submitted stories can be reviewed.");
-  const story: Story = {
-    ...existing,
-    status: action === "publish" ? "published" : "changes_requested",
-    reviewedAt: now,
-    publishedAt: action === "publish" ? now : null,
-    reviewNote: note.trim().slice(0, 1000) || null,
-    slug: action === "publish" ? toSlug(existing.title, existing.id) : null,
-    updatedAt: now,
-    moderationEvents: [
-      ...(existing.moderationEvents || []),
-      {
-        action: (action === "publish" ? "published" : "changes_requested") as
-          "published" | "changes_requested",
-        at: now,
-        actor: moderator,
-        note: note.trim().slice(0, 1000) || null,
-      },
-    ].slice(-50),
-  };
-  if (useMongo())
-    await (
-      await collection("stories")
-    ).updateOne({ _id: id }, { $set: { ...story, _id: id } });
-  else
-    transaction(() =>
-      db()
-        .prepare(
-          "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=?",
-        )
-        .run(story.status, story.updatedAt, JSON.stringify(story), id),
-    );
-  return story;
+  return (await import("./publishing")).reviewSubmittedStory(
+    id,
+    action,
+    note,
+    moderator,
+    expectedUpdatedAt,
+  );
 }
 
-async function getStoryById(id: string): Promise<Story | null> {
+export async function getStoryById(id: string): Promise<Story | null> {
   if (useMongo())
     return clean(await (await collection("stories")).findOne({ _id: id }));
   const row = db()
@@ -563,18 +564,83 @@ async function getStoryById(id: string): Promise<Story | null> {
   return row ? clean(JSON.parse(String(row.payload))) : null;
 }
 
-async function persistStory(story: Story): Promise<void> {
-  if (useMongo()) {
-    await (
-      await collection("stories")
-    ).updateOne({ _id: story.id }, { $set: { ...story, _id: story.id } });
-    return;
-  }
-  transaction(() =>
-    db()
-      .prepare("UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=?")
-      .run(story.status, story.updatedAt, JSON.stringify(story), story.id),
-  );
+export async function commitStoryChanges(
+  changes: Array<{ before: Story | null; after: Story | null }>,
+) {
+  const conflict = () =>
+    new Error(
+      "This story changed in another tab or review. Reload before continuing.",
+    );
+  if (useMongo())
+    return mongoTransaction(async (database, session) => {
+      const c = database.collection<any>("stories");
+      for (const { before, after } of changes) {
+        if (!before && after) {
+          await c.insertOne(
+            { ...JSON.parse(JSON.stringify(after)), _id: after.id },
+            { session },
+          );
+          continue;
+        }
+        if (!before) throw conflict();
+        const query = {
+          _id: before.id,
+          user: before.user,
+          updatedAt: before.updatedAt,
+          status: before.status,
+        };
+        const result = after
+          ? await c.replaceOne(
+              query,
+              { ...JSON.parse(JSON.stringify(after)), _id: after.id },
+              { session },
+            )
+          : await c.deleteOne(query, { session });
+        if (
+          !("matchedCount" in result
+            ? result.matchedCount
+            : result.deletedCount)
+        )
+          throw conflict();
+      }
+    });
+  transaction(() => {
+    for (const { before, after } of changes) {
+      if (!before && after) {
+        db()
+          .prepare("INSERT INTO stories VALUES (?,?,?,?,?)")
+          .run(
+            after.id,
+            after.user,
+            after.status,
+            after.updatedAt,
+            JSON.stringify(after),
+          );
+        continue;
+      }
+      if (!before) throw conflict();
+      const result = after
+        ? db()
+            .prepare(
+              "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=? AND user_id=? AND status=? AND updated_at=?",
+            )
+            .run(
+              after.status,
+              after.updatedAt,
+              JSON.stringify(after),
+              before.id,
+              before.user,
+              before.status,
+              before.updatedAt,
+            )
+        : db()
+            .prepare(
+              "DELETE FROM stories WHERE id=? AND user_id=? AND status=? AND updated_at=?",
+            )
+            .run(before.id, before.user, before.status, before.updatedAt);
+      if (!result.changes) throw conflict();
+    }
+  });
 }
 
 export async function removeStory(
@@ -607,7 +673,7 @@ export async function removeStory(
       },
     ].slice(-50),
   };
-  await persistStory(story);
+  await commitStoryChanges([{ before: existing, after: story }]);
   return story;
 }
 
@@ -640,7 +706,7 @@ export async function restoreStory(
       },
     ].slice(-50),
   };
-  await persistStory(story);
+  await commitStoryChanges([{ before: existing, after: story }]);
   return story;
 }
 
@@ -817,14 +883,24 @@ export async function recordPublicStoryView(slug: string): Promise<void> {
   const story = await getPublicStory(slug);
   if (!story) return;
   const now = new Date().toISOString();
-  await persistStory({
-    ...story,
-    analytics: {
-      views: Math.max(0, Number(story.analytics?.views || 0)) + 1,
-      lastViewedAt: now,
-    },
-    updatedAt: story.updatedAt,
-  });
+  // Increment only analytics. A concurrent page view must never overwrite a
+  // moderation decision, new revision or unpublish operation.
+  if (useMongo())
+    await (
+      await collection("stories")
+    ).updateOne(
+      { _id: story.id, status: "published" },
+      {
+        $inc: { "analytics.views": 1 },
+        $set: { "analytics.lastViewedAt": now },
+      },
+    );
+  else
+    db()
+      .prepare(
+        "UPDATE stories SET payload=json_set(payload,'$.analytics.views',COALESCE(json_extract(payload,'$.analytics.views'),0)+1,'$.analytics.lastViewedAt',?) WHERE id=? AND status='published'",
+      )
+      .run(now, story.id);
 }
 
 export async function creatorAnalytics(user: string) {

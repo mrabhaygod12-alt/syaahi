@@ -5,6 +5,7 @@ import { collection, useMongo } from "@/lib/storage/mongo";
 import { deliverStudyReminders } from "@/lib/study/reminders";
 import { indexDocumentBatch } from "@/lib/documents/vectors";
 import { processPendingDeck } from "@/lib/presentations/store";
+import { publishDueStories } from "@/lib/writing/publishing";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
@@ -31,6 +32,7 @@ export function kickWorker(standalone = false) {
           // Processing still gets a chance when the diagnostic write fails.
         }
       }
+      await publishDueStories();
       await Promise.all(
         (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
       );

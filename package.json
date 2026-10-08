@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:writer-publishing": "tsx scripts/test-writer-publishing.ts && tsx scripts/test-writer-publishing.ts --mongo",
+    "test:writer-publishing-browser": "tsx scripts/test-writer-publishing-browser.ts",
     "test:writer-discovery": "tsx scripts/test-writer-discovery.ts && tsx scripts/test-writer-discovery.ts --mongo",
     "test:writer-discovery-browser": "tsx scripts/test-writer-discovery-browser.ts",
     "test:admin-security": "tsx scripts/test-admin-security.ts && tsx scripts/test-admin-security.ts --mongo",

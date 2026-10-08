@@ -27,6 +27,7 @@ jobs:
       - run: npm run test:presentation-engine
       - run: npm run test:writer-platform
       - run: npm run test:writer-discovery
+      - run: npm run test:writer-publishing
       - run: npm run test:writer-social
       - run: npm test
       - run: npx tsx scripts/test-study.ts
@@ -46,4 +47,5 @@ jobs:
       - run: npm run test:payment-pages
       - run: npm run test:admin-routing-browser
       - run: npm run test:writer-discovery-browser
+      - run: npm run test:writer-publishing-browser
       - run: npm run test:public-discovery-browser

@@ -13,6 +13,7 @@ export type PublicGuide = Pick<
   | "creatorSlug"
   | "publishedAt"
   | "createdAt"
+  | "updatedAt"
   | "canonicalUrl"
   | "searchMetadata"
 >;
@@ -28,6 +29,7 @@ export function publicGuide(story: Story): PublicGuide {
     creatorSlug,
     publishedAt,
     createdAt,
+    updatedAt,
     canonicalUrl,
     searchMetadata,
   } = story;
@@ -42,6 +44,7 @@ export function publicGuide(story: Story): PublicGuide {
     creatorSlug,
     publishedAt,
     createdAt,
+    updatedAt,
     ...(canonicalUrl ? { canonicalUrl } : {}),
     ...(searchMetadata ? { searchMetadata } : {}),
   };

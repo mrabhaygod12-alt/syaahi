@@ -5,12 +5,16 @@ import StoryDocument from "./StoryDocument";
 import { useEffect, useState } from "react";
 
 interface Story {
+  status: string;
   id: string;
   title: string;
   summary: string;
   authorName: string;
   body: string;
   document?: RichNode;
+  updatedAt: string;
+  revisionOf?: string;
+  requestedPublishAt?: string | null;
 }
 interface Report {
   id: string;
@@ -72,7 +76,12 @@ export default function PublicationReview() {
       const response = await fetch("/api/admin/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action, note: note[id] || "" }),
+        body: JSON.stringify({
+          id,
+          action,
+          note: note[id] || "",
+          expectedUpdatedAt: stories.find((s) => s.id === id)?.updatedAt,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Review failed.");
@@ -140,7 +149,23 @@ export default function PublicationReview() {
         <h2 id="review-queue">Editorial queue</h2>
         {stories.map((story) => (
           <article className="interactive-panel" key={story.id}>
-            <p className="eyebrow">SUBMITTED · {story.authorName}</p>
+            <p className="eyebrow">
+              {story.status.toUpperCase()} · {story.authorName}
+            </p>
+            {story.revisionOf && (
+              <p className="small">
+                PRIVATE REVISION · Approval replaces the original article at its
+                existing URL. The current reviewed version stays public until
+                then.
+              </p>
+            )}
+            {story.requestedPublishAt && (
+              <p className="card">
+                Requested publication:{" "}
+                {new Date(story.requestedPublishAt).toLocaleString()}. Approval
+                schedules this version; the worker publishes it when due.
+              </p>
+            )}
             <h3>{story.title}</h3>
             <p>{story.summary}</p>
             <StoryDocument document={story.document} fallback={story.body} />
@@ -161,17 +186,23 @@ export default function PublicationReview() {
             <div className="hero-actions">
               <button
                 className="btn dark"
-                disabled={busy === story.id}
+                disabled={busy === story.id || story.status === "scheduled"}
                 onClick={() => void decide(story.id, "publish")}
               >
-                Publish reviewed guide
+                {story.requestedPublishAt
+                  ? "Approve and schedule"
+                  : story.revisionOf
+                    ? "Approve revision"
+                    : "Publish reviewed guide"}
               </button>
               <button
                 className="btn light"
                 disabled={busy === story.id}
                 onClick={() => void decide(story.id, "changes")}
               >
-                Request changes
+                {story.status === "scheduled"
+                  ? "Cancel schedule and request changes"
+                  : "Request changes"}
               </button>
             </div>
           </article>

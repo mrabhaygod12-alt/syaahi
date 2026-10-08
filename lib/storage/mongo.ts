@@ -102,6 +102,7 @@ async function indexes(d: Db) {
     d.collection("stories").createIndex({ user: 1, updatedAt: -1 }),
     d.collection("study_documents").createIndex({ owner: 1, createdAt: -1 }),
     d.collection("stories").createIndex({ status: 1, submittedAt: 1 }),
+    d.collection("stories").createIndex({ status: 1, scheduledFor: 1 }),
     d.collection("content_reports").createIndex({ status: 1, createdAt: -1 }),
     d.collection("story_engagement").createIndex({ storyId: 1, upvoted: 1 }),
     d.collection("story_engagement").createIndex({ storyId: 1, bookmarked: 1 }),

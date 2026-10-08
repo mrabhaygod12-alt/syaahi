@@ -76,6 +76,7 @@ export default async function GuidePage({
               headline: story.title,
               description: story.summary,
               datePublished: story.publishedAt || story.createdAt,
+              dateModified: story.updatedAt,
               author: {
                 "@type": "Person",
                 name: story.authorName,

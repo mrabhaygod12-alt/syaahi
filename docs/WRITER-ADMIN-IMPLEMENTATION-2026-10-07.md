@@ -78,7 +78,15 @@ roles, passwords or customer subscriptions were changed by these tests.
   approved search metadata. Editing content clears metadata for fresh review.
 - [x] Direct draft links load the owned story by ID, including older than the recent
   50-story list. Cross-account IDs return 404.
-- [ ] Published-story revision workflow, owner unpublishing and approved scheduling.
+- [x] Published-story private revisions retain the original public version until
+  editorial approval. Approved changes reuse the original URL and publication date.
+- [x] Author unpublish/republish, private revision deletion and pending-revision
+  isolation. A pending revision must be finished or discarded before withdrawal.
+- [x] Requested publication times, editorial-approved scheduling, durable worker
+  execution, cancellation and editor return-to-author. Later moderation blocks a
+  scheduled revision from resurrecting removed content.
+- [x] Concurrent editorial decisions use compare-and-swap; parent/revision writes
+  commit together. Page-view increments cannot overwrite content or moderation.
 - [ ] Interest/topic recommendation controls and diversification.
 - [ ] Friendly author URLs and verified custom-domain lifecycle.
 - [ ] Newsletter/subscriber lifecycle and publication teams.
@@ -107,6 +115,22 @@ capture or immunity from every attack is asserted.
   redaction. AI responses are synthetic fixtures, not a live provider claim.
 - Routing/admin increment `93534b3` passed GitHub CI and exact-revision public
   verification on both frontend and Render backend on 2026-10-07.
+- Discovery increment `295e9a0` passed GitHub CI and exact-revision frontend/Render
+  smoke verification on 2026-10-08.
+- `test:writer-publishing`: SQLite and MongoDB; revision approval, stable URLs,
+  concurrent reviews/workers, cancellation, ownership, atomic transitions and
+  protection against scheduled publication after moderation.
+- `test:writer-publishing-browser`: production UI plus locally enrolled MFA editor,
+  requested schedule, approval, author cancellation, stable public content,
+  withdrawal/republishing and 390/768/1440px layouts. Synthetic accounts only.
+- `test:workspace-upgrade` now follows the confirmed Max ₹399 recurring catalogue
+  and asserts that retired Starter subscriptions cannot be newly created. Its old
+  ₹39 recurring fixture was stale; one-time packs remain covered by pricing tests.
+
+Scheduled publication requires the existing persistent worker (`npm run worker`)
+or in-process worker. In external-worker mode, a paused worker delays publication;
+the UI shows the persisted scheduled state until execution succeeds. Times are
+stored as UTC; datetime inputs and displays use the user's device timezone.
 
 Design/security sources: [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238),
 [OWASP MFA guidance](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html).

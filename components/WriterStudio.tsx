@@ -35,6 +35,7 @@ function StudioContent() {
     [title, setTitle] = useState(""),
     [summary, setSummary] = useState(""),
     [canonicalUrl, setCanonicalUrl] = useState(""),
+    [publishTime, setPublishTime] = useState(""),
     [tags, setTags] = useState("");
   const [document, setDocument] = useState<RichNode>(textDocument("")),
     [busy, setBusy] = useState(false),
@@ -126,6 +127,14 @@ function StudioContent() {
         setTitle(story?.title || "");
         setSummary(story?.summary || "");
         setCanonicalUrl(story?.canonicalUrl || "");
+        if (story?.requestedPublishAt) {
+          const d = new Date(story.requestedPublishAt);
+          setPublishTime(
+            new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+              .toISOString()
+              .slice(0, 16),
+          );
+        } else setPublishTime("");
         setTags(story?.tags.join(", ") || "");
         const nextDocument = story?.document || textDocument(story?.body || "");
         readyDocument.current = nextDocument;
@@ -172,6 +181,9 @@ function StudioContent() {
           title: title.trim() || "Untitled story",
           summary,
           canonicalUrl,
+          requestedPublishAt: publishTime
+            ? new Date(publishTime).toISOString()
+            : null,
           document: editor?.getJSON() || document,
           body: "",
           tags: tags.split(","),
@@ -225,6 +237,7 @@ function StudioContent() {
     title,
     summary,
     canonicalUrl,
+    publishTime,
     tags,
     document,
     dirty,
@@ -415,14 +428,29 @@ function StudioContent() {
             edited();
           }}
         />
+        {active?.revisionOf && (
+          <p className="writer-review-note">
+            Private revision · Your original article stays unchanged until this
+            revision passes editorial review.
+          </p>
+        )}
         {locked && (
           <p className="writer-review-note">
             {active?.status === "published"
               ? "This story is published."
-              : "This story is awaiting editorial review."}{" "}
-            {active?.slug && (
-              <a href={`/guides/${active.slug}`}>Read published story ↗</a>
-            )}
+              : active?.status === "scheduled"
+                ? `Approved and scheduled for ${new Date(active.scheduledFor!).toLocaleString()}.`
+                : active?.status === "unpublished"
+                  ? "This article is unpublished. Start a private revision from Your stories to republish it."
+                  : active?.status === "archived"
+                    ? "This revision has been approved and applied to its original article."
+                    : active?.status === "removed"
+                      ? "This article was removed by moderation."
+                      : "This story is awaiting editorial review."}{" "}
+            {active?.slug &&
+              ["published", "archived"].includes(active.status) && (
+                <a href={`/guides/${active.slug}`}>Read published story ↗</a>
+              )}
           </p>
         )}
         {preview ? (
@@ -550,6 +578,24 @@ function StudioContent() {
                 images stay private until an editor approves them. After
                 submission, editing is paused during review.
               </p>
+              <label>
+                Publish after review
+                <input
+                  type="datetime-local"
+                  aria-label="Requested publication time"
+                  value={publishTime}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setPublishTime(e.target.value);
+                    edited();
+                  }}
+                />
+                <small>
+                  Optional. Uses your device timezone. Leave empty to publish
+                  after approval. A requested time requires editor approval and
+                  a running publishing worker.
+                </small>
+              </label>
               {saveError && <p role="alert">{message}</p>}
               <button
                 className="btn dark"

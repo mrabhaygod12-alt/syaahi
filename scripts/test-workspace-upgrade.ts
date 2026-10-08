@@ -139,12 +139,12 @@ async function main() {
     { record } = await import("../lib/workspace-records");
   let posts = 0;
   const provider = async (path: string, body?: any): Promise<any> => {
-    if (path === "plans/plan_STARTER")
+    if (path === "plans/plan_MAX")
       return {
-        id: "plan_STARTER",
+        id: "plan_MAX",
         period: "monthly",
         interval: 1,
-        item: { currency: "INR", amount: 3900 },
+        item: { currency: "INR", amount: 39900 },
       };
     if (path === "subscriptions") {
       posts++;
@@ -157,7 +157,7 @@ async function main() {
     if (path === "subscriptions/sub_UnitMonthly")
       return {
         id: "sub_UnitMonthly",
-        plan_id: "plan_STARTER",
+        plan_id: "plan_MAX",
         status: "active",
         current_end: 9999999999,
       };
@@ -168,7 +168,7 @@ async function main() {
         id: "pay_CycleOne",
         invoice_id: "inv_CycleOne",
         status: "captured",
-        amount: 3900,
+        amount: 39900,
         currency: "INR",
       };
     if (path === "invoices/inv_CycleOne")
@@ -177,15 +177,17 @@ async function main() {
         subscription_id: "sub_UnitMonthly",
         payment_id: "pay_CycleOne",
         status: "paid",
-        amount_paid: 3900,
+        amount_paid: 39900,
         currency: "INR",
         billing_end: Math.floor(Date.now() / 1000) + 2592000,
       };
     throw new Error(`Unexpected mocked operation ${path}`);
   };
+  await assert.rejects(() => billing.createSubscription(user.id, "starter", provider));
+  assert.equal(posts, 0, "Retired recurring tiers must not create provider mandates");
   const creates = await Promise.allSettled([
-    billing.createSubscription(user.id, "starter", provider),
-    billing.createSubscription(user.id, "starter", provider),
+    billing.createSubscription(user.id, "max", provider),
+    billing.createSubscription(user.id, "max", provider),
   ]);
   assert.equal(creates.filter((r) => r.status === "fulfilled").length, 1);
   assert.equal(posts, 1);
@@ -204,8 +206,8 @@ async function main() {
     billing.settleSubscription("sub_UnitMonthly", "pay_CycleOne", provider),
     billing.settleSubscription("sub_UnitMonthly", "pay_CycleOne", provider),
   ]);
-  assert.equal(await balance(user.id), 34);
-  assert.equal(await billing.presentationLimit(user.id), 8);
+  assert.equal(await balance(user.id), 379);
+  assert.equal(await billing.presentationLimit(user.id), 15);
   await assert.rejects(() =>
     billing.settleSubscription(
       "sub_UnitMonthly",
@@ -231,7 +233,7 @@ async function main() {
     (await billing.currentSubscription(user.id))?.cancelScheduled,
     true,
   );
-  assert.equal(await balance(user.id), 34);
+  assert.equal(await balance(user.id), 379);
   const {
       createDeck,
       ownedDeck,
@@ -271,7 +273,7 @@ async function main() {
     template: "classroom",
     count: 6,
   });
-  assert.equal(await balance(user.id), 29);
+  assert.equal(await balance(user.id), 374);
   assert.equal(await ownedDeck(other.id, deck.id), null);
   let calls = 0;
   const generated = async () => {
@@ -306,7 +308,7 @@ async function main() {
   assert.equal(complete.status, "done");
   assert.equal(complete.slides.length, 6);
   assert.equal(calls, 7);
-  assert.equal(await balance(user.id), 29);
+  assert.equal(await balance(user.id), 374);
   const ppt = await exportDeck(complete);
   assert.equal(ppt.subarray(0, 2).toString(), "PK");
   mkdirSync("output/workspace-upgrade", { recursive: true });
@@ -333,13 +335,13 @@ async function main() {
     throw new Error("Provider outage");
   });
   assert.equal((await ownedDeck(user.id, failed.id))?.status, "error");
-  assert.equal(await balance(user.id), 29);
+  assert.equal(await balance(user.id), 374);
   const retries = await Promise.allSettled([
     retryDeck(user.id, failed.id),
     retryDeck(user.id, failed.id),
   ]);
   assert.equal(retries.filter((r) => r.status === "fulfilled").length, 1);
-  assert.equal(await balance(user.id), 24);
+  assert.equal(await balance(user.id), 369);
   assert.equal((await record<any>(failed.id))!.attempt, 2);
   const { mutateRecord } = await import("../lib/workspace-records");
   for (let i = 0; i < 85; i++) {

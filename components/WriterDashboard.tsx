@@ -17,12 +17,19 @@ export function StoryRow({
   onDelete,
   publicFeed = false,
   onUnsave,
+  onPublication,
+  publicationBusy = false,
 }: {
   story: Partial<Story>;
   own?: boolean;
   onDelete?: (id: string) => void;
   publicFeed?: boolean;
   onUnsave?: (slug: string) => void;
+  onPublication?: (
+    story: Story,
+    action: "revise" | "unpublish" | "cancel_schedule",
+  ) => void;
+  publicationBusy?: boolean;
 }) {
   const href =
     own && story.status !== "published"
@@ -61,7 +68,40 @@ export function StoryRow({
               {tag}
             </a>
           ))}
-          {own && story.status !== "published" && <a href={href}>Edit draft</a>}
+          {own && ["draft", "changes_requested"].includes(story.status!) && (
+            <a href={href}>Edit draft</a>
+          )}
+          {own && ["published", "unpublished"].includes(story.status!) && (
+            <button
+              className="writer-text-button"
+              disabled={publicationBusy}
+              onClick={() => onPublication?.(story as Story, "revise")}
+            >
+              {story.pendingRevisionId
+                ? "Open private revision"
+                : story.status === "unpublished"
+                  ? "Revise and republish"
+                  : "Edit private revision"}
+            </button>
+          )}
+          {own && story.status === "published" && (
+            <button
+              className="writer-text-button"
+              disabled={publicationBusy || !!story.pendingRevisionId}
+              onClick={() => onPublication?.(story as Story, "unpublish")}
+            >
+              Unpublish
+            </button>
+          )}
+          {own && story.status === "scheduled" && (
+            <button
+              className="writer-text-button"
+              disabled={publicationBusy}
+              onClick={() => onPublication?.(story as Story, "cancel_schedule")}
+            >
+              Cancel schedule
+            </button>
+          )}
           {onUnsave && (
             <button
               className="writer-text-button"
@@ -82,6 +122,17 @@ export function StoryRow({
         {story.reviewNote && own && (
           <p className="writer-review-note">Editor: {story.reviewNote}</p>
         )}
+        {own && story.scheduledFor && (
+          <p className="writer-review-note">
+            Approved · Scheduled for{" "}
+            {new Date(story.scheduledFor).toLocaleString()}
+          </p>
+        )}
+        {own && story.revisionOf && (
+          <p className="writer-fine-print">
+            Private revision of your original article.
+          </p>
+        )}
       </div>
       {cover && (
         <a href={href} className="writer-story-cover">
@@ -101,6 +152,45 @@ function DashboardContent({ view }: { view: View }) {
     [search, setSearch] = useState(""),
     [remove, setRemove] = useState<string | null>(null),
     [deleting, setDeleting] = useState(false);
+  const [publication, setPublication] = useState<{
+      story: Story;
+      action: "unpublish" | "cancel_schedule";
+    } | null>(null),
+    [publicationBusy, setPublicationBusy] = useState(false),
+    [publicationError, setPublicationError] = useState("");
+  async function changePublication(
+    story: Story,
+    action: "revise" | "unpublish" | "cancel_schedule",
+  ) {
+    if (publicationBusy) return;
+    setPublicationBusy(true);
+    setPublicationError("");
+    try {
+      const { response, data } = await requestJson("/api/writer/publishing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: story.id,
+          expectedUpdatedAt: story.updatedAt,
+          action,
+        }),
+      });
+      if (!response.ok) throw new Error(data.error);
+      if (action === "revise")
+        location.assign(`/write?draft=${encodeURIComponent(data.story.id)}`);
+      else {
+        setPublication(null);
+        setFilter(action === "unpublish" ? "unpublished" : "draft");
+        load();
+      }
+    } catch (e) {
+      setPublicationError(
+        e instanceof Error ? e.message : "Could not change this publication.",
+      );
+    } finally {
+      setPublicationBusy(false);
+    }
+  }
   const load = () => {
     setLoading(true);
     setError("");
@@ -178,6 +268,8 @@ function DashboardContent({ view }: { view: View }) {
               ["draft", "Drafts"],
               ["submitted", "In review"],
               ["published", "Published"],
+              ["scheduled", "Scheduled"],
+              ["unpublished", "Unpublished"],
               ["all", "All stories"],
             ].map(([key, label]) => (
               <button
@@ -211,6 +303,11 @@ function DashboardContent({ view }: { view: View }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        )}
+        {publicationError && !publication && (
+          <p role="alert" className="writer-empty">
+            {publicationError}
+          </p>
         )}
         {loading ? (
           <p role="status" className="writer-empty">
@@ -317,6 +414,12 @@ function DashboardContent({ view }: { view: View }) {
               story={s}
               own={view === "stories"}
               onDelete={setRemove}
+              publicationBusy={publicationBusy}
+              onPublication={(story, action) => {
+                setPublicationError("");
+                if (action === "revise") void changePublication(story, action);
+                else setPublication({ story, action });
+              }}
               onUnsave={
                 view === "library"
                   ? async (slug) => {
@@ -441,6 +544,54 @@ function DashboardContent({ view }: { view: View }) {
               }}
             >
               {deleting ? "Deleting…" : "Delete draft"}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {publication && (
+        <Modal
+          title={
+            publication.action === "unpublish"
+              ? "Unpublish article"
+              : "Cancel publication schedule"
+          }
+          onClose={() => {
+            if (!publicationBusy) setPublication(null);
+          }}
+        >
+          <p className="writer-kicker">YOUR PUBLICATION</p>
+          <h2>
+            {publication.action === "unpublish"
+              ? "Take this article offline?"
+              : "Return this article to drafts?"}
+          </h2>
+          <p>{publication.story.title}</p>
+          <p>
+            {publication.action === "unpublish"
+              ? "Readers will no longer be able to open the public article. Your content and existing URL are retained. Republish through a private revision and fresh editorial review."
+              : "The approved schedule will be cancelled. Your content returns to drafts and needs fresh editorial approval before publication."}
+          </p>
+          {publicationError && <p role="alert">{publicationError}</p>}
+          <div className="writer-dialog-actions">
+            <button
+              className="btn light"
+              disabled={publicationBusy}
+              onClick={() => setPublication(null)}
+            >
+              Keep current state
+            </button>
+            <button
+              className="btn dark"
+              disabled={publicationBusy}
+              onClick={() =>
+                void changePublication(publication.story, publication.action)
+              }
+            >
+              {publicationBusy
+                ? "Saving…"
+                : publication.action === "unpublish"
+                  ? "Confirm unpublish"
+                  : "Confirm cancel schedule"}
             </button>
           </div>
         </Modal>
