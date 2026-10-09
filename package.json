@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:writer-moderation": "tsx scripts/test-writer-moderation.ts && tsx scripts/test-writer-moderation.ts --mongo",
     "test:writer-connections-activity": "tsx scripts/test-writer-connections-activity.ts && tsx scripts/test-writer-connections-activity.ts --mongo",
     "test:writer-social-workspace-browser": "tsx scripts/test-writer-social-workspace-browser.ts",
     "test:writer-editor-reliability": "tsx scripts/test-writer-editor-reliability.ts && tsx scripts/test-writer-editor-reliability.ts --mongo",

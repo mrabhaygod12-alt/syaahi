@@ -9,6 +9,8 @@ import {
   removeStory,
   resolveContentReport,
   restoreStory,
+  ModerationConflictError,
+  ModerationValidationError,
 } from "@/lib/writing/stories";
 
 async function guard(req: NextRequest) {
@@ -65,12 +67,17 @@ async function handlePOST(req: NextRequest) {
       { status: 400 },
     );
   } catch (error) {
+    if (
+      !(error instanceof ModerationConflictError) &&
+      !(error instanceof ModerationValidationError)
+    )
+      throw error;
     return NextResponse.json(
       {
         error:
           error instanceof Error ? error.message : "Moderation action failed.",
       },
-      { status: 400 },
+      { status: error instanceof ModerationConflictError ? 409 : 400 },
     );
   }
 }

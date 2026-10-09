@@ -206,3 +206,17 @@ the previous CI failure was a millisecond-dependent score comparison.
 Still pending: profile pinning, newsletter/subscriber delivery, publication teams,
 expanded audience analysis, user invitations, support attachments and the other
 unchecked items above. No full parity with Medium is claimed.
+
+## Atomic report moderation — 2026-10-09
+
+- Report resolution and article takedown commit in one database transaction.
+  Conflicting decisions cannot both succeed or leave an article removed while
+  its report says dismissed. The removal event and moderator are recorded together.
+- Stale report decisions return HTTP 409 with a reload instruction. Validation
+  failures remain actionable; infrastructure failures return a safe reference ID
+  through the shared API handler, without database diagnostics in the response.
+- `test:writer-moderation` covers SQLite and MongoDB: forced database-write failure
+  and rollback, dismiss/takedown races, duplicate takedown, two reports on one
+  article, retained views, server authorization and API conflict/error responses.
+  Existing publishing and creator-publication regressions pass. Faults are injected
+  only into synthetic test databases; no production article/report was changed.

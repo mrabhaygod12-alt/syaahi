@@ -374,18 +374,26 @@ export async function saveStory(
     if (
       existing.user !== user ||
       existing.status !== (input.submit ? "submitted" : "draft") ||
-      existing.title !== title || existing.summary !== summary ||
+      existing.title !== title ||
+      existing.summary !== summary ||
       existing.body !== body ||
       JSON.stringify(existing.document) !== JSON.stringify(document) ||
       JSON.stringify(existing.tags) !== JSON.stringify(tags) ||
       (existing.canonicalUrl || "") !== (canonicalUrl || "") ||
       (existing.requestedPublishAt || null) !== (requestedPublishAt || null)
     )
-      throw new Error("This draft was already saved. Reload it before changing this retry.");
+      throw new Error(
+        "This draft was already saved. Reload it before changing this retry.",
+      );
     return existing;
   };
   if (input.draftId) {
-    if (input.id || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(input.draftId))
+    if (
+      input.id ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(
+        input.draftId,
+      )
+    )
       throw new Error("Use a valid new draft identifier.");
     const retried = await retryDraft();
     if (retried) return retried;
@@ -547,20 +555,23 @@ export async function saveStory(
   };
   try {
     if (useMongo())
-      await (await collection("stories")).insertOne({ ...story, _id: story.id });
-    else transaction(() =>
-      db()
-        .prepare(
-          "INSERT INTO stories (id,user_id,status,updated_at,payload) VALUES (?,?,?,?,?)",
-        )
-        .run(
-          story.id,
-          user,
-          story.status,
-          story.updatedAt,
-          JSON.stringify(story),
-        ),
-    );
+      await (
+        await collection("stories")
+      ).insertOne({ ...story, _id: story.id });
+    else
+      transaction(() =>
+        db()
+          .prepare(
+            "INSERT INTO stories (id,user_id,status,updated_at,payload) VALUES (?,?,?,?,?)",
+          )
+          .run(
+            story.id,
+            user,
+            story.status,
+            story.updatedAt,
+            JSON.stringify(story),
+          ),
+      );
   } catch (error) {
     const retried = await retryDraft();
     if (retried) return retried;
@@ -673,16 +684,21 @@ export async function commitStoryChanges(
   });
 }
 
-export async function removeStory(
-  id: string,
+export class ModerationValidationError extends Error {}
+
+function removedStory(
+  existing: Story | null,
   moderator: string,
   note: string,
-): Promise<Story> {
+): Story {
   if (note.trim().length < 12)
-    throw new Error("Add a clear moderation note before taking down a guide.");
-  const existing = await getStoryById(id);
+    throw new ModerationValidationError(
+      "Add a clear moderation note before taking down a guide.",
+    );
   if (!existing || existing.status !== "published")
-    throw new Error("Only published guides can be taken down.");
+    throw new ModerationValidationError(
+      "Only published guides can be taken down.",
+    );
   const now = new Date().toISOString();
   const story: Story = {
     ...existing,
@@ -703,6 +719,16 @@ export async function removeStory(
       },
     ].slice(-50),
   };
+  return story;
+}
+
+export async function removeStory(
+  id: string,
+  moderator: string,
+  note: string,
+): Promise<Story> {
+  const existing = await getStoryById(id);
+  const story = removedStory(existing, moderator, note);
   await commitStoryChanges([{ before: existing, after: story }]);
   return story;
 }
@@ -714,7 +740,7 @@ export async function restoreStory(
 ): Promise<Story> {
   const existing = await getStoryById(id);
   if (!existing || existing.status !== "removed")
-    throw new Error("Only removed guides can be restored.");
+    throw new ModerationValidationError("Only removed guides can be restored.");
   const now = new Date().toISOString();
   const story: Story = {
     ...existing,
@@ -869,44 +895,98 @@ export async function listModerationEvents(
     .slice(0, Math.max(1, Math.min(limit, 500)));
 }
 
+export class ModerationConflictError extends Error {}
+
 export async function resolveContentReport(
   id: string,
   action: "dismiss" | "takedown",
   moderator: string,
   note: string,
 ): Promise<ContentReport> {
-  const existing = useMongo()
-    ? cleanReport(
-        await (await collection("content_reports")).findOne({ _id: id }),
-      )
-    : (() => {
-        const row = db()
-          .prepare("SELECT payload FROM content_reports WHERE id=?")
-          .get(id) as any;
-        return row ? cleanReport(JSON.parse(String(row.payload))) : null;
-      })();
-  if (!existing || existing.status !== "open")
-    throw new Error("Only open reports can be resolved.");
-  if (action === "takedown")
-    await removeStory(existing.storyId, moderator, note);
-  const resolved: ContentReport = {
-    ...existing,
-    status: action === "takedown" ? "actioned" : "dismissed",
-    resolvedAt: new Date().toISOString(),
-    moderator,
-    resolutionNote: note.trim().slice(0, 1000) || null,
-  };
-  if (useMongo())
-    await (
-      await collection("content_reports")
-    ).updateOne({ _id: id }, { $set: { ...resolved, _id: id } });
-  else
-    transaction(() =>
-      db()
-        .prepare("UPDATE content_reports SET status=?,payload=? WHERE id=?")
-        .run(resolved.status, JSON.stringify(resolved), id),
+  if (action !== "dismiss" && action !== "takedown")
+    throw new ModerationValidationError("Choose a valid report resolution.");
+  const conflict = () =>
+    new ModerationConflictError(
+      "This report or article changed. Reload the moderation queue before continuing.",
     );
-  return resolved;
+  const resolvedReport = (existing: ContentReport | null): ContentReport => {
+    if (!existing || existing.status !== "open") throw conflict();
+    return {
+      ...existing,
+      status: action === "takedown" ? "actioned" : "dismissed",
+      resolvedAt: new Date().toISOString(),
+      moderator,
+      resolutionNote: note.trim().slice(0, 1000) || null,
+    };
+  };
+  // Read and commit the decision and any article removal together. MongoDB retries
+  // a conflicted snapshot; SQLite serializes the synchronous work under one lock.
+  if (useMongo())
+    return mongoTransaction(async (database, session) => {
+      const reports = database.collection<any>("content_reports");
+      const existing = cleanReport(
+        await reports.findOne({ _id: id }, { session }),
+      );
+      const resolved = resolvedReport(existing);
+      if (action === "takedown") {
+        const stories = database.collection<any>("stories");
+        const before = clean(
+          await stories.findOne({ _id: resolved.storyId }, { session }),
+        );
+        if (!before || before.status !== "published") throw conflict();
+        const after = removedStory(before, moderator, note);
+        const changed = await stories.replaceOne(
+          { _id: before.id, status: "published", updatedAt: before.updatedAt },
+          { ...after, _id: after.id },
+          { session },
+        );
+        if (!changed.matchedCount) throw conflict();
+      }
+      const changed = await reports.replaceOne(
+        { _id: id, status: "open" },
+        { ...resolved, _id: id },
+        { session },
+      );
+      if (!changed.matchedCount) throw conflict();
+      return resolved;
+    });
+  return transaction(() => {
+    const row = db()
+      .prepare("SELECT payload FROM content_reports WHERE id=?")
+      .get(id);
+    const resolved = resolvedReport(
+      row ? cleanReport(JSON.parse(String(row.payload))) : null,
+    );
+    if (action === "takedown") {
+      const current = db()
+        .prepare("SELECT payload FROM stories WHERE id=?")
+        .get(resolved.storyId);
+      const before = current
+        ? clean(JSON.parse(String(current.payload)))
+        : null;
+      if (!before || before.status !== "published") throw conflict();
+      const after = removedStory(before, moderator, note);
+      const changed = db()
+        .prepare(
+          "UPDATE stories SET status=?,updated_at=?,payload=? WHERE id=? AND status='published' AND updated_at=?",
+        )
+        .run(
+          after.status,
+          after.updatedAt,
+          JSON.stringify(after),
+          before.id,
+          before.updatedAt,
+        );
+      if (!changed.changes) throw conflict();
+    }
+    const changed = db()
+      .prepare(
+        "UPDATE content_reports SET status=?,payload=? WHERE id=? AND status='open'",
+      )
+      .run(resolved.status, JSON.stringify(resolved), id);
+    if (!changed.changes) throw conflict();
+    return resolved;
+  });
 }
 
 export async function recordPublicStoryView(slug: string): Promise<void> {

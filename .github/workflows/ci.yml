@@ -30,6 +30,7 @@ jobs:
       - run: npm run test:writer-editor-reliability
       - run: npm run test:writer-discovery
       - run: npm run test:writer-publishing
+      - run: npm run test:writer-moderation
       - run: npm run test:writer-recommendations
       - run: npm run test:writer-social
       - run: npm run test:writer-connections-activity
