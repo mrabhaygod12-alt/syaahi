@@ -145,9 +145,17 @@ async function main() {
         .every((s) => s.story.creatorSlug !== "prolific"),
     );
     const history: any[] = [{ storyId: candidates[0].id, qualified: true }];
+    const sameInstant = Date.now();
     assert.deepEqual(
-      r.rankStories(candidates, prefs, new Set(), history),
-      r.rankStories(candidates, prefs, new Set(), []),
+      r.rankStories(
+        candidates,
+        prefs,
+        new Set(),
+        history,
+        "for_you",
+        sameInstant,
+      ),
+      r.rankStories(candidates, prefs, new Set(), [], "for_you", sameInstant),
       "Opted-out history must have no ranking effect",
     );
     assert.notEqual(

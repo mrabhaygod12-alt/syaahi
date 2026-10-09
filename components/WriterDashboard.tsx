@@ -5,6 +5,8 @@ import type { Story } from "@/lib/writing/stories";
 import WriterShell, { useWriter, WriterAvatar } from "./writer/WriterShell";
 import Modal from "./Modal";
 import "./writer/preferences.css";
+import type { StoryActivity } from "@/lib/writing/activity";
+import "./writer/social-workspace.css";
 type View = "home" | "stories" | "library" | "stats";
 const date = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", {
@@ -22,7 +24,7 @@ export function StoryRow({
   publicationBusy = false,
   reason,
 }: {
-  story: Partial<Story>;
+  story: Partial<Story> & { activity?: StoryActivity };
   own?: boolean;
   onDelete?: (id: string) => void;
   publicFeed?: boolean;
@@ -123,6 +125,45 @@ export function StoryRow({
             </button>
           )}
         </div>
+        {story.activity && (
+          <div className="writer-story-activity" aria-label="Story activity">
+            <a
+              href={`${href}#story-activity`}
+              aria-label={`${story.activity.likes} likes`}
+            >
+              <span aria-hidden="true">♡</span> {story.activity.likes}
+            </a>
+            <a
+              href={`${href}#story-responses`}
+              aria-label={`${story.activity.comments} comments`}
+            >
+              <span aria-hidden="true">◌</span> {story.activity.comments}
+            </a>
+            <span title="Approximate page views, including repeat visits">
+              {story.activity.views.toLocaleString()} views
+            </span>
+            <details className="writer-story-more">
+              <summary aria-label={`More options for ${story.title}`}>
+                ···
+              </summary>
+              <div>
+                <a href={href}>Read story</a>
+                <a href={`${href}#story-activity`}>Like or save story</a>
+                <a href={`${href}#story-responses`}>Join the conversation</a>
+                {own && <a href="/writer/stats">Story stats</a>}
+                {own && onPublication && (
+                  <button
+                    className="writer-text-button"
+                    disabled={publicationBusy}
+                    onClick={() => onPublication(story as Story, "revise")}
+                  >
+                    Edit private revision
+                  </button>
+                )}
+              </div>
+            </details>
+          </div>
+        )}
         {story.reviewNote && own && (
           <p className="writer-review-note">Editor: {story.reviewNote}</p>
         )}
@@ -382,6 +423,10 @@ function DashboardContent({ view }: { view: View }) {
                 [analytics?.drafts || 0, "Drafts"],
                 [analytics?.inReview || 0, "In review"],
                 [analytics?.qualifiedReaders || 0, "Signed-in readers · 30s"],
+                [analytics?.followers || 0, "Followers"],
+                [analytics?.following || 0, "Following"],
+                [analytics?.likes || 0, "Likes"],
+                [analytics?.comments || 0, "Public responses"],
               ].map(([value, label]) => (
                 <div key={label}>
                   <strong>{value}</strong>
@@ -394,7 +439,9 @@ function DashboardContent({ view }: { view: View }) {
               Qualified reader counts reflect signed-in accounts with at least
               30 seconds of reported active reading, bounded by server time.
               They do not prove completion or attention. Story opens cover your
-              latest 50 stories.
+              latest 50 stories, as do likes and response totals. Follower
+              counts include all active follows; connection lists display public
+              writers.
             </p>
             <div className="writer-impact-chart">
               <h2>Your most opened stories</h2>
@@ -430,6 +477,8 @@ function DashboardContent({ view }: { view: View }) {
                     <th>Status</th>
                     <th>Opens</th>
                     <th>Readers · 30s</th>
+                    <th>Likes</th>
+                    <th>Responses</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -449,6 +498,8 @@ function DashboardContent({ view }: { view: View }) {
                       <td>{s.status.replaceAll("_", " ")}</td>
                       <td>{s.analytics?.views || 0}</td>
                       <td>{analytics?.byStory?.[s.id] || 0}</td>
+                      <td>{analytics?.storyActivity?.[s.id]?.likes || 0}</td>
+                      <td>{analytics?.storyActivity?.[s.id]?.comments || 0}</td>
                     </tr>
                   ))}
                 </tbody>

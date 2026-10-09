@@ -2,6 +2,7 @@ import { db, transaction } from "@/lib/db";
 import { collection, mongoTransaction, useMongo } from "@/lib/storage/mongo";
 import { getPublicStory } from "./stories";
 import { type Story } from "./stories";
+import { storyActivities } from "./activity";
 export async function savedGuides(user: string): Promise<Story[]> {
   if (useMongo()) {
     const reactions = await (
@@ -33,6 +34,8 @@ export async function savedGuides(user: string): Promise<Story[]> {
 }
 
 export interface GuideEngagement {
+  views: number;
+  comments: number;
   upvotes: number;
   bookmarks: number;
   tippedCredits: number;
@@ -40,6 +43,7 @@ export interface GuideEngagement {
     upvoted: boolean;
     bookmarked: boolean;
     tippedCredits: number;
+    ownStoryId?: string;
   } | null;
 }
 
@@ -56,6 +60,7 @@ export async function guideEngagement(
 ): Promise<GuideEngagement> {
   const story = await getPublicStory(slug);
   if (!story) throw new Error("This guide is no longer available.");
+  const activity = (await storyActivities([story])).get(story.id)!;
   if (useMongo()) {
     const c = await collection("story_engagement");
     const [totals] = await c
@@ -75,6 +80,8 @@ export async function guideEngagement(
       ? ((await c.findOne({ _id: key(story.id, user) })) as Row | null)
       : null;
     return {
+      views: activity.views,
+      comments: activity.comments,
       upvotes: Number(totals?.upvotes || 0),
       bookmarks: Number(totals?.bookmarks || 0),
       tippedCredits: Number(totals?.tippedCredits || 0),
@@ -83,6 +90,7 @@ export async function guideEngagement(
             upvoted: viewer?.upvoted === true,
             bookmarked: viewer?.bookmarked === true,
             tippedCredits: Number(viewer?.tips || 0),
+            ...(story.user === user ? { ownStoryId: story.id } : {}),
           }
         : null,
     };
@@ -100,6 +108,8 @@ export async function guideEngagement(
         .get(story.id, user) as Row | undefined)
     : undefined;
   return {
+    views: activity.views,
+    comments: activity.comments,
     upvotes: Number(totals.upvotes),
     bookmarks: Number(totals.bookmarks),
     tippedCredits: Number(totals.tippedCredits),
@@ -108,6 +118,7 @@ export async function guideEngagement(
           upvoted: Boolean(viewer?.upvoted),
           bookmarked: Boolean(viewer?.bookmarked),
           tippedCredits: Number(viewer?.tips || 0),
+          ...(story.user === user ? { ownStoryId: story.id } : {}),
         }
       : null,
   };

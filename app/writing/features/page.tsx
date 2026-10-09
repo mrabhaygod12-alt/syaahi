@@ -27,15 +27,15 @@ const tools = [
   ],
   [
     "Help readers return",
-    "Signed-in readers can follow a writer, save reading position and keep private selected highlights and notes. Bookmarks offer another way to return to a story.",
+    "Follow and unfollow writers, browse your connections and return through a Following feed. Writers can choose to show verified public writer connections on their profile. Reading position, selected highlights and notes stay private.",
   ],
   [
     "Talk about published work",
-    "Readers can post plain-text public responses. Authors and response owners can remove their responses; private reading notes stay private.",
+    "Like, save, share and comment on reviewed articles. Story cards show real likes, visible responses and approximate views. Authors and response owners can remove their responses; private reading notes stay private.",
   ],
   [
     "Understand readership",
-    "View story opens and qualified signed-in readers separately. Qualified readers use a bounded thirty-second reading signal, not a claim of verified human attention or earnings.",
+    "View followers, following, likes, responses, approximate story opens and qualified signed-in readers separately. Story metrics cover your latest 50 stories. Qualified readers use a bounded thirty-second signal, not verified attention or earnings.",
   ],
   [
     "Credit an original publication",

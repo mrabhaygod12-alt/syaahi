@@ -99,10 +99,12 @@ export default async function GuidePage({
             ),
           }}
         />
-        <StoryReader slug={story.slug!}>
+        <StoryReader
+          slug={story.slug!}
+          afterContent={<PublicationActions slug={story.slug!} />}
+        >
           <StoryDocument document={story.document} fallback={story.body} />
         </StoryReader>
-        <PublicationActions slug={story.slug!} />
         <ReportPublication slug={story.slug!} />
       </article>
       {related.length > 0 && (

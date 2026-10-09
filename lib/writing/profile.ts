@@ -20,6 +20,7 @@ export interface WriterProfile extends WorkspaceRecord {
   website: string;
   appearance: "light" | "dark" | "system";
   accent?: "forest" | "copper" | "violet" | "ink";
+  showConnections?: boolean;
   joinedAt: string;
 }
 export const writerProfile = (user: string) =>
@@ -140,6 +141,13 @@ export async function updateWriterProfile(
     input.accent === undefined ? old.accent || "forest" : input.accent;
   if (!["forest", "copper", "violet", "ink"].includes(String(accent)))
     throw new Error("Choose a supported profile accent.");
+  if (
+    input.showConnections !== undefined &&
+    typeof input.showConnections !== "boolean"
+  )
+    throw new Error(
+      "Choose whether to display your public writer connections.",
+    );
   return mutateRecord<WriterProfile>(old.id, (current) => {
     if (
       !current ||
@@ -158,6 +166,10 @@ export async function updateWriterProfile(
       avatar,
       appearance: appearance as WriterProfile["appearance"],
       accent: accent as WriterProfile["accent"],
+      showConnections:
+        input.showConnections === undefined
+          ? !!current.showConnections
+          : (input.showConnections as boolean),
       updatedAt: new Date(
         Math.max(Date.now(), Date.parse(current.updatedAt) + 1),
       ).toISOString(),
@@ -175,6 +187,7 @@ export function publicWriterProfile(p: WriterProfile) {
     website: p.website,
     joinedAt: p.joinedAt,
     accent: p.accent || "forest",
+    showConnections: !!p.showConnections,
   };
 }
 export async function writerNames(

@@ -1,5 +1,6 @@
 import type { Story } from "./stories";
 import { writerNames } from "./profile";
+import { storyActivities, type StoryActivity } from "./activity";
 
 export type PublicGuide = Pick<
   Story,
@@ -16,7 +17,7 @@ export type PublicGuide = Pick<
   | "updatedAt"
   | "canonicalUrl"
   | "searchMetadata"
->;
+> & { activity?: StoryActivity };
 export function publicGuide(story: Story): PublicGuide {
   const {
     slug,
@@ -52,10 +53,14 @@ export function publicGuide(story: Story): PublicGuide {
 export async function publicStoryViews(
   stories: Story[],
 ): Promise<PublicGuide[]> {
-  const names = await writerNames(stories.map((s) => s.user));
+  const [names, activity] = await Promise.all([
+    writerNames(stories.map((s) => s.user)),
+    storyActivities(stories),
+  ]);
   return stories.map((story) => ({
     ...publicGuide(story),
     authorName: names.get(story.user) || story.authorName,
+    activity: activity.get(story.id),
   }));
 }
 

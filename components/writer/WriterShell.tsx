@@ -25,6 +25,7 @@ const links = [
   ["Profile", "/writer/profile", "user"],
   ["Stories", "/writer/stories", "story"],
   ["Stats", "/writer/stats", "stats"],
+  ["Following", "/writer/following", "user"],
 ];
 export function WriterIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {

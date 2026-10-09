@@ -32,6 +32,7 @@ jobs:
       - run: npm run test:writer-publishing
       - run: npm run test:writer-recommendations
       - run: npm run test:writer-social
+      - run: npm run test:writer-connections-activity
       - run: npm test
       - run: npx tsx scripts/test-study.ts
       - run: npx tsx scripts/test-referrals.ts
@@ -53,4 +54,5 @@ jobs:
       - run: npm run test:writer-publishing-browser
       - run: npm run test:writer-recommendations-browser
       - run: npm run test:writer-editor-proxy-browser
+      - run: npm run test:writer-social-workspace-browser
       - run: npm run test:public-discovery-browser

@@ -62,6 +62,20 @@ async function indexes(d: Db) {
     d
       .collection("workspace_records")
       .createIndex({ kind: 1, owner: 1, updatedAt: -1 }),
+    d.collection("workspace_records").createIndex({
+      kind: 1,
+      owner: 1,
+      "payload.active": 1,
+      updatedAt: -1,
+      _id: -1,
+    }),
+    d.collection("workspace_records").createIndex({
+      kind: 1,
+      "payload.creator": 1,
+      "payload.active": 1,
+      updatedAt: -1,
+      _id: -1,
+    }),
     d.collection("writing_images").createIndex({ owner: 1 }),
     d
       .collection("workspace_records")

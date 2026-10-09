@@ -96,6 +96,7 @@ export function rankStories(
   follows: Set<string>,
   history: ReaderRecord[] = [],
   mode: "for_you" | "latest" | "following" = "for_you",
+  now = Date.now(),
 ) {
   const seen = new Set(
     prefs.useReadingHistory
@@ -121,7 +122,7 @@ export function rankStories(
         followed = follows.has(s.creatorSlug);
       const days = Math.max(
         0,
-        (Date.now() - Date.parse(s.publishedAt || s.createdAt)) / 86400000,
+        (now - Date.parse(s.publishedAt || s.createdAt)) / 86400000,
       );
       const score =
         Math.min(12, preferred.length * 6) +

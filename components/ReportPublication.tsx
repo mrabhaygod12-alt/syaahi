@@ -43,7 +43,11 @@ export default function ReportPublication({ slug }: { slug: string }) {
   }
 
   return (
-    <section className="publication-report" aria-label="Report this guide">
+    <section
+      id="story-report"
+      className="publication-report"
+      aria-label="Report this guide"
+    >
       <button
         className="text-button"
         type="button"

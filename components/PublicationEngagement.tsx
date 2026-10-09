@@ -7,11 +7,14 @@ export default function PublicationEngagement({ slug }: { slug: string }) {
     const viewed = `syaahi-guide-viewed:${slug}`;
     if (sessionStorage.getItem(viewed)) return;
     const timer = window.setTimeout(() => {
-      sessionStorage.setItem(viewed, "1");
       void fetch(`/api/publications/${encodeURIComponent(slug)}/view`, {
         method: "POST",
         keepalive: true,
-      }).catch(() => {});
+      })
+        .then((response) => {
+          if (response.ok) sessionStorage.setItem(viewed, "1");
+        })
+        .catch(() => {});
     }, 4000);
     return () => window.clearTimeout(timer);
   }, [slug]);

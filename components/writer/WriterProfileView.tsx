@@ -5,6 +5,8 @@ import Modal from "../Modal";
 import { StoryRow } from "../WriterDashboard";
 import { requestJson } from "@/lib/http-client";
 import type { Story } from "@/lib/writing/stories";
+import ConnectionsPanel from "./ConnectionsPanel";
+import "./social-workspace.css";
 export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const { profile, update } = useWriter();
   const [form, setForm] = useState(profile),
@@ -179,6 +181,24 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
           These details appear on your public writer profile. Your student
           profile and account email remain separate.
         </p>
+        <label className="writer-connections-choice">
+          <input
+            type="checkbox"
+            checked={!!form.showConnections}
+            disabled={busy}
+            onChange={(e) =>
+              setForm({ ...form, showConnections: e.target.checked })
+            }
+          />
+          <span>
+            Show my writer connections on my public profile.
+            <small>
+              Off by default. This displays names, photos and links for verified
+              public writers you follow and who follow you. Student identities
+              and account emails stay private.
+            </small>
+          </span>
+        </label>
         {error && (
           <p role="alert" className="inline-error">
             {error}
@@ -258,8 +278,17 @@ function ProfileContent() {
           >
             About
           </button>
+          <button
+            role="tab"
+            aria-selected={tab === "connections"}
+            onClick={() => setTab("connections")}
+          >
+            Connections
+          </button>
         </div>
-        {tab === "about" ? (
+        {tab === "connections" ? (
+          <ConnectionsPanel key={profile.owner} />
+        ) : tab === "about" ? (
           <div className="writer-about">
             <h2>A little about me</h2>
             <p>

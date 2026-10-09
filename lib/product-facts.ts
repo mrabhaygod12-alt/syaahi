@@ -45,7 +45,7 @@ export function productFacts() {
           "Separate writer enrollment and public profile",
           "Rich article editor, private drafts and revisions",
           "Editorial approval before public publication",
-          "Following, public responses and private reading notes",
+          "Following feeds, private connection lists with optional public writer display, likes, saved stories, public responses and private reading notes",
           "Story statistics and canonical links",
         ],
       },
@@ -111,7 +111,7 @@ export const WRITING_FAQS = [
   },
   {
     q: "Can readers follow writers and discuss articles?",
-    a: "Signed-in readers can follow writers, post public responses and keep source-checked private highlights and notes. Authors can remove responses on their own stories. Following does not enroll someone in an email newsletter.",
+    a: "Signed-in readers can follow writers, like and save stories, post public responses and keep source-checked private highlights and notes. Writer connection lists are private by default with an optional public writer display. Authors can remove responses on their own stories. Following does not enroll someone in an email newsletter.",
   },
   {
     q: "Does Syaahi offer paid subscriber articles or writer payouts?",

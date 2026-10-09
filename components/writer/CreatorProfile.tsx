@@ -4,6 +4,8 @@ import type { PublicGuide } from "@/lib/writing/public";
 import { useAccount } from "../WorkspaceProvider";
 import { StoryRow } from "../WriterDashboard";
 import FollowWriter from "./FollowWriter";
+import ConnectionsPanel from "./ConnectionsPanel";
+import "./social-workspace.css";
 type Profile = {
   slug: string;
   name: string;
@@ -14,6 +16,7 @@ type Profile = {
   website?: string;
   joinedAt?: string;
   accent?: string;
+  showConnections?: boolean;
 };
 export default function CreatorProfile({
   profile,
@@ -101,6 +104,15 @@ export default function CreatorProfile({
               >
                 Stories <small>{stories.length}</small>
               </button>
+              {profile.showConnections && (
+                <button
+                  role="tab"
+                  aria-selected={tab === "connections"}
+                  onClick={() => setTab("connections")}
+                >
+                  Connections
+                </button>
+              )}
               <button
                 role="tab"
                 aria-selected={tab === "about"}
@@ -109,7 +121,9 @@ export default function CreatorProfile({
                 About
               </button>
             </div>
-            {tab === "about" ? (
+            {tab === "connections" && profile.showConnections ? (
+              <ConnectionsPanel slug={profile.slug} />
+            ) : tab === "about" ? (
               <div className="creator-about-card">
                 <p className="writer-kicker">THE PERSON BEHIND THE WORDS</p>
                 <h2>About {profile.name}</h2>

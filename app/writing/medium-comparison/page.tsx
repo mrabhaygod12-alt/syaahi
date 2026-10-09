@@ -65,8 +65,9 @@ export default function Page() {
             <tr>
               <th>Audience reporting</th>
               <td>
-                Story opens and qualified signed-in readers. Thirty-second
-                elapsed signals do not prove attention.
+                Approximate story opens, likes, public responses, followers and
+                qualified signed-in readers. Story metrics cover the latest 50
+                stories; thirty-second signals do not prove attention.
               </td>
               <td>
                 <a href="https://help.medium.com/hc/en-us/articles/34831991136151-Story-s-detailed-stats-page">
@@ -78,8 +79,10 @@ export default function Page() {
             <tr>
               <th>Follower growth</th>
               <td>
-                Durable follow/unfollow and aggregate counts. Email subscribers
-                are not collected by following.
+                Durable follow/unfollow, counts, paginated writer connection
+                lists and an optional public profile display. Student account
+                identities stay private. Following does not collect email
+                subscribers.
               </td>
               <td>
                 <a href="https://help.medium.com/hc/en-us/articles/4405449973015-Audience-stats">
@@ -108,7 +111,7 @@ export default function Page() {
           responses and private reading notes are working parts of the platform.
         </p>
         <p>
-          Reviewed on <time dateTime="2026-10-05">5 October 2026</time>.
+          Reviewed on <time dateTime="2026-10-09">9 October 2026</time>.
           Provider features can change; the linked official documentation is the
           reference. This is a capability comparison, not an affiliation with
           Medium.

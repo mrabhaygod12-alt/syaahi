@@ -9,6 +9,7 @@ import { collection, useMongo } from "@/lib/storage/mongo";
 import { db } from "@/lib/db";
 import { writerBySlug } from "./profile";
 import { getPublicStory } from "./stories";
+import { connectionCounts } from "./connections";
 const id = (parts: string[]) =>
   createHash("sha256").update(parts.join(":")).digest("hex");
 interface Follow extends WorkspaceRecord {
@@ -41,30 +42,35 @@ export async function followWriter(
 export async function followStatus(slug: string, owner?: string) {
   const writer = await writerBySlug(slug);
   if (!writer) throw new Error("Writer unavailable.");
-  const followers = useMongo()
-    ? await (
-        await collection("workspace_records")
-      ).countDocuments({
-        kind: "writer-follow",
-        "payload.creator": writer.owner,
-        "payload.active": true,
-      })
-    : Number(
-        db()
-          .prepare(
-            "SELECT COUNT(*) n FROM workspace_records WHERE kind='writer-follow' AND json_extract(payload,'$.creator')=? AND json_extract(payload,'$.active')=1",
-          )
-          .get(writer.owner)?.n || 0,
-      );
+  const counts = await connectionCounts(writer.owner);
   const own = owner
     ? await record<Follow>(`follow-${id([owner, writer.owner])}`)
     : null;
-  return { followers, following: !!own?.active, isOwn: owner === writer.owner };
+  return {
+    followers: counts.followers,
+    followingCount: counts.following,
+    following: !!own?.active,
+    isOwn: owner === writer.owner,
+  };
 }
-export const following = (owner: string) =>
-  records<Follow>("writer-follow", owner).then((rows) =>
-    rows.filter((r) => r.active),
-  );
+export async function following(owner: string): Promise<Follow[]> {
+  if (useMongo())
+    return (
+      await (
+        await collection("workspace_records")
+      )
+        .find({ kind: "writer-follow", owner, "payload.active": true })
+        .sort({ updatedAt: -1 })
+        .limit(240)
+        .toArray()
+    ).map((r) => r.payload);
+  return db()
+    .prepare(
+      "SELECT payload FROM workspace_records WHERE kind='writer-follow' AND owner=? AND json_extract(payload,'$.active')=1 ORDER BY updated_at DESC LIMIT 240",
+    )
+    .all(owner)
+    .map((r) => JSON.parse(String(r.payload)));
+}
 interface ResponseRecord extends WorkspaceRecord {
   kind: "story-response";
   storyId: string;

@@ -6,11 +6,13 @@ import type { ReaderRecord } from "@/lib/writing/social";
 export default function StoryReader({
   slug,
   children,
+  afterContent,
 }: {
   slug: string;
   children: React.ReactNode;
+  afterContent?: React.ReactNode;
 }) {
-  const { user } = useAccount(),
+  const { user, loading } = useAccount(),
     [reader, setReader] = useState<ReaderRecord | null>(null),
     [responses, setResponses] = useState<any[]>([]),
     [response, setResponse] = useState(""),
@@ -18,24 +20,63 @@ export default function StoryReader({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
+    [responsesLoading, setResponsesLoading] = useState(true),
+    [responsesError, setResponsesError] = useState(""),
     [progress, setProgress] = useState(0);
+  const responseRequest = useRef<AbortController | null>(null),
+    mutation = useRef<AbortController | null>(null),
+    readerVersion = useRef(0);
   const content = useRef<HTMLDivElement>(null),
     seconds = useRef(0),
     posting = useRef(""),
     last = useRef(Date.now());
   const identity = useRef(user?.id);
-  identity.current = user?.id;
+  identity.current = loading ? undefined : user?.id;
   const root = `/api/publications/${encodeURIComponent(slug)}`;
-  const load = useCallback(
-    () =>
-      requestJson(`${root}/responses`).then(({ response, data }) => {
-        if (response.ok) setResponses(data.responses || []);
-      }),
-    [root],
-  );
+  const currentRoot = useRef(root);
+  currentRoot.current = root;
+  const load = useCallback(async () => {
+    responseRequest.current?.abort();
+    const controller = new AbortController();
+    responseRequest.current = controller;
+    const owner = identity.current;
+    setResponsesLoading(true);
+    setResponsesError("");
+    try {
+      const { response, data } = await requestJson(`${root}/responses`, {
+        signal: controller.signal,
+      });
+      if (
+        !controller.signal.aborted &&
+        identity.current === owner &&
+        currentRoot.current === root
+      ) {
+        if (!response.ok)
+          throw new Error(data.error || "Could not load responses.");
+        setResponses(data.responses || []);
+      }
+    } catch (e) {
+      if (
+        !controller.signal.aborted &&
+        identity.current === owner &&
+        currentRoot.current === root
+      )
+        setResponsesError((e as Error).message);
+    } finally {
+      if (
+        !controller.signal.aborted &&
+        identity.current === owner &&
+        currentRoot.current === root
+      )
+        setResponsesLoading(false);
+    }
+  }, [root]);
   useEffect(() => {
     let cancelled = false;
     setReader(null);
+    setResponses([]);
+    setResponsesLoading(true);
+    setResponsesError("");
     setBusy(false);
     setNote("");
     setResponse("");
@@ -44,22 +85,31 @@ export default function StoryReader({
     seconds.current = 0;
     last.current = Date.now();
     posting.current = "";
-    void load().catch(() => {});
-    if (!user) return;
-    void requestJson(`${root}/reader`)
-      .then(({ response, data }) => {
-        if (response.ok && !cancelled) setReader(data.reader);
+    if (loading) return;
+    void load();
+    const start = new AbortController();
+    const version = ++readerVersion.current;
+    if (user) {
+      void requestJson(`${root}/reader`, {
+        method: "POST",
+        signal: start.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start" }),
       })
-      .catch(() => {});
-    void requestJson(`${root}/reader`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "start" }),
-    }).catch(() => {});
+        .then(({ response, data }) => {
+          if (response.ok && !cancelled && readerVersion.current === version)
+            setReader(data.reader);
+        })
+        .catch(() => {});
+    }
     return () => {
       cancelled = true;
+      start.abort();
+      responseRequest.current?.abort();
+      mutation.current?.abort();
+      mutation.current = null;
     };
-  }, [user?.id, root, load]);
+  }, [user?.id, loading, root, load]);
   useEffect(() => {
     const scroll = () => {
       if (!content.current) return;
@@ -85,7 +135,7 @@ export default function StoryReader({
   const currentProgress = useRef(0);
   currentProgress.current = progress;
   useEffect(() => {
-    if (!user) return;
+    if (!user || loading) return;
     const owner = user.id;
     const tick = setInterval(() => {
       const now = Date.now();
@@ -94,6 +144,7 @@ export default function StoryReader({
       last.current = now;
     }, 1000);
     const save = setInterval(() => {
+      readerVersion.current++;
       const spent = seconds.current;
       seconds.current = 0;
       void requestJson(`${root}/reader`, {
@@ -106,37 +157,61 @@ export default function StoryReader({
         }),
       })
         .then(({ response, data }) => {
-          if (response.ok && identity.current === owner) setReader(data.reader);
+          if (
+            response.ok &&
+            identity.current === owner &&
+            currentRoot.current === root
+          )
+            setReader(data.reader);
         })
         .catch(() => {
-          if (identity.current === owner) seconds.current += spent;
+          if (identity.current === owner && currentRoot.current === root)
+            seconds.current += spent;
         });
     }, 15000);
     return () => {
       clearInterval(tick);
       clearInterval(save);
     };
-  }, [user?.id, root]);
+  }, [user?.id, loading, root]);
   async function action(body: any) {
+    if (loading || mutation.current) return;
     const owner = user?.id;
+    const controller = new AbortController();
+    mutation.current = controller;
+    readerVersion.current++;
     setBusy(true);
     setError("");
     setMessage("");
     try {
       const { response, data } = await requestJson(`${root}/reader`, {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (identity.current !== owner) return;
+      if (
+        controller.signal.aborted ||
+        identity.current !== owner ||
+        currentRoot.current !== root
+      )
+        return;
       if (!response.ok) throw new Error(data.error);
       setReader(data.reader);
       setNote("");
       setMessage("Saved privately to your reading library.");
     } catch (e) {
-      if (identity.current === owner) setError((e as Error).message);
+      if (
+        !controller.signal.aborted &&
+        identity.current === owner &&
+        currentRoot.current === root
+      )
+        setError((e as Error).message);
     } finally {
-      if (identity.current === owner) setBusy(false);
+      if (mutation.current === controller) {
+        mutation.current = null;
+        setBusy(false);
+      }
     }
   }
   async function highlight() {
@@ -152,12 +227,18 @@ export default function StoryReader({
     await action({ action: "highlight", quote: selection.toString(), note });
   }
   async function post(id?: string) {
+    if (loading || mutation.current) return;
+    const owner = user?.id;
+    const controller = new AbortController();
+    mutation.current = controller;
+    responseRequest.current?.abort();
     setBusy(true);
     setError("");
     try {
       if (!posting.current) posting.current = crypto.randomUUID();
       const { response: res, data } = await requestJson(`${root}/responses`, {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           id
@@ -165,14 +246,35 @@ export default function StoryReader({
             : { body: response, event: posting.current },
         ),
       });
+      if (
+        controller.signal.aborted ||
+        identity.current !== owner ||
+        currentRoot.current !== root
+      )
+        return;
       if (!res.ok) throw new Error(data.error);
       setResponses(data.responses || []);
+      setResponsesLoading(false);
+      setResponsesError("");
       setResponse("");
       posting.current = "";
+      window.dispatchEvent(
+        new CustomEvent("syaahi-story-activity", { detail: slug }),
+      );
     } catch (e) {
-      setError((e as Error).message);
+      if (
+        !controller.signal.aborted &&
+        identity.current === owner &&
+        currentRoot.current === root
+      ) {
+        setError((e as Error).message);
+        void load();
+      }
     } finally {
-      setBusy(false);
+      if (mutation.current === controller) {
+        mutation.current = null;
+        setBusy(false);
+      }
     }
   }
   return (
@@ -183,36 +285,40 @@ export default function StoryReader({
       >
         <i style={{ width: `${progress * 100}%` }} />
       </div>
-      {reader && reader.fraction > 0.05 && reader.fraction < 0.95 && (
-        <button
-          className="writer-text-button"
-          onClick={() => {
-            if (content.current) {
-              const rect = content.current.getBoundingClientRect();
-              window.scrollTo({
-                top:
-                  window.scrollY +
-                  rect.top +
-                  rect.height * reader.fraction -
-                  window.innerHeight,
-                behavior: "smooth",
-              });
-            }
-          }}
-        >
-          Resume at {Math.round(reader.fraction * 100)}%
-        </button>
-      )}
+      {!loading &&
+        reader &&
+        reader.fraction > 0.05 &&
+        reader.fraction < 0.95 && (
+          <button
+            className="writer-text-button"
+            onClick={() => {
+              if (content.current) {
+                const rect = content.current.getBoundingClientRect();
+                window.scrollTo({
+                  top:
+                    window.scrollY +
+                    rect.top +
+                    rect.height * reader.fraction -
+                    window.innerHeight,
+                  behavior: "smooth",
+                });
+              }
+            }}
+          >
+            Resume at {Math.round(reader.fraction * 100)}%
+          </button>
+        )}
       <div ref={content} className="reader-story-content">
         {children}
       </div>
+      {afterContent}
       {error && (
         <p role="alert" className="writer-review-note">
           {error}
         </p>
       )}
       {message && <p role="status">{message}</p>}
-      {user && (
+      {user && !loading && (
         <section className="story-private-notes">
           <h2>Your reading notes</h2>
           <p>
@@ -221,6 +327,7 @@ export default function StoryReader({
           <label>
             Note for selected passage
             <textarea
+              disabled={busy}
               value={note}
               maxLength={1000}
               rows={2}
@@ -256,12 +363,18 @@ export default function StoryReader({
           </a>
         </section>
       )}
-      <section className="story-responses">
+      <section id="story-responses" className="story-responses">
         <h2>
           Responses{" "}
-          <small>{responses.length === 100 ? "100+" : responses.length}</small>
+          {!responsesLoading && !responsesError && (
+            <small>
+              {responses.length === 100 ? "100+" : responses.length}
+            </small>
+          )}
         </h2>
-        {user ? (
+        {loading ? (
+          <p role="status">Opening your account…</p>
+        ) : user ? (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -271,6 +384,7 @@ export default function StoryReader({
             <label>
               Your response
               <textarea
+                disabled={busy}
                 required
                 minLength={2}
                 maxLength={2000}
@@ -313,7 +427,16 @@ export default function StoryReader({
             )}
           </article>
         ))}
-        {!responses.length && (
+        {responsesLoading && <p role="status">Loading responses…</p>}
+        {responsesError && (
+          <div>
+            <p role="alert">{responsesError}</p>
+            <button className="btn light" onClick={() => void load()}>
+              Retry responses
+            </button>
+          </div>
+        )}
+        {!responsesLoading && !responsesError && !responses.length && (
           <p>No responses yet. Share a thoughtful perspective.</p>
         )}
       </section>

@@ -11,6 +11,8 @@ import {
   ownedStory,
 } from "@/lib/writing/stories";
 import { writerReaderStats } from "@/lib/writing/social";
+import { storyActivities } from "@/lib/writing/activity";
+import { connectionCounts } from "@/lib/writing/connections";
 
 async function handleGET(req: NextRequest) {
   const denied = await authError(req);
@@ -26,14 +28,27 @@ async function handleGET(req: NextRequest) {
       ? NextResponse.json({ stories: [{ ...story, authorName: profile.name }] })
       : NextResponse.json({ error: "Draft not found." }, { status: 404 });
   }
+  const stories = await listStories(user.id);
+  const [activity, connections] = await Promise.all([
+    storyActivities(stories),
+    connectionCounts(user.id),
+  ]);
   return NextResponse.json({
-    stories: (await listStories(user.id)).map((story) => ({
+    stories: stories.map((story) => ({
       ...story,
       authorName: profile.name,
+      activity: activity.get(story.id),
     })),
     analytics: {
       ...(await creatorAnalytics(user.id)),
       ...(await writerReaderStats(user.id)),
+      ...connections,
+      storyActivity: Object.fromEntries(activity),
+      likes: [...activity.values()].reduce((total, a) => total + a.likes, 0),
+      comments: [...activity.values()].reduce(
+        (total, a) => total + a.comments,
+        0,
+      ),
     },
   });
 }
@@ -91,7 +106,13 @@ async function handlePOST(req: NextRequest) {
       {
         error: error instanceof Error ? error.message : "Unable to save draft.",
       },
-      { status: error instanceof Error && /changed|already saved|under editorial review/.test(error.message) ? 409 : 400 },
+      {
+        status:
+          error instanceof Error &&
+          /changed|already saved|under editorial review/.test(error.message)
+            ? 409
+            : 400,
+      },
     );
   }
 }
