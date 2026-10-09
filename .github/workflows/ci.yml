@@ -18,6 +18,7 @@ jobs:
       - run: npm run test:admin-security
       - run: npm run test:workspace-routing
       - run: npm run test:security
+      - run: npm run test:oauth-identity
       - run: npm run test:monthly-catalog
       - run: npm run test:growth
       - run: npm run test:payment-status
@@ -26,8 +27,10 @@ jobs:
       - run: npm run test:presentation-preview
       - run: npm run test:presentation-engine
       - run: npm run test:writer-platform
+      - run: npm run test:writer-editor-reliability
       - run: npm run test:writer-discovery
       - run: npm run test:writer-publishing
+      - run: npm run test:writer-recommendations
       - run: npm run test:writer-social
       - run: npm test
       - run: npx tsx scripts/test-study.ts
@@ -48,4 +51,6 @@ jobs:
       - run: npm run test:admin-routing-browser
       - run: npm run test:writer-discovery-browser
       - run: npm run test:writer-publishing-browser
+      - run: npm run test:writer-recommendations-browser
+      - run: npm run test:writer-editor-proxy-browser
       - run: npm run test:public-discovery-browser

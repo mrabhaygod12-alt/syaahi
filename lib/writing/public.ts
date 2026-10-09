@@ -62,7 +62,7 @@ export async function publicStoryViews(
 // Server-rendered public pages use the same backend as API requests. The
 // frontend must never silently fall back to an empty local database.
 export const publicGuides = async (
-  kind: "all" | "slug" | "creator" = "all",
+  kind: "all" | "slug" | "creator" | "related" = "all",
   value = "",
 ): Promise<PublicGuide[]> => {
   const backend = process.env.BACKEND_URL?.trim();
@@ -92,6 +92,10 @@ export const publicGuides = async (
     return (await response.json()).stories;
   }
   const store = await import("./stories");
+  if (kind === "related")
+    return publicStoryViews(
+      await (await import("./recommendations")).relatedPublicStories(value),
+    );
   if (kind === "slug") {
     const story = await store.getPublicStory(value);
     return story ? publicStoryViews([story]) : [];

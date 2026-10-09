@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { requestJson } from "@/lib/http-client";
 import type { Story } from "@/lib/writing/stories";
 import WriterShell, { useWriter, WriterAvatar } from "./writer/WriterShell";
 import Modal from "./Modal";
+import "./writer/preferences.css";
 type View = "home" | "stories" | "library" | "stats";
 const date = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", {
@@ -19,6 +20,7 @@ export function StoryRow({
   onUnsave,
   onPublication,
   publicationBusy = false,
+  reason,
 }: {
   story: Partial<Story>;
   own?: boolean;
@@ -30,6 +32,7 @@ export function StoryRow({
     action: "revise" | "unpublish" | "cancel_schedule",
   ) => void;
   publicationBusy?: boolean;
+  reason?: string;
 }) {
   const href =
     own && story.status !== "published"
@@ -51,6 +54,7 @@ export function StoryRow({
           <h2>{story.title}</h2>
         </a>
         <p className="writer-story-summary">{story.summary}</p>
+        {reason && <p className="writer-recommendation-reason">{reason}</p>}
         <div className="writer-story-meta">
           <span>
             {Math.max(
@@ -144,6 +148,9 @@ export function StoryRow({
 }
 function DashboardContent({ view }: { view: View }) {
   const { profile } = useWriter();
+  const [feedMode, setFeedMode] = useState("for_you"),
+    [reasons, setReasons] = useState<Record<string, string>>({});
+  const requestController = useRef<AbortController | null>(null);
   const [stories, setStories] = useState<Story[]>([]),
     [analytics, setAnalytics] = useState<any>(null),
     [loading, setLoading] = useState(true),
@@ -192,23 +199,38 @@ function DashboardContent({ view }: { view: View }) {
     }
   }
   const load = () => {
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
     setLoading(true);
     setError("");
     requestJson(
       view === "home"
-        ? "/api/publications"
+        ? `/api/writer/feed?mode=${feedMode}`
         : view === "library"
           ? "/api/writer/library"
           : "/api/stories",
+      { signal: controller.signal },
     )
       .then(({ response, data }) => {
+        if (
+          controller.signal.aborted ||
+          requestController.current !== controller
+        )
+          return;
         if (!response.ok)
           throw new Error(data.error || "Could not load stories.");
         setStories(data.stories || []);
+        setReasons(data.reasons || {});
         setAnalytics(data.analytics);
         setLoading(false);
       })
       .catch((e) => {
+        if (
+          controller.signal.aborted ||
+          requestController.current !== controller
+        )
+          return;
         setError(e.message);
         setLoading(false);
       });
@@ -216,7 +238,8 @@ function DashboardContent({ view }: { view: View }) {
   useEffect(() => {
     setSearch(new URLSearchParams(location.search).get("q") || "");
     load();
-  }, [view]);
+    return () => requestController.current?.abort();
+  }, [view, feedMode, profile.owner]);
   const visible = stories.filter(
     (s) =>
       (view !== "stories" ||
@@ -261,6 +284,36 @@ function DashboardContent({ view }: { view: View }) {
           <a className="btn light" href="/writer/reading">
             Continue reading, highlights & following →
           </a>
+        )}
+        {view === "home" && (
+          <>
+            <div
+              className="writer-tabs"
+              role="tablist"
+              aria-label="Reading feed"
+            >
+              {[
+                ["for_you", "For you"],
+                ["latest", "Latest"],
+                ["following", "Following"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={feedMode === key}
+                  onClick={() => setFeedMode(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="writer-fine-print">
+              Chosen topics, followed writers and different perspectives.{" "}
+              <a href="/writer/settings#reading-preferences">
+                Refine your reading preferences
+              </a>
+            </p>
+          </>
         )}
         {view === "stories" && (
           <div className="writer-tabs" role="tablist" aria-label="Story status">
@@ -415,6 +468,7 @@ function DashboardContent({ view }: { view: View }) {
               own={view === "stories"}
               onDelete={setRemove}
               publicationBusy={publicationBusy}
+              reason={view === "home" ? reasons[s.slug!] : undefined}
               onPublication={(story, action) => {
                 setPublicationError("");
                 if (action === "revise") void changePublication(story, action);

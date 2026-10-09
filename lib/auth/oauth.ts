@@ -104,14 +104,10 @@ export async function googleAccount(identity: {
     (identity.app_metadata?.providers as string[] | undefined)?.includes(
       "google",
     ) ||
-    identity.app_metadata?.provider === "google" ||
-    (typeof identity.user_metadata?.iss === "string" &&
-      identity.user_metadata.iss.includes("google"));
+    identity.app_metadata?.provider === "google";
 
   const isConfirmed =
-    Boolean(identity.email_confirmed_at) ||
-    Boolean(identity.user_metadata?.email_verified) ||
-    Boolean(identity.user_metadata?.verified_email);
+    Boolean(identity.email_confirmed_at);
 
   if (!identity.email || !isConfirmed || !isGoogle) {
     throw new Error("A verified Google identity is required.");

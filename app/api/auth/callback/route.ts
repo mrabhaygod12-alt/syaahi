@@ -8,11 +8,9 @@ import { claimReferral } from "@/lib/billing/referrals";
 import { setWorkspace, workspaceKind } from "@/lib/workspace-preference";
 import { enrollWriter, writerProfile } from "@/lib/writing/profile";
 import { workspaceDestination } from "@/lib/workspace-routing";
+import { authOrigin } from "@/lib/auth/origin";
 async function handleGET(req: NextRequest) {
-  const origin =
-    (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
-    req.headers.get("origin")?.replace(/\/+$/, "") ||
-    "https://www.syaahii.in";
+  const origin = authOrigin();
   const response = NextResponse.redirect(new URL("/login", origin));
   response.headers.set("Cache-Control", "no-store");
   const workspace = workspaceKind(

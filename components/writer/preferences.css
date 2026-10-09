@@ -1,0 +1,81 @@
+.writer-preferences {
+  margin: 32px 0;
+  padding: 28px;
+  border: 1px solid var(--w-line);
+  border-radius: 18px;
+  background: var(--w-surface);
+}
+.writer-preferences h2 {
+  font:
+    500 clamp(24px, 4vw, 32px) Georgia,
+    serif;
+}
+.writer-preferences p {
+  color: var(--w-muted);
+  line-height: 1.7;
+}
+.writer-preferences fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.writer-preferences label {
+  display: grid;
+  gap: 8px;
+  margin: 22px 0;
+}
+.writer-preferences input:not([type="checkbox"]) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--w-line);
+  border-radius: 10px;
+  background: var(--w-bg);
+  color: var(--w-ink);
+}
+.writer-preferences small {
+  display: block;
+  color: var(--w-muted);
+  line-height: 1.6;
+}
+.writer-interest-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.writer-interest-options button {
+  border: 1px solid var(--w-line);
+  border-radius: 24px;
+  padding: 8px 12px;
+  background: var(--w-bg);
+  color: var(--w-ink);
+  cursor: pointer;
+}
+.writer-interest-options button[aria-pressed="true"] {
+  background: var(--w-soft);
+  border-color: var(--w-green);
+}
+.writer-preferences .writer-history-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.7;
+}
+.writer-history-choice input {
+  width: 18px;
+  height: 18px;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.writer-recommendation-reason {
+  color: var(--w-green);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 14px 0;
+}
+@media (max-width: 600px) {
+  .writer-preferences {
+    padding: 20px;
+  }
+}

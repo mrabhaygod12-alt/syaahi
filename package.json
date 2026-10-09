@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:writer-editor-reliability": "tsx scripts/test-writer-editor-reliability.ts && tsx scripts/test-writer-editor-reliability.ts --mongo",
+    "test:writer-editor-proxy-browser": "tsx scripts/test-writer-editor-proxy-browser.ts",
+    "test:oauth-identity": "tsx scripts/test-oauth-identity.ts",
+    "test:writer-recommendations": "tsx scripts/test-writer-recommendations.ts && tsx scripts/test-writer-recommendations.ts --mongo",
+    "test:writer-recommendations-browser": "tsx scripts/test-writer-recommendations-browser.ts",
     "test:writer-publishing": "tsx scripts/test-writer-publishing.ts && tsx scripts/test-writer-publishing.ts --mongo",
     "test:writer-publishing-browser": "tsx scripts/test-writer-publishing-browser.ts",
     "test:writer-discovery": "tsx scripts/test-writer-discovery.ts && tsx scripts/test-writer-discovery.ts --mongo",

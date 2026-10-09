@@ -5,6 +5,8 @@ import { ProfileEditor } from "./WriterProfileView";
 import { requestJson } from "@/lib/http-client";
 import { useAccount } from "../WorkspaceProvider";
 import SessionSecurity from "../SessionSecurity";
+import ReadingPreferences from "./ReadingPreferences";
+import "./preferences.css";
 function SettingsContent() {
   const { profile, update } = useWriter();
   const { user } = useAccount();
@@ -98,6 +100,7 @@ function SettingsContent() {
         </div>
         <a href="/writer/support">Contact support ↗</a>
       </div>
+      <ReadingPreferences />
       <SessionSecurity />
       {error && <p role="alert">{error}</p>}
       {edit && <ProfileEditor onClose={() => setEdit(false)} />}

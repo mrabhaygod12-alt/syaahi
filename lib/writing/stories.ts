@@ -274,6 +274,7 @@ export async function saveStory(
   user: string,
   input: Pick<Story, "title" | "summary" | "body" | "tags"> & {
     id?: string;
+    draftId?: string;
     submit?: boolean;
     authorName: string;
     creatorSlug?: string;
@@ -296,8 +297,9 @@ export async function saveStory(
             const time = Date.parse(input.requestedPublishAt);
             if (
               !Number.isFinite(time) ||
-              time < Date.now() + 60000 ||
-              time > Date.now() + 365 * 86400000
+              (input.submit &&
+                (time < Date.now() + 60000 ||
+                  time > Date.now() + 365 * 86400000))
             )
               throw new Error(
                 "Choose a publication time at least one minute from now and within the next year.",
@@ -365,6 +367,29 @@ export async function saveStory(
     throw new Error(
       "Add a title to save. Review submissions need at least 80 characters.",
     );
+  const retryDraft = async (): Promise<Story | null> => {
+    if (!input.draftId) return null;
+    const existing = await getStoryById(input.draftId);
+    if (!existing) return null;
+    if (
+      existing.user !== user ||
+      existing.status !== (input.submit ? "submitted" : "draft") ||
+      existing.title !== title || existing.summary !== summary ||
+      existing.body !== body ||
+      JSON.stringify(existing.document) !== JSON.stringify(document) ||
+      JSON.stringify(existing.tags) !== JSON.stringify(tags) ||
+      (existing.canonicalUrl || "") !== (canonicalUrl || "") ||
+      (existing.requestedPublishAt || null) !== (requestedPublishAt || null)
+    )
+      throw new Error("This draft was already saved. Reload it before changing this retry.");
+    return existing;
+  };
+  if (input.draftId) {
+    if (input.id || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(input.draftId))
+      throw new Error("Use a valid new draft identifier.");
+    const retried = await retryDraft();
+    if (retried) return retried;
+  }
   if (input.id) {
     const existing = useMongo()
       ? clean(
@@ -491,7 +516,7 @@ export async function saveStory(
     ...(requestedPublishAt ? { requestedPublishAt } : {}),
     ...(searchMetadata ? { searchMetadata } : {}),
     ...(canonicalUrl ? { canonicalUrl } : {}),
-    id: randomUUID(),
+    id: input.draftId || randomUUID(),
     user,
     authorName: input.authorName.trim().slice(0, 80) || "Syaahi creator",
     creatorSlug:
@@ -520,10 +545,10 @@ export async function saveStory(
       ? [{ action: "submitted", at: now, actor: user, note: null }]
       : [],
   };
-  if (useMongo())
-    await (await collection("stories")).insertOne({ _id: story.id, ...story });
-  else
-    transaction(() =>
+  try {
+    if (useMongo())
+      await (await collection("stories")).insertOne({ ...story, _id: story.id });
+    else transaction(() =>
       db()
         .prepare(
           "INSERT INTO stories (id,user_id,status,updated_at,payload) VALUES (?,?,?,?,?)",
@@ -536,6 +561,11 @@ export async function saveStory(
           JSON.stringify(story),
         ),
     );
+  } catch (error) {
+    const retried = await retryDraft();
+    if (retried) return retried;
+    throw error;
+  }
   return story;
 }
 

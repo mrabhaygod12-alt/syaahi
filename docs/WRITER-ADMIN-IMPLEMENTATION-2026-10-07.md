@@ -87,7 +87,9 @@ roles, passwords or customer subscriptions were changed by these tests.
   scheduled revision from resurrecting removed content.
 - [x] Concurrent editorial decisions use compare-and-swap; parent/revision writes
   commit together. Page-view increments cannot overwrite content or moderation.
-- [ ] Interest/topic recommendation controls and diversification.
+- [x] Private topic preferences, muted topics, opt-in reading history and diversified
+  For you/Latest/Following feeds; related public stories are rendered on article pages.
+- [ ] Author-muting controls in the UI and pagination beyond the bounded feed pool.
 - [ ] Friendly author URLs and verified custom-domain lifecycle.
 - [ ] Newsletter/subscriber lifecycle and publication teams.
 
@@ -134,3 +136,38 @@ stored as UTC; datetime inputs and displays use the user's device timezone.
 
 Design/security sources: [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238),
 [OWASP MFA guidance](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html).
+
+## Writer editor reliability and reading increment — 2026-10-09
+
+- Stable, owner-bound draft creation identifiers make identical retries idempotent.
+  Conflicting retries and stale saves require a reload; no write is blindly replayed.
+- Lost POST responses are reconciled by reading the owned draft and comparing the
+  submitted content. Failed saves retain the editor content, show a clear status and
+  offer a manual retry. Successful retries resume autosave.
+- Publication scheduling no longer prevents saving text. Time validation still
+  applies to review submissions, and editorial approval remains required.
+- Image upload preserves the selected insertion position between paragraphs.
+  The editor pauses editing during the image dialog to protect that position.
+- The action bar and formatting ribbon stay below the fixed header while scrolling.
+  Page width, a measured text-width ruler, paragraph indentation and wrapping titles
+  improve long-story editing on mobile, tablet and desktop. Page width is a local
+  viewing preference; paragraph indentation is saved in the document.
+- Authentication uses a validated server origin, optionally configured at runtime
+  with APP_ORIGIN. Google account linking requires server-controlled provider
+  metadata and a confirmed email; user-editable identity claims cannot grant access.
+- Recommendations use a bounded pool of 240 reviewed stories, up to 24 results,
+  author diversification and capped popularity. History is excluded by default.
+  Related reading shows up to six public articles with no private draft fields.
+- Render's configured administrator eligibility was saved and deployed with the
+  owner's explicit confirmation. The browser was signed into a different account,
+  so the intended administrator's login/MFA flow remains unverified in production.
+
+Validated: production build and typecheck; editor reliability on SQLite/MongoDB;
+OAuth identity, auth and security suites; publishing and recommendations on both
+databases; recommendation browser journeys; existing writer browser journeys in
+Chromium/WebKit; and a real frontend-to-backend production proxy browser test.
+The latter covers a 33k-character draft, committed write with lost response,
+multipart image upload between paragraphs, indentation persistence, failed-save
+retry, expired schedule draft save, review submission and sticky layouts at
+390/768/1440px. Test accounts/media are synthetic. No customer article was edited
+or published, no payment was executed, and live Google consent was not exercised.

@@ -49,6 +49,7 @@ export default async function GuidePage({
 }) {
   const story = await getPublicStory((await params).slug);
   if (!story) notFound();
+  const related = await publicGuides("related", story.slug!).catch(() => []);
   return (
     <main className="wrap feature-section">
       <PublicationEngagement slug={story.slug!} />
@@ -104,6 +105,26 @@ export default async function GuidePage({
         <PublicationActions slug={story.slug!} />
         <ReportPublication slug={story.slug!} />
       </article>
+      {related.length > 0 && (
+        <section
+          aria-labelledby="related-reading"
+          className="related-public-reading"
+        >
+          <p className="eyebrow">KEEP YOUR CURIOSITY GOING</p>
+          <h2 id="related-reading">A few more perspectives</h2>
+          <div>
+            {related.map((s) => (
+              <article key={s.slug}>
+                <p className="small">{s.authorName}</p>
+                <a href={`/guides/${s.slug}`}>
+                  <h3>{s.title}</h3>
+                </a>
+                <p>{s.summary}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

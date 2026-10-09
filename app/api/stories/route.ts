@@ -59,6 +59,7 @@ async function handlePOST(req: NextRequest) {
     const profile = (await writerProfile(user.id))!;
     const story = await saveStory(user.id, {
       id: typeof body.id === "string" ? body.id : undefined,
+      draftId: typeof body.draftId === "string" ? body.draftId : undefined,
       title: typeof body.title === "string" ? body.title : "",
       summary: typeof body.summary === "string" ? body.summary : "",
       body: typeof body.body === "string" ? body.body : "",
@@ -90,7 +91,7 @@ async function handlePOST(req: NextRequest) {
       {
         error: error instanceof Error ? error.message : "Unable to save draft.",
       },
-      { status: 400 },
+      { status: error instanceof Error && /changed|already saved|under editorial review/.test(error.message) ? 409 : 400 },
     );
   }
 }

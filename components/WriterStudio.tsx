@@ -10,10 +10,11 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TableKit } from "@tiptap/extension-table";
 import Placeholder from "@tiptap/extension-placeholder";
-import { requestJson } from "@/lib/http-client";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import {
   textDocument,
   documentText,
+  normalizeDocument,
   type RichNode,
 } from "@/lib/writing/document";
 import type { Story } from "@/lib/writing/stories";
@@ -30,6 +31,8 @@ import {
 import { articleStyles, normalizeDesign } from "@/lib/writing/design";
 import Modal from "./Modal";
 import WriterDiscovery from "./writer/WriterDiscovery";
+import WriterRuler from "./writer/WriterRuler";
+import "./writer/editor-workspace.css";
 function StudioContent() {
   const [active, setActive] = useState<Story | null>(null),
     [title, setTitle] = useState(""),
@@ -44,6 +47,7 @@ function StudioContent() {
     [loaded, setLoaded] = useState(false),
     [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pageWidth, setPageWidth] = useState(760);
   const [message, setMessage] = useState(""),
     [saveError, setSaveError] = useState(false),
     [preview, setPreview] = useState(false),
@@ -59,7 +63,9 @@ function StudioContent() {
     saving = useRef(false),
     revision = useRef(0),
     initialized = useRef(false),
-    readyDocument = useRef<RichNode | null>(null);
+    readyDocument = useRef<RichNode | null>(null),
+    newDraftId = useRef(""),
+    imagePosition = useRef<{ from: number; to: number } | null>(null);
   const locked =
     !!active && !["draft", "changes_requested"].includes(active.status);
   function edited() {
@@ -145,14 +151,19 @@ function StudioContent() {
   };
   useEffect(load, []);
   useEffect(() => {
+    newDraftId.current = crypto.randomUUID();
+    const savedWidth = Number(localStorage.getItem("syaahi-editor-width"));
+    if ([640, 760, 960].includes(savedWidth)) setPageWidth(savedWidth);
+  }, []);
+  useEffect(() => {
     if (editor && loaded && !initialized.current) {
       editor.commands.setContent(readyDocument.current!, { emitUpdate: false });
       initialized.current = true;
     }
   }, [editor, loaded]);
   useEffect(() => {
-    editor?.setEditable(loaded && !locked && !preview && !submitting, false);
-  }, [editor, loaded, locked, preview, submitting]);
+    editor?.setEditable(loaded && !locked && !preview && !submitting && dialog !== "image", false);
+  }, [editor, loaded, locked, preview, submitting, dialog]);
   useEffect(() => {
     const protect = (e: BeforeUnloadEvent) => {
       if (dirty || saving.current) {
@@ -171,29 +182,28 @@ function StudioContent() {
     setMessage("Saving…");
     if (action === "submit") setSubmitting(true);
     const savingRevision = revision.current;
+    let payload: Record<string, any> | null = null;
     try {
+      payload = {
+        id: activeRef.current?.id,
+        draftId: activeRef.current ? undefined : newDraftId.current,
+        expectedUpdatedAt: activeRef.current?.updatedAt,
+        title: title.trim() || "Untitled story", summary, canonicalUrl,
+        // Publication options cannot prevent saving the writer's text.
+        requestedPublishAt: action === "submit" ? (publishTime ? new Date(publishTime).toISOString() : null) : undefined,
+        document: normalizeDocument(editor?.getJSON() || document),
+        body: "", tags: tags.split(","), action,
+      };
       const { response, data } = await requestJson("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: activeRef.current?.id,
-          expectedUpdatedAt: activeRef.current?.updatedAt,
-          title: title.trim() || "Untitled story",
-          summary,
-          canonicalUrl,
-          requestedPublishAt: publishTime
-            ? new Date(publishTime).toISOString()
-            : null,
-          document: editor?.getJSON() || document,
-          body: "",
-          tags: tags.split(","),
-          action,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!response.ok)
         throw new Error(data.error || "Draft could not be saved.");
       activeRef.current = data.story;
       setActive(data.story);
+      setPaused(false);
       if (revision.current === savingRevision) setDirty(false);
       if (!new URLSearchParams(location.search).get("draft"))
         window.history.replaceState(null, "", `/write?draft=${data.story.id}`);
@@ -206,6 +216,31 @@ function StudioContent() {
       );
       if (action === "submit") setDialog(null);
     } catch (e) {
+      // A POST can commit while its response is lost. Read to reconcile it;
+      // never blindly replay a write or bypass another tab's conflict.
+      if (e instanceof ServiceRequestError && payload) {
+        try {
+          const recovered = await requestJson(`/api/stories?id=${encodeURIComponent(payload.id || payload.draftId)}`);
+          const story = recovered.data.stories?.[0] as Story | undefined;
+          if (recovered.response.ok && story && story.title === payload.title &&
+              JSON.stringify(story.document) === JSON.stringify(payload.document) &&
+              story.summary === payload.summary.trim() &&
+              JSON.stringify(story.tags) === JSON.stringify([...new Set(payload.tags.map((t: string) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 5).map((t: any) => t.slice(0, 32))) &&
+              (story.canonicalUrl || "") === (payload.canonicalUrl.trim() ? new URL(payload.canonicalUrl.trim()).href : "") &&
+              (action !== "submit" || (story.requestedPublishAt || null) === payload.requestedPublishAt) &&
+              story.status === (action === "submit" ? "submitted" : "draft") &&
+              story.updatedAt !== payload.expectedUpdatedAt) {
+            activeRef.current = story;
+            setActive(story);
+            setPaused(false);
+            if (revision.current === savingRevision) setDirty(false);
+            window.history.replaceState(null, "", `/write?draft=${story.id}`);
+            setMessage(action === "submit" ? "Submitted for review. Your story remains private until approved." : "Saved to your account. Connection recovered.");
+            if (action === "submit") setDialog(null);
+            return;
+          }
+        } catch { /* Leave the draft intact and offer an explicit retry. */ }
+      }
       setPaused(true);
       setSaveError(true);
       setMessage(
@@ -231,7 +266,7 @@ function StudioContent() {
       (!title.trim() && !documentText(document).trim())
     )
       return;
-    const timer = setTimeout(() => void saveRef.current("save"), 2500);
+    const timer = setTimeout(() => void saveRef.current("save"), 5000);
     return () => clearTimeout(timer);
   }, [
     title,
@@ -262,6 +297,7 @@ function StudioContent() {
       editor
         .chain()
         .focus()
+        .setTextSelection(imagePosition.current || editor.state.selection)
         .setImage({ src: data.url, alt: data.alt, title: caption.trim() })
         .run();
       setDialog(null);
@@ -275,6 +311,13 @@ function StudioContent() {
       saving.current = false;
       setBusy(false);
     }
+  }
+  function openImage() {
+    if (!editor || locked) return;
+    const { from, to } = editor.state.selection;
+    imagePosition.current = { from, to };
+    setSaveError(false);
+    setDialog("image");
   }
   function exportDraft() {
     const blob = new Blob(
@@ -311,10 +354,11 @@ function StudioContent() {
     );
   return (
     <div className={`writer-studio${focus ? " focus-mode" : ""}`}>
+      <div className="writer-toolbar-stack">
       <div className="writer-editor-actions">
         <a href="/writer/stories">← Your stories</a>
         <span className="writer-save-status" role="status">
-          {busy
+          {saveError ? "Save needs attention" : busy
             ? "Saving…"
             : dirty
               ? "Unsaved changes"
@@ -366,22 +410,25 @@ function StudioContent() {
         <WriterRibbon
           editor={editor}
           disabled={!loaded || busy || locked}
-          image={() => setDialog("image")}
+          image={openImage}
           history={() => setDialog("history")}
           preview={() => setPreview(true)}
           focus={() => setFocus(!focus)}
           message={setMessage}
         />
       )}
+      </div>
+      {!preview && !focus && <WriterRuler editor={editor} disabled={!loaded || locked || busy}
+        width={pageWidth} onWidth={(width) => { setPageWidth(width); localStorage.setItem("syaahi-editor-width", String(width)); }} />}
       <article
         className={`writer-canvas article-design theme-${normalizeDesign(document.attrs).theme} border-${normalizeDesign(document.attrs).pageBorder}`}
-        style={articleStyles(document.attrs)}
+        style={{ ...articleStyles(document.attrs), maxWidth: pageWidth }}
       >
         {!locked && !preview && loaded && (
           <details className="writer-block-insert">
             <summary aria-label="Add story element">+</summary>
             <div>
-              <button disabled={busy} onClick={() => setDialog("image")}>
+              <button disabled={busy} onMouseDown={(e) => e.preventDefault()} onClick={openImage}>
                 Image
               </button>
               <button
@@ -416,10 +463,11 @@ function StudioContent() {
         <label className="sr-only" htmlFor="story-title">
           Story title
         </label>
-        <input
+        <textarea
           id="story-title"
           className="writer-title"
           placeholder="Title"
+          rows={2}
           value={title}
           maxLength={140}
           disabled={!loaded || locked || submitting}
@@ -584,6 +632,7 @@ function StudioContent() {
                   type="datetime-local"
                   aria-label="Requested publication time"
                   value={publishTime}
+                  min={new Date(Date.now() + 120000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
                   disabled={busy}
                   onChange={(e) => {
                     setPublishTime(e.target.value);

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { oauthClient, safeNext } from "@/lib/auth/oauth";
 import { rateLimit } from "@/lib/ratelimit";
 import { workspaceKind } from "@/lib/workspace-preference";
+import { authOrigin } from "@/lib/auth/origin";
 async function handlePOST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const denied = originError(req);
@@ -16,10 +17,7 @@ async function handlePOST(req: NextRequest) {
     );
   const limited = await rateLimit(req, "oauth", 10, 60000);
   if (limited) return limited;
-  const origin =
-    (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "") ||
-    req.headers.get("origin")?.replace(/\/+$/, "") ||
-    "https://www.syaahii.in";
+  const origin = authOrigin();
   const response = NextResponse.redirect(new URL("/login", origin));
   try {
     const client = oauthClient(req, response);

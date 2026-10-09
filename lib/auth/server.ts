@@ -9,6 +9,7 @@ import {
 } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db, transaction } from "@/lib/db";
+import { authOrigin } from "./origin";
 export interface Account {
   id: string;
   email: string;
@@ -140,6 +141,7 @@ export function originError(req: Request): NextResponse | null {
     [
       new URL(req.url).origin,
       (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, ""),
+      authOrigin(),
       "https://syaahii.in",
       "https://www.syaahii.in",
       ...(process.env.NODE_ENV !== "production"
