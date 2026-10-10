@@ -89,7 +89,8 @@ roles, passwords or customer subscriptions were changed by these tests.
       commit together. Page-view increments cannot overwrite content or moderation.
 - [x] Private topic preferences, muted topics, opt-in reading history and diversified
       For you/Latest/Following feeds; related public stories are rendered on article pages.
-- [ ] Author-muting controls in the UI and pagination beyond the bounded feed pool.
+- [x] Private author-muting controls, validated public writer handles/URLs and unmute.
+- [ ] Pagination beyond the bounded feed pool.
 - [ ] Friendly author URLs and verified custom-domain lifecycle.
 - [ ] Newsletter/subscriber lifecycle and publication teams.
 
@@ -220,3 +221,24 @@ unchecked items above. No full parity with Medium is claimed.
   article, retained views, server authorization and API conflict/error responses.
   Existing publishing and creator-publication regressions pass. Faults are injected
   only into synthetic test databases; no production article/report was changed.
+
+## Private feed controls and rendering reliability — 2026-10-10
+
+- Writer settings can add up to 30 public writers to a private muted list using a
+  Syaahi profile URL or handle. Server validation rejects unavailable/unverified
+  profiles. Save/reload and unmute persist on both databases; muting neither unfollows
+  the writer nor hides their public pages.
+- Loading failures and revision conflicts offer an explicit reload. Account changes
+  abort pending lookups/saves and hide the previous account's form. Empty feeds link
+  to reading preferences rather than incorrectly asking established authors to write
+  their first story.
+- Public story dates and counts use a fixed locale/timezone across server and browser.
+  Asynchronous account context updates use a transition while the refresh loading gate
+  stays immediate. CI reported a hydration mismatch; browser regression coverage now
+  includes a different device locale/timezone and repeated navigation at 4x CPU slowdown.
+- Validated: recommendation persistence/privacy on SQLite and MongoDB; production
+  recommendation/social browser journeys, mobile/tablet/desktop layouts, admin routing
+  and public discovery. Screenshots remain synthetic and excluded from Git.
+- `58ac6fd` passed CI and exact-revision frontend/Render checks. The atomic moderation
+  increment's backend tests passed, but its CI run exposed the browser hydration failure
+  addressed here; its failed run is not recorded as successful verification.

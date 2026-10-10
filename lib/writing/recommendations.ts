@@ -5,6 +5,7 @@ import { following, type ReaderRecord } from "./social";
 import { getPublicStory, listPublicStories, type Story } from "./stories";
 import { publicStoryViews } from "./public";
 import type { ReadingPreferences } from "./recommendation-types";
+import { writerBySlug } from "./profile";
 export class RecommendationError extends Error {
   constructor(
     message: string,
@@ -69,6 +70,20 @@ export async function updateReadingPreferences(owner: string, input: unknown) {
   if (topics.some((t) => mutedTopics.includes(t)))
     throw new RecommendationError(
       "A topic cannot be both preferred and muted.",
+    );
+  const current = await readingPreferences(owner);
+  if (current.updatedAt !== b.expectedUpdatedAt)
+    throw new RecommendationError(
+      "Preferences changed in another tab. Reload before saving.",
+      409,
+    );
+  const added = [...new Set(b.mutedCreators)].filter(
+    (s) => !current.mutedCreators.includes(s),
+  );
+  const writers = await Promise.all(added.map((s) => writerBySlug(s)));
+  if (writers.some((p) => !p))
+    throw new RecommendationError(
+      "Choose an available public Syaahi writer profile to mute.",
     );
   return mutateRecord<ReadingPreferences>(preferenceKey(owner), (old) => {
     if ((old?.updatedAt || "") !== b.expectedUpdatedAt)

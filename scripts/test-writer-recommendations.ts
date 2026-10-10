@@ -121,6 +121,59 @@ async function main() {
     );
     const following = await r.recommendedStories(reader.id, "following");
     assert(following.stories.every((s) => s.creatorSlug === ap.slug));
+    await assert.rejects(
+      () =>
+        r.updateReadingPreferences(reader.id, {
+          ...prefs,
+          mutedCreators: ["missing-public-writer"],
+          expectedUpdatedAt: prefs.updatedAt,
+        }),
+      /available public Syaahi writer/,
+    );
+    const unverified = await auth.register(
+      "Unverified",
+      "recommend-unverified@example.test",
+      "fixture-safe-password",
+    );
+    const privateProfile = await profiles.enrollWriter(unverified);
+    await assert.rejects(
+      () =>
+        r.updateReadingPreferences(reader.id, {
+          ...prefs,
+          mutedCreators: [privateProfile.slug],
+          expectedUpdatedAt: prefs.updatedAt,
+        }),
+      /available public Syaahi writer/,
+    );
+    prefs = await r.updateReadingPreferences(reader.id, {
+      ...prefs,
+      mutedCreators: [ap.slug],
+      expectedUpdatedAt: prefs.updatedAt,
+    });
+    for (const mode of ["for_you", "latest", "following"] as const)
+      assert(
+        (await r.recommendedStories(reader.id, mode)).stories.every(
+          (s) => s.creatorSlug !== ap.slug,
+        ),
+      );
+    assert.deepEqual((await r.readingPreferences(other.id)).mutedCreators, []);
+    assert(
+      (
+        await (
+          await import("../lib/writing/social")
+        ).followStatus(ap.slug, reader.id)
+      ).following,
+    );
+    prefs = await r.updateReadingPreferences(reader.id, {
+      ...prefs,
+      mutedCreators: [],
+      expectedUpdatedAt: prefs.updatedAt,
+    });
+    assert(
+      (await r.recommendedStories(reader.id)).stories.some(
+        (s) => s.creatorSlug === ap.slug,
+      ),
+    );
     const candidates = Array.from({ length: 40 }, (_, i) => ({
       ...published[0],
       id: "ranking-" + i,

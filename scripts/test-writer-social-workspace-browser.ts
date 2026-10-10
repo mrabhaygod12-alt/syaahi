@@ -60,6 +60,16 @@ async function main() {
     "Fixture reviewed",
     author.id,
   );
+  // Exercise a server-rendered count whose punctuation differs by locale.
+  await stories.commitStoryChanges([
+    {
+      before: published,
+      after: {
+        ...published,
+        analytics: { views: 12345, lastViewedAt: null },
+      },
+    },
+  ]);
   const cookieFor = async (u: typeof author) => {
     const [name, value] = (
       await auth.startSession(u, new Request(origin))
@@ -96,6 +106,8 @@ async function main() {
     browser = await chromium.launch();
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
+      locale: "de-DE",
+      timezoneId: "Pacific/Kiritimati",
     });
     await context.addInitScript(() =>
       localStorage.setItem("syaahi-privacy-v1", "essential"),
@@ -103,7 +115,7 @@ async function main() {
     await context.addCookies([authorCookie]);
     const page = await context.newPage(),
       errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("pageerror", (e) => errors.push(`${page.url()}: ${e.message}`));
     page.setDefaultTimeout(20000);
     const publicSession = await browser.newContext();
     const privateResult = await publicSession.request.get(
@@ -344,6 +356,14 @@ async function main() {
       0,
     );
     await publicSession.close();
+    const session = await context.newCDPSession(page);
+    await session.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    for (let i = 0; i < 4; i++) {
+      await page.goto(`${origin}/creators/${p.slug}`);
+      await page.waitForLoadState("networkidle");
+      await page.goto(`${origin}/guides/${published.slug}`);
+      await page.waitForLoadState("networkidle");
+    }
     assert.equal(errors.length, 0, errors.join("\n"));
     console.log(
       "PASS writer social workspace browser: profile connection opt-in, follow/unfollow, public writer lists, like/save/comment persistence, real feed counters, stats, author-only revision menu, stale account response isolation and 390/768/1440 layouts.",

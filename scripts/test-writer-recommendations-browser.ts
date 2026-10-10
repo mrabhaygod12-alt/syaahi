@@ -129,6 +129,36 @@ async function main() {
       await preferences.getByLabel(/^Topics to show less/).inputValue(),
       "research",
     );
+    const authorSlug = (await profiles.writerProfile(author.id))!.slug;
+    const writerInput = preferences.getByLabel("Writer profile URL or handle", {
+      exact: true,
+    });
+    await writerInput.fill(`https://outside.example/creators/${authorSlug}`);
+    await preferences
+      .getByRole("button", { name: "Add writer", exact: true })
+      .click();
+    await preferences
+      .getByRole("alert")
+      .filter({ hasText: "Use a Syaahi writer profile URL" })
+      .waitFor();
+    await writerInput.fill(`${base}/creators/${authorSlug}`);
+    await preferences
+      .getByRole("button", { name: "Add writer", exact: true })
+      .click();
+    await preferences
+      .getByRole("button", { name: `Unmute ${authorSlug}`, exact: true })
+      .waitFor();
+    await preferences
+      .getByRole("button", { name: "Save reading preferences", exact: true })
+      .click();
+    await preferences
+      .getByRole("status")
+      .filter({ hasText: "Reading preferences saved." })
+      .waitFor();
+    await page.reload();
+    await preferences
+      .getByRole("button", { name: `Unmute ${authorSlug}`, exact: true })
+      .waitFor();
     for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       await preferences.scrollIntoViewIfNeeded();
@@ -142,6 +172,29 @@ async function main() {
         path: `output/writer-recommendations/preferences-${width}.png`,
       });
     }
+    await page.goto(base + "/writer");
+    await page
+      .getByRole("heading", {
+        name: "Your feed has room for new voices.",
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(await page.locator(".writer-story-row").count(), 0);
+    const hidden = await (
+      await ctx.request.get(base + "/api/writer/preferences")
+    ).json();
+    assert.deepEqual(hidden.preferences.mutedCreators, [authorSlug]);
+    await page.goto(base + "/writer/settings#reading-preferences");
+    await preferences
+      .getByRole("button", { name: `Unmute ${authorSlug}`, exact: true })
+      .click();
+    await preferences
+      .getByRole("button", { name: "Save reading preferences", exact: true })
+      .click();
+    await preferences
+      .getByRole("status")
+      .filter({ hasText: "Reading preferences saved." })
+      .waitFor();
     await page.goto(base + "/writer");
     await page.getByRole("tab", { name: "For you", exact: true }).waitFor();
     await page.locator(".writer-story-row").first().waitFor();
@@ -204,7 +257,7 @@ async function main() {
     );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS writer recommendations browser: private preference save/reload, opt-in history, muted topics, For you/Latest/Following, stale-mode isolation, related SSR links and 390/768/1440 layouts.",
+      "PASS writer recommendations browser: private preference save/reload, opt-in history, topic/author mute and unmute persistence, profile URL validation, For you/Latest/Following, stale-mode isolation, related SSR links and 390/768/1440 layouts.",
     );
   } finally {
     await browser?.close();

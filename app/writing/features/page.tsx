@@ -34,6 +34,10 @@ const tools = [
     "Like, save, share and comment on reviewed articles. Story cards show real likes, visible responses and approximate views. Authors and response owners can remove their responses; private reading notes stay private.",
   ],
   [
+    "Shape your reading feed",
+    "Choose topics, mute topics or public writers and opt into reading-history recommendations. Muting stays private and leaves your follow relationships unchanged; you can unmute any time.",
+  ],
+  [
     "Understand readership",
     "View followers, following, likes, responses, approximate story opens and qualified signed-in readers separately. Story metrics cover your latest 50 stories. Qualified readers use a bounded thirty-second signal, not verified attention or earnings.",
   ],

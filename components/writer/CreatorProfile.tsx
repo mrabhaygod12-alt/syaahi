@@ -70,6 +70,7 @@ export default function CreatorProfile({
                   {new Date(profile.joinedAt).toLocaleDateString("en-IN", {
                     month: "long",
                     year: "numeric",
+                    timeZone: "UTC",
                   })}
                 </span>
               )}

@@ -68,6 +68,46 @@
   margin-top: 5px;
   flex-shrink: 0;
 }
+.writer-muted-authors {
+  margin: 26px 0;
+  padding: 20px;
+  border: 1px solid var(--w-line);
+  border-radius: 14px;
+  background: var(--w-bg);
+}
+.writer-muted-authors h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.writer-muted-authors p {
+  font-size: 13px;
+}
+.writer-muted-authors > small {
+  margin-top: 12px;
+}
+.writer-muted-authors ul {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+}
+.writer-muted-authors li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--w-line);
+}
+.writer-muted-authors li a {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-size: 13px;
+}
+.writer-muted-authors li button {
+  padding: 9px 12px;
+  min-height: 40px;
+}
 .writer-recommendation-reason {
   color: var(--w-green);
   font-size: 11px;

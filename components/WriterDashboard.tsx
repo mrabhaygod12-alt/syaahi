@@ -13,6 +13,7 @@ const date = (d: string) =>
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 export function StoryRow({
   story,
@@ -140,7 +141,7 @@ export function StoryRow({
               <span aria-hidden="true">◌</span> {story.activity.comments}
             </a>
             <span title="Approximate page views, including repeat visits">
-              {story.activity.views.toLocaleString()} views
+              {story.activity.views.toLocaleString("en-IN")} views
             </span>
             <details className="writer-story-more">
               <summary aria-label={`More options for ${story.title}`}>
@@ -563,21 +564,31 @@ function DashboardContent({ view }: { view: View }) {
                 : view === "library"
                   ? "Make room for a good read."
                   : view === "home"
-                    ? "The next great idea could be yours."
+                    ? "Your feed has room for new voices."
                     : "A fresh page is waiting."}
             </h2>
             <p>
               {view === "library"
                 ? "Use Save on a published story to keep it here."
-                : "Start with a thought, an experience or something you have learned."}
+                : view === "home"
+                  ? "Follow writers or adjust your private reading preferences to discover more stories."
+                  : "Start with a thought, an experience or something you have learned."}
             </p>
             <a
               className="btn light"
-              href={view === "library" ? "/writer" : "/write"}
+              href={
+                view === "library"
+                  ? "/writer"
+                  : view === "home"
+                    ? "/writer/settings#reading-preferences"
+                    : "/write"
+              }
             >
               {view === "library"
                 ? "Discover stories"
-                : "Write your first story"}
+                : view === "home"
+                  ? "Adjust reading preferences"
+                  : "Write your first story"}
             </a>
           </div>
         )}

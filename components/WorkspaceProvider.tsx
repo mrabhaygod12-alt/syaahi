@@ -6,6 +6,7 @@ import {
   useState,
   useRef,
   useCallback,
+  startTransition,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -43,16 +44,20 @@ export default function WorkspaceProvider({
         if (request.current !== controller || controller.signal.aborted) return;
         if (!response.ok)
           throw new Error(data.error || "Your account could not be loaded.");
-        setUser(data.user || null);
+        // Let pending server-rendered boundaries hydrate before replacing their
+        // account context. Keep the loading gate synchronous when a refresh starts.
+        startTransition(() => {
+          setUser(data.user || null);
+          setLoading(false);
+        });
       })
       .catch((e) => {
         if (request.current !== controller || controller.signal.aborted) return;
-        setUser(null);
-        setError(e.message);
-      })
-      .finally(() => {
-        if (request.current === controller && !controller.signal.aborted)
+        startTransition(() => {
+          setUser(null);
+          setError(e.message);
           setLoading(false);
+        });
       });
   }, []);
   useEffect(() => {
