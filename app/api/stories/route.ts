@@ -13,6 +13,7 @@ import {
 import { writerReaderStats } from "@/lib/writing/social";
 import { storyActivities } from "@/lib/writing/activity";
 import { connectionCounts } from "@/lib/writing/connections";
+import { WritingError } from "@/lib/writing/errors";
 
 async function handleGET(req: NextRequest) {
   const denied = await authError(req);
@@ -57,15 +58,33 @@ async function handlePOST(req: NextRequest) {
   const denied =
     (await authError(req)) || (await rateLimit(req, "stories", 20, 60_000));
   if (denied) return denied;
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return NextResponse.json(
+      { error: "Provide valid story information." },
+      { status: 400 },
+    );
   if (
-    body.id &&
-    (typeof body.expectedUpdatedAt !== "string" ||
+    body.id !== undefined &&
+    (typeof body.id !== "string" ||
+      !body.id ||
+      body.id.length > 80 ||
+      typeof body.expectedUpdatedAt !== "string" ||
+      !body.expectedUpdatedAt ||
       body.expectedUpdatedAt.length > 50)
   )
     return NextResponse.json(
       { error: "Include the draft's current saved revision before editing." },
       { status: 409 },
+    );
+  if (
+    body.action !== undefined &&
+    (typeof body.action !== "string" ||
+      !["save", "submit"].includes(body.action))
+  )
+    return NextResponse.json(
+      { error: "Choose save or submit for review." },
+      { status: 400 },
     );
   try {
     const user = (await currentUser(req))!;
@@ -102,18 +121,12 @@ async function handlePOST(req: NextRequest) {
     });
     return NextResponse.json({ story });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unable to save draft.",
-      },
-      {
-        status:
-          error instanceof Error &&
-          /changed|already saved|under editorial review/.test(error.message)
-            ? 409
-            : 400,
-      },
-    );
+    if (error instanceof WritingError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    throw error;
   }
 }
 
@@ -130,9 +143,8 @@ export const DELETE = apiHandler(async (req: NextRequest) => {
     await deleteDraft(user.id, req.nextUrl.searchParams.get("id") || "");
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Unable to delete draft." },
-      { status: 400 },
-    );
+    if (e instanceof WritingError)
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    throw e;
   }
 });

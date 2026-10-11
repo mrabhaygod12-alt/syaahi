@@ -28,6 +28,7 @@ jobs:
       - run: npm run test:presentation-engine
       - run: npm run test:writer-platform
       - run: npm run test:writer-editor-reliability
+      - run: npm run test:writer-service-errors
       - run: npm run test:writer-discovery
       - run: npm run test:writer-publishing
       - run: npm run test:writer-moderation

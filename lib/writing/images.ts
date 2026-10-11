@@ -1,3 +1,4 @@
+import { WritingError } from "./errors";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
 import { collection, useMongo } from "@/lib/storage/mongo";
@@ -10,29 +11,40 @@ export async function uploadWritingImage(
   alt: string,
 ) {
   if (input.byteLength > 4 * 1024 * 1024 || !alt.trim())
-    throw new Error("Use an image under 4 MB and provide alt text.");
-  const image = sharp(input, { limitInputPixels: 24_000_000, animated: false });
-  const info = await image.metadata();
-  if (!["jpeg", "png", "webp"].includes(info.format || ""))
-    throw new Error("Upload a JPEG, PNG or WebP image.");
-  const bytes = await image
-    .rotate()
-    .resize({
-      width: 1600,
-      height: 1600,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 82 })
-    .toBuffer();
+    throw new WritingError("Use an image under 4 MB and provide alt text.");
+  let bytes: Buffer;
+  try {
+    const image = sharp(input, {
+      limitInputPixels: 24_000_000,
+      animated: false,
+    });
+    const info = await image.metadata();
+    if (!["jpeg", "png", "webp"].includes(info.format || ""))
+      throw new WritingError("Upload a JPEG, PNG or WebP image.");
+    bytes = await image
+      .rotate()
+      .resize({
+        width: 1600,
+        height: 1600,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 82 })
+      .toBuffer();
+  } catch (e) {
+    if (e instanceof WritingError) throw e;
+    throw new WritingError(
+      "This image could not be read. Choose a valid JPEG, PNG or WebP image within the supported size.",
+    );
+  }
   if (bytes.length > 1024 * 1024)
-    throw new Error("Image is too large after processing.");
+    throw new WritingError("Image is too large after processing.");
   const id = randomUUID(),
     createdAt = new Date().toISOString();
   if (useMongo()) {
     const c = await collection("writing_images");
     if ((await c.countDocuments({ owner })) >= 200)
-      throw new Error("Image library limit reached. Contact support.");
+      throw new WritingError("Image library limit reached. Contact support.");
     await c.insertOne({
       _id: id,
       owner,
@@ -48,7 +60,7 @@ export async function uploadWritingImage(
           .get(owner)?.n,
       ) >= 200
     )
-      throw new Error("Image library limit reached.");
+      throw new WritingError("Image library limit reached.");
     db()
       .prepare("INSERT INTO writing_images VALUES (?,?,?,?,?)")
       .run(id, owner, bytes, alt.trim().slice(0, 300), createdAt);
@@ -81,7 +93,7 @@ export async function writingImage(id: string) {
 }
 export async function assertOwnedImages(owner: string, document: RichNode) {
   const ids = [...new Set(documentImages(document))];
-  if (ids.length > 30) throw new Error("Use up to 30 images per story.");
+  if (ids.length > 30) throw new WritingError("Use up to 30 images per story.");
   for (const id of ids) {
     const found = useMongo()
       ? await (
@@ -90,7 +102,8 @@ export async function assertOwnedImages(owner: string, document: RichNode) {
       : db()
           .prepare("SELECT id FROM writing_images WHERE id=? AND owner=?")
           .get(id, owner);
-    if (!found) throw new Error("This image does not belong to your account.");
+    if (!found)
+      throw new WritingError("This image does not belong to your account.");
   }
 }
 export async function imageIsPublished(id: string, owner: string) {

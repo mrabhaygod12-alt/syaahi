@@ -1,3 +1,4 @@
+import { WritingError } from "./errors";
 import { randomUUID } from "node:crypto";
 import { db, transaction } from "@/lib/db";
 import { collection, useMongo, mongoTransaction } from "@/lib/storage/mongo";
@@ -301,7 +302,7 @@ export async function saveStory(
                 (time < Date.now() + 60000 ||
                   time > Date.now() + 365 * 86400000))
             )
-              throw new Error(
+              throw new WritingError(
                 "Choose a publication time at least one minute from now and within the next year.",
               );
             return new Date(time).toISOString();
@@ -321,7 +322,7 @@ export async function saveStory(
             t.description.length > 160 ||
             /[<>\r\n]/.test(t.title + t.description)
           )
-            throw new Error(
+            throw new WritingError(
               "Use a search title of 5–80 characters and description of 20–160 characters, without markup.",
             );
           return {
@@ -334,7 +335,14 @@ export async function saveStory(
   if (canonicalUrl !== undefined) {
     canonicalUrl = canonicalUrl.trim();
     if (canonicalUrl) {
-      const url = new URL(canonicalUrl);
+      let url: URL;
+      try {
+        url = new URL(canonicalUrl);
+      } catch {
+        throw new WritingError(
+          "Use a valid public HTTPS canonical URL without credentials.",
+        );
+      }
       if (
         url.protocol !== "https:" ||
         url.username ||
@@ -342,7 +350,7 @@ export async function saveStory(
         url.href.length > 2000 ||
         url.hostname === "localhost"
       )
-        throw new Error(
+        throw new WritingError(
           "Use a public HTTPS canonical URL without credentials.",
         );
       canonicalUrl = url.href;
@@ -364,7 +372,7 @@ export async function saveStory(
     .slice(0, 5)
     .map((tag) => tag.slice(0, 32));
   if (!title || (input.submit && (title.length < 5 || body.length < 80)))
-    throw new Error(
+    throw new WritingError(
       "Add a title to save. Review submissions need at least 80 characters.",
     );
   const retryDraft = async (): Promise<Story | null> => {
@@ -382,8 +390,9 @@ export async function saveStory(
       (existing.canonicalUrl || "") !== (canonicalUrl || "") ||
       (existing.requestedPublishAt || null) !== (requestedPublishAt || null)
     )
-      throw new Error(
+      throw new WritingError(
         "This draft was already saved. Reload it before changing this retry.",
+        409,
       );
     return existing;
   };
@@ -394,7 +403,7 @@ export async function saveStory(
         input.draftId,
       )
     )
-      throw new Error("Use a valid new draft identifier.");
+      throw new WritingError("Use a valid new draft identifier.");
     const retried = await retryDraft();
     if (retried) return retried;
   }
@@ -411,16 +420,17 @@ export async function saveStory(
             return row ? JSON.parse(String(row.payload)) : null;
           })(),
         );
-    if (!existing) throw new Error("Draft not found.");
+    if (!existing) throw new WritingError("Draft not found.");
     if (
       input.expectedUpdatedAt &&
       existing.updatedAt !== input.expectedUpdatedAt
     )
-      throw new Error(
+      throw new WritingError(
         "This draft changed in another tab. Reload it before saving.",
+        409,
       );
     if (!["draft", "changes_requested"].includes(existing.status))
-      throw new Error("This submission is under editorial review.");
+      throw new WritingError("This submission is under editorial review.", 409);
     if (
       input.submit &&
       (requestedPublishAt === undefined
@@ -432,7 +442,7 @@ export async function saveStory(
           : requestedPublishAt)!,
       ) <= Date.now()
     )
-      throw new Error(
+      throw new WritingError(
         "The requested publication time has passed. Choose a new time or publish after review.",
       );
     const story: Story = {
@@ -495,8 +505,9 @@ export async function saveStory(
         },
       );
       if (!changed.matchedCount)
-        throw new Error(
+        throw new WritingError(
           "This draft changed in another tab. Reload it before saving.",
+          409,
         );
     } else
       transaction(() => {
@@ -514,8 +525,9 @@ export async function saveStory(
             existing.status,
           );
         if (!changed.changes)
-          throw new Error(
+          throw new WritingError(
             "This draft changed in another tab. Reload it before saving.",
+            409,
           );
       });
     return story;
@@ -609,8 +621,9 @@ export async function commitStoryChanges(
   changes: Array<{ before: Story | null; after: Story | null }>,
 ) {
   const conflict = () =>
-    new Error(
+    new WritingError(
       "This story changed in another tab or review. Reload before continuing.",
+      409,
     );
   if (useMongo())
     return mongoTransaction(async (database, session) => {
@@ -781,12 +794,12 @@ export async function reportPublicStory(
     "other",
   ];
   if (!validReasons.includes(reason))
-    throw new Error("Choose a report reason.");
+    throw new WritingError("Choose a report reason.");
   const story = await getPublicStory(slug);
-  if (!story) throw new Error("This guide is no longer available.");
+  if (!story) throw new WritingError("This guide is no longer available.");
   const cleanDetails = details.trim().slice(0, 1200);
   if (cleanDetails.length < 12)
-    throw new Error(
+    throw new WritingError(
       "Add at least 12 characters to help the moderator review this report.",
     );
   const duplicate = useMongo()
@@ -803,7 +816,7 @@ export async function reportPublicStory(
         )
         .get(story.id, reporter);
   if (duplicate)
-    throw new Error("You already have an open report for this guide.");
+    throw new WritingError("You already have an open report for this guide.");
   const report: ContentReport = {
     id: randomUUID(),
     storyId: story.id,

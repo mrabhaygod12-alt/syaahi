@@ -7,8 +7,8 @@ import {
   beginRevision,
   unpublishStory,
   cancelStorySchedule,
-  PublicationError,
 } from "@/lib/writing/publishing";
+import { WritingError } from "@/lib/writing/errors";
 export const POST = apiHandler(async (req: NextRequest) => {
   const user = await currentUser(req);
   if (!user)
@@ -23,6 +23,9 @@ export const POST = apiHandler(async (req: NextRequest) => {
   const b = await req.json().catch(() => null);
   if (
     !b ||
+    typeof b !== "object" ||
+    Array.isArray(b) ||
+    typeof b.action !== "string" ||
     !["revise", "unpublish", "cancel_schedule"].includes(b.action) ||
     typeof b.id !== "string" ||
     b.id.length > 80 ||
@@ -44,11 +47,8 @@ export const POST = apiHandler(async (req: NextRequest) => {
       story: await handler(user.id, b.id, b.expectedUpdatedAt),
     });
   } catch (e) {
-    return NextResponse.json(
-      {
-        error: e instanceof Error ? e.message : "Could not change publication.",
-      },
-      { status: e instanceof PublicationError ? e.status : 409 },
-    );
+    if (e instanceof WritingError)
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    throw e;
   }
 });

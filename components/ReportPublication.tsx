@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 
 const reasons = [
   ["spam", "Spam or promotion"],
@@ -23,14 +24,17 @@ export default function ReportPublication({ slug }: { slug: string }) {
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/reports", {
+      const { response, data } = await requestJson("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug, reason, details }),
       });
-      const data = await response.json();
       if (!response.ok)
-        throw new Error(data.error || "Could not submit report.");
+        throw new ServiceRequestError(
+          data.error || "Could not submit report.",
+          response.status,
+          data.requestId,
+        );
       setMessage("Report received. A moderator will review it.");
       setDetails("");
     } catch (error) {

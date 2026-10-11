@@ -291,3 +291,28 @@ unchecked items above. No full parity with Medium is claimed.
   response redaction; typecheck and production build. Production browser journeys cover
   real competing-tab conflicts, reload, injected service-response recovery, support
   references, persisted profile changes and theme-conflict recovery.
+- Profile recovery increment `9a55149` passed full GitHub CI and exact-revision public
+  smoke checks on frontend, proxied backend and direct Render with healthy MongoDB.
+
+## Draft, publishing and media service boundaries — 2026-10-11
+
+- Draft create/save/delete, publication changes, editorial reviews, image uploads and
+  public content reports expose only deliberately typed validation/conflict messages.
+  Unexpected database errors return HTTP 503 with a support reference through the shared
+  handler. Existing validation messages and 409 conflicts remain actionable.
+- Invalid JSON shapes, malformed canonical URLs and malformed document formatting return 400. Empty saved revisions cannot bypass the draft API's conflict guard. Invalid images
+  show a concise format/size message rather than image-processor diagnostics.
+- Editor and publication controls display safe support references. Lost/uncertain write
+  responses still use a read-only reconciliation; known 4xx rejections do not trigger that
+  read or an automatic write retry. Unsaved text remains in the editor on failure.
+- `test:writer-service-errors` injects failures into synthetic SQLite/MongoDB databases
+  for create/save, revision deletion, withdrawal/revision creation, editorial approval,
+  upload and report writes. Tests verify safe 503 references, rollback, retained public
+  visibility, no partial parent/revision updates and successful explicit recovery.
+  This suite now runs in CI. Existing publishing, moderation, discovery, social, editor
+  reliability and writer-platform regressions pass on their supported databases.
+- Production build and browser regressions pass: editor through a real local
+  frontend/backend proxy, JSON 503 reference and explicit save retry, committed write
+  with lost response, inline image position, saved indentation and sticky tools;
+  MFA-authorized publishing/withdrawal; social/profile journeys. Layouts are checked at
+  390/768/1440px. All accounts, images and database outages are synthetic.

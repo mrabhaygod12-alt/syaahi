@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { requestJson } from "@/lib/http-client";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import { useAccount } from "./WorkspaceProvider";
 import type { GuideEngagement } from "@/lib/writing/engagement";
 import "./writer/social-workspace.css";
@@ -30,7 +30,12 @@ export default function PublicationActions({ slug }: { slug: string }) {
     try {
       const r = await requestJson(path, { signal: controller.signal });
       if (controller.signal.aborted || identity.current !== key) return;
-      if (!r.response.ok) throw new Error(r.data.error);
+      if (!r.response.ok)
+        throw new ServiceRequestError(
+          r.data.error || "The request could not be completed.",
+          r.response.status,
+          r.data.requestId,
+        );
       setSaved({ key, value: r.data as GuideEngagement });
     } catch (e) {
       if (!controller.signal.aborted && identity.current === key)
@@ -117,7 +122,12 @@ export default function PublicationActions({ slug }: { slug: string }) {
         { signal: controller.signal },
       );
       if (controller.signal.aborted || identity.current !== key) return;
-      if (!owned.response.ok) throw new Error(owned.data.error);
+      if (!owned.response.ok)
+        throw new ServiceRequestError(
+          owned.data.error || "The request could not be completed.",
+          owned.response.status,
+          owned.data.requestId,
+        );
       const story = owned.data.stories[0];
       const r = await requestJson("/api/writer/publishing", {
         method: "POST",
@@ -130,7 +140,12 @@ export default function PublicationActions({ slug }: { slug: string }) {
         }),
       });
       if (controller.signal.aborted || identity.current !== key) return;
-      if (!r.response.ok) throw new Error(r.data.error);
+      if (!r.response.ok)
+        throw new ServiceRequestError(
+          r.data.error || "The request could not be completed.",
+          r.response.status,
+          r.data.requestId,
+        );
       location.assign(`/write?draft=${encodeURIComponent(r.data.story.id)}`);
     } catch (e) {
       if (!controller.signal.aborted && identity.current === key)
@@ -155,7 +170,12 @@ export default function PublicationActions({ slug }: { slug: string }) {
         signal: controller.signal,
       });
       if (controller.signal.aborted || identity.current !== key) return;
-      if (!current.response.ok) throw new Error(current.data.error);
+      if (!current.response.ok)
+        throw new ServiceRequestError(
+          current.data.error || "The request could not be completed.",
+          current.response.status,
+          current.data.requestId,
+        );
       if (
         current.data.pinned.some(
           (s: { id: string }) => s.id === data.viewer!.ownStoryId,
@@ -177,7 +197,12 @@ export default function PublicationActions({ slug }: { slug: string }) {
         }),
       });
       if (controller.signal.aborted || identity.current !== key) return;
-      if (!r.response.ok) throw new Error(r.data.error);
+      if (!r.response.ok)
+        throw new ServiceRequestError(
+          r.data.error || "The request could not be completed.",
+          r.response.status,
+          r.data.requestId,
+        );
       setMessage(
         "Story pinned to your public profile. Manage its order in your writer profile.",
       );

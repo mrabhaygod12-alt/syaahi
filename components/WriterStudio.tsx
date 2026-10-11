@@ -162,7 +162,10 @@ function StudioContent() {
     }
   }, [editor, loaded]);
   useEffect(() => {
-    editor?.setEditable(loaded && !locked && !preview && !submitting && dialog !== "image", false);
+    editor?.setEditable(
+      loaded && !locked && !preview && !submitting && dialog !== "image",
+      false,
+    );
   }, [editor, loaded, locked, preview, submitting, dialog]);
   useEffect(() => {
     const protect = (e: BeforeUnloadEvent) => {
@@ -188,11 +191,20 @@ function StudioContent() {
         id: activeRef.current?.id,
         draftId: activeRef.current ? undefined : newDraftId.current,
         expectedUpdatedAt: activeRef.current?.updatedAt,
-        title: title.trim() || "Untitled story", summary, canonicalUrl,
+        title: title.trim() || "Untitled story",
+        summary,
+        canonicalUrl,
         // Publication options cannot prevent saving the writer's text.
-        requestedPublishAt: action === "submit" ? (publishTime ? new Date(publishTime).toISOString() : null) : undefined,
+        requestedPublishAt:
+          action === "submit"
+            ? publishTime
+              ? new Date(publishTime).toISOString()
+              : null
+            : undefined,
         document: normalizeDocument(editor?.getJSON() || document),
-        body: "", tags: tags.split(","), action,
+        body: "",
+        tags: tags.split(","),
+        action,
       };
       const { response, data } = await requestJson("/api/stories", {
         method: "POST",
@@ -200,7 +212,11 @@ function StudioContent() {
         body: JSON.stringify(payload),
       });
       if (!response.ok)
-        throw new Error(data.error || "Draft could not be saved.");
+        throw new ServiceRequestError(
+          data.error || "Draft could not be saved.",
+          response.status,
+          data.requestId,
+        );
       activeRef.current = data.story;
       setActive(data.story);
       setPaused(false);
@@ -218,28 +234,61 @@ function StudioContent() {
     } catch (e) {
       // A POST can commit while its response is lost. Read to reconcile it;
       // never blindly replay a write or bypass another tab's conflict.
-      if (e instanceof ServiceRequestError && payload) {
+      if (
+        e instanceof ServiceRequestError &&
+        (e.status < 400 || e.status >= 500) &&
+        payload
+      ) {
         try {
-          const recovered = await requestJson(`/api/stories?id=${encodeURIComponent(payload.id || payload.draftId)}`);
+          const recovered = await requestJson(
+            `/api/stories?id=${encodeURIComponent(payload.id || payload.draftId)}`,
+          );
           const story = recovered.data.stories?.[0] as Story | undefined;
-          if (recovered.response.ok && story && story.title === payload.title &&
-              JSON.stringify(story.document) === JSON.stringify(payload.document) &&
-              story.summary === payload.summary.trim() &&
-              JSON.stringify(story.tags) === JSON.stringify([...new Set(payload.tags.map((t: string) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 5).map((t: any) => t.slice(0, 32))) &&
-              (story.canonicalUrl || "") === (payload.canonicalUrl.trim() ? new URL(payload.canonicalUrl.trim()).href : "") &&
-              (action !== "submit" || (story.requestedPublishAt || null) === payload.requestedPublishAt) &&
-              story.status === (action === "submit" ? "submitted" : "draft") &&
-              story.updatedAt !== payload.expectedUpdatedAt) {
+          if (
+            recovered.response.ok &&
+            story &&
+            story.title === payload.title &&
+            JSON.stringify(story.document) ===
+              JSON.stringify(payload.document) &&
+            story.summary === payload.summary.trim() &&
+            JSON.stringify(story.tags) ===
+              JSON.stringify(
+                [
+                  ...new Set(
+                    payload.tags
+                      .map((t: string) => t.trim().toLowerCase())
+                      .filter(Boolean),
+                  ),
+                ]
+                  .slice(0, 5)
+                  .map((t: any) => t.slice(0, 32)),
+              ) &&
+            (story.canonicalUrl || "") ===
+              (payload.canonicalUrl.trim()
+                ? new URL(payload.canonicalUrl.trim()).href
+                : "") &&
+            (action !== "submit" ||
+              (story.requestedPublishAt || null) ===
+                payload.requestedPublishAt) &&
+            story.status === (action === "submit" ? "submitted" : "draft") &&
+            story.updatedAt !== payload.expectedUpdatedAt
+          ) {
             activeRef.current = story;
             setActive(story);
             setPaused(false);
             if (revision.current === savingRevision) setDirty(false);
             window.history.replaceState(null, "", `/write?draft=${story.id}`);
-            setMessage(action === "submit" ? "Submitted for review. Your story remains private until approved." : "Saved to your account. Connection recovered.");
+            setMessage(
+              action === "submit"
+                ? "Submitted for review. Your story remains private until approved."
+                : "Saved to your account. Connection recovered.",
+            );
             if (action === "submit") setDialog(null);
             return;
           }
-        } catch { /* Leave the draft intact and offer an explicit retry. */ }
+        } catch {
+          /* Leave the draft intact and offer an explicit retry. */
+        }
       }
       setPaused(true);
       setSaveError(true);
@@ -293,7 +342,12 @@ function StudioContent() {
         method: "POST",
         body: form,
       });
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok)
+        throw new ServiceRequestError(
+          data.error || "Image upload failed.",
+          response.status,
+          data.requestId,
+        );
       editor
         .chain()
         .focus()
@@ -355,71 +409,88 @@ function StudioContent() {
   return (
     <div className={`writer-studio${focus ? " focus-mode" : ""}`}>
       <div className="writer-toolbar-stack">
-      <div className="writer-editor-actions">
-        <a href="/writer/stories">← Your stories</a>
-        <span className="writer-save-status" role="status">
-          {saveError ? "Save needs attention" : busy
-            ? "Saving…"
-            : dirty
-              ? "Unsaved changes"
-              : active
-                ? "Saved"
-                : "Private draft"}
-        </span>
-        <button className="writer-text-button" onClick={() => setTools(!tools)}>
-          {tools ? "Hide tools" : "Show tools"}
-        </button>
-        <button className="writer-text-button" onClick={() => setFocus(!focus)}>
-          {focus ? "Exit focus" : "Focus"}
-        </button>
-        <button className="btn light" onClick={() => setPreview(!preview)}>
-          {preview ? "Edit" : "Preview"}
-        </button>
-        <button
-          className="writer-text-button"
-          disabled={!active || locked || busy || dirty || submitting}
-          onClick={() => setDialog("discovery")}
-        >
-          Discovery
-        </button>
-        <button
-          className="btn dark"
-          disabled={busy || locked || !loaded || !title.trim()}
-          onClick={() => setDialog("publish")}
-        >
-          Publish
-        </button>
-        <details className="writer-more">
-          <summary aria-label="More story actions">•••</summary>
-          <div>
-            <button
-              disabled={busy || locked || !loaded}
-              onClick={() => void save("save")}
-            >
-              Save draft
-            </button>
-            <button onClick={() => setDialog("history")}>
-              Revision history
-            </button>
-            <button onClick={exportDraft}>Download draft</button>
-            <button onClick={() => window.print()}>Print / Save PDF</button>
-          </div>
-        </details>
+        <div className="writer-editor-actions">
+          <a href="/writer/stories">← Your stories</a>
+          <span className="writer-save-status" role="status">
+            {saveError
+              ? "Save needs attention"
+              : busy
+                ? "Saving…"
+                : dirty
+                  ? "Unsaved changes"
+                  : active
+                    ? "Saved"
+                    : "Private draft"}
+          </span>
+          <button
+            className="writer-text-button"
+            onClick={() => setTools(!tools)}
+          >
+            {tools ? "Hide tools" : "Show tools"}
+          </button>
+          <button
+            className="writer-text-button"
+            onClick={() => setFocus(!focus)}
+          >
+            {focus ? "Exit focus" : "Focus"}
+          </button>
+          <button className="btn light" onClick={() => setPreview(!preview)}>
+            {preview ? "Edit" : "Preview"}
+          </button>
+          <button
+            className="writer-text-button"
+            disabled={!active || locked || busy || dirty || submitting}
+            onClick={() => setDialog("discovery")}
+          >
+            Discovery
+          </button>
+          <button
+            className="btn dark"
+            disabled={busy || locked || !loaded || !title.trim()}
+            onClick={() => setDialog("publish")}
+          >
+            Publish
+          </button>
+          <details className="writer-more">
+            <summary aria-label="More story actions">•••</summary>
+            <div>
+              <button
+                disabled={busy || locked || !loaded}
+                onClick={() => void save("save")}
+              >
+                Save draft
+              </button>
+              <button onClick={() => setDialog("history")}>
+                Revision history
+              </button>
+              <button onClick={exportDraft}>Download draft</button>
+              <button onClick={() => window.print()}>Print / Save PDF</button>
+            </div>
+          </details>
+        </div>
+        {tools && !preview && (
+          <WriterRibbon
+            editor={editor}
+            disabled={!loaded || busy || locked}
+            image={openImage}
+            history={() => setDialog("history")}
+            preview={() => setPreview(true)}
+            focus={() => setFocus(!focus)}
+            message={setMessage}
+          />
+        )}
       </div>
-      {tools && !preview && (
-        <WriterRibbon
+      {!preview && !focus && (
+        <WriterRuler
           editor={editor}
-          disabled={!loaded || busy || locked}
-          image={openImage}
-          history={() => setDialog("history")}
-          preview={() => setPreview(true)}
-          focus={() => setFocus(!focus)}
-          message={setMessage}
+          disabled={!loaded || locked || busy}
+          width={pageWidth}
+          onWidth={(width) => {
+            setPageWidth(width);
+            localStorage.setItem("syaahi-editor-width", String(width));
+          }}
         />
       )}
-      </div>
-      {!preview && !focus && <WriterRuler editor={editor} disabled={!loaded || locked || busy}
-        width={pageWidth} onWidth={(width) => { setPageWidth(width); localStorage.setItem("syaahi-editor-width", String(width)); }} />}
       <article
         className={`writer-canvas article-design theme-${normalizeDesign(document.attrs).theme} border-${normalizeDesign(document.attrs).pageBorder}`}
         style={{ ...articleStyles(document.attrs), maxWidth: pageWidth }}
@@ -428,7 +499,11 @@ function StudioContent() {
           <details className="writer-block-insert">
             <summary aria-label="Add story element">+</summary>
             <div>
-              <button disabled={busy} onMouseDown={(e) => e.preventDefault()} onClick={openImage}>
+              <button
+                disabled={busy}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openImage}
+              >
                 Image
               </button>
               <button
@@ -632,7 +707,13 @@ function StudioContent() {
                   type="datetime-local"
                   aria-label="Requested publication time"
                   value={publishTime}
-                  min={new Date(Date.now() + 120000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                  min={new Date(
+                    Date.now() +
+                      120000 -
+                      new Date().getTimezoneOffset() * 60000,
+                  )
+                    .toISOString()
+                    .slice(0, 16)}
                   disabled={busy}
                   onChange={(e) => {
                     setPublishTime(e.target.value);

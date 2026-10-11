@@ -4,6 +4,7 @@ import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { uploadWritingImage } from "@/lib/writing/images";
 import { writerAccess } from "@/lib/writing/profile";
+import { WritingError } from "@/lib/writing/errors";
 export const runtime = "nodejs";
 export const POST = apiHandler(async (req: NextRequest) => {
   const denied =
@@ -13,15 +14,16 @@ export const POST = apiHandler(async (req: NextRequest) => {
   const access = await writerAccess((await currentUser(req))!.id);
   if (access) return access;
   try {
-    const data = await req.formData(),
-      file = data.get("image"),
+    const data = await req.formData().catch(() => null);
+    if (!data) throw new WritingError("Choose an image using the upload form.");
+    const file = data.get("image"),
       alt = data.get("alt");
     if (
       !(file instanceof File) ||
       typeof alt !== "string" ||
       file.size > 4 * 1024 * 1024
     )
-      throw new Error("Choose a JPEG, PNG or WebP image under 4 MB.");
+      throw new WritingError("Choose a JPEG, PNG or WebP image under 4 MB.");
     return NextResponse.json(
       await uploadWritingImage(
         (await currentUser(req))!.id,
@@ -30,11 +32,11 @@ export const POST = apiHandler(async (req: NextRequest) => {
       ),
     );
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Image upload failed.",
-      },
-      { status: 400 },
-    );
+    if (error instanceof WritingError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    throw error;
   }
 });

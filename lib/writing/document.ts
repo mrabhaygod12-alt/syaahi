@@ -1,3 +1,4 @@
+import { WritingError } from "./errors";
 import {
   STORY_FONTS,
   STORY_SIZES,
@@ -38,32 +39,57 @@ export function normalizeDocument(value: unknown): RichNode {
     characters = 0;
   function clean(input: unknown, depth: number): RichNode {
     if (++count > 3500 || depth > 16 || !input || typeof input !== "object")
-      throw new Error("Document is too large or malformed.");
+      throw new WritingError("Document is too large or malformed.");
     const node = input as RichNode;
-    if (!blocks.has(node.type)) throw new Error("Unsupported document block.");
+    if (!blocks.has(node.type))
+      throw new WritingError("Unsupported document block.");
+    if (
+      node.attrs !== undefined &&
+      (!node.attrs ||
+        typeof node.attrs !== "object" ||
+        Array.isArray(node.attrs))
+    )
+      throw new WritingError("Invalid document attributes.");
+    if (
+      node.marks !== undefined &&
+      (!Array.isArray(node.marks) ||
+        node.marks.some(
+          (m) =>
+            !m ||
+            typeof m !== "object" ||
+            Array.isArray(m) ||
+            typeof m.type !== "string" ||
+            (m.attrs !== undefined &&
+              (!m.attrs ||
+                typeof m.attrs !== "object" ||
+                Array.isArray(m.attrs))),
+        ))
+    )
+      throw new WritingError("Invalid text formatting.");
     const result: RichNode = { type: node.type };
     if (node.type === "doc" && node.attrs)
       result.attrs = normalizeDesign(node.attrs);
     if (node.type === "equation") {
       const expression = String(node.attrs?.expression || "").trim();
       if (!expression || expression.length > 500)
-        throw new Error("Equations need 1–500 characters.");
+        throw new WritingError("Equations need 1–500 characters.");
       characters += expression.length;
       if (characters > 50000)
-        throw new Error("Story exceeds 50,000 characters.");
+        throw new WritingError("Story exceeds 50,000 characters.");
       result.attrs = { expression };
     }
     if (node.type === "videoEmbed") {
       const videoId = String(node.attrs?.videoId || "");
       if (!/^[A-Za-z0-9_-]{11}$/.test(videoId))
-        throw new Error("Use a valid YouTube video.");
+        throw new WritingError("Use a valid YouTube video.");
       result.attrs = { videoId };
     }
     if (node.type === "text") {
-      if (typeof node.text !== "string") throw new Error("Invalid text block.");
+      if (typeof node.text !== "string")
+        throw new WritingError("Invalid text block.");
       characters += node.text.length;
       if (characters > 50000)
-        throw new Error("Story exceeds 50,000 characters.");
+        throw new WritingError("Story exceeds 50,000 characters.");
       result.text = node.text;
       result.marks = (node.marks || [])
         .filter((m) =>
@@ -108,7 +134,7 @@ export function normalizeDocument(value: unknown): RichNode {
             href.length > 1200 ||
             !/^https?:\/\//i.test(href)
           )
-            throw new Error("Use an HTTP or HTTPS link.");
+            throw new WritingError("Use an HTTP or HTTPS link.");
           return { type: "link", attrs: { href } };
         });
     }
@@ -149,7 +175,7 @@ export function normalizeDocument(value: unknown): RichNode {
           .trim()
           .slice(0, 300);
       if (!/^\/api\/writing\/images\/[a-f0-9-]{36}$/.test(src) || !alt)
-        throw new Error("Upload an image and add descriptive alt text.");
+        throw new WritingError("Upload an image and add descriptive alt text.");
       result.attrs = {
         src,
         alt,
@@ -158,7 +184,7 @@ export function normalizeDocument(value: unknown): RichNode {
     }
     if (node.content) {
       if (!Array.isArray(node.content))
-        throw new Error("Invalid document content.");
+        throw new WritingError("Invalid document content.");
       result.content = node.content.map((c) => clean(c, depth + 1));
     }
     const allowed: Record<string, string[]> = {
@@ -239,7 +265,7 @@ export function normalizeDocument(value: unknown): RichNode {
         (child) => !(allowed[node.type] || []).includes(child.type),
       )
     )
-      throw new Error("Invalid document structure.");
+      throw new WritingError("Invalid document structure.");
     if (
       [
         "table",
@@ -253,12 +279,12 @@ export function normalizeDocument(value: unknown): RichNode {
       ].includes(node.type) &&
       !result.content?.length
     )
-      throw new Error("Empty structural block.");
+      throw new WritingError("Empty structural block.");
     return result;
   }
   const result = clean(value, 0);
   if (result.type !== "doc")
-    throw new Error("Document must have a root block.");
+    throw new WritingError("Document must have a root block.");
   return result;
 }
 export function documentText(node: RichNode): string {

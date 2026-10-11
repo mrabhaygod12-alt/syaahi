@@ -3,6 +3,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { isAdmin } from "@/lib/auth/admin";
 import { rateLimit } from "@/lib/ratelimit";
+import { WritingError } from "@/lib/writing/errors";
 import {
   listContentReports,
   listModerationEvents,
@@ -69,7 +70,8 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     if (
       !(error instanceof ModerationConflictError) &&
-      !(error instanceof ModerationValidationError)
+      !(error instanceof ModerationValidationError) &&
+      !(error instanceof WritingError)
     )
       throw error;
     return NextResponse.json(
@@ -77,7 +79,14 @@ async function handlePOST(req: NextRequest) {
         error:
           error instanceof Error ? error.message : "Moderation action failed.",
       },
-      { status: error instanceof ModerationConflictError ? 409 : 400 },
+      {
+        status:
+          error instanceof WritingError
+            ? error.status
+            : error instanceof ModerationConflictError
+              ? 409
+              : 400,
+      },
     );
   }
 }

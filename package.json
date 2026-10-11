@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:writer-service-errors": "tsx scripts/test-writer-service-errors.ts && tsx scripts/test-writer-service-errors.ts --mongo",
     "test:writer-pins": "tsx scripts/test-writer-pins.ts && tsx scripts/test-writer-pins.ts --mongo",
     "test:writer-moderation": "tsx scripts/test-writer-moderation.ts && tsx scripts/test-writer-moderation.ts --mongo",
     "test:writer-connections-activity": "tsx scripts/test-writer-connections-activity.ts && tsx scripts/test-writer-connections-activity.ts --mongo",

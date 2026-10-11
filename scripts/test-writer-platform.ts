@@ -366,7 +366,7 @@ async function run(backend: string) {
   assert.equal(submitted.status, 200);
   assert.equal(
     (await stories.DELETE(req(`/api/stories?id=${story.id}`, "DELETE"))).status,
-    400,
+    409,
   );
   const published = await reviewStory(story.id, "publish", "Reviewed", user.id);
   const renamed = await profile.PATCH(

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { requestJson } from "@/lib/http-client";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import type { Story } from "@/lib/writing/stories";
 import WriterShell, { useWriter, WriterAvatar } from "./writer/WriterShell";
 import Modal from "./Modal";
@@ -234,7 +234,12 @@ function DashboardContent({ view }: { view: View }) {
           action,
         }),
       });
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok)
+        throw new ServiceRequestError(
+          data.error || "The request could not be completed.",
+          response.status,
+          data.requestId,
+        );
       if (action === "revise")
         location.assign(`/write?draft=${encodeURIComponent(data.story.id)}`);
       else {
@@ -551,7 +556,12 @@ function DashboardContent({ view }: { view: View }) {
                             }),
                           },
                         );
-                        if (!response.ok) throw new Error(data.error);
+                        if (!response.ok)
+                          throw new ServiceRequestError(
+                            data.error || "The request could not be completed.",
+                            response.status,
+                            data.requestId,
+                          );
                         setStories((old) => old.filter((s) => s.slug !== slug));
                       } catch (e) {
                         setError(
@@ -657,7 +667,12 @@ function DashboardContent({ view }: { view: View }) {
                     `/api/stories?id=${remove}`,
                     { method: "DELETE" },
                   );
-                  if (!response.ok) throw new Error(data.error);
+                  if (!response.ok)
+                    throw new ServiceRequestError(
+                      data.error || "The request could not be completed.",
+                      response.status,
+                      data.requestId,
+                    );
                   setStories((old) => old.filter((s) => s.id !== remove));
                   setRemove(null);
                 } catch (e) {

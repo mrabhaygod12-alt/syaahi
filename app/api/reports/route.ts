@@ -3,13 +3,19 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { reportPublicStory, type ReportReason } from "@/lib/writing/stories";
+import { WritingError } from "@/lib/writing/errors";
 
 async function handlePOST(req: NextRequest) {
   const denied =
     (await authError(req)) ||
     (await rateLimit(req, "content-report", 5, 60 * 60_000));
   if (denied) return denied;
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return NextResponse.json(
+      { error: "Provide a valid content report." },
+      { status: 400 },
+    );
   try {
     const report = await reportPublicStory(
       (await currentUser(req))!.id,
@@ -19,13 +25,12 @@ async function handlePOST(req: NextRequest) {
     );
     return NextResponse.json({ report }, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Could not submit report.",
-      },
-      { status: 400 },
-    );
+    if (error instanceof WritingError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    throw error;
   }
 }
 

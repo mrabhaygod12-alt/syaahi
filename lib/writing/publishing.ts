@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { collection, useMongo } from "@/lib/storage/mongo";
+import { WritingError } from "./errors";
 import {
   ownedStory,
   getStoryById,
@@ -10,12 +11,9 @@ import {
   type ModerationEvent,
 } from "./stories";
 
-export class PublicationError extends Error {
-  constructor(
-    message: string,
-    public status = 409,
-  ) {
-    super(message);
+export class PublicationError extends WritingError {
+  constructor(message: string, status = 409) {
+    super(message, status);
   }
 }
 const nextTime = (s: Story) =>

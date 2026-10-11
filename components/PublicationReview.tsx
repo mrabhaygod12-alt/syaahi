@@ -1,6 +1,7 @@
 "use client";
 import type { RichNode } from "@/lib/writing/document";
 import StoryDocument from "./StoryDocument";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 
 import { useEffect, useState } from "react";
 
@@ -46,16 +47,25 @@ export default function PublicationReview() {
 
   const load = async () => {
     try {
-      const [reviewResponse, moderationResponse] = await Promise.all([
-        fetch("/api/admin/stories"),
-        fetch("/api/admin/moderation"),
+      const [
+        { response: reviewResponse, data: review },
+        { response: moderationResponse, data: moderation },
+      ] = await Promise.all([
+        requestJson("/api/admin/stories"),
+        requestJson("/api/admin/moderation"),
       ]);
-      const review = await reviewResponse.json();
-      const moderation = await moderationResponse.json();
       if (!reviewResponse.ok)
-        throw new Error(review.error || "Could not load review queue.");
+        throw new ServiceRequestError(
+          review.error || "Could not load review queue.",
+          reviewResponse.status,
+          review.requestId,
+        );
       if (!moderationResponse.ok)
-        throw new Error(moderation.error || "Could not load moderation queue.");
+        throw new ServiceRequestError(
+          moderation.error || "Could not load moderation queue.",
+          moderationResponse.status,
+          moderation.requestId,
+        );
       setStories(review.stories || []);
       setReports(moderation.reports || []);
       setAudit(moderation.audit || []);
@@ -73,7 +83,7 @@ export default function PublicationReview() {
     setBusy(id);
     setMessage("");
     try {
-      const response = await fetch("/api/admin/stories", {
+      const { response, data } = await requestJson("/api/admin/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -83,8 +93,12 @@ export default function PublicationReview() {
           expectedUpdatedAt: stories.find((s) => s.id === id)?.updatedAt,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Review failed.");
+      if (!response.ok)
+        throw new ServiceRequestError(
+          data.error || "Review failed.",
+          response.status,
+          data.requestId,
+        );
       setStories((old) => old.filter((story) => story.id !== id));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Review failed.");
@@ -108,14 +122,17 @@ export default function PublicationReview() {
               note: note[report.id] || "Restored after moderation review.",
             }
           : { reportId: report.id, action, note: note[report.id] || "" };
-      const response = await fetch("/api/admin/moderation", {
+      const { response, data } = await requestJson("/api/admin/moderation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
       if (!response.ok)
-        throw new Error(data.error || "Moderation action failed.");
+        throw new ServiceRequestError(
+          data.error || "Moderation action failed.",
+          response.status,
+          data.requestId,
+        );
       await load();
     } catch (error) {
       setMessage(
