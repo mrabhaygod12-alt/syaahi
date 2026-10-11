@@ -4,8 +4,9 @@ import WriterShell, { useWriter, WriterAvatar } from "./WriterShell";
 import Modal from "../Modal";
 import { StoryRow } from "../WriterDashboard";
 import { requestJson } from "@/lib/http-client";
-import type { Story } from "@/lib/writing/stories";
+import type { PublicGuide } from "@/lib/writing/public";
 import ConnectionsPanel from "./ConnectionsPanel";
+import FeaturedStories from "./FeaturedStories";
 import "./social-workspace.css";
 export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const { profile, update } = useWriter();
@@ -225,18 +226,42 @@ function ProfileContent() {
   const { profile } = useWriter();
   const [tab, setTab] = useState("home"),
     [edit, setEdit] = useState(false),
-    [stories, setStories] = useState<Story[]>([]),
+    [stories, setStories] = useState<PublicGuide[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   useEffect(() => {
-    requestJson("/api/stories")
-      .then(({ response, data }) => {
+    let pending: AbortController | null = null;
+    const load = async () => {
+      pending?.abort();
+      const controller = new AbortController();
+      pending = controller;
+      setLoading(true);
+      setError("");
+      try {
+        const { response, data } = await requestJson(
+          `/api/publications?creator=${encodeURIComponent(profile.slug)}`,
+          { signal: controller.signal },
+        );
+        if (controller.signal.aborted) return;
         if (!response.ok) throw new Error(data.error);
-        setStories(data.stories.filter((s: Story) => s.status === "published"));
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+        setStories(data.stories);
+      } catch (e) {
+        if (!controller.signal.aborted) setError((e as Error).message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    const refresh = (e: Event) => {
+      if ((e as CustomEvent).detail === profile.slug) void load();
+    };
+    setStories([]);
+    void load();
+    window.addEventListener("syaahi-profile-pins", refresh);
+    return () => {
+      pending?.abort();
+      window.removeEventListener("syaahi-profile-pins", refresh);
+    };
+  }, [profile.owner, profile.slug]);
   return (
     <div className="writer-content-layout">
       <section className="writer-primary">
@@ -259,6 +284,7 @@ function ProfileContent() {
           {profile.bio ||
             "Give readers a little glimpse of the person behind the words."}
         </p>
+        <FeaturedStories key={profile.owner} />
         <div
           className="writer-tabs"
           role="tablist"
@@ -307,7 +333,9 @@ function ProfileContent() {
         ) : error ? (
           <p role="alert">{error}</p>
         ) : stories.length ? (
-          stories.map((s) => <StoryRow key={s.id} story={s} />)
+          stories.map((s) => (
+            <StoryRow key={s.slug} story={s} pinned={!!s.pinned} />
+          ))
         ) : (
           <div className="writer-empty">
             <span className="writer-empty-symbol">✎</span>

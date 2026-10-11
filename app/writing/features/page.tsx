@@ -19,7 +19,7 @@ const tools = [
   ],
   [
     "Build a distinct writer profile",
-    "Choose your writer name, photo, bio, pronouns and About page. Public stories use your writer identity rather than exposing student account information.",
+    "Choose your writer name, photo, bio, pronouns and About page. Pin up to three approved stories in your chosen order. Public stories use your writer identity rather than exposing student account information.",
   ],
   [
     "Submit for editorial review",

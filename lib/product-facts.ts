@@ -12,7 +12,7 @@ export function productFacts() {
     name: "Syaahi",
     alternateName: "Syaahii",
     officialWebsite: SITE.url,
-    reviewedOn: "2026-10-10",
+    reviewedOn: "2026-10-11",
     description:
       "A web workspace for source-based learning, editable AI presentations and reviewed blog publishing.",
     creators: ["Chandan Pandey", "Manish Kumar Singh"],
@@ -48,6 +48,7 @@ export function productFacts() {
           "Following feeds, private connection lists with optional public writer display, likes, saved stories, public responses and private reading notes",
           "Story statistics and canonical links",
           "Private topic and writer muting with optional reading-history recommendations",
+          "Up to three ordered profile pins for approved published stories",
         ],
       },
     ],

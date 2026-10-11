@@ -17,7 +17,7 @@ export type PublicGuide = Pick<
   | "updatedAt"
   | "canonicalUrl"
   | "searchMetadata"
-> & { activity?: StoryActivity };
+> & { activity?: StoryActivity; pinned?: boolean };
 export function publicGuide(story: Story): PublicGuide {
   const {
     slug,
@@ -105,9 +105,14 @@ export const publicGuides = async (
     const story = await store.getPublicStory(value);
     return story ? publicStoryViews([story]) : [];
   }
-  return publicStoryViews(
-    await (kind === "creator"
-      ? store.listPublicStoriesByCreator(value)
-      : store.listPublicStories()),
-  );
+  if (kind === "creator") {
+    const { stories, pinned } = await (
+      await import("./pins")
+    ).creatorStoriesWithPins(value);
+    return (await publicStoryViews(stories)).map((s, i) => ({
+      ...s,
+      ...(pinned.has(stories[i].id) ? { pinned: true } : {}),
+    }));
+  }
+  return publicStoryViews(await store.listPublicStories());
 };

@@ -24,6 +24,7 @@ export function StoryRow({
   onPublication,
   publicationBusy = false,
   reason,
+  pinned = false,
 }: {
   story: Partial<Story> & { activity?: StoryActivity };
   own?: boolean;
@@ -36,6 +37,7 @@ export function StoryRow({
   ) => void;
   publicationBusy?: boolean;
   reason?: string;
+  pinned?: boolean;
 }) {
   const href =
     own && story.status !== "published"
@@ -46,6 +48,9 @@ export function StoryRow({
   return (
     <article className="writer-story-row">
       <div>
+        {pinned && (
+          <p className="writer-pinned-label">✦ Pinned by the writer</p>
+        )}
         <p className="writer-story-byline">
           {story.authorName}{" "}
           <span>
@@ -152,6 +157,11 @@ export function StoryRow({
                 <a href={`${href}#story-activity`}>Like or save story</a>
                 <a href={`${href}#story-responses`}>Join the conversation</a>
                 {own && <a href="/writer/stats">Story stats</a>}
+                {own && (
+                  <a href="/writer/profile#featured-stories">
+                    Manage profile pins
+                  </a>
+                )}
                 {own && onPublication && (
                   <button
                     className="writer-text-button"

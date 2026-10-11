@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { load } from "cheerio";
 async function main() {
   const origin = "http://localhost:3162";
   Object.assign(process.env, {
@@ -70,6 +71,22 @@ async function main() {
       },
     },
   ]);
+  const secondDraft = await stories.saveStory(author.id, {
+    title: "Read the evidence before choosing a research method",
+    summary:
+      "A practical guide to comparing references before drawing conclusions.",
+    body: draft.body,
+    tags: ["research"],
+    authorName: p.name,
+    creatorSlug: p.slug,
+    submit: true,
+  });
+  const secondPublished = await stories.reviewStory(
+    secondDraft.id,
+    "publish",
+    "Synthetic reviewed story",
+    author.id,
+  );
   const cookieFor = async (u: typeof author) => {
     const [name, value] = (
       await auth.startSession(u, new Request(origin))
@@ -142,6 +159,182 @@ async function main() {
         )
       ).status(),
       200,
+    );
+    const featured = page.locator("#featured-stories");
+    await featured
+      .getByLabel("Published story to pin")
+      .selectOption(published.id);
+    await featured
+      .getByRole("button", { name: "Pin story", exact: true })
+      .click();
+    await featured
+      .getByRole("button", { name: `Unpin ${published.title}`, exact: true })
+      .waitFor();
+    await featured
+      .getByLabel("Published story to pin")
+      .selectOption(secondPublished.id);
+    await featured
+      .getByRole("button", { name: "Pin story", exact: true })
+      .click();
+    await featured
+      .getByRole("button", {
+        name: `Unpin ${secondPublished.title}`,
+        exact: true,
+      })
+      .waitFor();
+    await featured
+      .getByRole("button", {
+        name: `Move ${secondPublished.title} earlier`,
+        exact: true,
+      })
+      .click();
+    await page.waitForFunction(
+      (title) =>
+        document
+          .querySelector("#featured-stories li:first-child")
+          ?.textContent?.includes(title),
+      secondPublished.title,
+    );
+    await page.reload();
+    await featured
+      .getByRole("button", {
+        name: `Unpin ${secondPublished.title}`,
+        exact: true,
+      })
+      .waitFor();
+    assert.match(
+      await featured.locator("li").first().innerText(),
+      /Read the evidence/,
+    );
+    const publicPins = (
+      await (
+        await publicSession.request.get(
+          `${origin}/api/publications?creator=${p.slug}`,
+        )
+      ).json()
+    ).stories;
+    assert.deepEqual(
+      publicPins.slice(0, 2).map((s: { slug: string }) => s.slug),
+      [secondPublished.slug, published.slug],
+    );
+    assert(publicPins.slice(0, 2).every((s: { pinned?: boolean }) => s.pinned));
+    const html = await (
+      await publicSession.request.get(`${origin}/creators/${p.slug}`)
+    ).text();
+    const $ = load(html);
+    assert.equal(
+      $(".writer-story-row h2").first().text(),
+      secondPublished.title,
+    );
+    assert.equal(
+      $(".writer-pinned-label").length,
+      2,
+      "Profile pins are visible in server-rendered HTML",
+    );
+    assert.equal(
+      $(".writer-story-row h2")
+        .map((_, n) => $(n).text())
+        .get()
+        .filter((title) => title === published.title).length,
+      1,
+      "Pins do not duplicate articles",
+    );
+    // A real competing tab updates the saved revision. The stale UI must reload,
+    // rather than replaying the author's write against a newer list.
+    const pinSnapshot = await (
+      await context.request.get(`${origin}/api/writer/pins`)
+    ).json();
+    const competing = await context.request.patch(`${origin}/api/writer/pins`, {
+      headers: { origin },
+      data: {
+        storyId: published.id,
+        action: "move_up",
+        expectedUpdatedAt: pinSnapshot.updatedAt,
+      },
+    });
+    assert.equal(competing.status(), 200);
+    await featured
+      .getByRole("button", {
+        name: `Unpin ${secondPublished.title}`,
+        exact: true,
+      })
+      .click();
+    await featured
+      .getByRole("alert")
+      .filter({ hasText: "changed in another tab" })
+      .waitFor();
+    await featured
+      .getByRole("button", { name: "Reload profile pins", exact: true })
+      .click();
+    await page.waitForFunction(
+      (title) =>
+        document
+          .querySelector("#featured-stories li:first-child")
+          ?.textContent?.includes(title),
+      published.title,
+    );
+    await page.waitForFunction(
+      (title) =>
+        document.querySelector(".writer-story-row h2")?.textContent === title,
+      published.title,
+    );
+    mkdirSync("output/writer-social", { recursive: true });
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth + 1,
+        ),
+        false,
+        `Profile pins fit ${width}px`,
+      );
+      await page.screenshot({
+        path: `output/writer-social/profile-pins-${width}.png`,
+        fullPage: true,
+      });
+    }
+    const appearance = async (value: "dark" | "light") => {
+      const current = (
+        await (await context.request.get(`${origin}/api/writer/profile`)).json()
+      ).profile;
+      const changed = await context.request.patch(
+        `${origin}/api/writer/profile`,
+        {
+          headers: { origin },
+          data: { appearance: value, expectedUpdatedAt: current.updatedAt },
+        },
+      );
+      assert.equal(changed.status(), 200);
+      await page.reload();
+      await page.waitForFunction(
+        (theme) => document.documentElement.dataset.writerTheme === theme,
+        value,
+      );
+      await featured
+        .getByRole("button", { name: `Unpin ${published.title}`, exact: true })
+        .waitFor();
+    };
+    await appearance("dark");
+    await page.setViewportSize({ width: 390, height: 1000 });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth + 1,
+      ),
+      false,
+    );
+    await page.screenshot({
+      path: "output/writer-social/profile-pins-dark-390.png",
+      fullPage: true,
+    });
+    await appearance("light");
+    await featured
+      .getByRole("button", {
+        name: `Unpin ${secondPublished.title}`,
+        exact: true,
+      })
+      .click();
+    await page.waitForFunction(
+      () => document.querySelectorAll("#featured-stories li").length === 1,
     );
     await context.addCookies([readerCookie]);
     await page.goto(origin + "/writer/following");
@@ -282,6 +475,18 @@ async function main() {
       .getByLabel("More story options");
     await menu.click();
     await page
+      .getByRole("button", { name: "Pin to profile", exact: true })
+      .click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "already pinned" })
+      .waitFor();
+    assert.equal(
+      (await (await context.request.get(`${origin}/api/writer/pins`)).json())
+        .pinned.length,
+      1,
+    );
+    await page
       .getByRole("button", { name: "Edit private revision", exact: true })
       .click();
     await page.waitForURL("**/write?draft=*");
@@ -351,6 +556,12 @@ async function main() {
     );
     assert.equal(
       await page
+        .getByRole("button", { name: "Pin to profile", exact: true })
+        .count(),
+      0,
+    );
+    assert.equal(
+      await page
         .getByRole("button", { name: "Remove response", exact: true })
         .count(),
       0,
@@ -366,7 +577,7 @@ async function main() {
     }
     assert.equal(errors.length, 0, errors.join("\n"));
     console.log(
-      "PASS writer social workspace browser: profile connection opt-in, follow/unfollow, public writer lists, like/save/comment persistence, real feed counters, stats, author-only revision menu, stale account response isolation and 390/768/1440 layouts.",
+      "PASS writer social workspace browser: pin/reorder/unpin persistence and public order, stale pin revision conflict/reload, author-only article pin action, profile connection opt-in, follow/unfollow, public writer lists, like/save/comment persistence, real feed counters, stats, author-only revision menu, stale account response isolation and 390/768/1440 layouts.",
     );
   } finally {
     await browser?.close();

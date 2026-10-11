@@ -34,6 +34,7 @@ jobs:
       - run: npm run test:writer-recommendations
       - run: npm run test:writer-social
       - run: npm run test:writer-connections-activity
+      - run: npm run test:writer-pins
       - run: npm test
       - run: npx tsx scripts/test-study.ts
       - run: npx tsx scripts/test-referrals.ts

@@ -135,7 +135,14 @@ export default function CreatorProfile({
                 </p>
               </div>
             ) : stories.length ? (
-              stories.map((s) => <StoryRow key={s.slug} story={s} publicFeed />)
+              stories.map((s) => (
+                <StoryRow
+                  key={s.slug}
+                  story={s}
+                  publicFeed
+                  pinned={!!s.pinned}
+                />
+              ))
             ) : (
               <div className="writer-empty">
                 <span>✎</span>

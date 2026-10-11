@@ -32,6 +32,7 @@ const checks = [
   ["/api/writer/profile", 401],
   ["/api/writer/discovery", 401],
   ["/api/writer/connections", 401],
+  ["/api/writer/pins", 401],
   ["/api/presentations", 401],
   ["/api/student/hub", 401],
   ["/api/credits/ledger", 401],

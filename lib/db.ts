@@ -38,6 +38,7 @@ export function db(): DatabaseSync {
     CREATE TABLE IF NOT EXISTS referrals (referred TEXT PRIMARY KEY REFERENCES users(id), inviter TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, rewarded_at TEXT, payment_id TEXT UNIQUE);
     CREATE TABLE IF NOT EXISTS stories (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), status TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS stories_user_updated ON stories(user_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS stories_user_status_updated ON stories(user_id, status, updated_at DESC, id DESC);
     CREATE TABLE IF NOT EXISTS content_reports (id TEXT PRIMARY KEY, story_id TEXT NOT NULL, reporter TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS content_reports_story_status ON content_reports(story_id, status, created_at DESC);
     CREATE TABLE IF NOT EXISTS story_engagement (story_id TEXT NOT NULL, user_id TEXT NOT NULL,

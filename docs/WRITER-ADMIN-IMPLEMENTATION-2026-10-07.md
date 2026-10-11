@@ -204,7 +204,7 @@ isolation. Screenshots use synthetic accounts in ignored `output/writer-social/`
 The recommendation privacy regression now compares both cases at one fixed time;
 the previous CI failure was a millisecond-dependent score comparison.
 
-Still pending: profile pinning, newsletter/subscriber delivery, publication teams,
+Still pending: newsletter/subscriber delivery, publication teams,
 expanded audience analysis, user invitations, support attachments and the other
 unchecked items above. No full parity with Medium is claimed.
 
@@ -242,3 +242,30 @@ unchecked items above. No full parity with Medium is claimed.
 - `58ac6fd` passed CI and exact-revision frontend/Render checks. The atomic moderation
   increment's backend tests passed, but its CI run exposed the browser hydration failure
   addressed here; its failed run is not recorded as successful verification.
+
+## Ordered profile pins — 2026-10-11
+
+- Writers can pin up to three approved, currently published stories, reorder them
+  and unpin from their profile. The article author menu can pin an older story that
+  is outside the latest-50 picker. Duplicate pin actions are idempotent.
+- Pin records are owner-scoped and use a separate saved revision. Concurrent changes
+  return 409 and require reload; no draft, submitted revision or another author's
+  article can be pinned. Public DTOs expose only a pinned label on visible stories,
+  never internal pin IDs, account IDs or review records.
+- Public pages and creator APIs retrieve older pins directly, check current publication
+  status and omit withdrawals/takedowns. Approved articles appear once in the selected
+  order. Public creator responses are not cached with stale publication visibility.
+- The private profile preview uses the same public order and refreshes after pin changes.
+  Pending profile/pin requests are cancelled when their owner changes.
+- The picker filters published, owned stories before its result limit, projects only
+  summary fields and uses supporting SQLite/MongoDB compound indexes.
+- Validated: `test:writer-pins` on SQLite/MongoDB, ownership/approval gates, the three-pin
+  limit, idempotency, ordering, retrieval beyond the 100-story public pool, withdrawal/
+  removal filtering, private-field redaction, concurrent writes and API authorization/
+  origin checks. Production browser coverage includes pin/reorder/unpin persistence,
+  server-rendered public ordering, conflict reload, the author article menu and
+  390/768/1440px layouts. Screenshots are synthetic in `output/writer-social/profile-pins-*`.
+- Rendering/preference increment `7ddde4e` passed full GitHub CI. Frontend and Render
+  reported that exact revision. One proxy health request timed out during the smoke
+  run; subsequent direct and proxied health checks both returned HTTP 200 with MongoDB
+  available. No payment or customer content was changed during verification.

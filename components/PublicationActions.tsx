@@ -142,6 +142,55 @@ export default function PublicationActions({ slug }: { slug: string }) {
       }
     }
   }
+  async function pin() {
+    if (!data?.viewer?.ownStoryId || locked.current) return;
+    locked.current = key;
+    setBusy("pin");
+    setMessage("");
+    setError("");
+    const controller = new AbortController();
+    operation.current = controller;
+    try {
+      const current = await requestJson("/api/writer/pins", {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted || identity.current !== key) return;
+      if (!current.response.ok) throw new Error(current.data.error);
+      if (
+        current.data.pinned.some(
+          (s: { id: string }) => s.id === data.viewer!.ownStoryId,
+        )
+      ) {
+        setMessage(
+          "This story is already pinned. You can reorder or unpin it in your writer profile.",
+        );
+        return;
+      }
+      const r = await requestJson("/api/writer/pins", {
+        method: "PATCH",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storyId: data.viewer.ownStoryId,
+          action: "pin",
+          expectedUpdatedAt: current.data.updatedAt,
+        }),
+      });
+      if (controller.signal.aborted || identity.current !== key) return;
+      if (!r.response.ok) throw new Error(r.data.error);
+      setMessage(
+        "Story pinned to your public profile. Manage its order in your writer profile.",
+      );
+    } catch (e) {
+      if (!controller.signal.aborted && identity.current === key)
+        setError((e as Error).message);
+    } finally {
+      if (identity.current === key) {
+        locked.current = null;
+        setBusy("");
+      }
+    }
+  }
   return (
     <section
       id="story-activity"
@@ -211,6 +260,16 @@ export default function PublicationActions({ slug }: { slug: string }) {
                   Edit private revision
                 </button>
                 <a href="/writer/stats">Story stats</a>
+                <button
+                  className="writer-text-button"
+                  disabled={!!busy}
+                  onClick={() => void pin()}
+                >
+                  Pin to profile
+                </button>
+                <a href="/writer/profile#featured-stories">
+                  Manage profile pins
+                </a>
                 <a href="/writer/stories">Manage publication</a>
               </>
             )}
