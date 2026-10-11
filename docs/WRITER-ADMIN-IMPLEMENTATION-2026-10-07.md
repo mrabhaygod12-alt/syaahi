@@ -15,6 +15,8 @@ unchecked items are not completion claims.
 - [x] Shared presentations, public author profiles and reviewed articles remain public.
 - [x] Writer enrollment is required; visiting a page never enrolls a student.
 - [x] Stale account/profile responses cannot overwrite a later account refresh.
+- [x] The writer shell verifies the profile owner against the active account before
+      mounting private pages; a mismatched HTTP 200 response exposes no profile controls.
 - [x] Return paths reject external origins, encoded separators and control characters.
 - [x] Global decorative dropdown arrows are absent; native selects retain keyboard operation.
 
@@ -316,3 +318,18 @@ unchecked items above. No full parity with Medium is claimed.
   with lost response, inline image position, saved indentation and sticky tools;
   MFA-authorized publishing/withdrawal; social/profile journeys. Layouts are checked at
   390/768/1440px. All accounts, images and database outages are synthetic.
+- Draft/publishing increment `257663f` passed full GitHub CI. Its first deployment
+  smoke check found the new frontend while Render still served the preceding revision;
+  both backend health endpoints were healthy. That run is not counted as exact-revision
+  deployment verification.
+
+## Active writer account isolation — 2026-10-12
+
+- The writer shell verifies that the loaded profile belongs to the active account
+  before mounting private pages. A mismatched HTTP 200 response shows a retry message
+  without exposing another profile's edit or pin controls. Private page state remounts
+  for a different profile owner.
+- Validated: typecheck, production build, editor proxy browser regression and the
+  social workspace browser journey. The latter injects a different owner's profile,
+  checks that private controls remain absent, then reloads the correct profile.
+  Existing account-switch, locale/timezone, slow-CPU and 390/768/1440px checks pass.

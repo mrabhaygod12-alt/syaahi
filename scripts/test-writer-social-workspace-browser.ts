@@ -721,6 +721,42 @@ async function main() {
         .count(),
       0,
     );
+    // Reject a profile response bound to a different signed-in account, even if
+    // the transport incorrectly supplies HTTP 200 (for example a stale cache).
+    await page.route("**/api/writer/profile", async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          profile: await profiles.writerProfile(author.id),
+        }),
+      });
+    });
+    await page.goto(origin + "/writer/profile");
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "profile could not be verified" })
+      .waitFor();
+    assert.equal(await page.locator(".writer-profile-cover").count(), 0);
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Edit profile", exact: true })
+        .count(),
+      0,
+    );
+    assert.equal(await page.locator("#featured-stories").count(), 0);
+    await page.unroute("**/api/writer/profile");
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await page
+      .getByRole("heading", { name: rp.name, exact: true, level: 1 })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("heading", { name: p.name, exact: true, level: 1 })
+        .count(),
+      0,
+    );
     await publicSession.close();
     const session = await context.newCDPSession(page);
     await session.send("Emulation.setCPUThrottlingRate", { rate: 4 });

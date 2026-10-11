@@ -89,6 +89,7 @@ export default function WriterShell({
   const load = () => {
     profileRequest.current?.abort();
     const controller = new AbortController();
+    const owner = account.user?.id;
     profileRequest.current = controller;
     setStatus("loading");
     setError("");
@@ -101,6 +102,10 @@ export default function WriterShell({
           return setStatus("enroll");
         if (!response.ok)
           throw new Error(data.error || "Could not open your writer profile.");
+        if (!owner || data.profile?.owner !== owner)
+          throw new Error(
+            "Your writer profile could not be verified. Please try again.",
+          );
         setProfile(data.profile);
         setStatus("ready");
       })
@@ -136,7 +141,8 @@ export default function WriterShell({
     status === "ready" &&
     !account.loading &&
     !account.error &&
-    account.user?.workspace === "writer";
+    account.user?.workspace === "writer" &&
+    profile?.owner === account.user.id;
   useEffect(() => {
     if (!profile) return;
     const query = window.matchMedia("(prefers-color-scheme: dark)");
@@ -318,6 +324,7 @@ export default function WriterShell({
         </section>
       ) : (
         <ProfileContext.Provider
+          key={profile!.owner}
           value={{ profile: profile!, update: setProfile }}
         >
           {editor ? (
