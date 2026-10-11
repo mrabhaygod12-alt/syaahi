@@ -15,7 +15,9 @@ async function main() {
     BACKEND_URL: "",
     APP_ORIGIN: origin,
     NEXT_PUBLIC_APP_URL: origin,
-    NEXT_DIST_DIR: ".next-validation",
+    NEXT_DIST_DIR: process.argv.includes("--dev")
+      ? ".next-hydration-debug"
+      : ".next-validation",
     WORKER_MODE: "external",
   });
   const auth = await import("../lib/auth/server"),
@@ -100,7 +102,12 @@ async function main() {
     readerCookie = await cookieFor(reader);
   const server = spawn(
     process.execPath,
-    ["node_modules/next/dist/bin/next", "start", "--port", "3162"],
+    [
+      "node_modules/next/dist/bin/next",
+      process.argv.includes("--dev") ? "dev" : "start",
+      "--port",
+      "3162",
+    ],
     {
       env: process.env,
       windowsHide: true,
@@ -132,7 +139,10 @@ async function main() {
     await context.addCookies([authorCookie]);
     const page = await context.newPage(),
       errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(`${page.url()}: ${e.message}`));
+    page.on("pageerror", (e) => {
+      errors.push(`${page.url()}: ${e.message}`);
+      if (process.argv.includes("--dev")) console.error(e.message);
+    });
     page.setDefaultTimeout(20000);
     const publicSession = await browser.newContext();
     const privateResult = await publicSession.request.get(

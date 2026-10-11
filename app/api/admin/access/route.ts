@@ -18,6 +18,7 @@ export const GET = apiHandler(async (req: Request) => {
       { status: 403 },
     );
   return NextResponse.json({
+    owner: user.id,
     scopes,
     eligible,
     eligibility: adminEligibility(user),

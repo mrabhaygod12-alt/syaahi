@@ -20,7 +20,23 @@ interface Factor {
   secret?: string;
   lastCounter?: number;
   recovery?: string[];
-  pending?: { id: string; secret: string; until: number; session: string };
+  pending?: {
+    id: string;
+    secret: string;
+    until: number;
+    session: string;
+    replaces?: string;
+  };
+}
+/** Only deliberately authored validation messages may leave the MFA service. */
+export class MfaError extends Error {
+  constructor(
+    message: string,
+    public status = 400,
+  ) {
+    super(message);
+    this.name = "MfaError";
+  }
 }
 const digest = (s: string) => createHash("sha256").update(s).digest("hex");
 function encryptionKey(): Buffer {
@@ -119,8 +135,52 @@ function validCounter(secret: string, code: string, previous = -1) {
 }
 const eligible = (u: Account) => {
   if (!Object.values(adminEligibility(u)).some(Boolean))
-    throw new Error("Administrator access required.");
+    throw new MfaError("Administrator access required.", 403);
 };
+function normalizeCode(code: unknown) {
+  if (typeof code !== "string" || code.length > 64)
+    throw new MfaError(
+      "Enter a current authenticator or unused recovery code.",
+    );
+  return code.replace(/[-\s]/g, "").toLowerCase();
+}
+function consumeFactor(u: Account, f: Factor, code: string) {
+  if (!f.enabledAt || !f.secret)
+    throw new MfaError("Enroll an authenticator first.");
+  const counter = validCounter(open(u.id, f.secret), code, f.lastCounter);
+  if (counter !== null)
+    return { factor: { ...f, lastCounter: counter }, recoveryUsed: false };
+  const hash = digest(u.id + ":" + code);
+  if (/^[a-f0-9]{32}$/.test(code) && f.recovery?.includes(hash))
+    return {
+      factor: { ...f, recovery: f.recovery.filter((c) => c !== hash) },
+      recoveryUsed: true,
+    };
+  throw new MfaError(
+    "Code not accepted or already used. Use a new authenticator code or an unused recovery code.",
+  );
+}
+async function confirmIdentity(u: Account, req: Request, password: unknown) {
+  const account = await accountByEmail(u.email),
+    id = sessionKey(req),
+    device = id ? await deviceSession(id, u.id) : null;
+  if (!id || !device) throw new MfaError("Sign in again.", 401);
+  const passwordValid =
+    typeof password === "string" &&
+    password.length >= 8 &&
+    password.length <= 1024 &&
+    account &&
+    passwordMatches(password, String(account.password));
+  const age = Date.now() - Date.parse(device.createdAt);
+  const recentOAuth = device.method === "oauth" && age >= 0 && age < 5 * 60000;
+  if (!passwordValid && !recentOAuth)
+    throw new MfaError(
+      "Confirm your password, or sign in again with Google and enroll within five minutes.",
+    );
+  return id;
+}
+const recoveryCodes = () =>
+  Array.from({ length: 8 }, () => randomBytes(16).toString("hex"));
 /** Factor, replay counter, session elevation and audit commit together. A failed
  * audit cannot consume a code or leave enrollment enabled without its response. */
 async function changeFactor(
@@ -131,7 +191,7 @@ async function changeFactor(
   elevate = false,
 ) {
   const id = sessionKey(req);
-  if (!id) throw new Error("Sign in again.");
+  if (!id) throw new MfaError("Sign in again.", 401);
   const event = (): AdminEvent => ({
     id: randomUUID(),
     actor: u.id,
@@ -149,7 +209,7 @@ async function changeFactor(
         { _id: id, user: u.id, expiresAt: { $gt: new Date() } },
         { session },
       );
-      if (!row) throw new Error("Your session expired. Sign in again.");
+      if (!row) throw new MfaError("Your session expired. Sign in again.", 401);
       const f = change(
         (await state.findOne({ _id: stateKey }, { session }))?.payload || {},
       );
@@ -198,7 +258,7 @@ async function changeFactor(
         "SELECT s.expires,d.payload FROM sessions s LEFT JOIN session_devices d ON d.id=s.token_hash WHERE s.token_hash=? AND s.user_id=? AND s.expires>?",
       )
       .get(id, u.id, Date.now());
-    if (!row) throw new Error("Your session expired. Sign in again.");
+    if (!row) throw new MfaError("Your session expired. Sign in again.", 401);
     const saved = db()
         .prepare("SELECT payload FROM study_state WHERE id=?")
         .get(stateKey),
@@ -258,26 +318,10 @@ export async function beginMfa(u: Account, req: Request, password: unknown) {
   encryptionKey();
   const f = await readState<Factor>(u.id, "admin-mfa", {});
   if (f.enabledAt)
-    throw new Error(
+    throw new MfaError(
       "An authenticator is already enrolled. Use a current code or a saved recovery code.",
     );
-  const account = await accountByEmail(u.email),
-    id = sessionKey(req),
-    device = id ? await deviceSession(id, u.id) : null;
-  const passwordValid =
-    typeof password === "string" &&
-    password.length >= 8 &&
-    password.length <= 1024 &&
-    account &&
-    passwordMatches(password, String(account.password));
-  const recentOAuth =
-    device?.method === "oauth" &&
-    Date.now() - Date.parse(device.createdAt) < 5 * 60000;
-  if (!passwordValid && !recentOAuth)
-    throw new Error(
-      "Confirm your password, or sign in again with Google and enroll within five minutes.",
-    );
-  if (!id || !device) throw new Error("Sign in again.");
+  const id = await confirmIdentity(u, req, password);
   const secret = encode(randomBytes(20)),
     pending = {
       id: randomUUID(),
@@ -291,7 +335,7 @@ export async function beginMfa(u: Account, req: Request, password: unknown) {
     () => "mfa.setup_started",
     (old) => {
       if (old.enabledAt)
-        throw new Error("An authenticator is already enrolled.");
+        throw new MfaError("An authenticator is already enrolled.");
       return { pending };
     },
   );
@@ -301,35 +345,124 @@ export async function beginMfa(u: Account, req: Request, password: unknown) {
     uri: `otpauth://totp/${encodeURIComponent("Syaahi Admin:" + u.email)}?secret=${secret}&issuer=Syaahi&algorithm=SHA1&digits=6&period=30`,
   };
 }
-export async function confirmMfa(
+/** Keep the current factor active until the replacement has been verified. */
+export async function beginMfaReplacement(
   u: Account,
   req: Request,
-  id: unknown,
-  code: string,
+  password: unknown,
+  code: unknown,
 ) {
   eligible(u);
-  const key = sessionKey(req);
-  if (!key) throw new Error("Sign in again.");
-  const recovery = Array.from({ length: 8 }, () =>
-      randomBytes(16).toString("hex"),
-    ),
+  const normalized = normalizeCode(code),
+    id = await confirmIdentity(u, req, password),
+    secret = encode(randomBytes(20)),
+    pending = {
+      id: randomUUID(),
+      secret: seal(u.id, secret),
+      until: Date.now() + 10 * 60000,
+      session: id,
+    };
+  await changeFactor(
+    u,
+    req,
+    () => "mfa.replacement_started",
+    (f) => {
+      const consumed = consumeFactor(u, f, normalized).factor;
+      return { ...consumed, pending: { ...pending, replaces: f.enabledAt } };
+    },
+  );
+  return {
+    id: pending.id,
+    secret,
+    replacing: true,
+    uri: `otpauth://totp/${encodeURIComponent("Syaahi Admin:" + u.email)}?secret=${secret}&issuer=Syaahi&algorithm=SHA1&digits=6&period=30`,
+  };
+}
+/** Fresh password/Google proof plus a single-use factor; audit and rotation are atomic. */
+export async function rotateMfaRecovery(
+  u: Account,
+  req: Request,
+  password: unknown,
+  code: unknown,
+) {
+  eligible(u);
+  const normalized = normalizeCode(code);
+  await confirmIdentity(u, req, password);
+  const codes = recoveryCodes(),
     version = randomUUID();
   await changeFactor(
     u,
     req,
-    () => "mfa.enrolled",
+    () => "mfa.recovery_rotated",
+    (f) => {
+      const consumed = consumeFactor(u, f, normalized).factor;
+      return {
+        ...consumed,
+        pending: undefined,
+        enabledAt: version,
+        recovery: codes.map((c) => digest(u.id + ":" + c)),
+      };
+    },
+    true,
+  );
+  return codes;
+}
+export async function cancelMfaReplacement(
+  u: Account,
+  req: Request,
+  id: unknown,
+) {
+  eligible(u);
+  const key = sessionKey(req);
+  await changeFactor(
+    u,
+    req,
+    () => "mfa.replacement_cancelled",
     (f) => {
       if (
-        f.enabledAt ||
+        !f.pending?.replaces ||
+        f.pending.id !== id ||
+        f.pending.session !== key
+      )
+        throw new MfaError(
+          "Setup expired or changed. Reload security settings.",
+          409,
+        );
+      const { pending, ...current } = f;
+      return current;
+    },
+  );
+}
+export async function confirmMfa(
+  u: Account,
+  req: Request,
+  id: unknown,
+  code: unknown,
+) {
+  eligible(u);
+  const key = sessionKey(req),
+    normalized = normalizeCode(code);
+  if (!key) throw new MfaError("Sign in again.", 401);
+  const recovery = recoveryCodes(),
+    version = randomUUID();
+  let replacing = false;
+  await changeFactor(
+    u,
+    req,
+    () => (replacing ? "mfa.replaced" : "mfa.enrolled"),
+    (f) => {
+      replacing = !!f.pending?.replaces;
+      if (
         !f.pending ||
+        (replacing ? f.pending.replaces !== f.enabledAt : !!f.enabledAt) ||
         f.pending.id !== id ||
         f.pending.session !== key ||
         f.pending.until < Date.now()
       )
-        throw new Error("Setup expired or changed. Start again.");
-      const counter = validCounter(open(u.id, f.pending.secret), code);
+        throw new MfaError("Setup expired or changed. Start again.", 409);
+      const counter = validCounter(open(u.id, f.pending.secret), normalized);
       if (counter === null)
-        throw new Error(
+        throw new MfaError(
           "Code not accepted. Check your authenticator and time settings.",
         );
       return {
@@ -343,11 +476,11 @@ export async function confirmMfa(
   );
   return recovery;
 }
-export async function challengeMfa(u: Account, req: Request, code: string) {
+export async function challengeMfa(u: Account, req: Request, code: unknown) {
   eligible(u);
   const key = sessionKey(req);
-  if (!key) throw new Error("Sign in again.");
-  const normalized = code.replace(/[-\s]/g, "").toLowerCase();
+  if (!key) throw new MfaError("Sign in again.", 401);
+  const normalized = normalizeCode(code);
   let recoveryUsed = false;
   await changeFactor(
     u,
@@ -355,22 +488,9 @@ export async function challengeMfa(u: Account, req: Request, code: string) {
     () => (recoveryUsed ? "mfa.recovery_used" : "mfa.verified"),
     (f) => {
       recoveryUsed = false;
-      if (!f.enabledAt || !f.secret)
-        throw new Error("Enroll an authenticator first.");
-      const counter = validCounter(
-        open(u.id, f.secret),
-        normalized,
-        f.lastCounter,
-      );
-      if (counter !== null) return { ...f, lastCounter: counter };
-      const hash = digest(u.id + ":" + normalized);
-      if (/^[a-f0-9]{32}$/.test(normalized) && f.recovery?.includes(hash)) {
-        recoveryUsed = true;
-        return { ...f, recovery: f.recovery.filter((c) => c !== hash) };
-      }
-      throw new Error(
-        "Code not accepted or already used. Use a new authenticator code or an unused recovery code.",
-      );
+      const consumed = consumeFactor(u, f, normalized);
+      recoveryUsed = consumed.recoveryUsed;
+      return consumed.factor;
     },
     true,
   );

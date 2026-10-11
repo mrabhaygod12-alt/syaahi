@@ -124,6 +124,87 @@ async function main() {
       (await page.getByLabel("Recovery codes").inputValue()).split("\n").length,
       8,
     );
+    const enrolledCodes = (
+      await page.getByLabel("Recovery codes").inputValue()
+    ).split("\n");
+    await page
+      .getByRole("button", { name: "Generate new recovery codes", exact: true })
+      .click();
+    await page.getByLabel("Current password").fill("browser-admin-password");
+    await page
+      .getByLabel("Current authenticator or unused recovery code")
+      .fill(enrolledCodes[0]);
+    await page.route("**/api/admin/mfa", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      await route.fulfill({
+        status: 503,
+        json: {
+          error: "Security change could not complete. Retry with a fresh code.",
+          requestId: "mfa-browser-reference",
+        },
+      });
+    });
+    await page
+      .getByRole("button", { name: "Replace recovery codes", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Reference: mfa-browser-reference" })
+      .waitFor();
+    assert.equal(
+      await page.getByLabel("Recovery codes", { exact: true }).count(),
+      0,
+    );
+    await page.unroute("**/api/admin/mfa");
+    await page
+      .getByRole("button", { name: "Replace recovery codes", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Save your recovery codes now." })
+      .waitFor();
+    const rotatedCodes = (
+      await page.getByLabel("Recovery codes").inputValue()
+    ).split("\n");
+    assert.equal(rotatedCodes.length, 8);
+    assert.notEqual(rotatedCodes[0], enrolledCodes[0]);
+    await assert.rejects(
+      () =>
+        mfa.challengeMfa(
+          admin,
+          new Request(origin, { headers: { cookie: adminCookie } }),
+          enrolledCodes[1],
+        ),
+      /already used/,
+    );
+    await page.getByRole("button", { name: "Hide saved codes" }).click();
+    await page
+      .getByRole("button", { name: "Replace authenticator", exact: true })
+      .click();
+    await page.getByLabel("Current password").fill("browser-admin-password");
+    await page
+      .getByLabel("Current authenticator or unused recovery code")
+      .fill(rotatedCodes[0]);
+    const replacementResponse = page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/admin/mfa") && r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Start replacement setup" }).click();
+    const replacement = await (await replacementResponse).json();
+    await page
+      .getByRole("heading", { name: "Connect your replacement authenticator." })
+      .waitFor();
+    await page
+      .getByLabel("Six-digit authenticator code")
+      .fill(mfa.totp(replacement.secret));
+    await page.getByRole("button", { name: "Confirm authenticator" }).click();
+    await page
+      .getByRole("heading", { name: "Save your recovery codes now." })
+      .waitFor();
+    assert.notEqual(
+      (await page.getByLabel("Recovery codes").inputValue()).split("\n")[0],
+      rotatedCodes[1],
+    );
+    await page.getByRole("button", { name: "Hide saved codes" }).click();
     await page.getByRole("link", { name: "Open control room" }).click();
     await page
       .getByRole("heading", { name: "A clear view of your platform." })
@@ -183,8 +264,76 @@ async function main() {
           false,
           `${path} overflows ${width}px`,
         );
+        if (path === "/admin/security") {
+          await page
+            .getByRole("button", {
+              name: "Generate new recovery codes",
+              exact: true,
+            })
+            .click();
+          await page.getByLabel("Current password").waitFor();
+          assert.equal(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth > innerWidth + 1,
+            ),
+            false,
+            `MFA maintenance overflows ${width}px`,
+          );
+          await page.screenshot({
+            path: `output/admin/factor-maintenance-${width}.png`,
+            fullPage: true,
+          });
+          await page
+            .getByRole("button", { name: "Cancel", exact: true })
+            .click();
+        }
       }
     }
+    await page.route("**/api/admin/access", (route) =>
+      route.fulfill({
+        json: {
+          owner: student.id,
+          eligible: true,
+          requiresMfa: false,
+          scopes: {
+            users: true,
+            editorial: true,
+            support: true,
+            payments: true,
+          },
+        },
+      }),
+    );
+    await page.goto(origin + "/admin/security");
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "administrator account could not be verified" })
+      .waitFor();
+    assert.equal(await page.locator(".admin-space").count(), 0);
+    assert.equal(
+      await page.getByLabel("Recovery codes", { exact: true }).count(),
+      0,
+    );
+    await page.unroute("**/api/admin/access");
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("syaahi:account-updated")),
+    );
+    await page
+      .getByRole("heading", { name: "Your administrator security." })
+      .waitFor();
+    await add(context, writerCookie);
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("syaahi:account-updated")),
+    );
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Administrator access required." })
+      .waitFor();
+    assert.equal(await page.locator(".admin-space").count(), 0);
+    assert.equal(
+      await page.getByLabel("Recovery codes", { exact: true }).count(),
+      0,
+    );
     const writer = await browser.newContext({
       viewport: { width: 390, height: 844 },
     });
@@ -260,7 +409,7 @@ async function main() {
     assert.equal(await w.locator(".writer-workspace").count(), 0);
     assert.deepEqual(errors, []);
     console.log(
-      "Production browser checks passed: real MFA enrollment, admin accounts/support, private note redaction, 390/768/1440px layout, writer route matrix and stale account response isolation.",
+      "Production browser checks passed: real MFA enrollment, recovery rotation/authenticator replacement, error reference/retry, account-bound admin controls, admin accounts/support, private note redaction, 390/768/1440px layout, writer route matrix and stale account response isolation.",
     );
   } finally {
     await browser?.close();

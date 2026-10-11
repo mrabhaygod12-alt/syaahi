@@ -16,6 +16,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run check
       - run: npm run test:admin-security
+      - run: npm run test:admin-mfa-lifecycle
       - run: npm run test:workspace-routing
       - run: npm run test:security
       - run: npm run test:oauth-identity
@@ -58,4 +59,5 @@ jobs:
       - run: npm run test:writer-recommendations-browser
       - run: npm run test:writer-editor-proxy-browser
       - run: npm run test:writer-social-workspace-browser
+      - run: npm run test:writer-shell-hydration
       - run: npm run test:public-discovery-browser

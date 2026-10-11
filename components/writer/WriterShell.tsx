@@ -5,6 +5,7 @@ import {
   useEffect,
   useState,
   useRef,
+  startTransition,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -97,23 +98,30 @@ export default function WriterShell({
       .then(({ response, data }) => {
         if (controller.signal.aborted || profileRequest.current !== controller)
           return;
-        if (response.status === 401) return setStatus("guest");
+        if (response.status === 401)
+          return startTransition(() => setStatus("guest"));
         if (data.code === "WRITER_ENROLLMENT_REQUIRED")
-          return setStatus("enroll");
+          return startTransition(() => setStatus("enroll"));
         if (!response.ok)
           throw new Error(data.error || "Could not open your writer profile.");
         if (!owner || data.profile?.owner !== owner)
           throw new Error(
             "Your writer profile could not be verified. Please try again.",
           );
-        setProfile(data.profile);
-        setStatus("ready");
+        // Keep fast account responses from replacing streamed content while its
+        // server-rendered boundaries are still hydrating on slower devices.
+        startTransition(() => {
+          setProfile(data.profile);
+          setStatus("ready");
+        });
       })
       .catch((e) => {
         if (controller.signal.aborted || profileRequest.current !== controller)
           return;
-        setError(e.message);
-        setStatus("error");
+        startTransition(() => {
+          setError(e.message);
+          setStatus("error");
+        });
       });
   };
   useEffect(() => {

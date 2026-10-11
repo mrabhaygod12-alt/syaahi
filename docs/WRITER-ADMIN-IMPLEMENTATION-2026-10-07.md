@@ -45,7 +45,7 @@ Actual routes: `/admin`, `/admin/users`, `/admin/publications`, `/admin/payments
       secrets, recovery codes and support message content.
 - [x] Students and writers can view and revoke their own devices/sessions.
 - [ ] Admin user invitation/create workflow, expanded activity details and pagination.
-- [ ] Authenticator replacement and recovery-code rotation with fresh verification.
+- [x] Authenticator replacement and recovery-code rotation with fresh verification.
 
 For production, keep `ADMIN_MFA_KEY` stable: 32 random bytes encoded as base64,
 server-only. An existing backend proxy secret of at least 32 characters is the
@@ -333,3 +333,41 @@ unchecked items above. No full parity with Medium is claimed.
   social workspace browser journey. The latter injects a different owner's profile,
   checks that private controls remain absent, then reloads the correct profile.
   Existing account-switch, locale/timezone, slow-CPU and 390/768/1440px checks pass.
+- This increment's CI run exposed an intermittent private-profile hydration error,
+  despite its local browser pass. It is not recorded as a successful CI run. The
+  following increment adds background transitions for asynchronous profile/access
+  results and a dedicated fast-response/slow-device production browser regression.
+
+## Administrator factor maintenance and privacy — 2026-10-12
+
+- Administrators can regenerate eight single-use recovery codes or replace their
+  authenticator. Both operations require a current password or a trusted Google
+  session no older than five minutes, plus a fresh enrolled factor. An existing
+  elevated session alone cannot authorize a change; future-dated OAuth sessions
+  are rejected. Codes remain hashed and authenticator secrets encrypted at rest.
+- Replacement setup is session-bound and expires after ten minutes. The existing
+  authenticator remains active until confirmation. A replacement can be cancelled;
+  confirmation invalidates the old factor/codes and administrator elevation in other
+  sessions. Recovery-code rotation also expires other administrator elevations.
+- Factor changes, code consumption, session elevation and their audit records commit
+  together. Concurrent reuse succeeds once. Audit outages roll back every change.
+  MFA APIs expose typed validation errors and safe 503 references for infrastructure
+  or encryption faults, without database/decryption diagnostics.
+- Security UI offers explicit status reload, error references, code copy/hide and
+  labelled verification forms. Requests abort on unmount. The admin shell verifies
+  its access response's owner, hides private pages while accounts refresh and remounts
+  them for a different account, clearing previously displayed factor setup/codes.
+- Validated: `test:admin-mfa-lifecycle` on SQLite/MongoDB, including atomic audit
+  fault injection, replacement/rotation, expiry, cancellation, wrong-session setup,
+  code replay/concurrency, old-code and other-session invalidation, encrypted storage,
+  audit redaction and old/future Google-session rejection. Existing admin-security,
+  security-boundary and workspace-routing suites pass.
+- Production build/typecheck and expanded admin browser journeys pass: actual
+  synthetic MFA rotation/replacement, service-reference retry, wrong-owner access
+  rejection, account-switch removal of private controls and 390/768/1440px layouts.
+  Synthetic screenshots are in ignored `output/admin/factor-maintenance-*` files.
+  Writer social journeys and twelve repeated private navigations with instantaneous
+  account/profile responses, a different locale/timezone and 4x CPU slowdown pass.
+- Factor-change reauthentication follows the [OWASP MFA guidance](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html#changing-mfa-factors).
+  Live target-account MFA and out-of-band factor-change notifications remain
+  unverified/unimplemented; no production authenticator was enrolled or replaced.

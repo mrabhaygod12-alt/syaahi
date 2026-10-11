@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:admin-mfa-lifecycle": "tsx scripts/test-admin-mfa-lifecycle.ts && tsx scripts/test-admin-mfa-lifecycle.ts --mongo",
+    "test:writer-shell-hydration": "tsx scripts/test-writer-shell-hydration.ts",
     "test:writer-service-errors": "tsx scripts/test-writer-service-errors.ts && tsx scripts/test-writer-service-errors.ts --mongo",
     "test:writer-pins": "tsx scripts/test-writer-pins.ts && tsx scripts/test-writer-pins.ts --mongo",
     "test:writer-moderation": "tsx scripts/test-writer-moderation.ts && tsx scripts/test-writer-moderation.ts --mongo",

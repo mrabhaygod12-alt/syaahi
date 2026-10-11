@@ -7,6 +7,10 @@ import {
   confirmMfa,
   challengeMfa,
   mfaStatus,
+  beginMfaReplacement,
+  rotateMfaRecovery,
+  MfaError,
+  cancelMfaReplacement,
 } from "@/lib/auth/admin-mfa";
 import { rateLimit } from "@/lib/ratelimit";
 import QRCode from "qrcode";
@@ -32,10 +36,18 @@ export const POST = apiHandler(async (req: Request) => {
     );
   const limited = await rateLimit(req, "admin-mfa", 6, 5 * 60000);
   if (limited) return limited;
-  const b = await req.json().catch(() => ({}));
+  const b = await req.json().catch(() => null);
+  if (!b || typeof b !== "object" || Array.isArray(b))
+    return NextResponse.json(
+      { error: "Enter valid verification details." },
+      { status: 400 },
+    );
   try {
-    if (b.action === "begin") {
-      const setup = await beginMfa(u, req, b.password);
+    if (b.action === "begin" || b.action === "replace") {
+      const setup =
+        b.action === "replace"
+          ? await beginMfaReplacement(u, req, b.password, b.code)
+          : await beginMfa(u, req, b.password);
       return NextResponse.json({
         ...setup,
         qr: await QRCode.toDataURL(setup.uri, { margin: 1, width: 240 }),
@@ -43,18 +55,26 @@ export const POST = apiHandler(async (req: Request) => {
     }
     if (b.action === "confirm")
       return NextResponse.json({
-        recoveryCodes: await confirmMfa(u, req, b.id, String(b.code || "")),
+        recoveryCodes: await confirmMfa(u, req, b.id, b.code),
         verified: true,
       });
+    if (b.action === "rotate-recovery")
+      return NextResponse.json({
+        recoveryCodes: await rotateMfaRecovery(u, req, b.password, b.code),
+        verified: true,
+      });
+    if (b.action === "cancel-replacement") {
+      await cancelMfaReplacement(u, req, b.id);
+      return NextResponse.json({ cancelled: true });
+    }
     if (b.action === "verify") {
-      await challengeMfa(u, req, String(b.code || ""));
+      await challengeMfa(u, req, b.code);
       return NextResponse.json({ verified: true });
     }
     return NextResponse.json({ error: "Unknown MFA action." }, { status: 400 });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Verification failed." },
-      { status: 400 },
-    );
+    if (e instanceof MfaError)
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    throw e;
   }
 });

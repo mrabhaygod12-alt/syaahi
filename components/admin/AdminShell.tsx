@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { requestJson } from "@/lib/http-client";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
+import { useAccount } from "@/components/WorkspaceProvider";
 import "./admin.css";
 export default function AdminShell({
   children,
@@ -9,26 +10,48 @@ export default function AdminShell({
   children: React.ReactNode;
 }) {
   const path = usePathname(),
+    account = useAccount(),
     [access, setAccess] = useState<any>(null),
     [error, setError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     setAccess(null);
     setError("");
+    if (account.loading) return;
+    if (!account.user || account.error) {
+      setError(account.error || "Please sign in to continue.");
+      return;
+    }
+    const owner = account.user.id;
     requestJson("/api/admin/access", { signal: controller.signal })
       .then(({ response, data }) => {
         if (controller.signal.aborted) return;
         if (!response.ok || !data.eligible)
-          throw new Error(data.error || "Administrator access unavailable.");
-        setAccess(data);
+          throw new ServiceRequestError(
+            data.error || "Administrator access unavailable.",
+            response.status,
+            data.requestId,
+          );
+        if (data.owner !== owner)
+          throw new Error(
+            "Your administrator account could not be verified. Sign in again.",
+          );
+        startTransition(() => setAccess(data));
         if (data.requiresMfa && path !== "/admin/security")
           location.replace("/admin/security");
       })
       .catch((e) => {
-        if (!controller.signal.aborted) setError(e.message);
+        if (!controller.signal.aborted)
+          startTransition(() => setError(e.message));
       });
     return () => controller.abort();
-  }, [path]);
+  }, [path, account.loading, account.user?.id, account.error]);
+  if (account.loading || (access && access.owner !== account.user?.id))
+    return (
+      <main className="wrap feature-section" aria-busy="true">
+        <p role="status">Checking administrator access…</p>
+      </main>
+    );
   if (error)
     return (
       <main className="wrap feature-section">
@@ -53,7 +76,7 @@ export default function AdminShell({
     ["Security", "/admin/security", true],
   ];
   return (
-    <div className="admin-space">
+    <div className="admin-space" key={access.owner}>
       <nav className="admin-nav" aria-label="Administration">
         <a href="/admin" className="admin-brand">
           Syaahi <span>Control room</span>
