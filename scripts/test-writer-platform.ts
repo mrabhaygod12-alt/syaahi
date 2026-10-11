@@ -26,7 +26,8 @@ async function run(backend: string) {
     student = await import("../app/api/user/profile/route"),
     profile = await import("../app/api/writer/profile/route"),
     library = await import("../app/api/writer/library/route"),
-    { writerProfile, writerBySlug } = await import("../lib/writing/profile"),
+    { writerProfile, writerBySlug, updateWriterProfile, WriterProfileError } =
+      await import("../lib/writing/profile"),
     { normalizeDocument } = await import("../lib/writing/document"),
     { reviewStory } = await import("../lib/writing/stories"),
     { setGuideReaction } = await import("../lib/writing/engagement");
@@ -52,6 +53,22 @@ async function run(backend: string) {
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   assert.equal((await stories.GET(req("/api/stories"))).status, 403);
+  assert.equal(
+    (
+      await profile.PATCH(
+        req("/api/writer/profile", "PATCH", { bio: "student" }),
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await profile.PATCH(
+        req("/api/writer/profile", "PATCH", { bio: "guest" }, false),
+      )
+    ).status,
+    401,
+  );
   assert.equal(
     (
       await stories.POST(
@@ -159,7 +176,7 @@ async function run(backend: string) {
         }),
       )
     ).status,
-    400,
+    409,
   );
   assert.equal(
     (
@@ -168,6 +185,44 @@ async function run(backend: string) {
       )
     ).status,
     400,
+  );
+  for (const invalid of [
+    null,
+    [],
+    "invalid",
+    { name: 12 },
+    { bio: null },
+    { about: {} },
+    { avatar: [] },
+    { appearance: ["dark"] },
+    { accent: ["forest"] },
+    { expectedUpdatedAt: null },
+    { expectedUpdatedAt: "" },
+    { website: "https://[invalid" },
+    { website: "https://user:password@example.test" },
+  ]) {
+    await assert.rejects(
+      () => updateWriterProfile(user.id, invalid),
+      (e: unknown) => e instanceof WriterProfileError && e.status === 400,
+      JSON.stringify(invalid),
+    );
+  }
+  for (const invalid of [null, [], { website: "https://[invalid" }]) {
+    const invalidResponse = await profile.PATCH(
+      req("/api/writer/profile", "PATCH", invalid),
+    );
+    assert.equal(invalidResponse.status, 400, JSON.stringify(invalid));
+    assert.doesNotMatch(
+      JSON.stringify(await invalidResponse.json()),
+      /TypeError|Invalid URL|ERR_INVALID_URL/,
+    );
+  }
+  const malformed = req("/api/writer/profile", "PATCH");
+  assert.equal((await profile.PATCH(malformed)).status, 400);
+  assert.deepEqual(
+    await writerProfile(user.id),
+    savedProfile,
+    "Validation failures preserve the saved profile",
   );
   assert.equal(
     (
@@ -434,8 +489,82 @@ async function run(backend: string) {
     )
   ).json();
   assert.equal(thread.ticket.messages.length, 2);
+  const concurrentSnapshot = (await writerProfile(user.id))!;
+  const competing = await Promise.all([
+    profile.PATCH(
+      req("/api/writer/profile", "PATCH", {
+        bio: "First competing edit",
+        expectedUpdatedAt: concurrentSnapshot.updatedAt,
+      }),
+    ),
+    profile.PATCH(
+      req("/api/writer/profile", "PATCH", {
+        bio: "Second competing edit",
+        expectedUpdatedAt: concurrentSnapshot.updatedAt,
+      }),
+    ),
+  ]);
+  assert.deepEqual(competing.map((r) => r.status).sort(), [200, 409]);
+  const winner = (await writerProfile(user.id))!;
+  assert(
+    ["First competing edit", "Second competing edit"].includes(winner.bio),
+  );
+  assert.equal(winner.name, concurrentSnapshot.name);
+  // Legacy direct callers without a supplied revision are still protected from
+  // overwriting edits made after their initial snapshot read.
+  const implicitRace = await Promise.allSettled([
+    updateWriterProfile(user.id, { bio: "First implicit edit" }),
+    updateWriterProfile(user.id, { bio: "Second implicit edit" }),
+  ]);
+  assert.equal(implicitRace.filter((r) => r.status === "fulfilled").length, 1);
+  const rejected = implicitRace.find((r) => r.status === "rejected");
+  assert(
+    rejected?.status === "rejected" &&
+      rejected.reason instanceof WriterProfileError &&
+      rejected.reason.status === 409,
+  );
+
+  const beforeFault = (await writerProfile(user.id))!;
+  const { db } = await import("../lib/db"),
+    { mongo } = await import("../lib/storage/mongo");
+  if (backend === "mongo")
+    await (
+      await mongo()
+    ).database.command({
+      collMod: "workspace_records",
+      validator: { kind: { $ne: "writer-profile" } },
+      validationLevel: "strict",
+    });
+  else
+    db().exec(
+      "CREATE TRIGGER reject_profile_write BEFORE UPDATE ON workspace_records WHEN OLD.kind='writer-profile' BEGIN SELECT RAISE(ABORT,'PRIVATE_DATABASE_FAILURE'); END",
+    );
+  try {
+    const failed = await profile.PATCH(
+      req("/api/writer/profile", "PATCH", {
+        bio: "This write must roll back",
+        expectedUpdatedAt: beforeFault.updatedAt,
+      }),
+    );
+    assert.equal(failed.status, 503);
+    const safe = await failed.json();
+    assert.match(safe.requestId, /^[a-f0-9-]{36}$/);
+    assert.equal(failed.headers.get("x-request-id"), safe.requestId);
+    assert.equal(failed.headers.get("cache-control"), "no-store");
+    assert.doesNotMatch(
+      JSON.stringify(safe),
+      /PRIVATE_DATABASE_FAILURE|workspace_records|validator|WriteError|MongoServerError|SqliteError/i,
+    );
+    assert.deepEqual(await writerProfile(user.id), beforeFault);
+  } finally {
+    if (backend === "mongo")
+      await (
+        await mongo()
+      ).database.command({ collMod: "workspace_records", validator: {} });
+    else db().exec("DROP TRIGGER reject_profile_write");
+  }
   console.log(
-    `PASS ${backend}: explicit authenticated enrollment, shared identity/wallet, independent profile/photo, current public bylines, sanitization, stale writes, ownership, review locking and saved library.`,
+    `PASS ${backend}: explicit authenticated enrollment, shared identity/wallet, independent profile/photo, current public bylines, sanitization, profile validation, concurrent saves, safe database failure/rollback, ownership, review locking and saved library.`,
   );
 }
 async function main() {

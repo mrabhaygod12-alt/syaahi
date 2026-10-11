@@ -23,6 +23,15 @@ export interface WriterProfile extends WorkspaceRecord {
   showConnections?: boolean;
   joinedAt: string;
 }
+export class WriterProfileError extends Error {
+  constructor(
+    message: string,
+    public status = 400,
+  ) {
+    super(message);
+    this.name = "WriterProfileError";
+  }
+}
 export const writerProfile = (user: string) =>
   record<WriterProfile>(`writer-profile:${user}`);
 export async function writerAccess(user: string) {
@@ -75,35 +84,63 @@ export async function enrollWriter(account: Pick<Account, "id" | "name">) {
       },
   );
 }
-export async function updateWriterProfile(
-  user: string,
-  input: Record<string, unknown>,
-) {
+export async function updateWriterProfile(user: string, raw: unknown) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    throw new WriterProfileError("Provide valid profile information.");
+  const input = raw as Record<string, unknown>;
   const old = await writerProfile(user);
-  if (!old) throw new Error("Complete writer signup first.");
+  if (!old) throw new WriterProfileError("Complete writer signup first.", 403);
+  for (const field of ["name", "bio", "about", "website", "avatar"])
+    if (input[field] !== undefined && typeof input[field] !== "string")
+      throw new WriterProfileError(
+        "Profile text and photo fields must contain text.",
+      );
+  // Even callers without a client revision compare against the snapshot read
+  // above, so asynchronous image processing cannot overwrite a concurrent edit.
+  const expectedUpdatedAt =
+    input.expectedUpdatedAt === undefined
+      ? old.updatedAt
+      : input.expectedUpdatedAt;
+  if (
+    typeof expectedUpdatedAt !== "string" ||
+    !expectedUpdatedAt ||
+    expectedUpdatedAt.length > 50
+  )
+    throw new WriterProfileError("Provide a valid saved profile revision.");
   const name = typeof input.name === "string" ? input.name.trim() : old.name;
   if (!name || name.length > 50)
-    throw new Error("Name must contain 1–50 characters.");
+    throw new WriterProfileError("Name must contain 1–50 characters.");
   const bio = typeof input.bio === "string" ? input.bio.trim() : old.bio;
   const about =
     typeof input.about === "string" ? input.about.trim() : old.about;
   if (bio.length > 160 || about.length > 5000)
-    throw new Error("Bio is limited to 160 characters and About to 5,000.");
+    throw new WriterProfileError(
+      "Bio is limited to 160 characters and About to 5,000.",
+    );
   const pronouns = input.pronouns === undefined ? old.pronouns : input.pronouns;
   if (
     !Array.isArray(pronouns) ||
     pronouns.length > 4 ||
     pronouns.some((p) => typeof p !== "string" || !p.trim() || p.length > 20)
   )
-    throw new Error("Choose up to four pronouns, at most 20 characters each.");
+    throw new WriterProfileError(
+      "Choose up to four pronouns, at most 20 characters each.",
+    );
   const website =
     typeof input.website === "string" ? input.website.trim() : old.website;
   if (website && (website.length > 500 || !/^https:\/\//i.test(website)))
-    throw new Error("Use an HTTPS website address.");
+    throw new WriterProfileError("Use an HTTPS website address.");
   if (website) {
-    const url = new URL(website);
+    let url: URL;
+    try {
+      url = new URL(website);
+    } catch {
+      throw new WriterProfileError("Use a valid HTTPS website address.");
+    }
     if (url.username || url.password)
-      throw new Error("Website addresses cannot include credentials.");
+      throw new WriterProfileError(
+        "Website addresses cannot include credentials.",
+      );
   }
   let avatar = typeof input.avatar === "string" ? input.avatar : old.avatar;
   if (
@@ -111,7 +148,9 @@ export async function updateWriterProfile(
     (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(avatar) ||
       avatar.length > 700000)
   )
-    throw new Error("Upload a PNG, JPEG or WebP photo under 500 KB.");
+    throw new WriterProfileError(
+      "Upload a PNG, JPEG or WebP photo under 500 KB.",
+    );
   if (avatar && avatar !== old.avatar) {
     try {
       const image = sharp(Buffer.from(avatar.split(",")[1], "base64"), {
@@ -128,33 +167,37 @@ export async function updateWriterProfile(
         .toBuffer();
       avatar = `data:image/webp;base64,${bytes.toString("base64")}`;
     } catch {
-      throw new Error(
+      throw new WriterProfileError(
         "This photo could not be read. Choose a valid PNG, JPEG or WebP image.",
       );
     }
   }
   const appearance =
     input.appearance === undefined ? old.appearance : input.appearance;
-  if (!["light", "dark", "system"].includes(String(appearance)))
-    throw new Error("Choose a supported appearance.");
+  if (
+    typeof appearance !== "string" ||
+    !["light", "dark", "system"].includes(appearance)
+  )
+    throw new WriterProfileError("Choose a supported appearance.");
   const accent =
     input.accent === undefined ? old.accent || "forest" : input.accent;
-  if (!["forest", "copper", "violet", "ink"].includes(String(accent)))
-    throw new Error("Choose a supported profile accent.");
+  if (
+    typeof accent !== "string" ||
+    !["forest", "copper", "violet", "ink"].includes(accent)
+  )
+    throw new WriterProfileError("Choose a supported profile accent.");
   if (
     input.showConnections !== undefined &&
     typeof input.showConnections !== "boolean"
   )
-    throw new Error(
+    throw new WriterProfileError(
       "Choose whether to display your public writer connections.",
     );
   return mutateRecord<WriterProfile>(old.id, (current) => {
-    if (
-      !current ||
-      (input.expectedUpdatedAt && input.expectedUpdatedAt !== current.updatedAt)
-    )
-      throw new Error(
+    if (!current || expectedUpdatedAt !== current.updatedAt)
+      throw new WriterProfileError(
         "Your profile changed in another tab. Refresh before saving.",
+        409,
       );
     return {
       ...current,

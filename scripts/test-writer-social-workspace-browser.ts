@@ -160,6 +160,108 @@ async function main() {
       ).status(),
       200,
     );
+    await page
+      .getByRole("button", { name: "Edit profile", exact: true })
+      .click();
+    await modal
+      .getByLabel("Short bio", { exact: false })
+      .fill("My unsaved profile edit");
+    const profileSnapshot = (
+      await (await context.request.get(`${origin}/api/writer/profile`)).json()
+    ).profile;
+    assert.equal(
+      (
+        await context.request.patch(`${origin}/api/writer/profile`, {
+          headers: { origin },
+          data: {
+            bio: "Saved in another tab",
+            expectedUpdatedAt: profileSnapshot.updatedAt,
+          },
+        })
+      ).status(),
+      200,
+    );
+    await modal.getByRole("button", { name: "Save", exact: true }).click();
+    await modal
+      .getByRole("alert")
+      .filter({ hasText: "changed in another tab" })
+      .waitFor();
+    assert.equal(
+      await modal.getByLabel("Short bio", { exact: false }).inputValue(),
+      "My unsaved profile edit",
+    );
+    assert.equal(
+      await modal
+        .getByRole("button", { name: "Save", exact: true })
+        .isDisabled(),
+      true,
+    );
+    page.once("dialog", (dialog) => void dialog.accept());
+    await modal
+      .getByRole("button", { name: "Reload saved profile", exact: true })
+      .click();
+    await page.waitForFunction(
+      () =>
+        (
+          document.querySelector(
+            '.writer-profile-form textarea[maxlength="160"]',
+          ) as HTMLTextAreaElement
+        )?.value === "Saved in another tab",
+    );
+    await modal
+      .getByLabel("Short bio", { exact: false })
+      .fill("Research notes and practical examples for university students.");
+    let failProfileSave = true;
+    const safeReference = "6eef2c93-dfaf-452c-95cd-7ef80ecfbf2c";
+    await page.route("**/api/writer/profile", async (route) => {
+      if (route.request().method() === "PATCH" && failProfileSave) {
+        failProfileSave = false;
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "The service could not save your profile. Please retry.",
+            requestId: safeReference,
+          }),
+        });
+      } else await route.continue();
+    });
+    await modal.getByRole("button", { name: "Save", exact: true }).click();
+    await modal.getByRole("alert").filter({ hasText: safeReference }).waitFor();
+    mkdirSync("output/writer-social", { recursive: true });
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert.equal(
+        await modal.evaluate((node) => node.scrollWidth > node.clientWidth + 1),
+        false,
+        `Profile recovery dialog fits ${width}px`,
+      );
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth + 1,
+        ),
+        false,
+      );
+      await page.screenshot({
+        path: `output/writer-social/profile-save-recovery-${width}.png`,
+        fullPage: true,
+      });
+    }
+    assert.equal(
+      await modal.getByLabel("Short bio", { exact: false }).inputValue(),
+      "Research notes and practical examples for university students.",
+    );
+    await modal.getByRole("button", { name: "Save", exact: true }).click();
+    await modal.waitFor({ state: "hidden" });
+    await page.unroute("**/api/writer/profile");
+    const savedBio = (
+      await (await context.request.get(`${origin}/api/writer/profile`)).json()
+    ).profile;
+    assert.equal(
+      savedBio.bio,
+      "Research notes and practical examples for university students.",
+    );
+    assert.equal(savedBio.showConnections, true);
     const featured = page.locator("#featured-stories");
     await featured
       .getByLabel("Published story to pin")
@@ -335,6 +437,59 @@ async function main() {
       .click();
     await page.waitForFunction(
       () => document.querySelectorAll("#featured-stories li").length === 1,
+    );
+    await page.goto(origin + "/writer/settings");
+    const appearanceSelect = page.getByLabel("Writer appearance", {
+      exact: true,
+    });
+    await appearanceSelect.waitFor();
+    const settingsSnapshot = (
+      await (await context.request.get(`${origin}/api/writer/profile`)).json()
+    ).profile;
+    assert.equal(
+      (
+        await context.request.patch(`${origin}/api/writer/profile`, {
+          headers: { origin },
+          data: {
+            bio: "A newer profile detail must survive a theme change.",
+            expectedUpdatedAt: settingsSnapshot.updatedAt,
+          },
+        })
+      ).status(),
+      200,
+    );
+    await appearanceSelect.selectOption("dark");
+    await page
+      .locator(".writer-profile-conflict")
+      .getByRole("alert")
+      .filter({ hasText: "changed in another tab" })
+      .waitFor();
+    assert.equal(await appearanceSelect.isDisabled(), true);
+    await page
+      .getByRole("button", { name: "Reload saved profile", exact: true })
+      .click();
+    await page.waitForFunction(
+      () =>
+        !(
+          document.querySelector(
+            '[aria-label="Writer appearance"]',
+          ) as HTMLSelectElement
+        )?.disabled,
+    );
+    await appearanceSelect.selectOption("dark");
+    await page.waitForFunction(
+      () => document.documentElement.dataset.writerTheme === "dark",
+    );
+    const themedProfile = (
+      await (await context.request.get(`${origin}/api/writer/profile`)).json()
+    ).profile;
+    assert.equal(
+      themedProfile.bio,
+      "A newer profile detail must survive a theme change.",
+    );
+    await appearanceSelect.selectOption("light");
+    await page.waitForFunction(
+      () => document.documentElement.dataset.writerTheme === "light",
     );
     await context.addCookies([readerCookie]);
     await page.goto(origin + "/writer/following");
@@ -577,7 +732,7 @@ async function main() {
     }
     assert.equal(errors.length, 0, errors.join("\n"));
     console.log(
-      "PASS writer social workspace browser: pin/reorder/unpin persistence and public order, stale pin revision conflict/reload, author-only article pin action, profile connection opt-in, follow/unfollow, public writer lists, like/save/comment persistence, real feed counters, stats, author-only revision menu, stale account response isolation and 390/768/1440 layouts.",
+      "PASS writer social workspace browser: profile conflict reload and failed-save recovery/reference, safe theme conflicts, pin/reorder/unpin persistence and public order, stale pin revision conflict/reload, author-only article pin action, profile connection opt-in, follow/unfollow, public writer lists, like/save/comment persistence, real feed counters, stats, author-only revision menu, stale account response isolation and 390/768/1440 layouts.",
     );
   } finally {
     await browser?.close();

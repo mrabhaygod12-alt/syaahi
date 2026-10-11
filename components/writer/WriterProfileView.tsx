@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import WriterShell, { useWriter, WriterAvatar } from "./WriterShell";
 import Modal from "../Modal";
 import { StoryRow } from "../WriterDashboard";
-import { requestJson } from "@/lib/http-client";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import type { PublicGuide } from "@/lib/writing/public";
 import ConnectionsPanel from "./ConnectionsPanel";
 import FeaturedStories from "./FeaturedStories";
@@ -13,16 +13,67 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState(profile),
     [pronouns, setPronouns] = useState(profile.pronouns.join(", ")),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [conflict, setConflict] = useState(false),
+    [photoBusy, setPhotoBusy] = useState(false);
+  const pending = useRef<AbortController | null>(null);
+  const photoReader = useRef<FileReader | null>(null);
+  useEffect(
+    () => () => {
+      pending.current?.abort();
+      const reader = photoReader.current;
+      photoReader.current = null;
+      reader?.abort();
+    },
+    [],
+  );
   const changed =
     JSON.stringify(form) !== JSON.stringify(profile) ||
     pronouns !== profile.pronouns.join(", ");
   const close = () => {
     if (
       !busy &&
+      !photoBusy &&
       (!changed || window.confirm("Discard your unsaved profile changes?"))
     )
       onClose();
+  };
+  const reload = async () => {
+    if (pending.current || photoReader.current) return;
+    if (
+      changed &&
+      !window.confirm(
+        "Reload your saved profile and discard these unsaved changes?",
+      )
+    )
+      return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setBusy(true);
+    setError("");
+    try {
+      const { response, data } = await requestJson("/api/writer/profile", {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      if (!response.ok)
+        throw new ServiceRequestError(
+          data.error || "Could not reload your profile.",
+          response.status,
+          data.requestId,
+        );
+      update(data.profile);
+      setForm(data.profile);
+      setPronouns(data.profile.pronouns.join(", "));
+      setConflict(false);
+    } catch (e) {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      if (!controller.signal.aborted && pending.current === controller) {
+        pending.current = null;
+        setBusy(false);
+      }
+    }
   };
   return (
     <Modal title="Profile information" onClose={close}>
@@ -30,6 +81,9 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
         className="writer-profile-form"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (pending.current || photoReader.current || conflict) return;
+          const controller = new AbortController();
+          pending.current = controller;
           setBusy(true);
           setError("");
           try {
@@ -37,6 +91,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
               "/api/writer/profile",
               {
                 method: "PATCH",
+                signal: controller.signal,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   ...form,
@@ -44,17 +99,31 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
                     .split(",")
                     .map((p) => p.trim())
                     .filter(Boolean),
-                  expectedUpdatedAt: profile.updatedAt,
+                  expectedUpdatedAt: form.updatedAt,
                 }),
               },
             );
-            if (!response.ok) throw new Error(data.error);
+            if (controller.signal.aborted) return;
+            if (!response.ok) {
+              if (response.status === 409) setConflict(true);
+              throw new ServiceRequestError(
+                data.error || "Profile update failed.",
+                response.status,
+                data.requestId,
+              );
+            }
             update(data.profile);
             onClose();
           } catch (e) {
-            setError(e instanceof Error ? e.message : "Profile update failed.");
+            if (!controller.signal.aborted)
+              setError(
+                e instanceof Error ? e.message : "Profile update failed.",
+              );
           } finally {
-            setBusy(false);
+            if (!controller.signal.aborted && pending.current === controller) {
+              pending.current = null;
+              setBusy(false);
+            }
           }
         }}
       >
@@ -79,13 +148,28 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
                   if (!file) return;
                   if (file.size > 500000)
                     return setError("Choose a photo under 500 KB.");
+                  photoReader.current?.abort();
                   const reader = new FileReader();
+                  photoReader.current = reader;
+                  setPhotoBusy(true);
                   reader.onload = () => {
+                    if (photoReader.current !== reader) return;
                     setForm((old) => ({
                       ...old,
                       avatar: String(reader.result),
                     }));
                     setError("");
+                  };
+                  reader.onerror = () => {
+                    if (photoReader.current === reader)
+                      setError(
+                        "This photo could not be read. Please choose it again.",
+                      );
+                  };
+                  reader.onloadend = () => {
+                    if (photoReader.current !== reader) return;
+                    photoReader.current = null;
+                    setPhotoBusy(false);
                   };
                   reader.readAsDataURL(file);
                 }}
@@ -94,7 +178,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               className="writer-text-button danger"
-              disabled={busy}
+              disabled={busy || photoBusy}
               onClick={() => setForm({ ...form, avatar: "" })}
             >
               Remove
@@ -205,16 +289,36 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
             {error}
           </p>
         )}
+        {photoBusy && <p role="status">Reading photo…</p>}
+        {conflict && (
+          <div className="writer-profile-conflict">
+            <p>
+              Your edits remain here. Reload the saved profile before making
+              another change.
+            </p>
+            <button
+              type="button"
+              className="btn light"
+              disabled={busy || photoBusy}
+              onClick={() => void reload()}
+            >
+              Reload saved profile
+            </button>
+          </div>
+        )}
         <div className="writer-dialog-actions">
           <button
             type="button"
             className="btn light"
-            disabled={busy}
+            disabled={busy || photoBusy}
             onClick={close}
           >
             Cancel
           </button>
-          <button className="btn dark" disabled={busy || !changed}>
+          <button
+            className="btn dark"
+            disabled={busy || photoBusy || conflict || !changed}
+          >
             {busy ? "Saving…" : "Save"}
           </button>
         </div>
@@ -372,7 +476,9 @@ function ProfileContent() {
           })}
         </p>
       </aside>
-      {edit && <ProfileEditor onClose={() => setEdit(false)} />}
+      {edit && (
+        <ProfileEditor key={profile.owner} onClose={() => setEdit(false)} />
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   writerAccess,
   writerProfile,
   updateWriterProfile,
+  WriterProfileError,
 } from "@/lib/writing/profile";
 import { rateLimit } from "@/lib/ratelimit";
 export const dynamic = "force-dynamic";
@@ -27,12 +28,14 @@ export const PATCH = apiHandler(async (req: NextRequest) => {
   if (access) return access;
   try {
     return NextResponse.json({
-      profile: await updateWriterProfile(user.id, await req.json()),
+      profile: await updateWriterProfile(
+        user.id,
+        await req.json().catch(() => null),
+      ),
     });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Unable to save profile." },
-      { status: 400 },
-    );
+    if (e instanceof WriterProfileError)
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    throw e;
   }
 });

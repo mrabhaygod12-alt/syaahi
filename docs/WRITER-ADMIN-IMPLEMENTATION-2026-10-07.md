@@ -269,3 +269,25 @@ unchecked items above. No full parity with Medium is claimed.
   reported that exact revision. One proxy health request timed out during the smoke
   run; subsequent direct and proxied health checks both returned HTTP 200 with MongoDB
   available. No payment or customer content was changed during verification.
+- Ordered pins increment `f6e2595` passed full GitHub CI and exact-revision public
+  smoke checks on frontend, proxied backend and direct Render, including MongoDB health.
+
+## Profile save recovery and safe errors — 2026-10-11
+
+- Profile input uses explicit validation errors. Invalid objects, field types, photos,
+  website URLs and appearance values return actionable HTTP 400 responses; stale edits
+  return 409. Unexpected infrastructure errors go through the shared 503 handler with
+  a support reference, rather than exposing raw database diagnostics as validation errors.
+- Every save compares the stored revision inside the database mutation. Direct callers
+  without a supplied revision still compare the initially loaded snapshot, including
+  edits delayed by photo processing. Conflicting writes cannot silently overwrite a profile.
+- The editor uses the revision belonging to the displayed form. Conflicts retain unsaved
+  text, block another write and offer a manual reload with discard confirmation. Service
+  errors retain the form and display the support reference; writes are never replayed
+  automatically. Appearance updates can reload after a conflict without overwriting
+  a newer profile detail. Pending requests/photo reads are aborted when the form closes.
+- Validated: writer-platform and connections suites on SQLite/MongoDB; profile validation,
+  explicit/implicit concurrent saves, database-write fault injection with rollback and
+  response redaction; typecheck and production build. Production browser journeys cover
+  real competing-tab conflicts, reload, injected service-response recovery, support
+  references, persisted profile changes and theme-conflict recovery.

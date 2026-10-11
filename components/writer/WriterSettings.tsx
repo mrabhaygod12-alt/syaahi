@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import WriterShell, { useWriter } from "./WriterShell";
 import { ProfileEditor } from "./WriterProfileView";
-import { requestJson } from "@/lib/http-client";
+import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import { useAccount } from "../WorkspaceProvider";
 import SessionSecurity from "../SessionSecurity";
 import ReadingPreferences from "./ReadingPreferences";
@@ -12,7 +12,51 @@ function SettingsContent() {
   const { user } = useAccount();
   const [edit, setEdit] = useState(false),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [conflict, setConflict] = useState(false);
+  const pending = useRef<AbortController | null>(null);
+  useEffect(() => () => pending.current?.abort(), []);
+  const changeAppearance = async (appearance?: string) => {
+    if (pending.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setBusy(true);
+    setError("");
+    try {
+      const { response, data } = await requestJson(
+        "/api/writer/profile",
+        appearance === undefined
+          ? { signal: controller.signal }
+          : {
+              method: "PATCH",
+              signal: controller.signal,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                appearance,
+                expectedUpdatedAt: profile.updatedAt,
+              }),
+            },
+      );
+      if (controller.signal.aborted) return;
+      if (!response.ok) {
+        if (response.status === 409) setConflict(true);
+        throw new ServiceRequestError(
+          data.error || "Could not update appearance.",
+          response.status,
+          data.requestId,
+        );
+      }
+      update(data.profile);
+      setConflict(false);
+    } catch (e) {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      if (!controller.signal.aborted && pending.current === controller) {
+        pending.current = null;
+        setBusy(false);
+      }
+    }
+  };
   return (
     <section className="writer-settings writer-primary">
       <p className="writer-kicker">MAKE YOURSELF AT HOME</p>
@@ -22,7 +66,11 @@ function SettingsContent() {
           <h3>Profile information</h3>
           <p>Your writer photo, name, pronouns, bio and About page.</p>
         </div>
-        <button className="writer-text-button" onClick={() => setEdit(true)}>
+        <button
+          className="writer-text-button"
+          disabled={busy}
+          onClick={() => setEdit(true)}
+        >
           Edit profile
         </button>
       </div>
@@ -34,38 +82,26 @@ function SettingsContent() {
         <select
           aria-label="Writer appearance"
           value={profile.appearance}
-          disabled={busy}
-          onChange={async (e) => {
-            setBusy(true);
-            setError("");
-            try {
-              const { response, data } = await requestJson(
-                "/api/writer/profile",
-                {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    appearance: e.target.value,
-                    expectedUpdatedAt: profile.updatedAt,
-                  }),
-                },
-              );
-              if (!response.ok) throw new Error(data.error);
-              update(data.profile);
-            } catch (e) {
-              setError(
-                e instanceof Error ? e.message : "Could not update appearance.",
-              );
-            } finally {
-              setBusy(false);
-            }
-          }}
+          disabled={busy || conflict}
+          onChange={(e) => void changeAppearance(e.target.value)}
         >
           <option value="system">Use device setting</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
       </div>
+      {error && (
+        <div className="writer-profile-conflict">
+          <p role="alert">{error}</p>
+          <button
+            className="btn light"
+            disabled={busy}
+            onClick={() => void changeAppearance()}
+          >
+            Reload saved profile
+          </button>
+        </div>
+      )}
       <div className="writer-setting-row">
         <div>
           <h3>Membership & billing</h3>
@@ -102,8 +138,9 @@ function SettingsContent() {
       </div>
       <ReadingPreferences />
       <SessionSecurity />
-      {error && <p role="alert">{error}</p>}
-      {edit && <ProfileEditor onClose={() => setEdit(false)} />}
+      {edit && (
+        <ProfileEditor key={profile.owner} onClose={() => setEdit(false)} />
+      )}
     </section>
   );
 }
