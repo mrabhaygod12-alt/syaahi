@@ -408,3 +408,24 @@ unchecked items above. No full parity with Medium is claimed.
 - Initial CI caught MongoDB converting an absent optional byline in saved-version
   arrays into null. Version snapshots now omit absent bylines rather than passing
   undefined to BSON. The existing fault-injection suite verifies exact state retention.
+
+## Live submissions and Following hydration — 2026-10-12
+
+- All four requested articles were imported, illustrated and submitted through the
+  live writer UI with Chandan Pandey as their per-article byline. The OpenAI draft and
+  image survived an autosave/reload check. During deployment, one Claude draft save
+  received a 502; text remained in the page and explicit retry recovered the draft.
+  The later submission succeeded. The fourth saved draft reopened after the user
+  signed in again and submitted successfully. No approval gate was bypassed.
+- Live submission identifiers and verification state are recorded in
+  `docs/articles/2026-10-12/live-submissions.json`. An administrator must review them
+  at `/admin/publications` before they become public and appear on the Blog.
+- CI passed the editor proxy and publishing checks, then exposed an intermittent
+  HTML hydration error on `/writer/following`. Unlike the other private workspace
+  pages, Following passed a server-created child tree into the asynchronous account
+  gate. The page now constructs the child tree within the client boundary, following
+  the profile/library/stories pattern. Account and ownership gates remain enforced.
+- Production build/typecheck, the social workspace browser journey and an expanded
+  24-navigation stress test across Profile/Following/Stories pass locally, including
+  immediate account/profile responses, wrong-owner gates, different locale/timezone
+  and 4x CPU slowdown. Final CI and exact-commit deployment verification remain to run.

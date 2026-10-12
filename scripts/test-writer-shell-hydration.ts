@@ -93,17 +93,31 @@ async function main() {
     await page.route("**/api/writer/profile", (route) =>
       route.fulfill({ json: { profile: mismatch ? author : reader } }),
     );
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 24; i++) {
       mismatch = i % 2 === 0;
-      await page.goto(origin + "/writer/profile");
+      const path = ["/writer/profile", "/writer/following", "/writer/stories"][
+        i % 3
+      ];
+      await page.goto(origin + path);
       if (mismatch)
         await page
           .getByRole("alert")
           .filter({ hasText: "profile could not be verified" })
           .waitFor();
-      else
+      else if (path === "/writer/profile")
         await page
           .getByRole("heading", { name: reader!.name, exact: true, level: 1 })
+          .waitFor();
+      else
+        await page
+          .getByRole("heading", {
+            name:
+              path === "/writer/following"
+                ? "Your connections"
+                : "Your stories",
+            exact: true,
+            level: 1,
+          })
           .waitFor();
       await page.waitForLoadState("networkidle");
       assert.equal(

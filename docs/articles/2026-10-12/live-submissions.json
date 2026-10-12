@@ -1,0 +1,33 @@
+{
+  "verifiedDate": "2026-10-12",
+  "byline": "Chandan Pandey",
+  "status": "submitted_for_editorial_review",
+  "reviewQueue": "https://www.syaahii.in/admin/publications",
+  "articles": [
+    {
+      "title": "GPT-6.1 Sol: A Practical Guide for University Developers",
+      "draftId": "ae634dc1-98a7-4ad1-910a-d503bfee8526",
+      "file": "openai-gpt-6-1-sol",
+      "words": 797
+    },
+    {
+      "title": "Claude 5.5: Match the Model to the Work",
+      "draftId": "b7ada9fb-8ab6-40ca-81b7-40f085360801",
+      "file": "claude-5-5-model-routing",
+      "words": 828
+    },
+    {
+      "title": "Gemini 3.8 Flash: Build a Source-Aware University Project",
+      "draftId": "fab53e19-616e-4e66-a222-b96334da94d6",
+      "file": "gemini-3-8-university-projects",
+      "words": 828
+    },
+    {
+      "title": "Before You Run That GitHub AI Project: A Security Checklist",
+      "draftId": "de522a55-34f5-4e6b-904a-78eb1f3940e2",
+      "file": "github-ai-agent-security",
+      "words": 797
+    }
+  ],
+  "verification": "All four were imported, illustrated through owned image uploads, previewed and submitted through the live writer UI. OpenAI content/image survived autosave and reload. A deployment-time 502 on the Claude draft retained text and recovered through explicit save retry. Public publication requires editorial approval."
+}
