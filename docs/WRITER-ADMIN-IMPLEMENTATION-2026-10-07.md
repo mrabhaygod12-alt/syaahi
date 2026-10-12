@@ -405,3 +405,6 @@ unchecked items above. No full parity with Medium is claimed.
   journey (autosave toggle/manual save/import, byline, read-only preview, design
   persistence, service retries, submission/public Blog boundary and all ribbon tabs
   at 390/768/1440px), plus the existing Chromium/WebKit writer browser journey.
+- Initial CI caught MongoDB converting an absent optional byline in saved-version
+  arrays into null. Version snapshots now omit absent bylines rather than passing
+  undefined to BSON. The existing fault-injection suite verifies exact state retention.

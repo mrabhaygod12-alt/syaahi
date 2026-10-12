@@ -219,7 +219,9 @@ async function publishApproved(s: Story, actor: string | null, note: string) {
         body: parent.body,
         document: parent.document,
         tags: parent.tags,
-        authorByline: parent.authorByline,
+        ...(typeof parent.authorByline === "string"
+          ? { authorByline: parent.authorByline }
+          : {}),
       },
     ].slice(-10),
   };

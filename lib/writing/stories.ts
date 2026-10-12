@@ -493,7 +493,9 @@ export async function saveStory(
           body: existing.body,
           document: existing.document,
           tags: existing.tags,
-          authorByline: existing.authorByline,
+          ...(typeof existing.authorByline === "string"
+            ? { authorByline: existing.authorByline }
+            : {}),
         },
       ].slice(-10),
     };
