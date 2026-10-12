@@ -410,20 +410,20 @@
   color: #637b50;
 }
 .design-presets > button {
-  height: 70px !important;
-  width: 90px !important;
+  height: auto;
+  width: auto;
   display: grid;
   text-align: left;
   gap: 8px;
-  padding: 12px !important;
-  background: #fafbf2 !important;
+  padding: 12px;
+  background: #fafbf2;
 }
 .design-presets > button > span {
   font: 24px Georgia;
   color: #71845c;
 }
 .design-presets strong {
-  font-size: 9px;
+  font-size: 12px;
   text-transform: capitalize;
   font-weight: 400;
 }

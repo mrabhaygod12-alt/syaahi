@@ -7,6 +7,7 @@ const origin = "https://www.syaahii.in";
 const checks = [
   ["/", 200, "growth-landing"],
   ["/writing", 200, "writer-public-landing"],
+  ["/blog", 200, "syaahi-blog"],
   ["/syaahi", 200, "Syaahi: learn, present and publish."],
   ["/writing/features", 200, "A complete home for your writing."],
   ["/writing/pricing", 200, "Two writer plans."],

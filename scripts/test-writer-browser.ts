@@ -332,7 +332,9 @@ async function main() {
     await page.getByText("Saved to your account.", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     assert.equal(await page.locator(".story-prose table tr").count(), 4);
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Back to editor", exact: true })
+      .click();
     await page.getByRole("tab", { name: "Insert", exact: true }).click();
     await editor.click();
     await editor.press("Control+End");
@@ -419,7 +421,9 @@ async function main() {
         .innerText(),
       /Learning principles/,
     );
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Back to editor", exact: true })
+      .click();
     await page.getByRole("tab", { name: "Home", exact: true }).click();
     await page.screenshot({
       path: "output/writer-redesign/writer-editor.png",

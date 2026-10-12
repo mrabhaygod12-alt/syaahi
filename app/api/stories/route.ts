@@ -88,6 +88,14 @@ async function handlePOST(req: NextRequest) {
     );
   try {
     const user = (await currentUser(req))!;
+    if (
+      body.authorByline !== undefined &&
+      typeof body.authorByline !== "string"
+    )
+      return NextResponse.json(
+        { error: "Provide an author byline as text." },
+        { status: 400 },
+      );
     const access = await writerAccess(user.id);
     if (access) return access;
     const profile = (await writerProfile(user.id))!;
@@ -104,6 +112,7 @@ async function handlePOST(req: NextRequest) {
         : [],
       submit: body.action === "submit",
       authorName: profile.name,
+      authorByline: body.authorByline,
       creatorSlug: profile.slug,
       document: body.document,
       expectedUpdatedAt:

@@ -58,6 +58,7 @@ export default function SiteHeader() {
       : [
           ["Workspace", "/dashboard"],
           ["Subjects", "/subjects"],
+          ["Blog", "/blog"],
           ["About", "/about"],
           ["Plans", "/pricing"],
         ];

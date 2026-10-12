@@ -1,265 +1,212 @@
 import { pageMeta, jsonLd, SITE } from "@/lib/seo";
-import { BLOG_POSTS } from "@/lib/blog-data";
-
+import { blogFeed } from "@/lib/blog-feed";
+import "./blog.css";
+export const dynamic = "force-dynamic";
 export const metadata = pageMeta({
-  title: "Blog & Exam Study Guides",
+  title: "Blog: AI, Computer Science & University Learning",
   description:
-    "Read Syaahi articles on source-aware notes, active recall and exam preparation. Explore community writing from teachers, professionals and learners.",
+    "Read reviewed writer articles and practical study guides on AI, cybersecurity, computer science and UG/PG learning. Explore new perspectives on Syaahi.",
   path: "/blog",
 });
-
-export default function BlogIndexPage() {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "Blog",
-    name: "Syaahi Study Blog",
-    description:
-      "Articles on source-aware notes, active recall and exam preparation.",
-    url: `${SITE.url}/blog`,
-    publisher: {
-      "@type": "Organization",
-      name: SITE.name,
-      url: SITE.url,
-    },
-    blogPost: BLOG_POSTS.map((post) => ({
-      "@type": "BlogPosting",
-      headline: post.title,
-      description: post.excerpt,
-      url: `${SITE.url}/blog/${post.slug}`,
-      datePublished: post.date,
-      author: {
-        "@type": "Person",
-        name: post.author,
-      },
-    })),
-  };
-
+metadata.alternates = {
+  ...metadata.alternates,
+  types: { "application/rss+xml": "/feed.xml" },
+};
+export default async function BlogIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; topic?: string; page?: string }>;
+}) {
+  const { entries, unavailable } = await blogFeed();
+  const query = await searchParams;
+  const search =
+    typeof query.q === "string" ? query.q.slice(0, 120).trim() : "";
+  const topic = typeof query.topic === "string" ? query.topic.slice(0, 60) : "";
+  const filtered = entries.filter(
+    (e) =>
+      (!topic || e.tags.some((t) => t.toLowerCase() === topic.toLowerCase())) &&
+      (!search ||
+        [e.title, e.excerpt, e.author, e.tags.join(" ")]
+          .join(" ")
+          .toLowerCase()
+          .includes(search.toLowerCase())),
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / 12));
+  const page = Math.max(
+    1,
+    Math.min(pages, Math.floor(Number(query.page) || 1)),
+  );
+  const current = filtered.slice((page - 1) * 12, page * 12);
+  const topics = [...new Set(entries.flatMap((e) => e.tags))].slice(0, 12);
+  const link = (next: number) =>
+    "/blog?" +
+    new URLSearchParams({
+      ...(search ? { q: search } : {}),
+      ...(topic ? { topic } : {}),
+      page: String(next),
+    });
   return (
-    <>
+    <main className="syaahi-blog">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
+        dangerouslySetInnerHTML={{
+          __html: jsonLd({
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            name: "Syaahi Blog",
+            url: SITE.url + "/blog",
+            publisher: {
+              "@type": "Organization",
+              name: SITE.name,
+              url: SITE.url,
+            },
+            blogPost: current.map((e) => ({
+              "@type": "BlogPosting",
+              headline: e.title,
+              description: e.excerpt,
+              url: SITE.url + e.href,
+              datePublished: e.date,
+              author: { "@type": "Person", name: e.author },
+            })),
+          }),
+        }}
       />
-      <main
-        className="wrap"
-        style={{ maxWidth: 1040, padding: "60px 20px 100px" }}
-      >
-        {/* Header */}
-        <div
-          style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 50px" }}
-        >
-          <p className="eyebrow">SYAAHI STUDY INSIGHTS</p>
-          <h1
-            style={{
-              fontSize: "2.6rem",
-              lineHeight: 1.15,
-              margin: "10px 0 16px",
-            }}
-          >
-            Ideas for learning <br />
-            <span style={{ color: "#214b40" }}>
-              and explaining what you know.
-            </span>
-          </h1>
-          <p
-            className="small"
-            style={{ fontSize: "1.05rem", color: "#4b5563" }}
-          >
-            Read practical articles on notes, recall and preparation. For
-            teaching guides and professional explanations, explore{" "}
-            <a href="/community">community articles</a> or{" "}
-            <a href="/writing">start your own draft</a>.
-          </p>
+      <header className="blog-masthead">
+        <p className="eyebrow">THE SYAAHI JOURNAL</p>
+        <h1>
+          Ideas for your
+          <br />
+          <em>next breakthrough.</em>
+        </h1>
+        <p>
+          AI, computer science, cybersecurity and university learning.
+          <br />
+          Reviewed stories from writers, alongside practical study guides.
+        </p>
+        <div className="blog-edition">
+          <span>FOR CURIOUS UG & PG MINDS</span>
+          <a href="/feed.xml">Follow the story feed ↗</a>
         </div>
-
-        {/* Blog Posts Grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fill, minmax(min(100%, 320px), 1fr))",
-            gap: 28,
-            marginBottom: 60,
-          }}
-        >
-          {BLOG_POSTS.map((post) => (
-            <article
-              key={post.slug}
-              className="card"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                padding: 24,
-                borderRadius: 14,
-                border: "1px solid #e5e0d8",
-                background: "#ffffff",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
-              }}
+      </header>
+      <section aria-label="Find articles" className="blog-search">
+        <form action="/blog">
+          <label className="sr-only" htmlFor="blog-query">
+            Search articles
+          </label>
+          <input
+            id="blog-query"
+            name="q"
+            defaultValue={search}
+            maxLength={120}
+            placeholder="Find an idea, topic or author…"
+          />
+          <button className="btn dark">Search</button>
+        </form>
+        <nav aria-label="Blog topics">
+          <a href="/blog" aria-current={!topic ? "page" : undefined}>
+            All stories
+          </a>
+          {topics.map((t) => (
+            <a
+              href={"/blog?topic=" + encodeURIComponent(t)}
+              aria-current={topic === t ? "page" : undefined}
+              key={t}
             >
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <span
-                    style={{
-                      background: "#fef3c7",
-                      color: "#92400e",
-                      border: "1px solid #fde68a",
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      padding: "3px 10px",
-                      borderRadius: 12,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    {post.category}
-                  </span>
-                  <span style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
-                    {post.readingTime}
-                  </span>
-                </div>
-
-                <h2
-                  style={{
-                    fontSize: "1.35rem",
-                    lineHeight: 1.3,
-                    margin: "0 0 10px",
-                  }}
-                >
-                  <a
-                    href={`/blog/${post.slug}`}
-                    style={{ color: "#111827", textDecoration: "none" }}
-                  >
-                    {post.title}
-                  </a>
-                </h2>
-
-                <p
-                  className="small"
-                  style={{
-                    color: "#4b5563",
-                    margin: "0 0 18px",
-                    lineHeight: 1.55,
-                  }}
-                >
-                  {post.excerpt}
-                </p>
-              </div>
-
-              <div
-                style={{
-                  borderTop: "1px solid #f3f4f6",
-                  paddingTop: 14,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize: "0.85rem",
-                      fontWeight: 700,
-                      color: "#1f2937",
-                    }}
-                  >
-                    {post.author}
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
-                    {new Date(post.date).toLocaleDateString("en-IN", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </div>
-                </div>
-
-                <a
-                  href={`/blog/${post.slug}`}
-                  className="btn light"
-                  style={{ fontSize: "0.85rem", padding: "6px 14px" }}
-                >
-                  Read Article →
-                </a>
-              </div>
-            </article>
+              {t}
+            </a>
           ))}
+        </nav>
+      </section>
+      {unavailable && (
+        <p className="blog-service-note" role="status">
+          Writer articles are temporarily unavailable. Study guides remain
+          available. <a href="/blog">Try again</a>
+        </p>
+      )}
+      <section className="blog-stories" aria-label="Blog articles">
+        {current.map((post, i) => (
+          <article className="blog-story" key={post.href}>
+            <a
+              href={post.href}
+              className="blog-art"
+              aria-label={"Read " + post.title}
+            >
+              {post.image ? (
+                <img
+                  src={post.image.src}
+                  alt={post.image.alt}
+                  loading="lazy"
+                  width={720}
+                  height={405}
+                />
+              ) : (
+                <div
+                  className={"blog-type-art art-" + (i % 3)}
+                  aria-hidden="true"
+                >
+                  <span>{post.category}</span>
+                  <strong>{["Aa", "{ }", "↗"][i % 3]}</strong>
+                  <small>SYAAHI · IDEAS & INSIGHT</small>
+                </div>
+              )}
+            </a>
+            <div className="blog-story-body">
+              <p className="blog-category">
+                {post.category}{" "}
+                <span>
+                  {post.kind === "writer" ? "Reviewed story" : "Study guide"}
+                </span>
+              </p>
+              <h2>
+                <a href={post.href}>{post.title}</a>
+              </h2>
+              <p>{post.excerpt}</p>
+              <div className="blog-byline">
+                <span>{post.author}</span>
+                <time dateTime={post.date}>
+                  {new Date(post.date).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    timeZone: "Asia/Kolkata",
+                  })}
+                </time>
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
+      {!current.length && (
+        <div className="blog-empty">
+          <h2>No matching stories yet.</h2>
+          <p>Try a broader topic or explore all articles.</p>
+          <a className="btn light" href="/blog">
+            Browse all stories
+          </a>
         </div>
-
-        {/* Bottom CTA Card */}
-        <section
-          style={{
-            background: "linear-gradient(135deg, #1f1f1f 0%, #2b2c34 100%)",
-            color: "#ffffff",
-            padding: "44px 36px",
-            borderRadius: 16,
-            textAlign: "center",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-            border: "1px solid #3f3f46",
-          }}
-        >
-          <span
-            className="eyebrow"
-            style={{ color: "#f0c06a", letterSpacing: "0.08em" }}
-          >
-            START LEARNING BETTER TODAY
+      )}
+      {pages > 1 && (
+        <nav className="blog-pagination" aria-label="Blog pagination">
+          {page > 1 && <a href={link(page - 1)}>← Previous</a>}
+          <span>
+            Page {page} of {pages}
           </span>
-          <h2
-            style={{ color: "#ffffff", fontSize: "2rem", margin: "8px 0 12px" }}
-          >
-            Generate Your First Handwritten Exam Note in 60s
-          </h2>
-          <p
-            className="small"
-            style={{ color: "#d1d5db", maxWidth: 580, margin: "0 auto 24px" }}
-          >
-            Turn complex chapters into clean, legible handwritten PDFs with
-            diagrams and formulas. Claim your 19 free credits now.
+          {page < pages && <a href={link(page + 1)}>Next →</a>}
+        </nav>
+      )}
+      <aside className="blog-learning-callout">
+        <div>
+          <p className="eyebrow">TURN READING INTO UNDERSTANDING</p>
+          <h2>Put a new idea to work.</h2>
+          <p>
+            Explore source-aware notes and recall practice in your learning
+            workspace.
           </p>
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <a
-              href="/signup"
-              className="btn dark"
-              style={{
-                background: "#f0c06a",
-                color: "#1f1f1f",
-                borderColor: "#f0c06a",
-                padding: "12px 28px",
-                fontSize: "1rem",
-                fontWeight: 700,
-              }}
-            >
-              Get Started Free (19 Credits)
-            </a>
-            <a
-              href="/examples"
-              className="btn light"
-              style={{
-                background: "transparent",
-                color: "#ffffff",
-                borderColor: "rgba(255,255,255,0.4)",
-                padding: "12px 24px",
-              }}
-            >
-              View Sample Notes
-            </a>
-          </div>
-        </section>
-      </main>
-    </>
+        </div>
+        <a className="btn dark" href="/dashboard">
+          Open learning workspace ↗
+        </a>
+      </aside>
+    </main>
   );
 }

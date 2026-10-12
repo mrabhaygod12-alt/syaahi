@@ -203,6 +203,7 @@ async function publishApproved(s: Story, actor: string | null, note: string) {
     canonicalUrl: s.canonicalUrl,
     searchMetadata: s.searchMetadata,
     authorName: s.authorName,
+    authorByline: s.authorByline,
     status: "published",
     pendingRevisionId: null,
     reviewedAt: s.status === "scheduled" ? s.reviewedAt : at,
@@ -218,6 +219,7 @@ async function publishApproved(s: Story, actor: string | null, note: string) {
         body: parent.body,
         document: parent.document,
         tags: parent.tags,
+        authorByline: parent.authorByline,
       },
     ].slice(-10),
   };

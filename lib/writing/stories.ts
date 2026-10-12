@@ -59,6 +59,7 @@ export interface Story {
   id: string;
   user: string;
   authorName: string;
+  authorByline?: string;
   creatorSlug: string;
   title: string;
   summary: string;
@@ -86,6 +87,7 @@ export interface Story {
     body: string;
     document?: RichNode;
     tags: string[];
+    authorByline?: string;
   }>;
   moderationEvents?: Array<{
     action: ModerationEvent["action"];
@@ -278,6 +280,7 @@ export async function saveStory(
     draftId?: string;
     submit?: boolean;
     authorName: string;
+    authorByline?: string;
     creatorSlug?: string;
     document?: unknown;
     expectedUpdatedAt?: string;
@@ -287,6 +290,16 @@ export async function saveStory(
   },
 ): Promise<Story> {
   const now = new Date().toISOString();
+  if (
+    input.authorByline !== undefined &&
+    (typeof input.authorByline !== "string" ||
+      input.authorByline.length > 80 ||
+      /[<>\r\n\u0000-\u001f\u007f]/.test(input.authorByline))
+  )
+    throw new WritingError(
+      "Use an author byline of up to 80 characters without markup.",
+    );
+  const authorByline = input.authorByline?.trim();
   const title = input.title.trim().slice(0, 140);
   const summary = input.summary.trim().slice(0, 320);
   const requestedPublishAt =
@@ -384,6 +397,7 @@ export async function saveStory(
       existing.status !== (input.submit ? "submitted" : "draft") ||
       existing.title !== title ||
       existing.summary !== summary ||
+      (existing.authorByline || "") !== (authorByline || "") ||
       existing.body !== body ||
       JSON.stringify(existing.document) !== JSON.stringify(document) ||
       JSON.stringify(existing.tags) !== JSON.stringify(tags) ||
@@ -447,6 +461,7 @@ export async function saveStory(
       );
     const story: Story = {
       ...existing,
+      ...(authorByline !== undefined ? { authorByline } : {}),
       ...(requestedPublishAt !== undefined ? { requestedPublishAt } : {}),
       searchMetadata:
         searchMetadata ||
@@ -478,6 +493,7 @@ export async function saveStory(
           body: existing.body,
           document: existing.document,
           tags: existing.tags,
+          authorByline: existing.authorByline,
         },
       ].slice(-10),
     };
@@ -533,6 +549,7 @@ export async function saveStory(
     return story;
   }
   const story: Story = {
+    ...(authorByline ? { authorByline } : {}),
     ...(requestedPublishAt ? { requestedPublishAt } : {}),
     ...(searchMetadata ? { searchMetadata } : {}),
     ...(canonicalUrl ? { canonicalUrl } : {}),

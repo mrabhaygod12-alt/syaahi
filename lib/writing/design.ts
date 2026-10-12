@@ -3,9 +3,13 @@ export const ARTICLE_THEMES = ["editorial", "journal", "modern"];
 export const ARTICLE_PAPERS = ["white", "cream", "sage"];
 export const ARTICLE_BORDERS = ["none", "line", "frame"];
 export const ARTICLE_SPACING = ["1.5", "1.8", "2"];
+export const ARTICLE_MARGINS = ["compact", "standard", "generous"];
 export const ARTICLE_ACCENTS = ["#285647", "#945634", "#554889", "#202428"];
 export function normalizeDesign(attrs?: Record<string, unknown>) {
   return {
+    pageMargin: ARTICLE_MARGINS.includes(String(attrs?.pageMargin))
+      ? String(attrs!.pageMargin)
+      : "standard",
     theme: ARTICLE_THEMES.includes(String(attrs?.theme))
       ? String(attrs!.theme)
       : "editorial",
@@ -31,6 +35,12 @@ export function articleStyles(
 ): Record<string, string> {
   const d = normalizeDesign(attrs);
   return {
+    "--article-margin":
+      d.pageMargin === "compact"
+        ? "32px"
+        : d.pageMargin === "generous"
+          ? "72px"
+          : "48px",
     "--article-font": d.articleFont,
     "--article-spacing": d.paragraphSpacing,
     "--article-accent": d.accent,

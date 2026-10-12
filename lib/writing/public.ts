@@ -41,7 +41,7 @@ export function publicGuide(story: Story): PublicGuide {
     body,
     document,
     tags,
-    authorName,
+    authorName: story.authorByline || authorName,
     creatorSlug,
     publishedAt,
     createdAt,
@@ -59,7 +59,7 @@ export async function publicStoryViews(
   ]);
   return stories.map((story) => ({
     ...publicGuide(story),
-    authorName: names.get(story.user) || story.authorName,
+    authorName: story.authorByline || names.get(story.user) || story.authorName,
     activity: activity.get(story.id),
   }));
 }

@@ -160,13 +160,11 @@ async function main() {
     })
       .png()
       .toBuffer();
-    await modal
-      .locator("input[type=file]")
-      .setInputFiles({
-        name: "fixture.png",
-        mimeType: "image/png",
-        buffer: image,
-      });
+    await modal.locator("input[type=file]").setInputFiles({
+      name: "fixture.png",
+      mimeType: "image/png",
+      buffer: image,
+    });
     await modal
       .getByLabel("Describe the image for readers")
       .fill("A green illustration for this test story");
@@ -203,6 +201,87 @@ async function main() {
       .stories;
     assert.equal(rows[0].id, draftId);
     assert(rows[0].document.content.some((n: any) => n.attrs?.indent === 2));
+    await page.getByRole("tab", { name: "Design", exact: true }).click();
+    await page
+      .getByLabel("Article margins", { exact: true })
+      .selectOption("generous");
+    await page
+      .getByRole("button", { name: "journal article theme", exact: true })
+      .click();
+    await page.getByText("Saved to your account.", { exact: true }).waitFor();
+    await page.reload();
+    await editor.waitFor();
+    rows = (await (await page.request.get(origin + "/api/stories")).json())
+      .stories;
+    assert.equal(rows[0].document.attrs.pageMargin, "generous");
+    assert.equal(rows[0].document.attrs.theme, "journal");
+    await page.getByRole("tab", { name: "Review", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Story checks", exact: true })
+      .click();
+    await page.getByRole("complementary", { name: "Story review" }).waitFor();
+    await page
+      .getByRole("button", { name: "Close story review", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Spellcheck on", exact: true })
+      .click();
+    assert.equal(await editor.getAttribute("spellcheck"), "false");
+    await page.getByRole("tab", { name: "View", exact: true }).click();
+    await page
+      .getByRole("checkbox", { name: "Gridlines", exact: true })
+      .check();
+    assert.equal(await page.locator(".writer-canvas.show-grid").count(), 1);
+    await page.getByRole("checkbox", { name: "Ruler", exact: true }).uncheck();
+    assert.equal(
+      await page
+        .getByRole("region", { name: "Page ruler and paragraph layout" })
+        .count(),
+      0,
+    );
+    await page.getByLabel("Document zoom", { exact: true }).selectOption("125");
+    assert.equal(
+      await page
+        .locator(".writer-canvas")
+        .evaluate((el) =>
+          getComputedStyle(el).getPropertyValue("--writer-zoom").trim(),
+        ),
+      "1.25",
+    );
+    await page.getByRole("button", { name: "Web layout", exact: true }).click();
+    assert.equal(await page.locator(".writer-studio.layout-web").count(), 1);
+    await page
+      .getByRole("button", { name: "Navigation pane", exact: true })
+      .click();
+    await page
+      .getByRole("complementary", { name: "Document navigation" })
+      .waitFor();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await page.getByRole("heading", { name: title, exact: true }).waitFor();
+    assert.equal(
+      await page.getByLabel("Story title", { exact: true }).count(),
+      0,
+      "Reader preview is read-only, including the title",
+    );
+    assert.equal(
+      await page
+        .getByRole("complementary", { name: "Document navigation" })
+        .count(),
+      0,
+    );
+    await page.locator(".story-prose img").waitFor();
+    await page
+      .getByRole("button", { name: "Back to editor", exact: true })
+      .click();
+    await editor.waitFor();
+    await page
+      .getByRole("button", { name: "Close navigation pane", exact: true })
+      .click();
+    await page.getByRole("checkbox", { name: "Ruler", exact: true }).check();
+    await page
+      .getByRole("button", { name: "Paper layout", exact: true })
+      .click();
+    await page.getByRole("button", { name: "100%", exact: true }).click();
     // Explicit failure before commit must preserve content and show a retry, not "Saved".
     const safeReference = "98710e6e-e4a0-4353-9e3d-406427e71ca9";
     await page.route("**/api/stories", async (route) => {
@@ -240,6 +319,9 @@ async function main() {
       .getByLabel("Story preview summary")
       .fill("A clear university cybersecurity learning route.");
     await publish
+      .getByLabel("Author byline", { exact: true })
+      .fill("Chandan Pandey");
+    await publish
       .getByLabel("Requested publication time")
       .fill("2020-01-01T00:00");
     await publish.getByRole("button", { name: "Close dialog" }).click();
@@ -253,6 +335,93 @@ async function main() {
       .click();
     await publish.waitFor({ state: "hidden" });
     await page.getByText("This story is awaiting editorial review.").waitFor();
+    const submitted = (
+      await (await page.request.get(origin + "/api/stories")).json()
+    ).stories.find((s: any) => s.id === draftId);
+    assert.equal(submitted.authorByline, "Chandan Pandey");
+    let blogHtml = await (await page.request.get(origin + "/blog")).text();
+    assert(
+      !blogHtml.includes("Updated title survives a temporary outage"),
+      "A submission stays private on the Blog",
+    );
+    const published = await (
+      await import("../lib/writing/stories")
+    ).reviewStory(
+      submitted.id,
+      "publish",
+      "Reviewed local fixture",
+      "fixture-editor",
+      submitted.updatedAt,
+    );
+    blogHtml = await (await page.request.get(origin + "/blog")).text();
+    assert(blogHtml.includes("Updated title survives a temporary outage"));
+    assert(blogHtml.includes("Chandan Pandey"));
+    assert(blogHtml.includes(`/guides/${published.slug}`));
+    await page.goto(origin + "/write");
+    await editor.waitFor();
+    await page.getByRole("checkbox", { name: /AutoSave/ }).uncheck();
+    await page.getByLabel("More story actions", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Import draft", exact: true })
+      .click();
+    const importModal = page.getByRole("dialog", {
+      name: "Import draft",
+      exact: true,
+    });
+    const importedTitle = "An imported structured article remains private";
+    await importModal
+      .getByLabel("Import article draft", { exact: true })
+      .setInputFiles({
+        name: "fixture.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(
+          JSON.stringify({
+            title: importedTitle,
+            summary: "Source-backed fixture for reliable importing.",
+            authorByline: "Chandan Pandey",
+            tags: ["Computer Science"],
+            document: {
+              type: "doc",
+              content: [
+                {
+                  type: "heading",
+                  attrs: { level: 2 },
+                  content: [{ type: "text", text: "Reliable evidence" }],
+                },
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "University students can inspect source evidence and preserve references while editing and saving a structured draft. ".repeat(
+                        3,
+                      ),
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+        ),
+      });
+    await importModal.waitFor({ state: "hidden" });
+    await page.getByLabel("Story title", { exact: true }).waitFor();
+    await page.waitForTimeout(4500);
+    rows = (await (await page.request.get(origin + "/api/stories")).json())
+      .stories;
+    assert(
+      !rows.some((s: any) => s.title === importedTitle),
+      "AutoSave off must not silently write a draft",
+    );
+    await editor.press("Control+s");
+    await page.getByText("Saved to your account.", { exact: true }).waitFor();
+    rows = (await (await page.request.get(origin + "/api/stories")).json())
+      .stories;
+    assert.equal(
+      rows.find((s: any) => s.title === importedTitle)?.authorByline,
+      "Chandan Pandey",
+    );
+    await page.getByRole("checkbox", { name: /AutoSave/ }).check();
     // Long document makes the scroll assertion meaningful.
     const longResponse = await page.request.post(origin + "/api/stories", {
       headers: { origin },
@@ -292,6 +461,20 @@ async function main() {
       await page.screenshot({
         path: `output/writer-editor/sticky-${width}.png`,
       });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      for (const tab of ["Design", "Review", "View"]) {
+        await page.getByRole("tab", { name: tab, exact: true }).click();
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth + 1,
+          ),
+          false,
+          `No ${tab} overflow at ${width}`,
+        );
+        await page.screenshot({
+          path: `output/writer-editor/${tab.toLowerCase()}-${width}.png`,
+        });
+      }
     }
     assert.equal(errors.length, 0, errors.join("\n"));
     console.log(

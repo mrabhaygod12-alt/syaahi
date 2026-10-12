@@ -31,12 +31,18 @@ import {
 import { articleStyles, normalizeDesign } from "@/lib/writing/design";
 import Modal from "./Modal";
 import WriterDiscovery from "./writer/WriterDiscovery";
+import WriterReview from "./writer/WriterReview";
+import { DEFAULT_WRITER_VIEW, type WriterView } from "./writer/workspace-view";
 import WriterRuler from "./writer/WriterRuler";
 import "./writer/editor-workspace.css";
 function StudioContent() {
   const [active, setActive] = useState<Story | null>(null),
     [title, setTitle] = useState(""),
     [summary, setSummary] = useState(""),
+    [byline, setByline] = useState(""),
+    [autoSave, setAutoSave] = useState(true),
+    [view, updateView] = useState<WriterView>(DEFAULT_WRITER_VIEW),
+    [reviewOpen, setReviewOpen] = useState(false),
     [canonicalUrl, setCanonicalUrl] = useState(""),
     [publishTime, setPublishTime] = useState(""),
     [tags, setTags] = useState("");
@@ -54,7 +60,7 @@ function StudioContent() {
     [focus, setFocus] = useState(false),
     [tools, setTools] = useState(true),
     [dialog, setDialog] = useState<
-      "image" | "publish" | "history" | "discovery" | null
+      "image" | "publish" | "history" | "discovery" | "import" | null
     >(null),
     [file, setFile] = useState<File | null>(null),
     [alt, setAlt] = useState(""),
@@ -74,6 +80,14 @@ function StudioContent() {
     setPaused(false);
     setSaveError(false);
     setMessage("Changes pending save.");
+  }
+  function setView(value: Partial<WriterView>) {
+    updateView((current) => ({ ...current, ...value }));
+  }
+  function openPreview() {
+    setPreview(true);
+    setReviewOpen(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
   const editor = useEditor({
     immediatelyRender: false,
@@ -132,6 +146,7 @@ function StudioContent() {
         setActive(story);
         setTitle(story?.title || "");
         setSummary(story?.summary || "");
+        setByline(story?.authorByline || "");
         setCanonicalUrl(story?.canonicalUrl || "");
         if (story?.requestedPublishAt) {
           const d = new Date(story.requestedPublishAt);
@@ -143,6 +158,14 @@ function StudioContent() {
         } else setPublishTime("");
         setTags(story?.tags.join(", ") || "");
         const nextDocument = story?.document || textDocument(story?.body || "");
+        if (!story) {
+          try {
+            const saved = localStorage.getItem("syaahi-article-design");
+            if (saved) nextDocument.attrs = normalizeDesign(JSON.parse(saved));
+          } catch {
+            /* Default design is optional. */
+          }
+        }
         readyDocument.current = nextDocument;
         setDocument(nextDocument);
         setLoaded(true);
@@ -193,6 +216,7 @@ function StudioContent() {
         expectedUpdatedAt: activeRef.current?.updatedAt,
         title: title.trim() || "Untitled story",
         summary,
+        authorByline: byline,
         canonicalUrl,
         // Publication options cannot prevent saving the writer's text.
         requestedPublishAt:
@@ -251,6 +275,7 @@ function StudioContent() {
             JSON.stringify(story.document) ===
               JSON.stringify(payload.document) &&
             story.summary === payload.summary.trim() &&
+            (story.authorByline || "") === payload.authorByline.trim() &&
             JSON.stringify(story.tags) ===
               JSON.stringify(
                 [
@@ -306,19 +331,44 @@ function StudioContent() {
   const saveRef = useRef(save);
   saveRef.current = save;
   useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveRef.current("save");
+      }
+      if (event.key === "Escape" && preview) setPreview(false);
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [preview]);
+  useEffect(() => {
+    editor?.setOptions({
+      editorProps: {
+        attributes: {
+          class: "writer-content",
+          "aria-label": "Story editor",
+          spellcheck: String(view.spellcheck),
+        },
+      },
+    });
+  }, [editor, view.spellcheck]);
+  useEffect(() => {
     if (
       !loaded ||
       paused ||
+      !autoSave ||
       !dirty ||
       locked ||
       busy ||
       (!title.trim() && !documentText(document).trim())
     )
       return;
-    const timer = setTimeout(() => void saveRef.current("save"), 5000);
+    const timer = setTimeout(() => void saveRef.current("save"), 4000);
     return () => clearTimeout(timer);
   }, [
     title,
+    byline,
+    autoSave,
     summary,
     canonicalUrl,
     publishTime,
@@ -377,7 +427,13 @@ function StudioContent() {
     const blob = new Blob(
       [
         JSON.stringify(
-          { title, summary, document, tags: tags.split(",") },
+          {
+            title,
+            summary,
+            authorByline: byline,
+            document,
+            tags: tags.split(","),
+          },
           null,
           2,
         ),
@@ -407,10 +463,21 @@ function StudioContent() {
       </div>
     );
   return (
-    <div className={`writer-studio${focus ? " focus-mode" : ""}`}>
+    <div
+      className={`writer-studio${focus ? " focus-mode" : ""}${preview ? " reader-preview" : ""} layout-${view.layout}`}
+    >
       <div className="writer-toolbar-stack">
         <div className="writer-editor-actions">
           <a href="/writer/stories">← Your stories</a>
+          <label className="writer-autosave">
+            <input
+              type="checkbox"
+              checked={autoSave}
+              disabled={locked || !loaded}
+              onChange={(e) => setAutoSave(e.target.checked)}
+            />
+            AutoSave <strong>{autoSave ? "On" : "Off"}</strong>
+          </label>
           <span className="writer-save-status" role="status">
             {saveError
               ? "Save needs attention"
@@ -434,8 +501,20 @@ function StudioContent() {
           >
             {focus ? "Exit focus" : "Focus"}
           </button>
-          <button className="btn light" onClick={() => setPreview(!preview)}>
-            {preview ? "Edit" : "Preview"}
+          <button
+            className="btn light"
+            aria-pressed={preview}
+            disabled={!loaded}
+            onClick={() => (preview ? setPreview(false) : openPreview())}
+          >
+            {preview ? "Back to editor" : "Preview"}
+          </button>
+          <button
+            className="writer-text-button"
+            disabled={!loaded || locked || busy}
+            onClick={() => void save("save")}
+          >
+            Save draft
           </button>
           <button
             className="writer-text-button"
@@ -458,29 +537,54 @@ function StudioContent() {
                 disabled={busy || locked || !loaded}
                 onClick={() => void save("save")}
               >
-                Save draft
+                Save now
               </button>
               <button onClick={() => setDialog("history")}>
                 Revision history
               </button>
               <button onClick={exportDraft}>Download draft</button>
+              <button
+                disabled={!!active || busy || !loaded}
+                onClick={() => setDialog("import")}
+              >
+                Import draft
+              </button>
               <button onClick={() => window.print()}>Print / Save PDF</button>
             </div>
           </details>
         </div>
-        {tools && !preview && (
-          <WriterRibbon
-            editor={editor}
-            disabled={!loaded || busy || locked}
-            image={openImage}
-            history={() => setDialog("history")}
-            preview={() => setPreview(true)}
-            focus={() => setFocus(!focus)}
-            message={setMessage}
-          />
+        {tools && (
+          <div hidden={preview}>
+            <WriterRibbon
+              editor={editor}
+              disabled={!loaded || busy || locked}
+              image={openImage}
+              history={() => setDialog("history")}
+              preview={openPreview}
+              focus={() => setFocus(!focus)}
+              message={setMessage}
+              view={view}
+              setView={setView}
+              review={() => {
+                setReviewOpen(!reviewOpen);
+                setView({ navigation: false });
+              }}
+            />
+          </div>
         )}
       </div>
-      {!preview && !focus && (
+      {preview && (
+        <div className="writer-preview-banner" role="status">
+          <div>
+            <span className="writer-kicker">READER PREVIEW</span>
+            <p>Your story, as a reader sees it. This preview is private.</p>
+          </div>
+          <span>
+            {words} words · {Math.max(1, Math.ceil(words / 220))} min read
+          </span>
+        </div>
+      )}
+      {!preview && !focus && view.ruler && (
         <WriterRuler
           editor={editor}
           disabled={!loaded || locked || busy}
@@ -491,109 +595,188 @@ function StudioContent() {
           }}
         />
       )}
-      <article
-        className={`writer-canvas article-design theme-${normalizeDesign(document.attrs).theme} border-${normalizeDesign(document.attrs).pageBorder}`}
-        style={{ ...articleStyles(document.attrs), maxWidth: pageWidth }}
+      <div
+        className={`writer-document-workspace${!preview && (view.navigation || reviewOpen) ? " with-inspector" : ""}`}
       >
-        {!locked && !preview && loaded && (
-          <details className="writer-block-insert">
-            <summary aria-label="Add story element">+</summary>
-            <div>
+        {!preview && view.navigation && (
+          <aside className="writer-inspector" aria-label="Document navigation">
+            <div className="writer-inspector-heading">
+              <h2>Outline</h2>
               <button
-                disabled={busy}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={openImage}
+                aria-label="Close navigation pane"
+                onClick={() => setView({ navigation: false })}
               >
-                Image
-              </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  editor?.chain().focus().setHorizontalRule().run()
-                }
-              >
-                Divider
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-              >
-                Code block
-              </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  editor
-                    ?.chain()
-                    .focus()
-                    .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-                    .run()
-                }
-              >
-                Table
+                ×
               </button>
             </div>
-          </details>
-        )}
-        <label className="sr-only" htmlFor="story-title">
-          Story title
-        </label>
-        <textarea
-          id="story-title"
-          className="writer-title"
-          placeholder="Title"
-          rows={2}
-          value={title}
-          maxLength={140}
-          disabled={!loaded || locked || submitting}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            edited();
-          }}
-        />
-        {active?.revisionOf && (
-          <p className="writer-review-note">
-            Private revision · Your original article stays unchanged until this
-            revision passes editorial review.
-          </p>
-        )}
-        {locked && (
-          <p className="writer-review-note">
-            {active?.status === "published"
-              ? "This story is published."
-              : active?.status === "scheduled"
-                ? `Approved and scheduled for ${new Date(active.scheduledFor!).toLocaleString()}.`
-                : active?.status === "unpublished"
-                  ? "This article is unpublished. Start a private revision from Your stories to republish it."
-                  : active?.status === "archived"
-                    ? "This revision has been approved and applied to its original article."
-                    : active?.status === "removed"
-                      ? "This article was removed by moderation."
-                      : "This story is awaiting editorial review."}{" "}
-            {active?.slug &&
-              ["published", "archived"].includes(active.status) && (
-                <a href={`/guides/${active.slug}`}>Read published story ↗</a>
+            <p className="writer-fine-print">
+              Jump to a section in your story.
+            </p>
+            <ol>
+              {(document.content || []).map(
+                (node, index) =>
+                  node.type === "heading" && (
+                    <li key={index}>
+                      <button
+                        onClick={() => {
+                          let position = 0;
+                          editor?.state.doc.forEach((_node, offset, i) => {
+                            if (i === index) position = offset + 1;
+                          });
+                          editor
+                            ?.chain()
+                            .focus()
+                            .setTextSelection(position)
+                            .scrollIntoView()
+                            .run();
+                        }}
+                      >
+                        {documentText(node)}
+                      </button>
+                    </li>
+                  ),
               )}
-          </p>
+            </ol>
+            {!(document.content || []).some((n) => n.type === "heading") && (
+              <p>Add a heading using Home → Heading 2 or Heading 3.</p>
+            )}
+          </aside>
         )}
-        {preview ? (
-          <>
-            <p className="writer-preview-summary">{summary}</p>
-            <StoryDocument document={document} fallback="" embedded />
-          </>
-        ) : (
-          <EditorContent editor={editor} />
+        {!preview && reviewOpen && (
+          <WriterReview
+            title={title}
+            document={document}
+            editor={editor}
+            close={() => setReviewOpen(false)}
+          />
         )}
-        {!loaded && <p role="status">Opening your draft…</p>}
-        {active?.reviewNote && (
-          <p className="writer-review-note">
-            <strong>Editorial feedback:</strong> {active.reviewNote}
-          </p>
-        )}
-      </article>
+        <article
+          className={`writer-canvas article-design${view.grid && !preview ? " show-grid" : ""} theme-${normalizeDesign(document.attrs).theme} border-${normalizeDesign(document.attrs).pageBorder}`}
+          style={
+            {
+              ...articleStyles(document.attrs),
+              maxWidth: view.layout === "web" && !preview ? 1040 : pageWidth,
+              "--writer-zoom": String(view.zoom / 100),
+            } as React.CSSProperties
+          }
+        >
+          {!locked && !preview && loaded && (
+            <details className="writer-block-insert">
+              <summary aria-label="Add story element">+</summary>
+              <div>
+                <button
+                  disabled={busy}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={openImage}
+                >
+                  Image
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    editor?.chain().focus().setHorizontalRule().run()
+                  }
+                >
+                  Divider
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    editor?.chain().focus().toggleCodeBlock().run()
+                  }
+                >
+                  Code block
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    editor
+                      ?.chain()
+                      .focus()
+                      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                      .run()
+                  }
+                >
+                  Table
+                </button>
+              </div>
+            </details>
+          )}
+          {preview ? (
+            <>
+              <h1 className="writer-preview-title">
+                {title || "Untitled story"}
+              </h1>
+              <p className="writer-preview-byline">
+                {byline || active?.authorName || "Your byline"} · Private
+                reading preview
+              </p>
+            </>
+          ) : (
+            <>
+              <label className="sr-only" htmlFor="story-title">
+                Story title
+              </label>
+              <textarea
+                id="story-title"
+                className="writer-title"
+                placeholder="Title"
+                rows={2}
+                value={title}
+                maxLength={140}
+                disabled={!loaded || locked || submitting}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  edited();
+                }}
+              />
+            </>
+          )}
+          {active?.revisionOf && (
+            <p className="writer-review-note">
+              Private revision · Your original article stays unchanged until
+              this revision passes editorial review.
+            </p>
+          )}
+          {locked && (
+            <p className="writer-review-note">
+              {active?.status === "published"
+                ? "This story is published."
+                : active?.status === "scheduled"
+                  ? `Approved and scheduled for ${new Date(active.scheduledFor!).toLocaleString()}.`
+                  : active?.status === "unpublished"
+                    ? "This article is unpublished. Start a private revision from Your stories to republish it."
+                    : active?.status === "archived"
+                      ? "This revision has been approved and applied to its original article."
+                      : active?.status === "removed"
+                        ? "This article was removed by moderation."
+                        : "This story is awaiting editorial review."}{" "}
+              {active?.slug &&
+                ["published", "archived"].includes(active.status) && (
+                  <a href={`/guides/${active.slug}`}>Read published story ↗</a>
+                )}
+            </p>
+          )}
+          {preview ? (
+            <>
+              <p className="writer-preview-summary">{summary}</p>
+              <StoryDocument document={document} fallback="" embedded />
+            </>
+          ) : (
+            <EditorContent editor={editor} />
+          )}
+          {!loaded && <p role="status">Opening your draft…</p>}
+          {active?.reviewNote && (
+            <p className="writer-review-note">
+              <strong>Editorial feedback:</strong> {active.reviewNote}
+            </p>
+          )}
+        </article>
+      </div>
       <div className="writer-editor-status">
         <span>
-          {words} words · {Math.max(1, Math.ceil(words / 220))} min read
+          {words} words · {Math.max(1, Math.ceil(words / 220))} min read ·{" "}
+          {view.zoom}%
         </span>
         <p role={saveError ? "alert" : "status"}>
           {message || "Private until you submit for publication."}
@@ -624,6 +807,77 @@ function StudioContent() {
           />
         </Modal>
       )}
+      {dialog === "import" && (
+        <Modal title="Import draft" onClose={() => setDialog(null)}>
+          <h2>Continue from a saved draft.</h2>
+          <p className="writer-fine-print">
+            Import a Syaahi draft JSON into this new story. Existing stories
+            keep their ownership and review history.
+          </p>
+          <label className="writer-import-file">
+            Draft JSON (up to 1 MB)
+            <input
+              aria-label="Import article draft"
+              type="file"
+              accept="application/json,.json"
+              onChange={async (e) => {
+                const selected = e.target.files?.[0];
+                if (!selected || active || busy) return;
+                try {
+                  if (selected.size > 1024 * 1024)
+                    throw new Error("Choose a draft under 1 MB.");
+                  const data = JSON.parse(await selected.text());
+                  if (
+                    !data ||
+                    typeof data.title !== "string" ||
+                    data.title.length > 140 ||
+                    typeof data.summary !== "string" ||
+                    data.summary.length > 320 ||
+                    (data.authorByline !== undefined &&
+                      (typeof data.authorByline !== "string" ||
+                        data.authorByline.length > 80 ||
+                        /[<>\r\n]/.test(data.authorByline))) ||
+                    !Array.isArray(data.tags) ||
+                    data.tags.some((tag: unknown) => typeof tag !== "string")
+                  )
+                    throw new Error(
+                      "Use a valid Syaahi draft with title, summary, document and topics.",
+                    );
+                  const next = normalizeDocument(data.document);
+                  if (
+                    dirty &&
+                    !window.confirm(
+                      "Replace the unsaved text in this new draft with the imported article?",
+                    )
+                  )
+                    return;
+                  setTitle(data.title);
+                  setSummary(data.summary);
+                  setByline(data.authorByline || "");
+                  setTags(data.tags.slice(0, 5).join(", "));
+                  setDocument(next);
+                  editor?.commands.setContent(next, { emitUpdate: false });
+                  edited();
+                  setDialog(null);
+                  setMessage(
+                    "Draft imported. AutoSave will save it to your account.",
+                  );
+                } catch (error) {
+                  setSaveError(true);
+                  setMessage(
+                    error instanceof Error
+                      ? error.message
+                      : "This draft could not be imported.",
+                  );
+                } finally {
+                  e.target.value = "";
+                }
+              }}
+            />
+          </label>
+          {saveError && <p role="alert">{message}</p>}
+        </Modal>
+      )}
       {dialog === "publish" && (
         <Modal
           title="Publish your story"
@@ -651,6 +905,24 @@ function StudioContent() {
               </div>
             </div>
             <div>
+              <label>
+                Author byline (optional)
+                <input
+                  aria-label="Author byline"
+                  value={byline}
+                  maxLength={80}
+                  disabled={busy}
+                  placeholder={active?.authorName || "Your writer profile name"}
+                  onChange={(e) => {
+                    setByline(e.target.value);
+                    edited();
+                  }}
+                />
+                <small>
+                  Credit for this article. Leave empty to use your writer
+                  profile name. Your account keeps ownership.
+                </small>
+              </label>
               <label>
                 Story preview summary
                 <textarea
@@ -832,6 +1104,7 @@ function StudioContent() {
                         return;
                       setTitle(v.title);
                       setSummary(v.summary);
+                      setByline(v.authorByline || "");
                       setTags(v.tags.join(", "));
                       const next = v.document || textDocument(v.body);
                       setDocument(next);

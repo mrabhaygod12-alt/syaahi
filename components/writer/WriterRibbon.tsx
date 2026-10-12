@@ -8,11 +8,26 @@ import {
 } from "@/lib/writing/formatting";
 import Modal from "../Modal";
 import {
+  BookOpen,
+  FileText,
+  Globe,
+  ListTree,
+  ScanLine,
+  ZoomIn,
+  History,
+  CheckCheck,
+  SpellCheck,
+  Search,
+  Printer,
+} from "lucide-react";
+import type { WriterView } from "./workspace-view";
+import {
   ARTICLE_THEMES,
   ARTICLE_PAPERS,
   ARTICLE_BORDERS,
   ARTICLE_SPACING,
   ARTICLE_ACCENTS,
+  ARTICLE_MARGINS,
   normalizeDesign,
   youtubeId,
 } from "@/lib/writing/design";
@@ -24,6 +39,9 @@ export default function WriterRibbon({
   preview,
   focus,
   message,
+  view,
+  setView,
+  review,
 }: {
   editor: Editor | null;
   disabled: boolean;
@@ -32,6 +50,9 @@ export default function WriterRibbon({
   preview: () => void;
   focus: () => void;
   message: (s: string) => void;
+  view: WriterView;
+  setView: (value: Partial<WriterView>) => void;
+  review: () => void;
 }) {
   const [tab, setTab] = useState("Home"),
     [link, setLink] = useState<string | null>(null),
@@ -170,7 +191,7 @@ export default function WriterRibbon({
             {t}
           </button>
         ))}
-        <span>Tools for your next great story</span>
+        <span>SYAAHI · WRITING STUDIO</span>
       </div>
       <div
         className="writer-ribbon-panel"
@@ -576,7 +597,13 @@ export default function WriterRibbon({
                       })
                     }
                   >
-                    <span>Aa</span>
+                    <span className={`design-sample sample-${theme}`}>
+                      <b>Aa</b>
+                      <i>A story worth sharing</i>
+                      <em />
+                      <em />
+                      <em />
+                    </span>
                     <strong>{theme}</strong>
                   </button>
                 ))}
@@ -615,6 +642,46 @@ export default function WriterRibbon({
                 </label>
               </div>
               <small>Document formatting</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls">
+                <label>
+                  Margins
+                  <select
+                    aria-label="Article margins"
+                    disabled={blocked}
+                    value={design.pageMargin}
+                    onChange={(e) => setDesign({ pageMargin: e.target.value })}
+                  >
+                    {ARTICLE_MARGINS.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                type="button"
+                className="writer-text-button"
+                disabled={blocked}
+                onClick={() => {
+                  try {
+                    localStorage.setItem(
+                      "syaahi-article-design",
+                      JSON.stringify(design),
+                    );
+                    message(
+                      "This design will be used for your new drafts on this device.",
+                    );
+                  } catch {
+                    message(
+                      "Your browser could not store the default design. This story’s design still saves to your account.",
+                    );
+                  }
+                }}
+              >
+                Set as default
+              </button>
+              <small>Page layout</small>
             </div>
             <div className="ribbon-group">
               <div className="ribbon-controls">
@@ -674,36 +741,141 @@ export default function WriterRibbon({
           </>
         )}
         {tab === "Review" && (
-          <div className="ribbon-group">
-            <div className="ribbon-controls">
-              {tool("Find and replace", "Find & replace", () =>
-                setFindOpen(!findOpen),
-              )}
-              <button type="button" onClick={history}>
-                Revision history
-              </button>
-              <span className="ribbon-hint">
-                Browser spellcheck is enabled. Ctrl/Cmd+Z to undo.
-              </span>
+          <>
+            <div className="ribbon-group">
+              <div className="ribbon-controls ribbon-large">
+                <button onClick={review}>
+                  <CheckCheck />
+                  <span>Story checks</span>
+                </button>
+                <button
+                  aria-pressed={view.spellcheck}
+                  onClick={() => setView({ spellcheck: !view.spellcheck })}
+                >
+                  <SpellCheck />
+                  <span>Spellcheck {view.spellcheck ? "on" : "off"}</span>
+                </button>
+              </div>
+              <small>Proofing & word count</small>
             </div>
-            <small>Review your story</small>
-          </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls ribbon-large">
+                <button
+                  disabled={blocked}
+                  onClick={() => setFindOpen(!findOpen)}
+                >
+                  <Search />
+                  <span>Find & replace</span>
+                </button>
+                <button onClick={history}>
+                  <History />
+                  <span>Revision history</span>
+                </button>
+              </div>
+              <small>Editing & saved versions</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls ribbon-large">
+                <button onClick={preview}>
+                  <BookOpen />
+                  <span>Reader preview</span>
+                </button>
+              </div>
+              <small>Review before submission</small>
+            </div>
+          </>
         )}
         {tab === "View" && (
-          <div className="ribbon-group">
-            <div className="ribbon-controls">
-              <button type="button" onClick={preview}>
-                Reading preview
-              </button>
-              <button type="button" onClick={focus}>
-                Focus mode
-              </button>
-              <button type="button" onClick={() => window.print()}>
-                Print / Save PDF
-              </button>
+          <>
+            <div className="ribbon-group">
+              <div className="ribbon-controls ribbon-large">
+                <button onClick={preview}>
+                  <BookOpen />
+                  <span>Reading preview</span>
+                </button>
+                <button
+                  aria-pressed={view.layout === "paper"}
+                  onClick={() => setView({ layout: "paper" })}
+                >
+                  <FileText />
+                  <span>Paper layout</span>
+                </button>
+                <button
+                  aria-pressed={view.layout === "web"}
+                  onClick={() => setView({ layout: "web" })}
+                >
+                  <Globe />
+                  <span>Web layout</span>
+                </button>
+              </div>
+              <small>Document views</small>
             </div>
-            <small>Your writing environment</small>
-          </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls ribbon-large">
+                <button onClick={focus}>
+                  <ScanLine />
+                  <span>Focus mode</span>
+                </button>
+                <button
+                  aria-pressed={view.navigation}
+                  onClick={() => setView({ navigation: !view.navigation })}
+                >
+                  <ListTree />
+                  <span>Navigation pane</span>
+                </button>
+              </div>
+              <small>Writing environment</small>
+            </div>
+            <div className="ribbon-group ribbon-toggles">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={view.ruler}
+                  onChange={(e) => setView({ ruler: e.target.checked })}
+                />
+                Ruler
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={view.grid}
+                  onChange={(e) => setView({ grid: e.target.checked })}
+                />
+                Gridlines
+              </label>
+              <small>Show</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls">
+                <ZoomIn size={20} />
+                <label>
+                  Zoom
+                  <select
+                    aria-label="Document zoom"
+                    value={view.zoom}
+                    onChange={(e) => setView({ zoom: Number(e.target.value) })}
+                  >
+                    {[75, 90, 100, 110, 125].map((v) => (
+                      <option key={v} value={v}>
+                        {v}%
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button onClick={() => setView({ zoom: 100 })}>100%</button>
+              </div>
+              <small>Text zoom · responsive canvas</small>
+            </div>
+            <div className="ribbon-group">
+              <div className="ribbon-controls ribbon-large">
+                <button onClick={() => window.print()}>
+                  <Printer />
+                  <span>Print / Save PDF</span>
+                </button>
+              </div>
+              <small>Export</small>
+            </div>
+          </>
         )}
       </div>
       {findOpen && (

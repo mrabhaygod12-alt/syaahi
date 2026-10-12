@@ -371,3 +371,37 @@ unchecked items above. No full parity with Medium is claimed.
 - Factor-change reauthentication follows the [OWASP MFA guidance](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html#changing-mfa-factors).
   Live target-account MFA and out-of-band factor-change notifications remain
   unverified/unimplemented; no production authenticator was enrolled or replaced.
+
+## Writing studio and university Blog — 2026-10-12
+
+- Editor now has an explicit AutoSave toggle (on by default), visible Save draft,
+  Ctrl/Cmd+S, and a distinct private, read-only reader preview with title, byline,
+  formatted body and uploaded images. Returning restores the selected ribbon tab.
+  Automatic saving waits four seconds after editing; failures keep unsaved content
+  and offer an explicit retry. Conflicts and uncertain responses retain the existing
+  ownership/version/reconciliation protections.
+- Design adds illustrated theme cards, persisted article margins and an optional
+  device default for new drafts. Review offers structural/accessibility/source checks,
+  word counts, browser spellcheck and version history. View offers paper/web layout,
+  focus, heading navigation, ruler/grid toggles, responsive text zoom and printing.
+  This is a continuous web article canvas, not a complete desktop Word implementation.
+- Draft JSON import preserves structured headings, references, design and article
+  byline in a new story. Images still require an owned upload. Imports cannot replace
+  saved stories or import ownership/review state.
+- Optional per-article bylines persist in both databases, retries and private revisions;
+  publishing updates the credited name without changing the account profile or owner.
+  The admin review shows both article credit and the writer account name.
+- Student navigation and the learning workspace link to `/blog`. Its server-rendered
+  index combines the latest 48 approved public writer stories with existing study
+  guides, searchable topics, cover images, pagination, canonical article links and
+  Blog structured data. Submitted/draft/removed stories stay private; a backend outage
+  is labelled while existing study guides remain available.
+- Four original ~800-word, source-checked articles and four original workflow images
+  are prepared under `docs/articles/2026-10-12`, credited to Chandan Pandey as requested.
+  `scripts/prepare-editorial-articles.ts` builds importable JSON and PNGs from the text
+  and SVGs. They await live submission verification and editorial approval.
+- Validated: production build/typecheck, editor reliability and publishing on both
+  SQLite/MongoDB, writer-platform, routing/SEO, the real local frontend/backend proxy
+  journey (autosave toggle/manual save/import, byline, read-only preview, design
+  persistence, service retries, submission/public Blog boundary and all ribbon tabs
+  at 390/768/1440px), plus the existing Chromium/WebKit writer browser journey.

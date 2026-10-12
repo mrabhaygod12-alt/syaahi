@@ -161,6 +161,7 @@ export default function StudentDashboard() {
           ))}
           <a href="/presentations">Presentation studio ↗</a>
           <a href="/interview">Interview practice ↗</a>
+          <a href="/blog">Blog · AI, CS & new ideas ↗</a>
         </nav>
         <a className="hub-rail-bottom" href="/account/billing">
           Manage membership

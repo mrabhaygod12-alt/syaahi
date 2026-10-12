@@ -11,6 +11,7 @@ interface Story {
   title: string;
   summary: string;
   authorName: string;
+  authorByline?: string;
   body: string;
   document?: RichNode;
   updatedAt: string;
@@ -167,7 +168,11 @@ export default function PublicationReview() {
         {stories.map((story) => (
           <article className="interactive-panel" key={story.id}>
             <p className="eyebrow">
-              {story.status.toUpperCase()} · {story.authorName}
+              {story.status.toUpperCase()} ·{" "}
+              {story.authorByline || story.authorName}
+              {story.authorByline && (
+                <small> · Writer account: {story.authorName}</small>
+              )}
             </p>
             {story.revisionOf && (
               <p className="small">

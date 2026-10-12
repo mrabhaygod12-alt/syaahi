@@ -1,0 +1,45 @@
+{
+  "sourcesChecked": "2026-10-12",
+  "articles": [
+    {
+      "file": "openai-gpt-6-1-sol",
+      "title": "GPT-6.1 Sol: A Practical Guide for University Developers",
+      "byline": "Chandan Pandey",
+      "words": 797,
+      "caption": "An original Syaahi diagram: requirements, evidence and tests guide a model evaluation. This is a workflow illustration, not a benchmark chart.",
+      "image": "openai-gpt-6-1-sol.png",
+      "draft": "openai-gpt-6-1-sol.draft.json",
+      "status": "prepared"
+    },
+    {
+      "file": "claude-5-5-model-routing",
+      "title": "Claude 5.5: Match the Model to the Work",
+      "byline": "Chandan Pandey",
+      "words": 828,
+      "caption": "An original Syaahi diagram showing three bounded jobs in a research workflow. Model selection should be verified on your own tasks.",
+      "image": "claude-5-5-model-routing.png",
+      "draft": "claude-5-5-model-routing.draft.json",
+      "status": "prepared"
+    },
+    {
+      "file": "gemini-3-8-university-projects",
+      "title": "Gemini 3.8 Flash: Build a Source-Aware University Project",
+      "byline": "Chandan Pandey",
+      "words": 828,
+      "caption": "An original Syaahi illustration: sources connect to claims and a checked explanation. Large context capacity does not replace evidence review.",
+      "image": "gemini-3-8-university-projects.png",
+      "draft": "gemini-3-8-university-projects.draft.json",
+      "status": "prepared"
+    },
+    {
+      "file": "github-ai-agent-security",
+      "title": "Before You Run That GitHub AI Project: A Security Checklist",
+      "byline": "Chandan Pandey",
+      "words": 797,
+      "caption": "An original Syaahi illustration showing setup inspection, permission boundaries and action verification for an AI-agent project.",
+      "image": "github-ai-agent-security.png",
+      "draft": "github-ai-agent-security.draft.json",
+      "status": "prepared"
+    }
+  ]
+}
