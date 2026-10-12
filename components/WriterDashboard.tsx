@@ -52,7 +52,7 @@ export function StoryRow({
           <p className="writer-pinned-label">✦ Pinned by the writer</p>
         )}
         <p className="writer-story-byline">
-          {story.authorName}{" "}
+          {story.authorByline || story.authorName}{" "}
           <span>
             · {date(story.publishedAt || story.updatedAt || story.createdAt!)}
             {own && ` · ${story.status?.replaceAll("_", " ")}`}

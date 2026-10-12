@@ -339,6 +339,12 @@ async function main() {
       await (await page.request.get(origin + "/api/stories")).json()
     ).stories.find((s: any) => s.id === draftId);
     assert.equal(submitted.authorByline, "Chandan Pandey");
+    await page.goto(origin + "/writer/stories");
+    await page.getByRole("tab", { name: /In review/ }).click();
+    await page
+      .locator(".writer-story-row .writer-story-byline")
+      .getByText("Chandan Pandey", { exact: false })
+      .waitFor();
     let blogHtml = await (await page.request.get(origin + "/blog")).text();
     assert(
       !blogHtml.includes("Updated title survives a temporary outage"),

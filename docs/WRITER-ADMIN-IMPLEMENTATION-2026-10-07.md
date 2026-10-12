@@ -399,7 +399,7 @@ unchecked items above. No full parity with Medium is claimed.
 - Four original ~800-word, source-checked articles and four original workflow images
   are prepared under `docs/articles/2026-10-12`, credited to Chandan Pandey as requested.
   `scripts/prepare-editorial-articles.ts` builds importable JSON and PNGs from the text
-  and SVGs. They await live submission verification and editorial approval.
+  and SVGs. All four live submissions are verified below; editorial approval is pending.
 - Validated: production build/typecheck, editor reliability and publishing on both
   SQLite/MongoDB, writer-platform, routing/SEO, the real local frontend/backend proxy
   journey (autosave toggle/manual save/import, byline, read-only preview, design
@@ -420,6 +420,9 @@ unchecked items above. No full parity with Medium is claimed.
 - Live submission identifiers and verification state are recorded in
   `docs/articles/2026-10-12/live-submissions.json`. An administrator must review them
   at `/admin/publications` before they become public and appear on the Blog.
+- Private story cards now show the per-article byline when present, matching the
+  reader preview, admin review and approved public pages. The proxy browser journey
+  checks the credited name in the actual In review list after submission.
 - CI passed the editor proxy and publishing checks, then exposed an intermittent
   HTML hydration error on `/writer/following`. Unlike the other private workspace
   pages, Following passed a server-created child tree into the asynchronous account
