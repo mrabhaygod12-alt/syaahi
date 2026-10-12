@@ -77,6 +77,14 @@
   background: var(--w-soft);
 }
 .writer-studio .writer-canvas {
+  /* Article paper stays light when the surrounding workspace uses dark mode. */
+  --w-ink: #293d2e;
+  --w-muted: #5d6c61;
+  --w-green: var(--article-accent, #285647);
+  --w-soft: #f1f4eb;
+  --w-surface: var(--article-paper, #fff);
+  --w-line: #d6ded5;
+  color-scheme: light;
   margin: 0 auto 60px;
   padding: 48px;
   border: 1px solid var(--w-line);

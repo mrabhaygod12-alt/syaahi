@@ -423,6 +423,11 @@ unchecked items above. No full parity with Medium is claimed.
 - Private story cards now show the per-article byline when present, matching the
   reader preview, admin review and approved public pages. The proxy browser journey
   checks the credited name in the actual In review list after submission.
+- Live visual verification found that dark workspace colors leaked into the light
+  paper preview: pale body/summary text and a dark review notice reduced readability.
+  Article paper now defines its own ink/surface tokens. The production proxy browser
+  checks actual rendered text contrast (at least 4.5:1) in light/dark workspaces at
+  390/1440px, including body, summary, image caption, byline and review state.
 - CI passed the editor proxy and publishing checks, then exposed an intermittent
   HTML hydration error on `/writer/following`. Unlike the other private workspace
   pages, Following passed a server-created child tree into the asynchronous account

@@ -6,6 +6,24 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import sharp from "sharp";
 const origin = "http://localhost:3161";
+function contrastRatio(foreground: string, background: string) {
+  const luminance = (rgb: string) => {
+    const linear = rgb
+      .match(/[\d.]+/g)!
+      .slice(0, 3)
+      .map(Number)
+      .map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  };
+  const ink = luminance(foreground),
+    surface = luminance(background);
+  return (Math.max(ink, surface) + 0.05) / (Math.min(ink, surface) + 0.05);
+}
 async function main() {
   Object.assign(process.env, {
     DATA_DIR: mkdtempSync(join(tmpdir(), "writer-proxy-ui-")),
@@ -339,6 +357,63 @@ async function main() {
       await (await page.request.get(origin + "/api/stories")).json()
     ).stories.find((s: any) => s.id === draftId);
     assert.equal(submitted.authorByline, "Chandan Pandey");
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    mkdirSync("output/writer-editor", { recursive: true });
+    for (const scheme of ["dark", "light"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForFunction(
+        (theme) => document.documentElement.dataset.writerTheme === theme,
+        scheme,
+      );
+      for (const width of [390, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        const contrast = await page
+          .locator(".writer-canvas")
+          .evaluate((canvas) => {
+            return Array.from(
+              canvas.querySelectorAll(
+                ".writer-preview-title, .writer-preview-byline, .writer-preview-summary, .writer-review-note, .story-prose p, .story-prose figcaption",
+              ),
+            ).map((element) => {
+              let background = element;
+              while (
+                background.parentElement &&
+                ["rgba(0, 0, 0, 0)", "transparent"].includes(
+                  getComputedStyle(background).backgroundColor,
+                )
+              )
+                background = background.parentElement;
+              return {
+                text: element.textContent?.slice(0, 60),
+                foreground: getComputedStyle(element).color,
+                background: getComputedStyle(background).backgroundColor,
+              };
+            });
+          });
+        assert(
+          contrast.length >= 7,
+          "Preview includes title, summary, review state, body and image caption",
+        );
+        for (const text of contrast) {
+          const ratio = contrastRatio(text.foreground, text.background);
+          assert(
+            ratio >= 4.5,
+            `${scheme} preview at ${width}px: ${text.text} has ${ratio.toFixed(2)}:1 contrast`,
+          );
+        }
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth + 1,
+          ),
+          false,
+        );
+        await page.screenshot({
+          path: `output/writer-editor/preview-${scheme}-${width}.png`,
+          fullPage: true,
+        });
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(origin + "/writer/stories");
     await page.getByRole("tab", { name: /In review/ }).click();
     await page
