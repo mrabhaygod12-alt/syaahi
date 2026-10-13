@@ -344,6 +344,13 @@ async function main() {
     }));
     assert.equal(cardColors.background, "rgb(32, 44, 37)");
     assert.equal(cardColors.text, "rgb(237, 242, 231)");
+    assert.equal(
+      await page
+        .locator(".ws-crumb a")
+        .evaluate((el) => getComputedStyle(el).color),
+      "rgb(240, 235, 226)",
+      "Workspace navigation stays legible beside dark study cards",
+    );
     await checkLayout("flashcard-dark");
     assert.deepEqual(errors, []);
     console.log(

@@ -1932,6 +1932,11 @@ body:has(.ws-gate) footer {
   color: var(--ink);
 }
 [data-theme="dark"] .ws-top .ws-balance-badge { color: var(--muted); }
+[data-theme="dark"] .ws-app {
+  --ink: #f0ebe2;
+  --muted: #c4beaf;
+  --line: #4b443a;
+}
 .ws-md-pre {
   max-width: 100%;
   overflow-x: auto;
