@@ -14,6 +14,7 @@ export interface QuizQ {
   hint?: string;
   topic?: string;
   explanation?: string;
+  sources?: import("@/lib/study/practice").PracticeSource[];
 }
 export interface LessonJob {
   sourceScans?: import("@/lib/study/scans").ScanReview[];
@@ -47,6 +48,7 @@ export interface LessonJob {
   }>;
   title: string | null;
   practice: {
+    settings?: import("@/lib/study/practice").PracticeSettings;
     quiz: QuizQ[];
     flashcards: Array<{
       front: string;
@@ -56,6 +58,7 @@ export interface LessonJob {
       items?: string[];
       imageAlt?: string;
       imageData?: string;
+      sources?: import("@/lib/study/practice").PracticeSource[];
     }>;
   } | null;
   error: string | null;

@@ -1,6 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useLesson } from "./LessonProvider";
+import Link from "next/link";
+import PracticeSources from "./PracticeSources";
+import { practiceSettings, type PracticeSource } from "@/lib/study/practice";
+import "./learning-studio.css";
+import { requestJson } from "@/lib/http-client";
 interface Review {
   due: number;
   interval: number;
@@ -14,6 +19,7 @@ type Flashcard = {
   items?: string[];
   imageAlt?: string;
   imageData?: string;
+  sources?: PracticeSource[];
 };
 
 function clozePrompt(front: string) {
@@ -23,20 +29,63 @@ function clozePrompt(front: string) {
 function VisualMnemonic({ label }: { label: string }) {
   const safe = label.slice(0, 140);
   return (
-    <svg className="flashcard-visual" viewBox="0 0 600 230" role="img" aria-label={safe}>
+    <svg
+      className="flashcard-visual"
+      viewBox="0 0 600 230"
+      role="img"
+      aria-label={safe}
+    >
       <defs>
         <linearGradient id="flashcard-gradient" x1="0" x2="1" y1="0" y2="1">
           <stop stopColor="#eff6ee" />
           <stop offset="1" stopColor="#d9ece0" />
         </linearGradient>
       </defs>
-      <rect x="8" y="8" width="584" height="214" rx="28" fill="url(#flashcard-gradient)" stroke="#b7d0be" strokeWidth="3" />
+      <rect
+        x="8"
+        y="8"
+        width="584"
+        height="214"
+        rx="28"
+        fill="url(#flashcard-gradient)"
+        stroke="#b7d0be"
+        strokeWidth="3"
+      />
       <circle cx="92" cy="110" r="48" fill="#205641" opacity=".92" />
-      <path d="M76 110h32M92 94v32" stroke="white" strokeWidth="8" strokeLinecap="round" />
-      <path d="M164 160 C235 70, 345 200, 438 84" fill="none" stroke="#719b79" strokeWidth="7" strokeLinecap="round" strokeDasharray="8 13" />
+      <path
+        d="M76 110h32M92 94v32"
+        stroke="white"
+        strokeWidth="8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M164 160 C235 70, 345 200, 438 84"
+        fill="none"
+        stroke="#719b79"
+        strokeWidth="7"
+        strokeLinecap="round"
+        strokeDasharray="8 13"
+      />
       <circle cx="460" cy="80" r="18" fill="#be8a42" />
-      <text x="164" y="118" fill="#173b30" fontSize="28" fontFamily="Arial, sans-serif" fontWeight="700">{safe}</text>
-      <text x="164" y="154" fill="#466356" fontSize="17" fontFamily="Arial, sans-serif">Visual recall cue</text>
+      <text
+        x="164"
+        y="118"
+        fill="#173b30"
+        fontSize="28"
+        fontFamily="Arial, sans-serif"
+        fontWeight="700"
+      >
+        {safe}
+      </text>
+      <text
+        x="164"
+        y="154"
+        fill="#466356"
+        fontSize="17"
+        fontFamily="Arial, sans-serif"
+      >
+        Visual recall cue
+      </text>
     </svg>
   );
 }
@@ -53,9 +102,21 @@ export default function FlashcardsView() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [dueOnly, setDueOnly] = useState(true),
+    [topic, setTopic] = useState(""),
+    [cardCount, setCardCount] = useState(12),
+    [difficulty, setDifficulty] = useState("standard"),
+    [warning, setWarning] = useState(""),
     [order, setOrder] = useState<string[]>([]);
   useEffect(() => {
-    if (job?.practice?.flashcards) setCards(job.practice.flashcards);
+    setCards(job?.practice?.flashcards || []);
+    setCardCount(
+      job?.practice?.settings?.cardCount ||
+        practiceSettings({}, job?.pages.length || 1).cardCount,
+    );
+    setDifficulty(job?.practice?.settings?.difficulty || "standard");
+    setIndex(0);
+    setFlip(false);
+    setTopic("");
   }, [job?.practice?.flashcards]);
   useEffect(() => {
     let alive = true;
@@ -79,28 +140,45 @@ export default function FlashcardsView() {
   }, [cards]);
   useEffect(() => {
     if (!job) return;
-    fetch("/api/study")
-      .then((r) => r.json())
-      .then((d) => setReviews(d.reviews?.[job.id] || {}))
-      .catch(() => setError("Saved review schedule could not be loaded."));
+    let alive = true;
+    setReviews({});
+    requestJson("/api/study")
+      .then(({ response, data }) => {
+        if (!response.ok)
+          throw new Error(
+            data.error || "Saved review schedule could not be loaded.",
+          );
+        if (alive) setReviews(data.reviews?.[job.id] || {});
+      })
+      .catch((error) => alive && setError(error.message));
+    return () => {
+      alive = false;
+    };
   }, [job?.id]);
   async function build() {
     if (!job) return;
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/practice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId: job.id,
-          pages: job.pages,
-          language: job.language,
-        }),
-      });
-      const d = await r.json();
+      const { response: r, data: d } = await requestJson(
+        "/api/practice",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobId: job.id,
+            pages: job.pages,
+            language: job.language,
+            cardCount,
+            difficulty,
+            ...(job.practice?.quiz?.length ? { regenerate: true } : {}),
+          }),
+        },
+        90000,
+      );
       if (!r.ok) throw new Error(d.error);
       setCards(d.flashcards);
+      setWarning(d.warning || "");
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Cards unavailable.");
@@ -111,7 +189,9 @@ export default function FlashcardsView() {
   const queue = cards
     .map((_, i) => i)
     .filter(
-      (i) => !dueOnly || !reviews[ids[i]] || reviews[ids[i]].due <= Date.now(),
+      (i) =>
+        (!topic || cards[i].topic === topic) &&
+        (!dueOnly || !reviews[ids[i]] || reviews[ids[i]].due <= Date.now()),
     );
   const current = queue[Math.min(index, queue.length - 1)];
   const card = cards[current];
@@ -132,7 +212,8 @@ export default function FlashcardsView() {
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement ||
-        event.target instanceof HTMLSelectElement
+        event.target instanceof HTMLSelectElement ||
+        (event.target as HTMLElement)?.closest("button,a")
       )
         return;
       if (!card || busy || event.metaKey || event.ctrlKey || event.altKey)
@@ -178,7 +259,10 @@ export default function FlashcardsView() {
   }
   async function attachImage(file: File) {
     if (!job || !card) return;
-    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type) || file.size > 500_000) {
+    if (
+      !/^image\/(png|jpeg|webp|gif)$/.test(file.type) ||
+      file.size > 500_000
+    ) {
       setError("Choose a PNG, JPEG, WebP, or GIF under 500 KB.");
       return;
     }
@@ -187,29 +271,40 @@ export default function FlashcardsView() {
     try {
       const imageData = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onerror = () => reject(new Error("The image could not be read."));
+        reader.onerror = () =>
+          reject(new Error("The image could not be read."));
         reader.onload = () => resolve(String(reader.result));
         reader.readAsDataURL(file);
       });
       const response = await fetch("/api/practice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "attach-image", jobId: job.id, cardIndex: current, imageData }),
+        body: JSON.stringify({
+          action: "attach-image",
+          jobId: job.id,
+          cardIndex: current,
+          imageData,
+        }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "The image could not be saved.");
+      if (!response.ok)
+        throw new Error(data.error || "The image could not be saved.");
       setCards(data.flashcards);
       await refresh();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "The image could not be saved.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "The image could not be saved.",
+      );
     } finally {
       setBusy(false);
     }
   }
   if (!job) return null;
   return (
-    <div className="quiz-room">
-      <div className="section-heading">
+    <div className="quiz-room flashcard-studio">
+      <div className="section-heading learning-studio-heading">
         <div>
           <span className="eyebrow">ACTIVE RECALL</span>
           <h1>Make the ideas stick.</h1>
@@ -236,14 +331,77 @@ export default function FlashcardsView() {
           {error}
         </p>
       )}
+      {warning && (
+        <p className="source-notice" role="status">
+          {warning}
+        </p>
+      )}
+      {new Set(cards.map((c) => c.topic).filter(Boolean)).size > 1 && (
+        <label>
+          Topic
+          <select
+            value={topic}
+            onChange={(e) => {
+              setTopic(e.target.value);
+              setIndex(0);
+              setFlip(false);
+            }}
+          >
+            <option value="">All topics</option>
+            {[...new Set(cards.map((c) => c.topic).filter(Boolean))].map(
+              (name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+      )}
       {!cards.length ? (
-        <button
-          className="btn dark"
-          disabled={busy || !job.pages.length}
-          onClick={build}
-        >
-          {busy ? "Building cards..." : "Generate flashcards"}
-        </button>
+        <>
+          <div className="flashcard-settings">
+            <label>
+              Number of cards
+              <select
+                value={cardCount}
+                onChange={(e) => setCardCount(Number(e.target.value))}
+              >
+                {[6, 9, 12, 18, 24, 30, 36].includes(cardCount) ? null : (
+                  <option value={cardCount}>{cardCount}</option>
+                )}
+                {[6, 9, 12, 18, 24, 30, 36].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Difficulty
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+              >
+                <option value="foundation">Foundation</option>
+                <option value="standard">Standard</option>
+                <option value="challenge">Challenge</option>
+              </select>
+            </label>
+          </div>
+          <button
+            className="btn dark"
+            disabled={
+              busy ||
+              !job.pages.length ||
+              job.accessRole === "viewer" ||
+              job.accessRole === "editor"
+            }
+            onClick={build}
+          >
+            {busy ? "Building cards…" : "Generate flashcards"}
+          </button>
+        </>
       ) : !card ? (
         <div className="card">
           <h2>You’re up to date.</h2>
@@ -253,10 +411,15 @@ export default function FlashcardsView() {
         </div>
       ) : (
         <>
-          <div className="quiz-progress">
+          <div className="flashcard-study-top">
+            <div className="quiz-progress">
+              <span>
+                {Math.min(index + 1, queue.length)} of {queue.length}{" "}
+                {dueOnly ? "due cards" : "cards"}
+              </span>
+            </div>
             <span>
-              {Math.min(index + 1, queue.length)} of {queue.length}{" "}
-              {dueOnly ? "due cards" : "cards"}
+              {card.topic || "Your saved lesson"} · {card.type || "basic"}
             </span>
           </div>
           {card.type === "ordering" && !flip ? (
@@ -319,11 +482,17 @@ export default function FlashcardsView() {
               onClick={() => setFlip(!flip)}
               aria-label={flip ? "Show question" : "Show answer"}
             >
-              {!flip && card.type === "image" && (
-                card.imageData ? (
-                  <img className="flashcard-visual flashcard-upload" src={card.imageData} alt={card.imageAlt || "Flashcard study image"} />
-                ) : card.imageAlt ? <VisualMnemonic label={card.imageAlt} /> : null
-              )}
+              {!flip &&
+                card.type === "image" &&
+                (card.imageData ? (
+                  <img
+                    className="flashcard-visual flashcard-upload"
+                    src={card.imageData}
+                    alt={card.imageAlt || "Flashcard study image"}
+                  />
+                ) : card.imageAlt ? (
+                  <VisualMnemonic label={card.imageAlt} />
+                ) : null)}
               <span>
                 {flip
                   ? card.type === "ordering"
@@ -343,21 +512,27 @@ export default function FlashcardsView() {
               </small>
             </button>
           )}
-          {!flip && (
-            <label className="btn light flashcard-upload-control">
-              {busy ? "Saving image…" : card.imageData ? "Replace study image" : "Attach study image"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={busy}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void attachImage(file);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-          )}
+          {!flip &&
+            job.accessRole !== "viewer" &&
+            job.accessRole !== "editor" && (
+              <label className="btn light flashcard-upload-control">
+                {busy
+                  ? "Saving image…"
+                  : card.imageData
+                    ? "Replace study image"
+                    : "Attach study image"}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void attachImage(file);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            )}
           {flip && (
             <div className="review-ratings">
               {["again", "hard", "good", "easy"].map((r, ratingIndex) => (
@@ -372,6 +547,7 @@ export default function FlashcardsView() {
               ))}
             </div>
           )}
+          {flip && <PracticeSources lesson={job.id} sources={card.sources} />}
           <div className="quiz-nav">
             <button
               className="btn light"
@@ -403,6 +579,12 @@ export default function FlashcardsView() {
           )}
         </>
       )}
+      <p className="small">
+        <Link href={`/lesson/${job.id}/quiz`}>
+          Practise with the lesson quiz
+        </Link>{" "}
+        · <Link href={`/lesson/${job.id}/source`}>Review sources</Link>
+      </p>
     </div>
   );
 }

@@ -7,20 +7,15 @@ import { rateLimit } from "@/lib/ratelimit";
 import { getJob } from "@/lib/jobs/store";
 import { accessRole } from "@/lib/study/collaboration";
 import { readState, mutateState } from "@/lib/study/state";
-import { answerCorrect, questionId, quizVersion } from "@/lib/study/quiz";
+import {
+  answerCorrect,
+  questionId,
+  quizVersion,
+  attemptQuestionIds,
+  type QuizAttempt,
+} from "@/lib/study/quiz";
 import { studyActivity } from "@/lib/study/hub";
-interface Attempt {
-  id: string;
-  mode: "practice" | "exam";
-  version: string;
-  answers: Record<string, string>;
-  submitted: boolean;
-  correct: number;
-  total: number;
-  weak: string[];
-  at: string;
-}
-const empty = (): Attempt | null => null;
+const empty = (): QuizAttempt | null => null;
 export const GET = apiHandler(async (req: NextRequest) => {
   const denied = await authError(req);
   if (denied) return denied;
@@ -45,7 +40,8 @@ export const POST = apiHandler(async (req: NextRequest) => {
       { status: 404 },
     );
   const questions = job.practice.quiz,
-    version = quizVersion(questions);
+    version = quizVersion(questions),
+    requestedMode = b.mode === "exam" ? "exam" : "practice";
   if (new Set(questions.map(questionId)).size !== questions.length)
     return NextResponse.json(
       {
@@ -55,7 +51,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
       { status: 409 },
     );
   try {
-    const attempt = await mutateState<Attempt | null>(
+    const attempt = await mutateState<QuizAttempt | null>(
       owner,
       `quiz:${job.id}`,
       null,
@@ -65,27 +61,60 @@ export const POST = apiHandler(async (req: NextRequest) => {
             old &&
             !old.submitted &&
             old.version === version &&
-            old.mode === b.mode
+            old.mode === requestedMode &&
+            (old.scope || "all") === (b.scope === "missed" ? "missed" : "all")
           )
             return old;
           if (old && !old.submitted && old.version === version)
             throw new Error(
               "Finish your current attempt before changing modes.",
             );
+          let questionIds = questions.map(questionId);
+          if (b.scope === "missed") {
+            if (!old?.submitted || old.version !== version)
+              throw new Error(
+                "Submit a result before retrying missed questions.",
+              );
+            const previousIds = new Set(attemptQuestionIds(old, questions));
+            questionIds = questions
+              .filter(
+                (q) =>
+                  previousIds.has(questionId(q)) &&
+                  !answerCorrect(q, old.answers[questionId(q)] || ""),
+              )
+              .map(questionId);
+            if (!questionIds.length)
+              throw new Error(
+                "No missed questions to retry. Start a full attempt.",
+              );
+          }
           return {
             id: randomUUID(),
-            mode: b.mode === "exam" ? "exam" : "practice",
+            mode: requestedMode,
             version,
             answers: {},
+            questionIds,
+            scope: b.scope === "missed" ? "missed" : "all",
+            cursor: questionIds[0],
             submitted: false,
             correct: 0,
-            total: questions.length,
+            total: questionIds.length,
             weak: [],
             at: new Date().toISOString(),
           };
         }
         if (!old || old.id !== b.attempt || old.version !== version)
           throw new Error("Quiz changed. Reopen it before answering.");
+        const selectedIds = new Set(attemptQuestionIds(old, questions));
+        const selectedQuestions = questions.filter((q) =>
+          selectedIds.has(questionId(q)),
+        );
+        if (b.action === "position") {
+          if (typeof b.question !== "string" || !selectedIds.has(b.question))
+            throw new Error("Choose a question in this attempt.");
+          old.cursor = b.question;
+          return old;
+        }
         if (b.action === "answer") {
           if (old.submitted)
             throw new Error(
@@ -94,7 +123,8 @@ export const POST = apiHandler(async (req: NextRequest) => {
           const index = questions.findIndex(
             (q, i) => questionId(q, i) === b.question,
           );
-          if (index < 0) throw new Error("Question not found.");
+          if (index < 0 || !selectedIds.has(b.question))
+            throw new Error("Question not found in this attempt.");
           const answer = String(b.answer || "")
             .trim()
             .slice(0, 2000);
@@ -107,16 +137,22 @@ export const POST = apiHandler(async (req: NextRequest) => {
           if (old.mode === "practice" && Object.hasOwn(old.answers, b.question))
             return old;
           old.answers[b.question] = answer;
+          old.cursor = b.question;
         } else if (b.action === "submit") {
           if (old.submitted) return old;
-          if (questions.some((q, i) => !old.answers[questionId(q, i)]))
+          if (selectedQuestions.some((q) => !old.answers[questionId(q)]))
             throw new Error("Answer every question before submitting.");
-          old.correct = questions.filter((q, i) =>
-            answerCorrect(q, old.answers[questionId(q, i)]),
+          old.correct = selectedQuestions.filter((q) =>
+            answerCorrect(q, old.answers[questionId(q)]),
           ).length;
-          old.weak = questions
-            .filter((q, i) => !answerCorrect(q, old.answers[questionId(q, i)]))
-            .map((q) => (q as any).topic || q.q);
+          old.total = selectedQuestions.length;
+          old.weak = [
+            ...new Set(
+              selectedQuestions
+                .filter((q) => !answerCorrect(q, old.answers[questionId(q)]))
+                .map((q) => q.topic || q.q),
+            ),
+          ];
           old.submitted = true;
           old.at = new Date().toISOString();
         } else throw new Error("Unknown quiz action.");

@@ -12,6 +12,7 @@ metadata.alternates = {
   ...metadata.alternates,
   types: { "application/rss+xml": "/feed.xml" },
 };
+metadata.robots = { index: true, follow: true };
 export default async function BlogIndexPage({
   searchParams,
 }: {

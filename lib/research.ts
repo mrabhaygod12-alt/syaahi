@@ -76,6 +76,8 @@ export function wikipediaReferences(value: unknown): ReadingLink[] {
       if (
         url.protocol !== "https:" ||
         url.hostname !== "en.wikipedia.org" ||
+        url.username ||
+        url.password ||
         !url.pathname.startsWith("/wiki/")
       )
         return [];

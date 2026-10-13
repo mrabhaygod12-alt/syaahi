@@ -89,6 +89,27 @@ async function main() {
     "Synthetic reviewed story",
     author.id,
   );
+  const legacy = await auth.register(
+    "Chandan Legacy Fixture",
+    "social-legacy-ui@example.test",
+    "fixture-password-safe",
+  );
+  const legacyPublished = await stories.reviewStory(
+    (
+      await stories.saveStory(legacy.id, {
+        title: "Quantum computing without the clutter",
+        summary:
+          "Understand qubits, compare the evidence and keep the source in view.",
+        body: "# What a qubit changes\n\nA **careful reader** checks [the original source](https://example.test/source) before repeating a claim.\n\n## Three useful ideas\n- Superposition describes a state\n- Measurement produces an outcome\n- Entanglement connects joint states\n\n## A practical sequence\n1. Read the source\n2. Compare the explanation\n3. Test your understanding\n\n> Learn the limits as well as the possibilities.\n\n```\nconst evidence = '<script>not executable</script>';\n```",
+        tags: ["computer science", "research"],
+        authorName: legacy.name,
+        submit: true,
+      })
+    ).id,
+    "publish",
+    "Reviewed synthetic legacy publication",
+    author.id,
+  );
   const cookieFor = async (u: typeof author) => {
     const [name, value] = (
       await auth.startSession(u, new Request(origin))
@@ -99,7 +120,8 @@ async function main() {
     return { name, value, domain: "localhost", path: "/" };
   };
   const authorCookie = await cookieFor(author),
-    readerCookie = await cookieFor(reader);
+    readerCookie = await cookieFor(reader),
+    legacyCookie = await cookieFor(legacy);
   const server = spawn(
     process.execPath,
     [
@@ -767,6 +789,180 @@ async function main() {
         .count(),
       0,
     );
+    let failLegacyGet = true;
+    const legacyFollowPath = `**/api/creators/${legacyPublished.creatorSlug}/follow`;
+    await page.route(legacyFollowPath, async (route) => {
+      if (route.request().method() === "GET" && failLegacyGet) {
+        failLegacyGet = false;
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "Follower information is temporarily unavailable.",
+            requestId: safeReference,
+          }),
+        });
+      }
+      return route.continue();
+    });
+    await page.goto(`${origin}/guides/${legacyPublished.slug}`);
+    const followControl = page.locator(".public-article .writer-follow");
+    await followControl
+      .getByRole("alert")
+      .filter({ hasText: safeReference })
+      .waitFor();
+    await followControl
+      .getByRole("button", { name: "Retry followers", exact: true })
+      .click();
+    await followControl
+      .getByRole("button", { name: "Follow writer", exact: true })
+      .click();
+    await followControl
+      .getByRole("button", { name: "Following", exact: true })
+      .waitFor();
+    await page.reload();
+    await followControl
+      .getByRole("button", { name: "Following", exact: true })
+      .waitFor();
+    await page
+      .locator(".reader-story-content")
+      .getByRole("heading", {
+        name: "Three useful ideas",
+        exact: true,
+        level: 2,
+      })
+      .waitFor();
+    assert.equal(await page.locator(".reader-story-content ul li").count(), 3);
+    assert.equal(await page.locator(".reader-story-content ol li").count(), 3);
+    assert.equal(await page.locator(".reader-story-content script").count(), 0);
+    const selectVisiblePassage = () => {
+      const node = document.querySelector(".reader-story-content p")!;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    await page
+      .getByLabel("Note for selected passage", { exact: true })
+      .fill("A private source-check reminder");
+    await page.evaluate(selectVisiblePassage);
+    // Keep selection inside the article while activating the notes button.
+    await page
+      .getByRole("button", { name: "Save selected passage", exact: true })
+      .evaluate((node: HTMLButtonElement) => node.click());
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Saved privately" })
+      .waitFor();
+    await page
+      .locator(".story-private-notes blockquote")
+      .filter({ hasText: "careful reader checks the original source" })
+      .waitFor();
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth + 1,
+        ),
+        false,
+        `Legacy reader fits ${width}px`,
+      );
+      assert.equal(await page.locator("main h1").count(), 1);
+      await page.evaluate(() => {
+        window.getSelection()?.removeAllRanges();
+        if (document.activeElement instanceof HTMLElement)
+          document.activeElement.blur();
+        window.scrollTo(0, 0);
+      });
+      await page.screenshot({
+        path: `output/writer-social/legacy-article-${width}.png`,
+        fullPage: true,
+      });
+    }
+    await page.evaluate(
+      () => (document.documentElement.dataset.theme = "dark"),
+    );
+    const highlightColors = await page
+      .locator(".story-private-notes blockquote")
+      .first()
+      .evaluate((el) => ({
+        background: getComputedStyle(el).backgroundColor,
+        text: getComputedStyle(el.querySelector("p") || el).color,
+      }));
+    assert.equal(highlightColors.background, "rgb(29, 44, 36)");
+    assert.equal(highlightColors.text, "rgb(179, 195, 181)");
+    await page.screenshot({
+      path: "output/writer-social/legacy-article-dark.png",
+      fullPage: true,
+    });
+    await page.evaluate(
+      () => (document.documentElement.dataset.theme = "light"),
+    );
+    await page.goto(origin + "/writer/following");
+    await page
+      .getByRole("heading", { name: legacy.name, exact: true })
+      .waitFor();
+    await page.goto(`${origin}/guides/${legacyPublished.slug}`);
+    await followControl
+      .getByRole("button", { name: "Following", exact: true })
+      .waitFor();
+    await page.unroute(legacyFollowPath);
+    // A delayed reader response cannot re-enable follow on the author’s own
+    // profile after an account refresh in the same rendered page.
+    let deliverFollow!: () => void, followEntered!: () => void;
+    const delayedFollow = new Promise<void>(
+        (resolve) => (deliverFollow = resolve),
+      ),
+      followStarted = new Promise<void>((resolve) => (followEntered = resolve));
+    let holdFollow = true;
+    await page.route(legacyFollowPath, async (route) => {
+      if (route.request().method() !== "GET" || !holdFollow)
+        return route.continue();
+      holdFollow = false;
+      const real = await route.fetch();
+      followEntered();
+      await delayedFollow;
+      try {
+        await route.fulfill({ response: real });
+      } catch {
+        /* identity refresh may abort */
+      }
+    });
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("syaahi:account-updated")),
+    );
+    await followStarted;
+    await context.addCookies([legacyCookie]);
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("syaahi:account-updated")),
+    );
+    await followControl.getByText("1 followers", { exact: false }).waitFor();
+    deliverFollow();
+    await page.waitForLoadState("networkidle");
+    assert.equal(
+      await followControl
+        .getByRole("button", { name: /Follow writer|Following/ })
+        .count(),
+      0,
+      "The author cannot follow their own legacy profile",
+    );
+    await page.unroute(legacyFollowPath);
+    await context.addCookies([readerCookie]);
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("syaahi:account-updated")),
+    );
+    await followControl
+      .getByRole("button", { name: "Following", exact: true })
+      .click();
+    await followControl
+      .getByRole("button", { name: "Follow writer", exact: true })
+      .waitFor();
+    assert.equal(
+      await profiles.writerProfile(legacy.id),
+      null,
+      "Following a legacy author never grants enrollment",
+    );
     await publicSession.close();
     const session = await context.newCDPSession(page);
     await session.send("Emulation.setCPUThrottlingRate", { rate: 4 });
@@ -778,7 +974,7 @@ async function main() {
     }
     assert.equal(errors.length, 0, errors.join("\n"));
     console.log(
-      "PASS writer social workspace browser: profile conflict reload and failed-save recovery/reference, safe theme conflicts, pin/reorder/unpin persistence and public order, stale pin revision conflict/reload, author-only article pin action, profile connection opt-in, follow/unfollow, public writer lists, like/save/comment persistence, real feed counters, stats, author-only revision menu, stale account response isolation and 390/768/1440 layouts.",
+      "PASS writer social workspace browser: legacy reviewed author follows/retry/reference without enrollment; own-profile and delayed account-switch isolation; semantic Markdown and selected-source private highlights; public reader 390/768/1440 and dark appearance; profile/pin conflicts, real engagement, lists, stats and author-only controls.",
     );
   } finally {
     await browser?.close();

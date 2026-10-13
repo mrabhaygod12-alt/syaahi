@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { collection, useMongo } from "@/lib/storage/mongo";
 import { writerProfile } from "./profile";
 import type { WriterProfile } from "./profile";
+import { publicAuthorIdentity } from "./author-identity";
 export class ConnectionError extends Error {
   constructor(
     message: string,
@@ -64,7 +65,7 @@ function readCursor(value: string) {
     throw new ConnectionError("Use a valid connections page cursor.");
   }
 }
-/** Private by default. Lists include verified public writer identities only. */
+/** Private by default. Lists expose verified writers or reviewed legacy authors. */
 export async function writerConnections(
   owner: string,
   mode: string,
@@ -132,10 +133,51 @@ export async function writerConnections(
                 as: "verified",
               },
             },
+            ...(mode === "following"
+              ? [
+                  {
+                    $lookup: {
+                      from: "stories",
+                      let: {
+                        author: "$payload.creator",
+                        slug: "$payload.slug",
+                      },
+                      pipeline: [
+                        {
+                          $match: {
+                            status: "published",
+                            $expr: {
+                              $and: [
+                                { $eq: ["$user", "$$author"] },
+                                { $eq: ["$creatorSlug", "$$slug"] },
+                              ],
+                            },
+                          },
+                        },
+                        { $limit: 1 },
+                        { $project: { _id: 1 } },
+                      ],
+                      as: "publication",
+                    },
+                  },
+                ]
+              : []),
             {
               $match: {
-                "writer.0": { $exists: true },
-                "verified.0": { $exists: true },
+                ...(mode === "following"
+                  ? {
+                      $or: [
+                        {
+                          "writer.0": { $exists: true },
+                          "verified.0": { $exists: true },
+                        },
+                        { "publication.0": { $exists: true } },
+                      ],
+                    }
+                  : {
+                      "writer.0": { $exists: true },
+                      "verified.0": { $exists: true },
+                    }),
               },
             },
             { $limit: 30 },
@@ -145,7 +187,7 @@ export async function writerConnections(
       ).map((r) => r.payload)
     : db()
         .prepare(
-          `SELECT f.payload FROM workspace_records f JOIN workspace_records p ON p.owner=${mode === "following" ? "json_extract(f.payload,'$.creator')" : "f.owner"} AND p.kind='writer-profile' JOIN verified_accounts v ON v.user_id=p.owner WHERE f.kind='writer-follow' AND json_extract(f.payload,'$.active')=1 AND ${mode === "following" ? "f.owner" : "json_extract(f.payload,'$.creator')"}=? ${after ? "AND (f.updated_at<? OR (f.updated_at=? AND f.id<?))" : ""} ORDER BY f.updated_at DESC,f.id DESC LIMIT 30`,
+          `SELECT f.payload FROM workspace_records f ${mode === "following" ? "LEFT JOIN" : "JOIN"} workspace_records p ON p.owner=${mode === "following" ? "json_extract(f.payload,'$.creator')" : "f.owner"} AND p.kind='writer-profile' ${mode === "following" ? "LEFT JOIN" : "JOIN"} verified_accounts v ON v.user_id=p.owner WHERE f.kind='writer-follow' AND json_extract(f.payload,'$.active')=1 AND ${mode === "following" ? "f.owner" : "json_extract(f.payload,'$.creator')"}=? ${mode === "following" ? "AND (v.user_id IS NOT NULL OR EXISTS(SELECT 1 FROM stories s WHERE s.user_id=json_extract(f.payload,'$.creator') AND s.status='published' AND json_extract(s.payload,'$.creatorSlug')=json_extract(f.payload,'$.slug')))" : ""} ${after ? "AND (f.updated_at<? OR (f.updated_at=? AND f.id<?))" : ""} ORDER BY f.updated_at DESC,f.id DESC LIMIT 30`,
         )
         .all(owner, ...(after ? [after.at, after.at, after.id] : []))
         .map((r) => JSON.parse(String(r.payload)));
@@ -179,11 +221,26 @@ export async function writerConnections(
     }
   }
   const byOwner = new Map(profiles.map((p) => [p.owner, p]));
+  const legacy = new Map<
+    string,
+    { slug: string; name: string; bio: string; avatar: string }
+  >();
+  if (mode === "following") {
+    await Promise.all(
+      ids
+        .filter((owner) => !byOwner.has(owner))
+        .map(async (owner) => {
+          const row = rows.find((r) => r.creator === owner);
+          const identity = row ? await publicAuthorIdentity(row.slug) : null;
+          if (identity?.owner === owner) legacy.set(owner, identity.profile);
+        }),
+    );
+  }
   const last = rows.at(-1);
   return {
     mode,
     writers: ids.flatMap((id) => {
-      const p = byOwner.get(id);
+      const p = byOwner.get(id) || legacy.get(id);
       return p
         ? [{ slug: p.slug, name: p.name, bio: p.bio, avatar: p.avatar }]
         : [];

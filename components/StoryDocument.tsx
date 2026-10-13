@@ -1,8 +1,9 @@
-import { Fragment, type ReactNode } from "react";
+import React, { Fragment, type ReactNode } from "react";
 import type { RichNode } from "@/lib/writing/document";
 import { articleStyles, normalizeDesign } from "@/lib/writing/design";
 import katex from "katex";
 import VideoEmbed from "./writer/VideoEmbed";
+import { readerDocument } from "@/lib/writing/reader-document";
 import {
   STORY_FONTS,
   STORY_SIZES,
@@ -19,8 +20,7 @@ export default function StoryDocument({
   fallback: string;
   embedded?: boolean;
 }) {
-  if (!document)
-    return <div style={{ whiteSpace: "pre-wrap" }}>{fallback}</div>;
+  document = readerDocument(document, fallback);
   const headings: Array<{ node: RichNode; id: string; text: string }> = [];
   const plain = (n: RichNode): string =>
     n.text || (n.content || []).map(plain).join("");

@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:learning-studio-browser": "tsx scripts/test-learning-studio-browser.ts",
+    "test:presentation-research": "tsx scripts/test-presentation-research.ts",
+    "test:learning-studio": "tsx scripts/test-learning-studio.ts && tsx scripts/test-learning-studio.ts --mongo",
+    "test:chat-answer": "tsx scripts/test-chat-answer.tsx",
+    "test:publication-index": "tsx scripts/test-publication-index.ts && tsx scripts/test-publication-index.ts --mongo",
     "test:admin-mfa-lifecycle": "tsx scripts/test-admin-mfa-lifecycle.ts && tsx scripts/test-admin-mfa-lifecycle.ts --mongo",
     "test:writer-shell-hydration": "tsx scripts/test-writer-shell-hydration.ts",
     "test:writer-service-errors": "tsx scripts/test-writer-service-errors.ts && tsx scripts/test-writer-service-errors.ts --mongo",

@@ -94,6 +94,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
             .join("\n")
             .slice(0, 18000),
           language: draft.language,
+          format: draft.format,
           template: draft.template,
           count: draft.count,
           outline: draft.outline,
@@ -148,6 +149,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
       owner,
       requested,
       body.designEngine === 2 ? 48000 : 18000,
+      body.prompt,
     );
     const draft = await planDeck(owner, {
       prompt: body.prompt.trim(),

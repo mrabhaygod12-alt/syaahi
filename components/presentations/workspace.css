@@ -2,6 +2,7 @@
   --pw-ink: #28394c;
   --pw-muted: #6d7d8d;
   --pw-line: #e3eaf0;
+  --pw-bg: #f8fafc;
   display: grid;
   grid-template-columns: 238px minmax(0, 1fr);
   min-height: 100dvh;
@@ -423,6 +424,32 @@
   display: grid;
   gap: 7px;
   font-size: 11px;
+}
+.pw-research-discovery {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+  padding-bottom: 22px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--pw-line);
+  min-width: 0;
+}
+.pw-research-discovery > button {
+  justify-self: start;
+}
+.pw-research-result {
+  padding: 18px;
+  border: 1px solid var(--pw-line);
+  border-radius: 12px;
+  background: var(--pw-bg);
+  overflow-wrap: anywhere;
+}
+.pw-research-result > a {
+  font-size: 15px;
+  font-weight: 600;
+}
+.pw-research-result p {
+  font-size: 13px;
 }
 .pw-source-inputs :is(input:not([type="file"]), textarea, select) {
   width: 100%;

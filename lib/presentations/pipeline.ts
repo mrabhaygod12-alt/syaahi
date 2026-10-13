@@ -17,6 +17,7 @@ import {
 import type { DeckSource } from "./drafts";
 import { slideOutputSchema, storyboardOutputSchema } from "./schemas";
 import { sourceContext } from "./source-context";
+import { formatInstructions, type DeckFormat } from "./format";
 export type Generate = (
   messages: ChatMsg[],
   opts: { maxTokens: number; json?: boolean; schema?: OutputSchema },
@@ -60,6 +61,7 @@ export async function storyPlan(
     language: string;
     count: number;
     sources: DeckSource[];
+    format?: DeckFormat;
   },
   generate: Generate = chatWithFallback,
 ) {
@@ -70,6 +72,8 @@ export async function storyPlan(
         role: "system",
         content:
           EDITORIAL_SYSTEM +
+          " " +
+          formatInstructions(input.format) +
           ` Build a narrative: hook -> problem/context -> core pillars -> evidence when available -> strategic takeaway. For seven or more slides include three pillars. For shorter decks combine related ideas. Use at least three different archetypes. Assign one of hero_headline,bento_grid_3,metric_trio,split_comparison,linear_stepper,quote_attribution to each beat. Choose metric_trio ONLY when three distinct relevant numerical values are explicitly available in cited sources, and write all three values in that beat's purpose. Do not use names, technology vendors, dates or section numbers as performance metrics. Otherwise choose bento_grid_3 or split_comparison. Return {thesis:string,beats:[{title,purpose,role:hook|context|pillar|evidence|takeaway,archetype,evidence:[source IDs]}]}. Exactly ${input.count} beats.`,
       },
       {
@@ -118,6 +122,7 @@ export async function renderBeat(
     storyboard: Storyboard;
     language: string;
     sources: DeckSource[];
+    format?: DeckFormat;
     instruction?: string;
   },
   generate: Generate = chatWithFallback,
@@ -140,7 +145,10 @@ export async function renderBeat(
     ),
   };
   const messages: ChatMsg[] = [
-    { role: "system", content: EDITORIAL_SYSTEM },
+    {
+      role: "system",
+      content: EDITORIAL_SYSTEM + " " + formatInstructions(input.format),
+    },
     {
       role: "user",
       content: JSON.stringify({
@@ -168,7 +176,10 @@ export async function renderBeat(
   const result = await structured(
     generate,
     [
-      { role: "system", content: EDITORIAL_SYSTEM },
+      {
+        role: "system",
+        content: EDITORIAL_SYSTEM + " " + formatInstructions(input.format),
+      },
       {
         role: "user",
         content: JSON.stringify({

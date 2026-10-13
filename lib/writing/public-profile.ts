@@ -1,4 +1,5 @@
-import { publicWriterProfile, writerBySlug } from "./profile";
+import { publicWriterProfile } from "./profile";
+import { publicAuthorIdentity } from "./author-identity";
 export async function publicCreator(slug: string) {
   const backend = process.env.BACKEND_URL?.trim();
   const remote =
@@ -6,8 +7,7 @@ export async function publicCreator(slug: string) {
     process.env.VERCEL === "1" ||
     (!!backend && !["backend", "worker"].includes(process.env.APP_ROLE || ""));
   if (!remote) {
-    const profile = await writerBySlug(slug);
-    return profile ? publicWriterProfile(profile) : null;
+    return (await publicAuthorIdentity(slug))?.profile || null;
   }
   if (!backend || !process.env.BACKEND_PROXY_SECRET)
     throw new Error("Creator service is unavailable.");

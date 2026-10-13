@@ -1,4 +1,5 @@
 "use client";
+import ChatAnswer from "./ChatAnswer";
 import LectureRecorder from "@/components/LectureRecorder";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,125 +8,6 @@ import { lessonTitle } from "./types";
 import { useLesson } from "./LessonProvider";
 import { touchStudyDay } from "@/lib/study/streak";
 import { useToast } from "@/components/Toasts";
-
-// Tiny markdown renderer for answers: headings, bullets, numbered,
-// **bold**, `code`, tables. Raw asterisks never leak to the student.
-function Md({ text }: { text: string }) {
-  const lines = text.split("\n");
-  const out: React.ReactNode[] = [];
-  let bullets: string[] = [];
-  let numbered: string[] = [];
-  let table: string[][] = [];
-  const flush = () => {
-    if (bullets.length) {
-      out.push(
-        <ul key={`b${out.length}`} className="ws-md-ul">
-          {bullets.map((b, k) => (
-            <li key={k}>
-              <Inline t={b} />
-            </li>
-          ))}
-        </ul>,
-      );
-      bullets = [];
-    }
-    if (numbered.length) {
-      out.push(
-        <ol key={`n${out.length}`} className="ws-md-ul">
-          {numbered.map((b, k) => (
-            <li key={k}>
-              <Inline t={b} />
-            </li>
-          ))}
-        </ol>,
-      );
-      numbered = [];
-    }
-    if (table.length) {
-      const [head, ...rows] = table;
-      out.push(
-        <table key={`t${out.length}`} className="ws-md-table">
-          <thead>
-            <tr>
-              {head.map((c, k) => (
-                <th key={k}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, k) => (
-              <tr key={k}>
-                {r.map((c, j) => (
-                  <td key={j}>{c}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>,
-      );
-      table = [];
-    }
-  };
-  lines.forEach((raw) => {
-    const line = raw.trim();
-    if (/^\|.*\|$/.test(line) && line.includes("|")) {
-      const cells = line
-        .split("|")
-        .map((c) => c.trim())
-        .filter((c, idx, arr) => !(idx === 0 || idx === arr.length - 1) || c);
-      if (cells.every((c) => /^:?-+:?$/.test(c))) return; // separator
-      table.push(cells);
-      return;
-    }
-    flush();
-    if (!line) return;
-    const h = line.match(/^(#{1,3})\s+(.*)/);
-    if (h) {
-      out.push(
-        <div key={out.length} className="ws-md-h">
-          <Inline t={h[2]} />
-        </div>,
-      );
-      return;
-    }
-    const b = line.match(/^[-*•]\s+(.*)/);
-    if (b) {
-      bullets.push(b[1]);
-      return;
-    }
-    const n = line.match(/^\d+[.)]\s+(.*)/);
-    if (n) {
-      numbered.push(n[1]);
-      return;
-    }
-    out.push(
-      <p key={out.length} className="ws-md-p">
-        <Inline t={line} />
-      </p>,
-    );
-  });
-  flush();
-  return <>{out}</>;
-}
-
-function Inline({ t }: { t: string }) {
-  const parts = t.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
-  return (
-    <>
-      {parts.map((p, k) => {
-        if (p.startsWith("**") && p.endsWith("**"))
-          return <b key={k}>{p.slice(2, -2)}</b>;
-        if (p.startsWith("`") && p.endsWith("`"))
-          return (
-            <code key={k} className="ws-md-code">
-              {p.slice(1, -1)}
-            </code>
-          );
-        return <span key={k}>{p}</span>;
-      })}
-    </>
-  );
-}
 
 interface Msg {
   choices?: Array<{ label: string; question: string }>;
@@ -340,9 +222,7 @@ export default function LessonChat({
                   via: meta.provider,
                   model: meta.model,
                   cites: Array.isArray(meta.cites) ? meta.cites : undefined,
-                  a: streamError
-                    ? `${m.a}\n\n**${streamError}**`
-                    : m.a,
+                  a: streamError ? `${m.a}\n\n**${streamError}**` : m.a,
                 }
               : m,
           ),
@@ -361,7 +241,10 @@ export default function LessonChat({
         setThread((t) =>
           t.map((m, k) =>
             k === idx
-              ? { ...m, a: `${m.a}\n\n**Connection stopped; this answer may be incomplete.**` }
+              ? {
+                  ...m,
+                  a: `${m.a}\n\n**Connection stopped; this answer may be incomplete.**`,
+                }
               : m,
           ),
         );
@@ -703,7 +586,7 @@ export default function LessonChat({
             >
               {h.a ? (
                 <>
-                  <Md text={h.a} />
+                  <ChatAnswer text={h.a} />
                   {busy && i === thread.length - 1 && (
                     <span className="ws-stream-cursor" aria-hidden="true" />
                   )}

@@ -18,7 +18,7 @@ async function main() {
       verifyMetricPlan,
     } = await import("../lib/presentations/archetypes"),
     { toDeckSlide, renderBeat } = await import("../lib/presentations/pipeline"),
-    { planDeck, ownedDraft, approveDraft } =
+    { planDeck, ownedDraft, approveDraft, ownedSources } =
       await import("../lib/presentations/drafts"),
     { createDeck, processDeck, ownedDeck, editDeck } =
       await import("../lib/presentations/store"),
@@ -118,6 +118,17 @@ async function main() {
   assert(retrieved[0].text.includes("Photosynthesis captures"));
   assert(retrieved[0].text.length <= 1800);
   assert(retrieved[0].truncated);
+  const imported = await ownedSources(
+    owner.id,
+    [longSource],
+    1800,
+    "photosynthesis chloroplasts",
+  );
+  assert(
+    imported[0].text.includes("Photosynthesis captures"),
+    "Source import must retrieve later passages before clipping",
+  );
+  assert(imported[0].text.length <= 1800);
   assert.throws(
     () =>
       validateArchetype({
@@ -186,10 +197,15 @@ async function main() {
     format: "presenter" as const,
     designEngine: 2 as const,
   };
-  const draft = await planDeck(owner.id, input, randomUUID(), async () => ({
-    text: JSON.stringify(story),
-    provider: "fixture",
-  }));
+  const draft = await planDeck(
+    owner.id,
+    input,
+    randomUUID(),
+    async (messages) => {
+      assert(messages[0].content.includes("Presenter deck:"));
+      return { text: JSON.stringify(story), provider: "fixture" };
+    },
+  );
   assert.equal(await ownedDraft(other.id, draft.id), null);
   await assert.rejects(
     () => approveDraft(owner.id, draft.id, 9, draft.outline),
@@ -239,14 +255,21 @@ async function main() {
     `deck-${draft.id}`,
   );
   await createDeck(owner.id, { ...input, context: source.text }, deck.id);
+  assert.equal((await ownedDeck(owner.id, deck.id))!.format, "presenter");
   assert.equal(await balance(owner.id), before - 5);
   assert.equal(await ownedDeck(other.id, deck.id), null);
   for (let index = 0; index < 6; index++) {
     let calls = 0;
-    await processDeck(deck.id, async () => ({
-      text: JSON.stringify(examples[index]),
-      provider: `fixture-${++calls}`,
-    }));
+    await processDeck(deck.id, async (messages) => {
+      assert(
+        messages[0].content.includes("Presenter deck:"),
+        "Worker must honor the saved format in both passes",
+      );
+      return {
+        text: JSON.stringify(examples[index]),
+        provider: `fixture-${++calls}`,
+      };
+    });
     assert.equal(
       calls,
       2,
@@ -351,18 +374,25 @@ async function main() {
       storyboard: story,
       language: "english",
       sources: [source],
+      format: "detailed",
     },
-    async () => ({
-      text: JSON.stringify(
-        ++calls === 2
-          ? {
-              ...examples[0],
-              title: "invalid one two three four five six seven eight nine",
-            }
-          : examples[0],
-      ),
-      provider: "repair",
-    }),
+    async (messages) => {
+      assert(
+        messages[0].content.includes("Detailed reading deck:"),
+        "Both editorial passes and JSON repair must keep detailed notes instructions",
+      );
+      return {
+        text: JSON.stringify(
+          ++calls === 2
+            ? {
+                ...examples[0],
+                title: "invalid one two three four five six seven eight nine",
+              }
+            : examples[0],
+        ),
+        provider: "repair",
+      };
+    },
   );
   assert.equal(
     calls,

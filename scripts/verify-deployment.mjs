@@ -44,12 +44,25 @@ const checks = [
   ["/api/admin/mfa", 403],
   ["/api/user/sessions", 401],
   ["/api/presentations/sources", 401],
+  ["/api/presentations/research", 401, undefined, undefined, "POST"],
+  ["/api/creators/chandan-pandey-cfee3415/follow", 200, '"followers"'],
+  [
+    "/guides/quantum-computing-kya-hai-qubit-superposition-aur-entanglement-aasaan-bh-f34240c9",
+    200,
+    "public-article-sheet",
+  ],
+  [
+    "/sitemap.xml",
+    200,
+    "quantum-computing-kya-hai-qubit-superposition-aur-entanglement-aasaan-bh-f34240c9",
+  ],
 ];
 const results = await Promise.all(
-  checks.map(async ([path, status, marker, redirect]) => {
+  checks.map(async ([path, status, marker, redirect, method]) => {
     const started = Date.now();
     try {
       const response = await fetch(origin + path, {
+        ...(method ? { method } : {}),
         ...(redirect ? { redirect: "manual" } : {}),
         cache: "no-store",
         signal: AbortSignal.timeout(45000),

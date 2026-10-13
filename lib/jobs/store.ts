@@ -15,6 +15,7 @@ export interface JobPage {
   model: string;
 }
 export interface JobPractice {
+  settings?: import("@/lib/study/practice").PracticeSettings;
   quiz: Question[];
   flashcards: Array<{
     front: string;
@@ -26,6 +27,7 @@ export interface JobPractice {
     imageAlt?: string;
     /** Learner-provided image stored with the private lesson; never public by default. */
     imageData?: string;
+    sources?: import("@/lib/study/practice").PracticeSource[];
   }>;
 }
 export type SourceKind = "topic" | "syllabus" | "youtube" | "upload";

@@ -24,9 +24,13 @@ jobs:
       - run: npm run test:growth
       - run: npm run test:payment-status
       - run: npm run test:seo
+      - run: npm run test:publication-index
       - run: npm run test:student-studio
+      - run: npm run test:chat-answer
       - run: npm run test:presentation-preview
       - run: npm run test:presentation-engine
+      - run: npm run test:presentation-research
+      - run: npm run test:learning-studio
       - run: npm run test:writer-platform
       - run: npm run test:writer-editor-reliability
       - run: npm run test:writer-service-errors
@@ -50,6 +54,7 @@ jobs:
           NEXT_DIST_DIR: .next-validation
           NEXT_PUBLIC_APP_URL: https://www.syaahii.in
       - run: npm run test:student-studio-browser
+      - run: npm run test:learning-studio-browser
       - run: npm run test:growth-browser
       - run: npm run test:presentation-workspace-browser
       - run: npm run test:payment-pages

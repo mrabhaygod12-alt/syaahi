@@ -67,6 +67,272 @@ async function run(backend: string) {
     () => social.followWriter(author.id, profile.slug, true),
     /own/,
   );
+  const legacy = await register(
+    "Legacy reviewed author",
+    `${backend}-legacy@example.test`,
+    "safe-social-password",
+  );
+  const legacyDraft = await saveStory(legacy.id, {
+    title: "A legacy article with readable structure",
+    summary: "Headings and source references stay readable.",
+    body: "# Read the evidence\n\nA **careful reader** checks [the original source](https://example.test/source) before repeating a claim.\n\n## Compare sources\n- Keep a citation\n- Verify the method\n\n1. Read\n2. Compare\n\n<script>alert('unsafe')</script>\n\n[Unsafe link](javascript:alert)\n\n```\nconst example = '<img onerror=alert(1)>';\n```",
+    tags: ["research"],
+    authorName: legacy.name,
+    submit: true,
+  });
+  const { writerProfile, writerAccess } =
+      await import("../lib/writing/profile"),
+    { publicAuthorIdentity } = await import("../lib/writing/author-identity"),
+    { publicCreator } = await import("../lib/writing/public-profile"),
+    { readerDocumentText } = await import("../lib/writing/reader-document"),
+    { writerConnections } = await import("../lib/writing/connections");
+  assert.equal(
+    await publicAuthorIdentity(legacyDraft.creatorSlug),
+    null,
+    "Submission alone does not expose an author identity",
+  );
+  await assert.rejects(
+    () => social.followWriter(reader.id, legacyDraft.creatorSlug, true),
+    /unavailable/,
+  );
+  const legacyArticle = await reviewStory(
+    legacyDraft.id,
+    "publish",
+    "Reviewed fixture",
+    author.id,
+  );
+  const identity = await publicAuthorIdentity(legacyArticle.creatorSlug);
+  assert.equal(identity!.owner, legacy.id);
+  const publicProfile = await publicCreator(legacyArticle.creatorSlug);
+  assert.equal(publicProfile!.name, legacy.name);
+  assert(!JSON.stringify(publicProfile).includes(legacy.id));
+  assert(!JSON.stringify(publicProfile).includes(legacy.email));
+  assert.equal(
+    await writerProfile(legacy.id),
+    null,
+    "Reading/following never creates enrollment",
+  );
+  assert.equal((await writerAccess(legacy.id))!.status, 403);
+  await social.followWriter(author.id, legacyArticle.creatorSlug, true);
+  await social.followWriter(author.id, legacyArticle.creatorSlug, true);
+  assert.equal(
+    (await social.followStatus(legacyArticle.creatorSlug, author.id)).followers,
+    1,
+  );
+  assert.equal(
+    (await social.followStatus(legacyArticle.creatorSlug, reader.id)).following,
+    false,
+  );
+  await assert.rejects(
+    () => social.followWriter(legacy.id, legacyArticle.creatorSlug, true),
+    /own/,
+  );
+  const followed = await writerConnections(
+    author.id,
+    "following",
+    "",
+    author.id,
+  );
+  assert(followed.writers.some((w) => w.slug === legacyArticle.creatorSlug));
+  assert(!JSON.stringify(followed).includes(legacy.id));
+  const visibleText = readerDocumentText(undefined, legacyArticle.body);
+  assert(
+    visibleText.includes(
+      "A careful reader checks the original source before repeating a claim.",
+    ),
+  );
+  await social.readerAction(reader.id, legacyArticle.slug!, {
+    action: "highlight",
+    quote: "careful reader checks the original source",
+    note: "Only mine",
+  });
+  assert.equal(
+    (await social.readerState(reader.id, legacyArticle.slug!))!.highlights
+      .length,
+    1,
+  );
+  await assert.rejects(
+    () =>
+      social.readerAction(reader.id, legacyArticle.slug!, {
+        action: "highlight",
+        quote: "https://example.test/source",
+      }),
+    /passage/,
+    "Hidden Markdown link targets are not selectable prose",
+  );
+  const { renderToStaticMarkup } = await import("react-dom/server"),
+    { createElement } = await import("react"),
+    { default: StoryDocument } = await import("../components/StoryDocument");
+  const html = renderToStaticMarkup(
+    createElement(StoryDocument, { fallback: legacyArticle.body }),
+  );
+  assert.match(html, /<h2[^>]*>Read the evidence<\/h2>/);
+  assert.match(html, /<ul>/);
+  assert.match(html, /<ol start="1">/);
+  assert.match(html, /<strong>careful reader<\/strong>/);
+  assert.match(html, /href="https:\/\/example.test\/source"/);
+  assert.doesNotMatch(html, /<script|href="javascript:|<img onerror=/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /<pre><code>/);
+  const followApi = await import("../app/api/creators/[slug]/follow/route"),
+    creatorApi = await import("../app/api/creators/[slug]/route");
+  const followContext = {
+    params: Promise.resolve({ slug: legacyArticle.creatorSlug }),
+  };
+  const creatorResponse = await creatorApi.GET(
+    new Request("http://localhost:3153/api/creators/x"),
+    followContext,
+  );
+  assert.equal(creatorResponse.status, 200);
+  assert(!JSON.stringify(await creatorResponse.json()).includes(legacy.id));
+  const authorCookie = (
+    await startSession(author, new Request("http://localhost:3153"))
+  ).headers
+    .get("set-cookie")!
+    .split(";")[0];
+  const followRequest = (body: unknown) =>
+    new NextRequest("http://localhost:3153/api/creators/x/follow", {
+      method: "POST",
+      headers: {
+        cookie: authorCookie,
+        origin: "http://localhost:3153",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  for (const body of [null, [], { active: "yes" }])
+    assert.equal(
+      (await followApi.POST(followRequest(body), followContext)).status,
+      400,
+    );
+  // A failed storage mutation is a retryable service error with a redacted
+  // support reference, not a misleading validation error or leaked DB message.
+  const { db } = await import("../lib/db"),
+    { mongo } = await import("../lib/storage/mongo");
+  const configuredUri = process.env.MONGODB_URI;
+  if (backend === "mongo") process.env.MONGODB_URI = "";
+  else
+    db().exec(
+      "ALTER TABLE workspace_records RENAME TO unavailable_workspace_records",
+    );
+  try {
+    const unavailable = await followApi.GET(
+      new NextRequest("http://localhost:3153/api/creators/x/follow"),
+      followContext,
+    );
+    assert.equal(
+      unavailable.status,
+      503,
+      "A read outage must not pretend that an approved writer does not exist",
+    );
+    const safe = await unavailable.json();
+    assert.match(safe.requestId, /^[a-f0-9-]{36}$/);
+    assert.doesNotMatch(
+      JSON.stringify(safe),
+      /MongoDB|workspace_records|no such table|Atlas/i,
+    );
+  } finally {
+    if (backend === "mongo") process.env.MONGODB_URI = configuredUri;
+    else
+      db().exec(
+        "ALTER TABLE unavailable_workspace_records RENAME TO workspace_records",
+      );
+  }
+  if (backend === "mongo")
+    await (
+      await mongo()
+    ).database.command({
+      collMod: "workspace_records",
+      validator: { _id: { $exists: false } },
+      validationLevel: "strict",
+    });
+  else
+    db().exec(
+      "CREATE TRIGGER reject_follow_update BEFORE UPDATE ON workspace_records BEGIN SELECT RAISE(ABORT,'PRIVATE_FOLLOW_STORAGE_FAILURE'); END",
+    );
+  try {
+    const unavailable = await followApi.POST(
+      followRequest({ active: false }),
+      followContext,
+    );
+    assert.equal(unavailable.status, 503);
+    const safe = await unavailable.json();
+    assert.match(safe.requestId, /^[a-f0-9-]{36}$/);
+    assert.doesNotMatch(
+      JSON.stringify(safe),
+      /PRIVATE_FOLLOW|validator|MongoServer|Sqlite/i,
+    );
+    assert.equal(
+      (await social.followStatus(legacyArticle.creatorSlug, author.id))
+        .following,
+      true,
+    );
+  } finally {
+    if (backend === "mongo")
+      await (
+        await mongo()
+      ).database.command({ collMod: "workspace_records", validator: {} });
+    else db().exec("DROP TRIGGER reject_follow_update");
+  }
+  assert.equal(
+    (await followApi.POST(followRequest({ active: false }), followContext))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await social.followStatus(legacyArticle.creatorSlug, author.id)).followers,
+    0,
+  );
+  const collision = await reviewStory(
+    (
+      await saveStory(foreign.id, {
+        title: "A separately reviewed writer with a conflicting old slug",
+        summary: "A synthetic migration conflict must fail closed.",
+        body: "An unrelated author owns this article. A slug conflict never transfers follow relationships or permissions. ".repeat(
+          3,
+        ),
+        tags: ["research"],
+        authorName: foreign.name,
+        submit: true,
+      })
+    ).id,
+    "publish",
+    "Reviewed synthetic conflict",
+    author.id,
+  );
+  await (
+    await import("../lib/writing/stories")
+  ).commitStoryChanges([
+    {
+      before: collision,
+      after: { ...collision, creatorSlug: legacyArticle.creatorSlug },
+    },
+  ]);
+  assert.equal(
+    await publicAuthorIdentity(legacyArticle.creatorSlug),
+    null,
+    "Two approved owners sharing a legacy slug must fail closed",
+  );
+  await assert.rejects(
+    () => social.followWriter(reader.id, legacyArticle.creatorSlug, true),
+    /unavailable/,
+  );
+  await removeStory(collision.id, author.id, "Remove synthetic collision");
+  assert.equal(
+    (await publicAuthorIdentity(legacyArticle.creatorSlug))!.owner,
+    legacy.id,
+  );
+  await removeStory(legacyArticle.id, author.id, "Removed fixture");
+  assert.equal(await publicAuthorIdentity(legacyArticle.creatorSlug), null);
+  assert.equal(
+    (
+      await followApi.GET(
+        new NextRequest("http://localhost:3153/api/creators/x/follow"),
+        followContext,
+      )
+    ).status,
+    404,
+  );
   const event = randomUUID();
   const response = await social.respond(
     reader.id,
@@ -164,7 +430,7 @@ async function run(backend: string) {
     /unavailable/,
   );
   console.log(
-    `PASS writer social ${backend}: replay-safe following/responses, owner moderation, private source-checked highlights, time-bounded reader stats, canonical persistence, cross-account API isolation and removed-story access.`,
+    `PASS writer social ${backend}: enrolled and reviewed legacy following without enrollment; idempotence/self and ambiguous-owner guards; typed 400/404 and redacted read/write 503 recovery; safe Markdown and rendered source highlights; account isolation, moderation and removed-story access.`,
   );
 }
 async function main() {

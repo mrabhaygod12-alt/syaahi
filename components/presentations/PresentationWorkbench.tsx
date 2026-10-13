@@ -1060,6 +1060,23 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                         styling can differ in PowerPoint; review the exported
                         file before sharing.
                       </p>
+                      <details
+                        className="studio-reading-notes"
+                        open={deck?.format === "detailed"}
+                      >
+                        <summary>
+                          {deck?.format === "detailed"
+                            ? "Reading notes"
+                            : "Presenter talk track"}
+                        </summary>
+                        <p>
+                          {slide.notes ||
+                            "Add notes in Properties to explain this slide."}
+                        </p>
+                        {slide.citations.length > 0 && (
+                          <small>{slide.citations.join(" · ")}</small>
+                        )}
+                      </details>
                     </>
                   ) : (
                     <p>Slides appear here as generation saves them.</p>
@@ -1575,7 +1592,9 @@ export default function PresentationWorkbench({ id }: { id?: string }) {
                     )}
                   </div>
                   <label>
-                    Speaker notes
+                    {deck?.format === "detailed"
+                      ? "Reading notes"
+                      : "Presenter talk track"}
                     <textarea
                       value={slide.notes}
                       maxLength={1800}

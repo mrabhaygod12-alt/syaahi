@@ -1,26 +1,20 @@
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { creatorStoriesWithPins } from "@/lib/writing/pins";
-import { publicWriterProfile } from "@/lib/writing/profile";
+import { publicAuthorIdentity } from "@/lib/writing/author-identity";
 
 async function handleGET(
   _req: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await context.params;
-  const { profile, stories, pinned } = await creatorStoriesWithPins(slug);
-  if (!stories.length && !profile)
+  const { stories, pinned } = await creatorStoriesWithPins(slug);
+  const identity = await publicAuthorIdentity(slug);
+  if (!identity)
     return NextResponse.json({ error: "Creator not found." }, { status: 404 });
-  const creator = stories[0];
   return NextResponse.json(
     {
-      creator: profile
-        ? publicWriterProfile(profile)
-        : {
-            name: creator.authorName,
-            slug: creator.creatorSlug,
-            joinedAt: stories.map((story) => story.publishedAt).sort()[0],
-          },
+      creator: identity.profile,
       stories: stories.map((story) => ({
         slug: story.slug,
         title: story.title,

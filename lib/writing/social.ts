@@ -7,9 +7,10 @@ import {
 } from "@/lib/workspace-records";
 import { collection, useMongo } from "@/lib/storage/mongo";
 import { db } from "@/lib/db";
-import { writerBySlug } from "./profile";
+import { publicAuthorIdentity } from "./author-identity";
 import { getPublicStory } from "./stories";
 import { connectionCounts } from "./connections";
+import { readerDocumentText } from "./reader-document";
 const id = (parts: string[]) =>
   createHash("sha256").update(parts.join(":")).digest("hex");
 interface Follow extends WorkspaceRecord {
@@ -19,29 +20,40 @@ interface Follow extends WorkspaceRecord {
   name: string;
   active: boolean;
 }
+export class FollowError extends Error {
+  constructor(
+    message: string,
+    public status = 400,
+  ) {
+    super(message);
+    this.name = "FollowError";
+  }
+}
 export async function followWriter(
   owner: string,
   slug: string,
   active: boolean,
 ) {
-  const writer = await writerBySlug(slug);
-  if (!writer) throw new Error("Writer unavailable.");
+  if (typeof active !== "boolean")
+    throw new FollowError("Choose follow or unfollow.");
+  const writer = await publicAuthorIdentity(slug);
+  if (!writer) throw new FollowError("Writer unavailable.", 404);
   if (writer.owner === owner)
-    throw new Error("You cannot follow your own profile.");
+    throw new FollowError("You cannot follow your own profile.");
   return mutateRecord<Follow>(`follow-${id([owner, writer.owner])}`, (old) => ({
     id: old?.id || `follow-${id([owner, writer.owner])}`,
     owner,
     kind: "writer-follow",
     creator: writer.owner,
-    slug: writer.slug,
-    name: writer.name,
+    slug: writer.profile.slug,
+    name: writer.profile.name,
     active,
     updatedAt: new Date().toISOString(),
   }));
 }
 export async function followStatus(slug: string, owner?: string) {
-  const writer = await writerBySlug(slug);
-  if (!writer) throw new Error("Writer unavailable.");
+  const writer = await publicAuthorIdentity(slug);
+  if (!writer) throw new FollowError("Writer unavailable.", 404);
   const counts = await connectionCounts(writer.owner);
   const own = owner
     ? await record<Follow>(`follow-${id([owner, writer.owner])}`)
@@ -239,7 +251,7 @@ export async function readerAction(
         quote.length < 3 ||
         quote.length > 600 ||
         note.length > 1000 ||
-        !story.body
+        !readerDocumentText(story.document, story.body)
           .normalize("NFKC")
           .replace(/\s+/g, " ")
           .includes(quote.normalize("NFKC").replace(/\s+/g, " "))

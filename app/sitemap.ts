@@ -4,7 +4,7 @@ import { SUBJECTS } from "@/lib/study/subjects";
 import { BLOG_POSTS } from "@/lib/blog-data";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { publicGuides } from "@/lib/writing/public";
+import { allPublicationIndex } from "@/lib/writing/public-index";
 export const dynamic = "force-dynamic";
 
 const STATIC = [
@@ -51,8 +51,6 @@ const STATIC = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let slugs: string[] = [];
-  let creatorSlugs: string[] = [];
-  let guideSlugs: string[] = [];
   try {
     const raw = await readFile(
       join(process.cwd(), "data", "library.json"),
@@ -62,35 +60,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     /* unseeded */
   }
-  try {
-    const published = await publicGuides();
-    creatorSlugs = [
-      ...new Set(published.map((story) => story.creatorSlug).filter(Boolean)),
-    ];
-    guideSlugs = published
-      .filter(
-        (story) =>
-          !story.canonicalUrl ||
-          new URL(story.canonicalUrl).origin === SITE.url,
-      )
-      .map((story) => story.slug)
-      .filter((slug): slug is string => !!slug);
-  } catch {
-    /* publishing storage can be temporarily unavailable during a build */
-  }
+  // Discovery is independent of the 48 recent, full-body feed. If publishing
+  // storage is unavailable, fail visibly instead of serving a misleadingly
+  // successful sitemap that silently drops every writer article.
+  const published = await allPublicationIndex();
+  const creatorSlugs = [
+    ...new Set(published.map((story) => story.creatorSlug)),
+  ];
   const urls = [
     ...STATIC.map((p) => ({
       url: `${SITE.url}${p || "/"}`,
     })),
     ...SUBJECTS.map((s) => ({ url: `${SITE.url}/subjects/${s.slug}` })),
-    ...BLOG_POSTS.map((post) => ({ url: `${SITE.url}/blog/${post.slug}` })),
+    ...BLOG_POSTS.map((post) => ({
+      url: `${SITE.url}/blog/${post.slug}`,
+      lastModified: post.date,
+    })),
     ...slugs.map((s) => ({
       url: `${SITE.url}/library/${s}`,
     })),
     ...creatorSlugs.map((slug) => ({
       url: `${SITE.url}/creators/${slug}`,
     })),
-    ...guideSlugs.map((slug) => ({ url: `${SITE.url}/guides/${slug}` })),
+    ...published.map((story) => ({
+      url: `${SITE.url}/guides/${story.slug}`,
+      ...(story.updatedAt ? { lastModified: story.updatedAt } : {}),
+    })),
   ];
-  return urls;
+  const unique = [...new Map(urls.map((entry) => [entry.url, entry])).values()];
+  if (unique.length > 50000)
+    throw new Error("Sitemap exceeds 50,000 URLs; split sitemap files.");
+  return unique;
 }

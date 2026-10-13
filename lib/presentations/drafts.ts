@@ -15,6 +15,7 @@ import {
   type Storyboard,
 } from "./archetypes";
 import { researchLink, publicResearchUrl } from "./research";
+import { sourceContext } from "./source-context";
 export interface DeckSource {
   id: string;
   name: string;
@@ -42,6 +43,7 @@ export async function ownedSources(
   owner: string,
   input: any[],
   budget = 18000,
+  focus = "",
 ): Promise<DeckSource[]> {
   if (
     process.env.DATA_BACKEND !== "mongo" &&
@@ -127,7 +129,8 @@ export async function ownedSources(
             : `text-${sources.length + 1}`,
         name: String(ref.name || "Supplied reference text").slice(0, 100),
         kind: "text",
-        text: ref.text.slice(0, budget),
+        text: ref.text.slice(0, 250000),
+        truncated: ref.text.length > 250000,
       };
     } else throw new Error("Choose an owned source or supply text.");
     if (sources.some((s) => s.id === source.id)) continue;
@@ -135,11 +138,9 @@ export async function ownedSources(
       remaining,
       Math.floor(budget / Math.max(1, input.length)),
     );
-    source = {
-      ...source,
-      truncated: source.truncated || source.text.length > limit,
-      text: source.text.slice(0, limit),
-    };
+    // Rank across the full owned extraction before creating the bounded snapshot.
+    // Prefix clipping here used to discard relevant later pages permanently.
+    source = sourceContext([source], focus.slice(0, 3000), limit)[0];
     remaining -= source.text.length;
     if (source.text.trim()) sources.push(source);
   }

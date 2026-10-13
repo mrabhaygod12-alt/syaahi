@@ -1923,6 +1923,25 @@ body:has(.ws-gate) footer {
   font-size: 13px;
   width: 100%;
 }
+.ws-md-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+[data-theme="dark"] .ws-top .ws-crumb,
+[data-theme="dark"] .ws-top .ws-crumb a {
+  color: var(--ink);
+}
+[data-theme="dark"] .ws-top .ws-balance-badge { color: var(--muted); }
+.ws-md-pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  font: 13px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre;
+}
 .ws-md-table th,
 .ws-md-table td {
   border: 1px solid var(--line);

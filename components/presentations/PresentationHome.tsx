@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   Link2,
@@ -18,6 +18,7 @@ import { archetypeExample, ARCHETYPES } from "@/lib/presentations/archetypes";
 import type { DeckSlide, DeckTemplate } from "@/lib/presentations/model";
 import type { DeckSource } from "@/lib/presentations/drafts";
 import type { Deck } from "@/lib/presentations/store";
+import type { ResearchSource } from "@/lib/research";
 import SlideCanvas from "./SlideCanvas";
 import dynamic from "next/dynamic";
 const LegacyWorkbench = dynamic(() => import("./PresentationWorkbench"));
@@ -101,6 +102,43 @@ export default function PresentationHome({
     }),
     [search, setSearch] = useState(""),
     [category, setCategory] = useState("All");
+  const [researchQuery, setResearchQuery] = useState(""),
+    [researchResults, setResearchResults] = useState<ResearchSource[]>([]),
+    [researched, setResearched] = useState(false);
+  const researchRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setResearchResults([]);
+    setResearched(false);
+    return () => researchRequest.current?.abort();
+  }, [user?.id]);
+  async function findSources() {
+    researchRequest.current?.abort();
+    const controller = new AbortController();
+    researchRequest.current = controller;
+    setBusy("research");
+    setError("");
+    setResearchResults([]);
+    setResearched(false);
+    try {
+      const { response, data } = await requestJson(
+        "/api/presentations/research",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: researchQuery }),
+          signal: controller.signal,
+        },
+      );
+      if (controller.signal.aborted) return;
+      if (!response.ok) throw new Error(data.error);
+      setResearchResults(data.sources || []);
+      setResearched(true);
+    } catch (e) {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      if (!controller.signal.aborted) setBusy("");
+    }
+  }
   useEffect(() => {
     let cancelled = false;
     setDecks([]);
@@ -166,6 +204,7 @@ export default function PresentationHome({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             designEngine: 2,
+            focus: prompt,
             sources: [
               {
                 ...ref,
@@ -438,6 +477,64 @@ export default function PresentationHome({
                 </p>
               </div>
               <div className="pw-source-inputs">
+                <div className="pw-research-discovery">
+                  <label>
+                    Find supporting sources
+                    <input
+                      type="search"
+                      value={researchQuery}
+                      maxLength={160}
+                      placeholder="e.g. database normalization anomalies"
+                      onChange={(e) => setResearchQuery(e.target.value)}
+                    />
+                  </label>
+                  <button
+                    className="pw-button"
+                    disabled={
+                      !!busy || !user || researchQuery.trim().length < 4
+                    }
+                    onClick={() => void findSources()}
+                  >
+                    {busy === "research" ? "Finding sources…" : "Find sources"}
+                  </button>
+                  <p>
+                    Wikipedia discovery. Review originals before adding them to
+                    your presentation.
+                  </p>
+                  {researched && !researchResults.length && (
+                    <p role="status">
+                      No sources returned. Refine the question or import a
+                      public article URL below.
+                    </p>
+                  )}
+                  {researchResults.map((result) => {
+                    const added = sources.some((s) => s.locator === result.url);
+                    return (
+                      <article className="pw-research-result" key={result.url}>
+                        <a
+                          href={result.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {result.title}
+                        </a>
+                        <p>
+                          {result.excerpt.slice(0, 260)}
+                          {result.excerpt.length > 260 ? "…" : ""}
+                        </p>
+                        <button
+                          className="pw-button"
+                          disabled={!!busy || added || sources.length >= 6}
+                          onClick={() =>
+                            void addSource({ kind: "web", url: result.url })
+                          }
+                        >
+                          {added ? "Added to sources" : "Import this source"}
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
                 <label>
                   Public article URL
                   <input

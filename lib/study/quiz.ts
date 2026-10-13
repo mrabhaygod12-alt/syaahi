@@ -8,7 +8,32 @@ export type Question = {
   explanation?: string;
   hint?: string;
   topic?: string;
+  sources?: import("./practice").PracticeSource[];
 };
+export interface QuizAttempt {
+  id: string;
+  mode: "practice" | "exam";
+  version: string;
+  /** Older full-quiz attempts omit this field. */
+  questionIds?: string[];
+  scope?: "all" | "missed";
+  cursor?: string;
+  answers: Record<string, string>;
+  submitted: boolean;
+  correct: number;
+  total: number;
+  weak: string[];
+  at: string;
+}
+export function attemptQuestionIds(
+  attempt: QuizAttempt,
+  questions: Question[],
+) {
+  const ids = questions.map(questionId);
+  return attempt.questionIds
+    ? ids.filter((id) => attempt.questionIds!.includes(id))
+    : ids;
+}
 /** Scoring content, including accepted variants, determines identity. */
 export function questionId(q: Question, _index?: number) {
   let hash = 2166136261,

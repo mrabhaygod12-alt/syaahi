@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { BLOG_POSTS, getPostBySlug } from "@/lib/blog-data";
 import { pageMeta, jsonLd, SITE } from "@/lib/seo";
 import BlogStudyCta from "@/components/growth/BlogStudyCta";
@@ -13,16 +14,22 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = getPostBySlug(slug);
-  if (!post) return {};
+  if (!post) return { robots: { index: false, follow: false } };
 
-  return pageMeta({
-    title: post.title,
-    description: post.excerpt,
-    path: `/blog/${post.slug}`,
-  });
+  return {
+    ...pageMeta({
+      title: post.title,
+      description: post.excerpt,
+      path: `/blog/${post.slug}`,
+      article: { author: post.author, publishedAt: post.date },
+    }),
+    robots: { index: true, follow: true },
+  };
 }
 
 export default async function BlogPostPage({ params }: PageProps) {

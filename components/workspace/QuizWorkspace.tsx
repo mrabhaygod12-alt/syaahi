@@ -1,53 +1,95 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  CheckCircle2,
+  BookOpen,
+  ListChecks,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
 import { useLesson } from "./LessonProvider";
 import { requestJson } from "@/lib/http-client";
-import { questionId, answerCorrect, quizVersion } from "@/lib/study/quiz";
-interface Attempt {
-  id: string;
-  mode: "practice" | "exam";
-  version: string;
-  answers: Record<string, string>;
-  submitted: boolean;
-  correct: number;
-  total: number;
-}
+import {
+  questionId,
+  answerCorrect,
+  quizVersion,
+  attemptQuestionIds,
+  type QuizAttempt,
+} from "@/lib/study/quiz";
+import { practiceSettings } from "@/lib/study/practice";
+import PracticeSources from "./PracticeSources";
+import "./learning-studio.css";
+
 export default function QuizWorkspace() {
   const { job, refresh } = useLesson();
   const quiz = job?.practice?.quiz || [];
-  const [attempt, setAttempt] = useState<Attempt | null>(null),
-    [mode, setMode] = useState("practice"),
-    [index, setIndex] = useState(0),
-    [answer, setAnswer] = useState(""),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [format, setFormat] = useState("mixed"),
-    [difficulty, setDifficulty] = useState("standard");
-  const [showHint, setShowHint] = useState(false);
+  const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
+  const [mode, setMode] = useState("practice"),
+    [index, setIndex] = useState(0);
+  const [answer, setAnswer] = useState(""),
+    [busy, setBusy] = useState(false);
+  const [loadingAttempt, setLoadingAttempt] = useState(true),
+    [error, setError] = useState("");
+  const [settings, setSettings] = useState(() => practiceSettings({}, 1));
+  const [showHint, setShowHint] = useState(false),
+    [warning, setWarning] = useState("");
+  const version = quizVersion(quiz);
+  const active = attempt?.version === version ? attempt : null;
+  const selected = useMemo(
+    () =>
+      active
+        ? quiz.filter((q) =>
+            new Set(attemptQuestionIds(active, quiz)).has(questionId(q)),
+          )
+        : quiz,
+    [active, quiz],
+  );
+  const q = selected[Math.min(index, selected.length - 1)];
+  const key = q ? questionId(q) : "",
+    stored = active?.answers[key];
+  const revealed =
+    !!active && (active.submitted || (active.mode === "practice" && !!stored));
+
+  useEffect(() => {
+    setSettings(
+      job?.practice?.settings || practiceSettings({}, job?.pages.length || 1),
+    );
+  }, [job?.id, job?.practice?.settings]);
   useEffect(() => {
     if (!job) return;
     let alive = true;
+    setLoadingAttempt(true);
+    setAttempt(null);
+    setError("");
     void requestJson(`/api/student/quiz?lesson=${job.id}`)
       .then(({ response, data }) => {
-        if (alive && response.ok) setAttempt(data.attempt);
+        if (!response.ok)
+          throw new Error(data.error || "Could not load your saved attempt.");
+        if (!alive) return;
+        const saved = data.attempt as QuizAttempt | null;
+        setAttempt(saved);
+        if (saved?.version === version) {
+          setMode(saved.mode);
+          const ids = attemptQuestionIds(saved, quiz);
+          const cursor = saved.cursor ? ids.indexOf(saved.cursor) : -1;
+          const unanswered = ids.findIndex((id) => !saved.answers[id]);
+          setIndex(cursor >= 0 ? cursor : Math.max(0, unanswered));
+        } else setIndex(0);
       })
-      .catch((e) => alive && setError(e.message));
+      .catch((e) => alive && setError(e.message))
+      .finally(() => alive && setLoadingAttempt(false));
     return () => {
       alive = false;
     };
-  }, [job?.id]);
-  const q = quiz[index],
-    key = q ? questionId(q, index) : "",
-    stored = attempt?.answers[key],
-    revealed =
-      !!attempt &&
-      (attempt.submitted || (attempt.mode === "practice" && !!stored));
+  }, [job?.id, version]);
   useEffect(() => {
     setAnswer(stored || "");
     setShowHint(false);
   }, [key, stored]);
+
   async function act(action: string, extra: Record<string, unknown> = {}) {
-    if (!job) return;
+    if (!job || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -57,31 +99,35 @@ export default function QuizWorkspace() {
         body: JSON.stringify({
           lesson: job.id,
           action,
-          attempt: attempt?.id,
+          attempt: active?.id,
           ...extra,
         }),
       });
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok)
+        throw new Error(data.error || "Could not save your attempt.");
       setAttempt(data.attempt);
+      if (action === "start") setIndex(0);
+      if (action === "position") setIndex(Number(extra.index));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");
     } finally {
       setBusy(false);
     }
   }
+  function go(next: number) {
+    const target = selected[next];
+    if (!target || busy) return;
+    void act("position", { question: questionId(target), index: next });
+  }
   async function build() {
-    if (!job) return;
-    if (
-      quiz.length &&
-      attempt &&
-      !attempt.submitted &&
-      attempt.version === quizVersion(quiz)
-    ) {
+    if (!job || busy) return;
+    if (active && !active.submitted) {
       setError("Submit your current attempt before rebuilding practice.");
       return;
     }
     setBusy(true);
     setError("");
+    setWarning("");
     try {
       const { response, data } = await requestJson(
         "/api/practice",
@@ -90,314 +136,449 @@ export default function QuizWorkspace() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             jobId: job.id,
-            format,
-            difficulty,
+            ...settings,
             regenerate: quiz.length > 0,
-            size: Math.min(30, Math.max(8, job.pages.length * 3)),
-            language: job.language,
-            pages: job.pages.map((p) => ({
-              topic: p.topic,
-              markdown: p.markdown,
-            })),
           }),
         },
         90000,
       );
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok)
+        throw new Error(data.error || "Could not generate practice.");
+      setWarning(data.warning || "");
       await refresh();
       setAttempt(null);
       setIndex(0);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : "Could not generate practice.");
     } finally {
       setBusy(false);
     }
   }
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.matches("input,textarea,select,button"))
+      if (
+        (e.target as HTMLElement)?.closest("input,textarea,select,button,a") ||
+        busy ||
+        !active
+      )
         return;
-      if (e.key === "ArrowRight") {
+      if (e.key === "ArrowRight" && index < selected.length - 1) {
         e.preventDefault();
-        setIndex((i) => Math.min(quiz.length - 1, i + 1));
+        go(index + 1);
       }
-      if (e.key === "ArrowLeft") {
+      if (e.key === "ArrowLeft" && index > 0) {
         e.preventDefault();
-        setIndex((i) => Math.max(0, i - 1));
+        go(index - 1);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [quiz.length]);
+  }, [index, selected, busy, active]);
   if (!job) return null;
+  const owner = job.accessRole !== "viewer" && job.accessRole !== "editor";
+  const answered = selected.filter(
+    (q) => active?.answers[questionId(q)],
+  ).length;
+  const missed = active?.submitted
+    ? selected.filter(
+        (q) => !answerCorrect(q, active.answers[questionId(q)] || ""),
+      )
+    : [];
+  const settingsForm = (
+    <fieldset
+      className="practice-settings"
+      disabled={busy || !owner || (!!active && !active.submitted)}
+    >
+      <legend>Shape your practice</legend>
+      <label>
+        Question style
+        <select
+          value={settings.format}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              format: e.target.value as typeof s.format,
+            }))
+          }
+        >
+          <option value="mixed">Mixed</option>
+          <option value="mcq">Multiple choice</option>
+          <option value="blank">Fill the blank</option>
+          <option value="short">Typed answer</option>
+        </select>
+      </label>
+      <label>
+        Difficulty
+        <select
+          value={settings.difficulty}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              difficulty: e.target.value as typeof s.difficulty,
+            }))
+          }
+        >
+          <option value="foundation">Foundation</option>
+          <option value="standard">Standard</option>
+          <option value="challenge">Challenge</option>
+        </select>
+      </label>
+      <label>
+        Questions
+        <select
+          value={settings.size}
+          onChange={(e) =>
+            setSettings((s) => ({ ...s, size: Number(e.target.value) }))
+          }
+        >
+          {[5, 8, 10, 15, 20, 25, 30].includes(settings.size) ? null : (
+            <option value={settings.size}>{settings.size}</option>
+          )}
+          {[5, 8, 10, 15, 20, 25, 30].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Flashcards
+        <select
+          value={settings.cardCount}
+          onChange={(e) =>
+            setSettings((s) => ({ ...s, cardCount: Number(e.target.value) }))
+          }
+        >
+          {[6, 9, 12, 18, 24, 30, 36].includes(settings.cardCount) ? null : (
+            <option value={settings.cardCount}>{settings.cardCount}</option>
+          )}
+          {[6, 9, 12, 18, 24, 30, 36].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="practice-focus">
+        Focus on a concept (optional)
+        <input
+          maxLength={160}
+          value={settings.focus}
+          onChange={(e) =>
+            setSettings((s) => ({ ...s, focus: e.target.value }))
+          }
+          placeholder="For example, database normalization"
+        />
+      </label>
+    </fieldset>
+  );
   return (
-    <section className="quiz-room">
-      <div className="quiz-card">
-        <p className="eyebrow">RECALL WITH INTENTION</p>
-        <h1>
-          {attempt?.mode === "exam" ? "Exam practice" : "Practice this lesson"}
-        </h1>
-        <p>
-          Practice locks your first answer before showing feedback. Exam
-          practice allows changes and hides feedback until submission. Saved
-          attempts resume across devices.
-        </p>
-        {error && (
-          <p className="inline-error" role="alert">
-            {error}
+    <section className="practice-studio quiz-room">
+      <header className="learning-studio-heading">
+        <div>
+          <p className="eyebrow">YOUR PRACTICE STUDIO</p>
+          <h1>
+            {active?.mode === "exam" ? "Exam practice" : "Practice this lesson"}
+          </h1>
+          <p>
+            Turn your saved notes into questions you can reason through. Return
+            to a supporting section whenever you need it.
           </p>
-        )}
-        {!quiz.length ? (
-          <>
-            <label>
-              Question style
-              <select
-                value={format}
-                onChange={(e) => setFormat(e.target.value)}
-              >
-                <option value="mixed">Mixed</option>
-                <option value="mcq">Multiple choice</option>
-                <option value="short">Typed answer</option>
-              </select>
-            </label>
-            <label>
-              Difficulty
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-              >
-                <option value="foundation">Foundation</option>
-                <option value="standard">Standard</option>
-                <option value="challenge">Challenge</option>
-              </select>
-            </label>
-            <button
-              className="btn dark"
-              disabled={busy}
-              onClick={() => void build()}
+        </div>
+        <Link className="btn light" href={`/lesson/${job.id}/learn`}>
+          <BookOpen size={16} aria-hidden="true" /> Guided lesson
+        </Link>
+      </header>
+      {error && (
+        <p className="inline-error" role="alert">
+          {error}
+        </p>
+      )}
+      {warning && (
+        <p className="source-notice" role="status">
+          {warning}
+        </p>
+      )}
+      <div className="practice-studio-grid">
+        <aside className="practice-sidebar">
+          <div className="practice-mode-note">
+            <ListChecks size={20} aria-hidden="true" />
+            <h2>One concept at a time</h2>
+            <p>
+              Practice locks your first answer before showing feedback. Exam
+              practice lets you change answers and reveals feedback after
+              submission.
+            </p>
+            <small>
+              Answers and your place are saved to your account across devices.
+            </small>
+          </div>
+          {active && selected.length > 0 && (
+            <nav
+              className="practice-question-map"
+              aria-label="Question navigation"
             >
-              Generate practice
-            </button>
-          </>
-        ) : !attempt || attempt.version !== quizVersion(quiz) ? (
-          <>
-            <label>
-              Mode
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="practice">Practice with feedback</option>
-                <option value="exam">Exam practice, delayed feedback</option>
-              </select>
-            </label>
-            <button
-              className="btn dark"
-              disabled={busy}
-              onClick={() => void act("start", { mode })}
-            >
-              Start saved attempt
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="quiz-progress">
-              <progress
-                value={Object.keys(attempt.answers).length}
-                max={quiz.length}
-                aria-label="Saved answers"
-              />
-              <span>
-                {Object.keys(attempt.answers).length}/{quiz.length} answered
-              </span>
-            </div>
-            <div className="quiz-card-top">
-              <label>
-                Question
-                <select
-                  value={index}
-                  onChange={(e) => setIndex(Number(e.target.value))}
+              {selected.map((q, i) => (
+                <button
+                  key={questionId(q)}
+                  disabled={busy}
+                  onClick={() => go(i)}
+                  aria-current={i === index ? "step" : undefined}
+                  className={active.answers[questionId(q)] ? "answered" : ""}
+                  aria-label={`Question ${i + 1}${active.answers[questionId(q)] ? ", answered" : ""}`}
                 >
-                  {quiz.map((q, i) => (
-                    <option key={questionId(q, i)} value={i}>
-                      {i + 1}
-                      {attempt.answers[questionId(q, i)] ? " · answered" : ""}
-                    </option>
-                  ))}
+                  {i + 1}
+                </button>
+              ))}
+            </nav>
+          )}
+          <Link
+            className="practice-source-link"
+            href={`/lesson/${job.id}/source`}
+          >
+            Review lesson sources
+          </Link>
+        </aside>
+        <div className="quiz-card practice-main-card">
+          {loadingAttempt ? (
+            <p role="status">Loading your saved attempt…</p>
+          ) : !quiz.length ? (
+            <>
+              {settingsForm}
+              <button
+                className="btn dark"
+                disabled={busy || !owner || !job.pages.length}
+                onClick={() => void build()}
+              >
+                <Sparkles size={16} aria-hidden="true" />{" "}
+                {busy ? "Building practice…" : "Generate practice"}
+              </button>
+              {!owner && <p>Ask the lesson owner to generate practice.</p>}
+            </>
+          ) : !active ? (
+            <>
+              <p className="eyebrow">{quiz.length} SAVED QUESTIONS</p>
+              <h2>Choose how you want to practise</h2>
+              <label>
+                Mode
+                <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                  <option value="practice">Practice with feedback</option>
+                  <option value="exam">Exam practice, delayed feedback</option>
                 </select>
               </label>
-              <span className="quiz-chip">{attempt.mode}</span>
-            </div>
-            <h2>{q.q}</h2>
-            {attempt.mode === "practice" && !revealed && q.hint && (
-              <div>
-                <button
-                  className="btn light"
-                  onClick={() => setShowHint((h) => !h)}
-                  aria-expanded={showHint}
-                >
-                  Show a hint
-                </button>
-                {showHint && <p role="status">{q.hint}</p>}
+              <button
+                className="btn dark"
+                disabled={busy}
+                onClick={() => void act("start", { mode })}
+              >
+                Start saved attempt
+              </button>
+            </>
+          ) : q ? (
+            <>
+              <div className="quiz-progress">
+                <progress
+                  value={answered}
+                  max={selected.length}
+                  aria-label="Saved answers"
+                />
+                <span>
+                  {answered}/{selected.length} answered
+                </span>
               </div>
-            )}
-            {q.type === "mcq" && q.options?.length ? (
-              <div className="quiz-options">
-                {q.options.map((o, i) => (
+              <div className="quiz-card-top">
+                <span className="eyebrow">
+                  QUESTION {index + 1} OF {selected.length}
+                </span>
+                <span className="quiz-chip">
+                  {active.scope === "missed" ? "Missed concepts" : active.mode}
+                </span>
+              </div>
+              {q.topic && <p className="practice-topic">{q.topic}</p>}
+              <h2>{q.q}</h2>
+              {active.mode === "practice" && !revealed && q.hint && (
+                <div className="practice-hint">
                   <button
-                    key={o}
-                    aria-pressed={answer === o}
-                    className={`quiz-opt ${answer === o ? "selected" : ""}`}
+                    className="btn light"
+                    onClick={() => setShowHint((h) => !h)}
+                    aria-expanded={showHint}
+                  >
+                    {showHint ? "Hide hint" : "Show a hint"}
+                  </button>
+                  {showHint && <p role="status">{q.hint}</p>}
+                </div>
+              )}
+              {q.type === "mcq" && q.options?.length ? (
+                <div className="quiz-options">
+                  {q.options.map((o, i) => (
+                    <button
+                      key={o}
+                      aria-pressed={answer === o}
+                      className={`quiz-opt ${answer === o ? "selected" : ""}`}
+                      disabled={
+                        busy ||
+                        active.submitted ||
+                        (active.mode === "practice" && !!stored)
+                      }
+                      onClick={() => setAnswer(o)}
+                    >
+                      <b>{String.fromCharCode(65 + i)}</b>
+                      <span>{o}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <label>
+                  Your answer
+                  <textarea
+                    value={answer}
+                    rows={3}
+                    maxLength={2000}
                     disabled={
                       busy ||
-                      attempt.submitted ||
-                      (attempt.mode === "practice" && !!stored)
+                      active.submitted ||
+                      (active.mode === "practice" && !!stored)
                     }
-                    onClick={() => setAnswer(o)}
-                  >
-                    <b>{String.fromCharCode(65 + i)}</b>
-                    <span>{o}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <label>
-                Your answer
-                <textarea
-                  value={answer}
-                  rows={3}
-                  maxLength={2000}
-                  disabled={
-                    busy ||
-                    attempt.submitted ||
-                    (attempt.mode === "practice" && !!stored)
-                  }
-                  onChange={(e) => setAnswer(e.target.value)}
-                />
-              </label>
-            )}
-            {!attempt.submitted && !(attempt.mode === "practice" && stored) && (
-              <button
-                className="btn dark"
-                disabled={busy || !answer.trim()}
-                onClick={() => void act("answer", { question: key, answer })}
-              >
-                {busy ? "Saving…" : "Save answer"}
-              </button>
-            )}
-            {revealed && (
-              <div className="card" role="status">
-                <strong>
-                  {answerCorrect(q, stored || "")
-                    ? "Correct"
-                    : "Review this concept"}
-                </strong>
-                <p>Expected answer: {q.answer}</p>
-                <p>
-                  {q.explanation ||
-                    "Typed answers accept differences in case, spacing and trailing punctuation, plus saved accepted variants. Broader paraphrases require human review."}
-                </p>
-              </div>
-            )}
-            <div className="quiz-nav">
-              <button
-                className="btn light"
-                disabled={index === 0}
-                onClick={() => setIndex((i) => i - 1)}
-              >
-                Previous
-              </button>
-              <button
-                className="btn light"
-                disabled={index === quiz.length - 1}
-                onClick={() => setIndex((i) => i + 1)}
-              >
-                Next
-              </button>
-            </div>
-            {attempt.submitted ? (
-              <>
-                <h2>
-                  {attempt.correct}/{attempt.total} · saved practice result
-                </h2>
-                <label>
-                  Next attempt mode
-                  <select
-                    value={mode}
-                    onChange={(e) => setMode(e.target.value)}
-                  >
-                    <option value="practice">Practice with feedback</option>
-                    <option value="exam">
-                      Exam practice, delayed feedback
-                    </option>
-                  </select>
+                    onChange={(e) => setAnswer(e.target.value)}
+                  />
                 </label>
+              )}
+              {!active.submitted && !(active.mode === "practice" && stored) && (
+                <button
+                  className="btn dark"
+                  disabled={busy || !answer.trim()}
+                  onClick={() => void act("answer", { question: key, answer })}
+                >
+                  {busy ? "Saving…" : "Save answer"}
+                </button>
+              )}
+              {revealed && (
+                <div className="practice-feedback" role="status">
+                  <strong>
+                    <CheckCircle2 size={18} aria-hidden="true" />
+                    {answerCorrect(q, stored || "")
+                      ? "Correct"
+                      : "Review this concept"}
+                  </strong>
+                  <p>Expected answer: {q.answer}</p>
+                  <p>
+                    {q.explanation ||
+                      "Typed answers accept differences in case, spacing and trailing punctuation, plus saved accepted variants. Broader paraphrases require human review."}
+                  </p>
+                  <PracticeSources lesson={job.id} sources={q.sources} />
+                </div>
+              )}
+              <div className="quiz-nav">
                 <button
                   className="btn light"
-                  disabled={busy}
-                  onClick={() => void act("start", { mode })}
+                  disabled={busy || index === 0}
+                  onClick={() => go(index - 1)}
                 >
-                  Start another attempt
+                  Previous
                 </button>
-              </>
-            ) : (
+                <button
+                  className="btn light"
+                  disabled={busy || index === selected.length - 1}
+                  onClick={() => go(index + 1)}
+                >
+                  Next
+                </button>
+              </div>
+              {active.submitted ? (
+                <section className="practice-result">
+                  <p className="eyebrow">SAVED TO YOUR STUDY HISTORY</p>
+                  <h2>
+                    {active.correct}/{active.total} · saved practice result
+                  </h2>
+                  {missed.length > 0 ? (
+                    <>
+                      <p>
+                        Revisit {missed.length} missed{" "}
+                        {missed.length === 1 ? "concept" : "concepts"}, then try
+                        them in a fresh saved attempt.
+                      </p>
+                      <button
+                        className="btn dark"
+                        disabled={busy}
+                        onClick={() =>
+                          void act("start", {
+                            mode: "practice",
+                            scope: "missed",
+                          })
+                        }
+                      >
+                        <RotateCcw size={16} aria-hidden="true" /> Retry missed
+                        questions
+                      </button>
+                    </>
+                  ) : (
+                    <p>
+                      You recalled every concept in this attempt. Keep the ideas
+                      fresh with spaced flashcard review.
+                    </p>
+                  )}
+                  <label>
+                    Next attempt mode
+                    <select
+                      value={mode}
+                      onChange={(e) => setMode(e.target.value)}
+                    >
+                      <option value="practice">Practice with feedback</option>
+                      <option value="exam">
+                        Exam practice, delayed feedback
+                      </option>
+                    </select>
+                  </label>
+                  <button
+                    className="btn light"
+                    disabled={busy}
+                    onClick={() => void act("start", { mode, scope: "all" })}
+                  >
+                    Start another attempt
+                  </button>
+                  <Link
+                    className="btn light"
+                    href={`/lesson/${job.id}/flashcards`}
+                  >
+                    Review flashcards
+                  </Link>
+                </section>
+              ) : (
+                <button
+                  className="btn dark"
+                  disabled={busy || answered !== selected.length}
+                  onClick={() => void act("submit")}
+                >
+                  Submit and review
+                </button>
+              )}
+              <p className="small">
+                Arrow keys move between questions. These are study results, not
+                proctored grades.
+              </p>
+            </>
+          ) : null}
+          {quiz.length > 0 && owner && (
+            <details className="source-review">
+              <summary>Rebuild practice questions</summary>
+              <p className="small">
+                New questions replace this lesson’s current quiz and flashcards.
+                Submitted results stay in study history. Finish any active
+                attempt first.
+              </p>
+              {settingsForm}
               <button
-                className="btn dark"
+                className="btn light"
                 disabled={
-                  busy || Object.keys(attempt.answers).length !== quiz.length
+                  busy || loadingAttempt || (!!active && !active.submitted)
                 }
-                onClick={() => void act("submit")}
+                onClick={() => void build()}
               >
-                Submit and review
+                {busy ? "Working…" : "Rebuild quiz and flashcards"}
               </button>
-            )}
-            <p className="small">
-              Arrow keys move between questions. Answers and scores are saved by
-              the server; these are study results, not proctored grades.
-            </p>
-          </>
-        )}
-        {quiz.length > 0 && (
-          <details className="source-review">
-            <summary>Rebuild practice questions</summary>
-            <p className="small">
-              New questions replace this lesson’s current quiz and flashcards.
-              Submitted results remain in your study history. Finish any active
-              attempt first.
-            </p>
-            <label>
-              Question style
-              <select
-                value={format}
-                onChange={(e) => setFormat(e.target.value)}
-              >
-                <option value="mixed">Mixed</option>
-                <option value="mcq">Multiple choice</option>
-                <option value="short">Typed answer</option>
-              </select>
-            </label>
-            <label>
-              Difficulty
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-              >
-                <option value="foundation">Foundation</option>
-                <option value="standard">Standard</option>
-                <option value="challenge">Challenge</option>
-              </select>
-            </label>
-            <button
-              className="btn light"
-              disabled={
-                busy ||
-                (!!attempt &&
-                  !attempt.submitted &&
-                  attempt.version === quizVersion(quiz))
-              }
-              onClick={() => void build()}
-            >
-              {busy ? "Working…" : "Rebuild quiz and flashcards"}
-            </button>
-          </details>
-        )}
+            </details>
+          )}
+        </div>
       </div>
     </section>
   );

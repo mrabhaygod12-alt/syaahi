@@ -31,6 +31,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
         (await currentUser(req))!.id,
         b.sources,
         b.designEngine === 2 ? 48000 : 18000,
+        typeof b.focus === "string" ? b.focus.slice(0, 3000) : "",
       ),
     });
   } catch (e) {

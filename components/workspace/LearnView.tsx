@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLesson } from "./LessonProvider";
 import { lessonTitle } from "./types";
+import { requestJson } from "@/lib/http-client";
+import PracticeSources from "./PracticeSources";
+import "./learning-studio.css";
 type Unit = {
   objective: string;
   explanation: string;
@@ -20,6 +23,7 @@ export default function LearnView() {
   const { job, openTutor, closeChat } = useLesson();
   const [attempts, setAttempts] = useState(0);
   const [resumeIndex, setResumeIndex] = useState(0);
+  const [overviewReload, setOverviewReload] = useState(0);
   const [goal, setGoal] = useState(goals[0]),
     [version, setVersion] = useState(""),
     [completed, setCompleted] = useState<number[]>([]),
@@ -42,15 +46,25 @@ export default function LearnView() {
     if (!job) return;
     let active = true;
     setVersion("");
+    ++requestId.current;
+    closeChat();
+    setIndex(null);
+    setUnit(null);
+    setCompleted([]);
+    setResumeIndex(0);
+    setPhase(0);
+    setFeedback("");
+    setCorrect(false);
+    setAudio("");
+    setBusy(false);
     setError("");
-    fetch("/api/learn", {
+    requestJson("/api/learn", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lesson: job.id, goal, action: "overview" }),
     })
-      .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw Error(d.error);
+      .then(({ response, data: d }) => {
+        if (!response.ok) throw Error(d.error);
         if (active) {
           setVersion(d.version);
           setResumeIndex(d.progress.cursor || 0);
@@ -63,22 +77,25 @@ export default function LearnView() {
     return () => {
       active = false;
     };
-  }, [job?.id, job?.revision, goal]);
+  }, [job?.id, job?.revision, goal, overviewReload]);
   if (!job) return null;
   async function api(action: string, extra: object = {}) {
-    const r = await fetch("/api/learn", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lesson: job!.id,
-        goal,
-        version,
-        index,
-        action,
-        ...extra,
-      }),
-    });
-    const d = await r.json();
+    const { response: r, data: d } = await requestJson(
+      "/api/learn",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lesson: job!.id,
+          goal,
+          version,
+          index,
+          action,
+          ...extra,
+        }),
+      },
+      action === "unit" ? 90000 : 30000,
+    );
     if (!r.ok) throw Error(d.error || "Could not load lesson.");
     return d;
   }
@@ -102,42 +119,47 @@ export default function LearnView() {
         setCompleted(d.progress.completed);
       }
     } catch (e) {
-      setError((e as Error).message);
+      if (id === requestId.current) setError((e as Error).message);
     } finally {
       if (id === requestId.current) setBusy(false);
     }
   }
   async function movePhase(phase: number) {
+    const id = requestId.current;
     setBusy(true);
     setError("");
     try {
       await api("position", { phase });
+      if (id !== requestId.current) return;
       closeChat();
       setPhase(phase);
       setAudio("");
     } catch (e) {
-      setError((e as Error).message);
+      if (id === requestId.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (id === requestId.current) setBusy(false);
     }
   }
   async function answer(n: number) {
+    const id = requestId.current;
     setBusy(true);
     setError("");
     try {
       const d = await api("answer", { answer: n });
+      if (id !== requestId.current) return;
       setFeedback(d.feedback);
       setCorrect(d.correct);
       setAttempts(d.progress.attempts?.[index!] || 1);
       setCompleted(d.progress.completed);
     } catch (e) {
-      setError((e as Error).message);
+      if (id === requestId.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (id === requestId.current) setBusy(false);
     }
   }
   async function listen() {
     if (!unit) return;
+    const id = requestId.current;
     setBusy(true);
     setError("");
     try {
@@ -154,24 +176,46 @@ export default function LearnView() {
         const d = await r.json();
         throw Error(d.error || "Audio unavailable");
       }
-      setAudio(URL.createObjectURL(await r.blob()));
+      const blob = await r.blob();
+      if (id === requestId.current) setAudio(URL.createObjectURL(blob));
     } catch (e) {
-      setError((e as Error).message);
+      if (id === requestId.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (id === requestId.current) setBusy(false);
     }
   }
   const next = job.pages.findIndex((_, i) => !completed.includes(i));
   return (
-    <div className="learn-page teaching-page">
+    <div className="learn-page teaching-page lesson-studio">
       {index === null ? (
         <>
           <p className="eyebrow">YOUR GUIDED LEARNING PATH</p>
-          <h1>{lessonTitle(job)}</h1>
-          <p>
-            Understand each idea, work through an example, then check what you
-            learned. Progress is saved after each correct checkpoint.
-          </p>
+          <header className="learning-studio-heading">
+            <div>
+              <h1>{lessonTitle(job)}</h1>
+              <p>
+                Understand each idea, work through an example, then check what
+                you learned. Progress is saved after each correct checkpoint.
+              </p>
+            </div>
+            <Link className="btn light" href={`/lesson/${job.id}/source`}>
+              Review sources
+            </Link>
+          </header>
+          <div className="lesson-studio-summary">
+            <span>
+              <b>{job.pages.length} focused sections</b>
+              <small>Learn → Apply → Check</small>
+            </span>
+            <span>
+              <b>{completed.length} checkpoints passed</b>
+              <small>Saved to your account</small>
+            </span>
+            <span>
+              <b>{goal}</b>
+              <small>Your current learning path</small>
+            </span>
+          </div>
           <section className="learning-intro">
             <h2>Getting started</h2>
             <p>What’s your goal for this lesson?</p>
@@ -222,8 +266,14 @@ export default function LearnView() {
                 <div>
                   <h3>{p.topic}</h3>
                   <p className="small">
-                    Explanation · Worked example · Checkpoint
+                    {job.sections?.[i]?.objective ||
+                      "Understand the idea, apply it, then check your reasoning."}
                   </p>
+                  {job.sections?.[i]?.prerequisite && (
+                    <p className="small">
+                      Builds on: {job.sections[i].prerequisite}
+                    </p>
+                  )}
                 </div>
                 <button
                   className="btn light"
@@ -268,6 +318,18 @@ export default function LearnView() {
             aria-label="Current section progress"
           />
           <h1>{job.pages[index]?.topic}</h1>
+          <nav className="lesson-phase-nav" aria-label="Lesson steps">
+            {["Understand", "Worked example", "Checkpoint"].map((label, n) => (
+              <button
+                key={label}
+                disabled={busy || !unit}
+                aria-current={phase === n ? "step" : undefined}
+                onClick={() => void movePhase(n)}
+              >
+                {n + 1} · {label}
+              </button>
+            ))}
+          </nav>
           {busy && !unit && (
             <p role="status">Preparing your explanation and worked example…</p>
           )}
@@ -418,6 +480,18 @@ export default function LearnView() {
                   )}
                 </div>
                 {audio && <audio controls autoPlay src={audio} />}
+                <div className="lesson-section-source">
+                  <PracticeSources
+                    lesson={job.id}
+                    sources={[{ page: index, topic: job.pages[index].topic }]}
+                  />
+                  <Link
+                    className="btn light"
+                    href={`/lesson/${job.id}/notes#page-${index + 1}`}
+                  >
+                    Read original notes
+                  </Link>
+                </div>
               </article>
             )
           )}
@@ -432,6 +506,14 @@ export default function LearnView() {
         <p role="alert" className="error">
           {error}
         </p>
+      )}
+      {error && index === null && (
+        <button
+          className="btn light"
+          onClick={() => setOverviewReload((n) => n + 1)}
+        >
+          Retry lesson overview
+        </button>
       )}
     </div>
   );

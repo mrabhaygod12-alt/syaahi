@@ -80,7 +80,7 @@ async function main() {
       count: 6,
       template: "studio",
       language: "english",
-      format: "presenter",
+      format: "detailed",
       sources: [source],
       designEngine: 2,
     },
@@ -161,6 +161,83 @@ async function main() {
       "Explain a clear research process for a student audience",
     );
     await page.getByRole("button", { name: "Add research sources" }).click();
+    await page.route("**/api/presentations/research", (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          provider: "Wikipedia",
+          sources: [
+            {
+              id: "S1",
+              title: "Database normalization",
+              url: "https://en.wikipedia.org/wiki/Database_normalization",
+              excerpt:
+                "Normalization organizes relational tables. Original fixture excerpt.",
+              retrievedAt: new Date().toISOString(),
+            },
+          ],
+        }),
+      }),
+    );
+    await page
+      .getByLabel("Find supporting sources")
+      .fill("database normalization");
+    await page
+      .getByRole("button", { name: "Find sources", exact: true })
+      .click();
+    await page
+      .getByRole("link", { name: "Database normalization", exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Remove Database normalization" })
+        .count(),
+      0,
+      "Discovery never imports automatically",
+    );
+    await page.route("**/api/presentations/sources", async (r) => {
+      const input = r.request().postDataJSON();
+      if (input?.sources?.[0]?.kind !== "web") return r.continue();
+      assert.equal(
+        input.sources[0].url,
+        "https://en.wikipedia.org/wiki/Database_normalization",
+      );
+      await r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sources: [
+            {
+              id: "web-ui-fixture",
+              name: "Database normalization",
+              kind: "web",
+              locator: input.sources[0].url,
+              text: "Source import fixture text",
+            },
+          ],
+        }),
+      });
+    });
+    await page
+      .getByRole("button", { name: "Import this source", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Added to sources", exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Remove Database normalization" })
+      .click();
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        ),
+        `research ${width} overflow`,
+      );
+    }
+    await page.unroute("**/api/presentations/sources");
     await page
       .getByLabel("Reference text", { exact: true })
       .fill("A locally supplied source with enough evidence for planning.");
@@ -263,8 +340,18 @@ async function main() {
       });
     }
     assert.equal((await ownedDeck(user.id, deckId))!.status, "done");
+    assert.equal(
+      (await ownedDeck(user.id, deckId))!.format,
+      "detailed",
+      "Approval preserves the saved reading mode",
+    );
     await page.reload();
     await page.getByLabel("Main takeaway", { exact: true }).waitFor();
+    assert(
+      (await page.locator(".studio-reading-notes").getAttribute("open")) !==
+        null,
+      "Detailed decks open their reading notes in preview",
+    );
     await page
       .getByRole("button", { name: "Show research", exact: true })
       .click();
