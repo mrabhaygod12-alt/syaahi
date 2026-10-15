@@ -210,8 +210,18 @@ async function main() {
         await page.locator(".writer-recommendation-reason").first().innerText()
       ).includes("databases"),
     );
+    // Existing rows can still be visible before the new mode's effect starts.
+    // Wait for the selected mode's response and its complete rendered result.
+    const followingResponse = page.waitForResponse(
+      (response) =>
+        response.url() === base + "/api/writer/feed?mode=following" &&
+        response.ok(),
+    );
     await page.getByRole("tab", { name: "Following", exact: true }).click();
-    await page.locator(".writer-story-row").first().waitFor();
+    await followingResponse;
+    await page.waitForFunction(
+      () => document.querySelectorAll(".writer-story-row").length === 3,
+    );
     assert.equal(await page.locator(".writer-story-row").count(), 3);
     // A delayed earlier mode must never replace the user's current choice.
     await page.route("**/api/writer/feed?mode=latest", async (route) => {
