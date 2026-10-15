@@ -360,7 +360,7 @@ export default function WriterShell({
                   <a href="/writer/membership">Membership ↗</a>
                   <a href="/writer/support">Help & support</a>
                   <small>
-                    © Syaahi · <a href="/privacy">Privacy</a> ·{" "}
+                    <a href="/privacy">Privacy</a> ·{" "}
                     <a href="/terms">Terms</a>
                   </small>
                 </div>

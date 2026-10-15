@@ -91,8 +91,11 @@ export async function readPublicVideo(id: string): Promise<string> {
     },
   );
   if (!r.ok)
-    throw Error(
-      "Video reading is temporarily unavailable. Upload the audio or transcript instead.",
+    throw Object.assign(
+      new Error(
+        "Video reading is temporarily unavailable. Upload the audio or transcript instead.",
+      ),
+      { status: r.status, retryable: r.status === 429 || r.status >= 500 },
     );
   const j = await r.json();
   const text = (j.candidates?.[0]?.content?.parts || [])

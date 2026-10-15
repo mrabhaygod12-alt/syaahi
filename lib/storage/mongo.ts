@@ -89,6 +89,12 @@ async function indexes(d: Db) {
       "payload.hidden": 1,
       updatedAt: -1,
     }),
+    d
+      .collection("workspace_records")
+      .createIndex({ kind: 1, "payload.status": 1, updatedAt: 1 }),
+    d
+      .collection("workspace_records")
+      .createIndex({ kind: 1, "payload.fingerprint": 1 }),
     d.collection("workspace_records").createIndex(
       { sourceCacheExpiresAt: 1 },
       {
@@ -97,6 +103,16 @@ async function indexes(d: Db) {
         partialFilterExpression: { kind: "presentation-source" },
       },
     ),
+    d
+      .collection("workspace_records")
+      .createIndex(
+        { sourceCacheExpiresAt: 1 },
+        {
+          name: "video_source_cache_expiry",
+          expireAfterSeconds: 0,
+          partialFilterExpression: { kind: "video-ingestion" },
+        },
+      ),
     d.collection("workspace_records").createIndex({
       kind: 1,
       "payload.status": 1,

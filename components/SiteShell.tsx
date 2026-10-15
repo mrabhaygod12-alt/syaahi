@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import CompanyCopyright from "./CompanyCopyright";
 import Logo from "./Logo";
 import { useAccount } from "./WorkspaceProvider";
 import { publishingPath } from "@/lib/workspace-routing";
@@ -18,7 +19,12 @@ export function SiteFooter() {
     pathname === "/writer" ||
     pathname?.startsWith("/writer/")
   )
-    return null;
+    return (
+      <footer className="app-copyright">
+        <CompanyCopyright />
+        <a href="/feedback">Share feedback</a>
+      </footer>
+    );
   if (user?.workspace === "writer" || publishingPath(pathname || ""))
     return (
       <footer className="publication-footer">
@@ -34,7 +40,7 @@ export function SiteFooter() {
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
         </nav>
-        <small>© {new Date().getFullYear()} Syaahi</small>
+        <CompanyCopyright />
         <button
           className="privacy-settings"
           type="button"
@@ -62,6 +68,8 @@ export function SiteFooter() {
             "Explore",
             ["Learning workspace", "/dashboard?view=student"],
             ["AI presentations", "/presentations"],
+            ["YouTube video to notes", "/youtube-video-to-notes"],
+            ["AI-generated notes", "/ai-generated-notes"],
             ["Subjects", "/subjects"],
             ["Library", "/library"],
             ["Interview practice", "/interview"],
@@ -75,6 +83,7 @@ export function SiteFooter() {
             ["How it works", "/how-it-works"],
             ["Documentation", "/docs"],
             ["Support", "/support"],
+            ["Share feedback", "/feedback"],
             ["Pricing", "/pricing"],
           ],
           [
@@ -99,7 +108,7 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="wrap footer-bottom">
-        <span>© {new Date().getFullYear()} Syaahi</span>
+        <CompanyCopyright />
         <button
           className="privacy-settings"
           type="button"

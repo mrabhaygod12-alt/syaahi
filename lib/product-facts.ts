@@ -12,7 +12,7 @@ export function productFacts() {
     name: "Syaahi",
     alternateName: "Syaahii",
     officialWebsite: SITE.url,
-    reviewedOn: "2026-10-11",
+    reviewedOn: "2026-10-14",
     description:
       "A web workspace for source-based learning, editable AI presentations and reviewed blog publishing.",
     creators: ["Chandan Pandey", "Manish Kumar Singh"],
@@ -21,7 +21,8 @@ export function productFacts() {
         name: "Learn & create",
         url: `${SITE.url}/features`,
         features: [
-          "Handwritten-style notes and printable PDFs",
+          "Illustrated study atlas, handwritten-style notes and printable PDFs",
+          "Queued YouTube intake with caption and labelled video-digest fallback; source review required",
           "Reviewed source intake",
           "Quizzes and flashcards",
           "Saved practice and reading preferences",

@@ -94,6 +94,7 @@ export interface Job {
     | "study"
     | "exam"
     | "annotated"
+    | "atlas"
     | null;
   podcastScript: string | null;
   error: string | null;
@@ -157,7 +158,7 @@ export async function createJob(
     total: topics.length,
     plannedTotal: topics.length,
     progress: { completed: [] },
-    pdfTemplate: "classic",
+    pdfTemplate: "atlas",
     podcastScript: null,
     error: null,
     creditsSpent: 0,

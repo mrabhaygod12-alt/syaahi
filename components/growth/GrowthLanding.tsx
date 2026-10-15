@@ -1,3 +1,5 @@
+import LearningBento from "./LearningBento";
+import { ReviewWidget } from "./Reviews";
 import PreviewCta from "./PreviewCta";
 import GuestPreview, { PreviewPaper } from "./GuestPreview";
 import LandingMotion from "../LandingMotion";
@@ -86,6 +88,7 @@ export default function GrowthLanding({
           </span>
         </div>
       </section>
+      <LearningBento />
       <section className="growth-proof-strip">
         <div className="growth-wrap">
           <span>{t("TOPIC / PDF / LECTURE", "विषय / PDF / लेक्चर")}</span>
@@ -97,7 +100,11 @@ export default function GrowthLanding({
           <span>{t("PRINTABLE PDF", "प्रिंट योग्य PDF")}</span>
         </div>
       </section>
-      <section className="growth-wrap growth-preview-section" data-reveal>
+      <section
+        className="growth-wrap growth-preview-section"
+        id="preview"
+        data-reveal
+      >
         <GuestPreview language={language} />
       </section>
       <section className="growth-wrap growth-gallery" id="learn">
@@ -270,6 +277,7 @@ export default function GrowthLanding({
           </a>
         </div>
       </section>
+      <ReviewWidget />
       <section className="growth-writer">
         <div className="growth-wrap growth-two">
           <div data-reveal>

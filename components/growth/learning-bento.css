@@ -1,0 +1,314 @@
+.learning-bento {
+  padding-block: 90px;
+}
+.learning-bento > header {
+  max-width: 780px;
+  margin-bottom: 42px;
+}
+.learning-bento h2 {
+  font-size: clamp(38px, 6vw, 76px);
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+  margin: 20px 0;
+}
+.learning-bento h2 em {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  color: #51734d;
+}
+.learning-bento header > p:last-child {
+  max-width: 58ch;
+  font-size: 17px;
+  line-height: 1.7;
+  color: #536357;
+}
+.learning-bento-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 22px;
+}
+.learning-bento-grid > article {
+  padding: 34px;
+  border: 1px solid #d9e0d5;
+  border-radius: 22px;
+  overflow: hidden;
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.learning-bento-grid > article:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px #283f2810;
+}
+.bento-lecture {
+  grid-row: span 2;
+  background: #edf1e8;
+  display: flex;
+  flex-direction: column;
+}
+.bento-knowledge {
+  background: #f5eddd;
+}
+.bento-recall {
+  background: #eae9f4;
+}
+.learning-bento h3 {
+  font-size: clamp(23px, 3vw, 34px);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+  margin: 16px 0;
+  color: #24372c;
+}
+.learning-bento-grid p {
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 44ch;
+}
+.learning-bento-grid a {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 20px;
+  display: inline-block;
+  color: #365840;
+}
+.bento-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #fff;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 22px;
+}
+.bento-video-art {
+  margin: 32px 0 24px;
+  padding: 24px;
+  background: #fcfdf9;
+  border: 1px solid #d6dfcf;
+  border-radius: 16px;
+}
+.bento-video-art > span,
+.bento-recall-card > span {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  color: #567548;
+}
+.bento-wave {
+  height: 95px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bento-wave i {
+  flex: 1;
+  background: #a5bc96;
+  border-radius: 4px;
+  max-width: 10px;
+}
+.bento-source-labels {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bento-source-labels span {
+  font-size: 10px;
+  padding: 7px 9px;
+  background: #e7eddc;
+  border-radius: 5px;
+}
+.bento-lecture form {
+  margin-top: auto;
+}
+.bento-lecture label {
+  font-size: 12px;
+  display: block;
+  margin-bottom: 10px;
+}
+.bento-lecture form > div {
+  display: flex;
+  gap: 8px;
+}
+.bento-lecture input {
+  min-width: 0;
+  width: 100%;
+  height: 48px;
+  border: 1px solid #b8c7ac;
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  color: #24372c;
+}
+.bento-lecture button {
+  width: 48px;
+  flex-shrink: 0;
+  background: #315b44;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.bento-mini-map {
+  padding: 24px 0 0;
+  text-align: center;
+}
+.bento-mini-map > span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 10px 20px;
+  background: #e4d0a2;
+  border-radius: 6px;
+}
+.bento-mini-map > div {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+  border-top: 1px solid #cdbb9b;
+  padding-top: 18px;
+}
+.bento-mini-map i {
+  font-size: 11px;
+  font-style: normal;
+  padding: 9px 12px;
+  background: #fff8ea;
+  border: 1px solid #deccaa;
+  border-radius: 6px;
+}
+.bento-recall-card {
+  padding: 20px;
+  background: #f7f6fc;
+  border: 1px solid #cfcae1;
+  border-radius: 11px;
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+  max-width: 350px;
+}
+.bento-recall-card strong {
+  font-size: 18px;
+}
+.bento-recall-card small {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #61587a;
+}
+.bento-workflow {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  border: 1px solid #d9e0d5;
+  border-radius: 20px;
+  margin-top: 28px;
+  overflow: hidden;
+  background: #fffdf8;
+}
+.bento-workflow > div {
+  display: grid;
+  gap: 4px;
+  padding: 20px;
+  border-right: 1px solid #d9e0d5;
+}
+.bento-workflow button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 52px;
+  border: 0;
+  text-align: left;
+  background: none;
+  color: #526653;
+  padding: 12px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.bento-workflow button[aria-pressed="true"] {
+  background: #e6eddf;
+  color: #2d4930;
+  font-weight: 600;
+}
+.bento-workflow button span {
+  font-size: 11px;
+}
+.bento-workflow article {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 38px;
+  animation: bento-enter 0.25s ease-out;
+}
+.bento-workflow article > svg {
+  flex-shrink: 0;
+  color: #6b895c;
+}
+.bento-workflow small {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #688258;
+}
+.bento-workflow p {
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 40ch;
+}
+.bento-workflow h3 {
+  font-size: 28px;
+}
+@keyframes bento-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 760px) {
+  .learning-bento {
+    padding-block: 52px;
+  }
+  .learning-bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .learning-bento-grid > article {
+    padding: 24px;
+  }
+  .bento-lecture {
+    grid-row: auto;
+  }
+  .bento-workflow {
+    grid-template-columns: 1fr;
+  }
+  .bento-workflow > div {
+    border-right: 0;
+    border-bottom: 1px solid #d9e0d5;
+    grid-template-columns: 1fr 1fr;
+    padding: 12px;
+  }
+  .bento-workflow button {
+    padding: 10px;
+    font-size: 12px;
+    gap: 8px;
+  }
+  .bento-workflow article {
+    padding: 26px;
+    gap: 18px;
+  }
+  .learning-bento-grid > article:hover {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .learning-bento-grid > article {
+    transition: none;
+  }
+  .bento-workflow article {
+    animation: none;
+  }
+}

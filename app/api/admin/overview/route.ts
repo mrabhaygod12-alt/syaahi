@@ -1,3 +1,5 @@
+import { reviewList } from "@/lib/growth/reviews";
+import { serviceStatus } from "@/lib/admin/services";
 import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { currentUser } from "@/lib/auth/server";
@@ -13,15 +15,20 @@ export const GET = apiHandler(async (req: Request) => {
       { error: "Verified administrator access required." },
       { status: 403 },
     );
-  const [review, reports, tickets, events] = await Promise.all([
-    scopes.editorial ? listReviewStories() : [],
-    scopes.editorial ? listContentReports() : [],
-    scopes.support ? listTickets() : [],
-    scopes.users ? recentAudit() : [],
-  ]);
+  const [review, reports, tickets, events, feedback, services] =
+    await Promise.all([
+      scopes.editorial ? listReviewStories() : [],
+      scopes.editorial ? listContentReports() : [],
+      scopes.support ? listTickets() : [],
+      scopes.users ? recentAudit() : [],
+      scopes.editorial ? reviewList("pending") : [],
+      scopes.users ? serviceStatus() : null,
+    ]);
   return NextResponse.json({
     scopes,
     reviewQueue: review.length,
+    pendingReviews: feedback.length,
+    services,
     openReports: reports.filter((t) => t.status === "open").length,
     activeTickets: tickets.filter(
       (t) => !["resolved", "closed"].includes(t.status),

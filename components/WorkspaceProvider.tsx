@@ -63,10 +63,19 @@ export default function WorkspaceProvider({
   useEffect(() => {
     refresh();
     const sync = () => refresh();
+    const signedOut = () => {
+      request.current?.abort();
+      request.current = null;
+      setUser(null);
+      setError("");
+      setLoading(false);
+    };
+    window.addEventListener("syaahi:signed-out", signedOut);
     window.addEventListener("syaahi:account-updated", sync);
     return () => {
       request.current?.abort();
       window.removeEventListener("syaahi:account-updated", sync);
+      window.removeEventListener("syaahi:signed-out", signedOut);
     };
   }, [refresh]);
   const legacy = workspaceScopedPath(path);

@@ -49,6 +49,13 @@ if (process.env.APP_ROLE === "backend" && !process.env.BACKEND_PROXY_SECRET)
   errors.push("Backend needs BACKEND_PROXY_SECRET");
 if (process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_SECRET)
   errors.push("Razorpay key pair is incomplete");
+if (
+  process.env.ENABLE_RADOX === "true" &&
+  (!process.env.RADOX_API_KEY || !process.env.RADOX_MODEL)
+)
+  errors.push(
+    "Radox opt-in needs RADOX_API_KEY and an active-catalog RADOX_MODEL",
+  );
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exitCode = 1;

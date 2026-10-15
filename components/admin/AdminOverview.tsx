@@ -34,13 +34,12 @@ export default function AdminOverview() {
               ["Waiting for review", data.reviewQueue],
               ["Open content reports", data.openReports],
               ["Active support tickets", data.activeTickets],
+              ["Feedback to review", data.pendingReviews],
             ].map(([name, n]) => (
               <section key={name} className="admin-panel">
                 <strong>{n}</strong>
                 <p>{name}</p>
-                <small>
-                  Within the latest {data.countsLimitedTo} records in each queue
-                </small>
+                <small>Bounded operational queue; not an all-time total</small>
               </section>
             ))}
           </div>
@@ -95,6 +94,59 @@ export default function AdminOverview() {
                 </a>
               ))}
           </div>
+          {data.services && (
+            <div className="admin-card-grid">
+              <section className="admin-panel">
+                <h2>Processing service</h2>
+                <div className="admin-service-row">
+                  <span>Video jobs waiting / active</span>
+                  <strong>{data.services.videoQueue}</strong>
+                </div>
+                <div className="admin-service-row">
+                  <span>Worker mode</span>
+                  <span className="admin-status-chip">
+                    {data.services.worker.mode}
+                  </span>
+                </div>
+                <p>
+                  {data.services.worker.mode === "external"
+                    ? data.services.worker.heartbeatFresh
+                      ? "A worker heartbeat was seen within the last 10 minutes."
+                      : "No recent worker heartbeat. Check the worker before expecting queued work to progress."
+                    : "Embedded processing runs while the web service is awake. A dedicated worker is recommended for reliable long-running work."}
+                </p>
+                <div className="admin-service-row">
+                  <span>No-caption video fallback</span>
+                  <b>
+                    {data.services.videoReadingConfigured
+                      ? "Configured"
+                      : "Needs Gemini key"}
+                  </b>
+                </div>
+              </section>
+              <section className="admin-panel">
+                <h2>AI routing</h2>
+                <p>
+                  Configuration is not a live model health check. Rate limits
+                  and account access still apply.
+                </p>
+                {data.services.providers.length ? (
+                  data.services.providers.map((p: any) => (
+                    <div className="admin-service-row" key={p.id}>
+                      <span>
+                        <b>{p.type}</b>
+                        <br />
+                        <small>{p.model}</small>
+                      </span>
+                      <span className="admin-status-chip">{p.status}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p>No eligible AI provider configured.</p>
+                )}
+              </section>
+            </div>
+          )}
           {data.scopes.users && (
             <section className="admin-panel">
               <h2>Recent administration activity</h2>

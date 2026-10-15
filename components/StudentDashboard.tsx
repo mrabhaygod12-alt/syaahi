@@ -1,4 +1,14 @@
 "use client";
+import {
+  Sun,
+  Plus,
+  Library,
+  RotateCcw,
+  CalendarDays,
+  Files,
+  Coins,
+  GraduationCap,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "./WorkspaceProvider";
 import { requestJson } from "@/lib/http-client";
@@ -6,6 +16,7 @@ import StudyComposer from "./StudyComposer";
 import StudyOrganisation from "./StudyOrganisation";
 import type { hubView } from "@/lib/study/hub";
 import "./student-dashboard.css";
+import VideoQueue from "./growth/VideoQueue";
 import LearningSetup from "./growth/LearningSetup";
 import StudyRetention from "./growth/StudyRetention";
 import "./growth/growth.css";
@@ -137,7 +148,12 @@ export default function StudentDashboard() {
   return (
     <div className="student-hub">
       <aside className="hub-rail">
-        <p className="hub-wordmark">✦ Your study space</p>
+        <p className="hub-wordmark">
+          <GraduationCap size={23} aria-hidden="true" />
+          <span>
+            Your study space<small>UG & PG · Learn with intention</small>
+          </span>
+        </p>
         <nav aria-label="Study workspace">
           {[
             ["today", "Today"],
@@ -147,18 +163,30 @@ export default function StudentDashboard() {
             ["planner", "Exam planner"],
             ["sources", "Sources"],
             ["wallet", "Credits"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              aria-current={tab === key ? "page" : undefined}
-              onClick={() => setTab(key)}
-            >
-              {label}
-              {key === "review" && !!hub?.dueCount && (
-                <small>{hub.dueCount}</small>
-              )}
-            </button>
-          ))}
+          ].map(([key, label], index) => {
+            const Icon = [
+              Sun,
+              Plus,
+              Library,
+              RotateCcw,
+              CalendarDays,
+              Files,
+              Coins,
+            ][index];
+            return (
+              <button
+                key={key}
+                aria-current={tab === key ? "page" : undefined}
+                onClick={() => setTab(key)}
+              >
+                <Icon size={18} aria-hidden="true" />
+                {label}
+                {key === "review" && !!hub?.dueCount && (
+                  <small>{hub.dueCount}</small>
+                )}
+              </button>
+            );
+          })}
           <a href="/presentations">Presentation studio ↗</a>
           <a href="/interview">Interview practice ↗</a>
           <a href="/blog">Blog · AI, CS & new ideas ↗</a>
@@ -200,6 +228,7 @@ export default function StudentDashboard() {
             ＋ New lesson
           </button>
         </div>
+        <VideoQueue key={user?.id || "guest"} />
         {error && (
           <div role="alert" className="hub-error">
             {error}

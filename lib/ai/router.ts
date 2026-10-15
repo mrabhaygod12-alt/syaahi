@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { radoxModel } from "./radox";
 import { orderedKeys } from "./keys";
 import {
   eligibleProviders,
@@ -83,9 +84,18 @@ async function callOne(
   schema?: OutputSchema,
   signal?: AbortSignal,
 ) {
-  const keys = orderedKeys(providerEnvKey(p.type));
+  const keys =
+    p.type === "radox"
+      ? [process.env.RADOX_API_KEY!.trim()]
+      : orderedKeys(providerEnvKey(p.type));
   let lastError: unknown;
   for (const key of keys) {
+    const gateway = p.type === "radox" ? await radoxModel(key, p.model) : null;
+    if (
+      gateway &&
+      JSON.stringify(messages).length / 3 + maxTokens > gateway.context_window
+    )
+      throw new Error("Gateway context window is too small for this request");
     const client = new OpenAI({
       apiKey: key,
       baseURL: PROVIDER_BASE_URL[p.type],
@@ -110,7 +120,9 @@ async function callOne(
                   json_schema: { ...schema, strict: true },
                 },
               }
-            : json && ["groq", "gemini", "mistral"].includes(p.type)
+            : json &&
+                (["groq", "gemini", "mistral"].includes(p.type) ||
+                  gateway?.capabilities.includes("json_mode"))
               ? { response_format: { type: "json_object" as const } }
               : {}),
         },
@@ -293,7 +305,10 @@ export async function* chatStreamWithFallback(
     let emitted = false;
     try {
       let lastError: unknown;
-      for (const key of orderedKeys(providerEnvKey(p.type))) {
+      for (const key of p.type === "radox"
+        ? [process.env.RADOX_API_KEY!.trim()]
+        : orderedKeys(providerEnvKey(p.type))) {
+        if (p.type === "radox") await radoxModel(key, p.model, true);
         const client = new OpenAI({
           apiKey: key,
           baseURL: PROVIDER_BASE_URL[p.type],

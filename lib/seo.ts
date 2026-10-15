@@ -79,7 +79,7 @@ export function pageMeta(opts: {
       description,
       images: [`${SITE.url}/opengraph-image`],
     },
-    robots: noindex ? { index: false, follow: true } : undefined,
+    robots: { index: !noindex, follow: true },
   };
 }
 

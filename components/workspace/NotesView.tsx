@@ -19,7 +19,7 @@ import ReportNote from "@/components/growth/ReportNote";
 export default function NotesView() {
   const reading = useReader(),
     { reader } = reading;
-  const { job, setTemplate, refresh, openChat } = useLesson();
+  const { job, setTemplate, refresh, openChat, markComplete } = useLesson();
   const [editing, setEditing] = useState<number | null>(null),
     [draft, setDraft] = useState(""),
     [saving, setSaving] = useState(false);
@@ -29,14 +29,14 @@ export default function NotesView() {
       "Make this clearer while preserving facts and useful diagrams.",
     ),
     [rewriting, setRewriting] = useState(false);
-  const [font, setFont] = useState("Caveat"),
+  const [font, setFont] = useState("Kalam"),
     [paper, setPaper] = useState<"ruled" | "plain" | "grid" | "cream">("cream");
   const toast = useToast();
   const printRef = useRef<HTMLDivElement>(null);
   const [tpl, setTpl] = useState(
     job?.pdfTemplate && isPdfTemplate(job.pdfTemplate)
       ? job.pdfTemplate
-      : "study",
+      : "atlas",
   );
   const [dlState, setDlState] = useState<string | null>(null);
   const [resuming, setResuming] = useState(false);
@@ -95,6 +95,19 @@ export default function NotesView() {
       <div
         className={`notes-room ${reader.focus && reader.mode === "reading" ? "reader-focus" : ""}`}
       >
+        <section className="study-atlas-heading">
+          <div>
+            <span>YOUR KNOWLEDGE, CONNECTED</span>
+            <h1>{lessonTitle(job)}</h1>
+            <p>
+              Read the idea. Trace the process. Recall it in your own words.
+            </p>
+          </div>
+          <div className="study-atlas-actions">
+            <a href={`/lesson/${job.id}/quiz`}>Test your recall</a>
+            <a href={`/lesson/${job.id}/flashcards`}>Review flashcards</a>
+          </div>
+        </section>
         <div className="notes-toolbar">
           <div>
             <b>{lessonTitle(job)}</b>
@@ -277,42 +290,47 @@ export default function NotesView() {
             Reload preferences
           </button>
         </details>
-        <p className="small notes-tpl-blurb">
-          {PDF_TEMPLATES.find((t) => t.id === tpl)?.blurb} · Long sections
-          continue onto extra sheets. Downloads include a sources and citation
-          appendix.
-        </p>
-        <div
-          className="note-template-picker"
-          role="list"
-          aria-label="PDF template previews"
-        >
-          {PDF_TEMPLATES.map((template) => (
-            <button
-              key={template.id}
-              type="button"
-              role="listitem"
-              className={tpl === template.id ? "selected" : ""}
-              aria-pressed={tpl === template.id}
-              onClick={() => {
-                setTpl(template.id);
-                setTemplate(template.id);
-              }}
-            >
-              <span
-                className={`note-template-thumb template-${template.id}`}
-                aria-hidden="true"
+        <details className="atlas-appearance">
+          <summary>
+            Appearance & PDF styles ·{" "}
+            {PDF_TEMPLATES.find((t) => t.id === tpl)?.label}
+          </summary>
+          <p className="small notes-tpl-blurb">
+            {PDF_TEMPLATES.find((t) => t.id === tpl)?.blurb} · Long sections
+            continue onto extra sheets. Downloads include a sources and citation
+            appendix.
+          </p>
+          <div
+            className="note-template-picker"
+            role="list"
+            aria-label="PDF template previews"
+          >
+            {PDF_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                role="listitem"
+                className={tpl === template.id ? "selected" : ""}
+                aria-pressed={tpl === template.id}
+                onClick={() => {
+                  setTpl(template.id);
+                  setTemplate(template.id);
+                }}
               >
-                <i />
-                <i />
-                <i />
-              </span>
-              <b>{template.label}</b>
-              <small>{template.blurb}</small>
-            </button>
-          ))}
-        </div>
-
+                <span
+                  className={`note-template-thumb template-${template.id}`}
+                  aria-hidden="true"
+                >
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <b>{template.label}</b>
+                <small>{template.blurb}</small>
+              </button>
+            ))}
+          </div>
+        </details>
         {(job.status === "working" || job.status === "queued") && (
           <div className="card" role="status" style={{ marginBottom: 16 }}>
             <b>
@@ -381,6 +399,14 @@ export default function NotesView() {
           {pages.map((p, i) => (
             <div key={i} id={`page-${i + 1}`} className="note-anchor">
               <div className="section-heading" style={{ margin: "16px 0" }}>
+                <label className="atlas-complete">
+                  <input
+                    type="checkbox"
+                    checked={job.progress?.completed?.includes(i) || false}
+                    onChange={(e) => markComplete(i, e.target.checked)}
+                  />
+                  Reviewed
+                </label>
                 <span className="small">
                   Section {i + 1} · {p.topic} · {p.provider}
                 </span>
@@ -557,6 +583,27 @@ export default function NotesView() {
                   </button>
                 </div>
               )}
+              <details className="atlas-recall">
+                <summary>
+                  Active recall: explain {p.topic} without looking
+                </summary>
+                <p>
+                  Close the notes and describe the core idea, one example and a
+                  common mistake. Then compare your answer with the source
+                  below.
+                </p>
+                <button
+                  type="button"
+                  className="btn light"
+                  onClick={() =>
+                    openChat(
+                      `Ask me one source-grounded question about ${p.topic}. Wait for my answer before explaining it.`,
+                    )
+                  }
+                >
+                  Practice with the study assistant
+                </button>
+              </details>
               {reader.mode === "reading" ? (
                 <article
                   aria-label={`Section ${i + 1}: ${p.topic}`}

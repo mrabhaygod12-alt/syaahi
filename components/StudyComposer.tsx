@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { prepareVideo } from "@/lib/youtube/client";
 import LectureRecorder from "./LectureRecorder";
 import { useRouter } from "next/navigation";
 import { COURSE_PACKS } from "@/lib/course-packs";
@@ -35,6 +36,8 @@ export default function StudyComposer({
 }) {
   const router = useRouter();
   const { user } = useAccount();
+  const videoRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => videoRequest.current?.abort(), [user?.id]);
   const draftRevision = useRef(0),
     draftLoaded = useRef(false),
     draftSaving = useRef(false),
@@ -513,14 +516,9 @@ export default function StudyComposer({
         sourceUrl !== text.trim() &&
         /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(text.trim())
       ) {
-        const response = await fetch("/api/youtube", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: text.trim() }),
-        });
-        const data = await response.json();
-        if (!response.ok)
-          throw new Error(data.error || "Could not read this lecture.");
+        videoRequest.current?.abort();
+        videoRequest.current = new AbortController();
+        const data = await prepareVideo(text.trim(), setBusy, videoRequest.current.signal);
         material =
           (data.transcriptSource === "video-digest"
             ? "SOURCE TYPE: AI-extracted video digest, not verbatim captions. No verified timestamps.\n\n"

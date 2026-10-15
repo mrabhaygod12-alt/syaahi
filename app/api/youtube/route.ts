@@ -1,70 +1,49 @@
+import { listOwnedVideos } from "@/lib/youtube/jobs";
 import { apiHandler } from "@/lib/api-handler";
-import { authError } from "@/lib/auth/server";
+import { authError, currentUser } from "@/lib/auth/server";
 import { NextRequest, NextResponse } from "next/server";
-import { fetchYouTube } from "@/lib/youtube/transcript";
-import { assessVideo } from "@/lib/youtube/study";
 import { rateLimit } from "@/lib/ratelimit";
-export const maxDuration = 180;
-async function handlePOST(req: NextRequest) {
+import {
+  enqueueVideo,
+  videoProjection,
+  VideoQueueError,
+} from "@/lib/youtube/jobs";
+import { kickWorker } from "@/lib/jobs/worker";
+export const POST = apiHandler(async (req: NextRequest) => {
   const denied =
     (await authError(req)) || (await rateLimit(req, "youtube", 3, 60000));
   if (denied) return denied;
+  const user = (await currentUser(req))!;
   const { url } = await req.json().catch(() => ({}));
   if (typeof url !== "string" || url.length > 2048)
     return NextResponse.json(
       { error: "Provide a valid YouTube URL." },
       { status: 400 },
     );
-  let yt;
+  let job;
   try {
-    yt = await fetchYouTube(url);
-  } catch (e) {
-    return NextResponse.json(
-      {
-        error: e instanceof Error ? e.message : "Video unavailable",
-        canUpload: true,
-      },
-      { status: 422 },
-    );
-  }
-  try {
-    const assessment = await assessVideo(yt.title || "", yt.transcript);
-    if (["non_educational", "uncertain"].includes(assessment.classification))
+    job = await enqueueVideo(user.id, url);
+  } catch (error) {
+    if (error instanceof VideoQueueError)
       return NextResponse.json(
-        {
-          error:
-            assessment.classification === "non_educational"
-              ? "This video does not contain enough instructional content to create a study lesson. Choose a tutorial, lecture or explanatory video."
-              : "We could not identify reliable teaching content. Upload clearer source material or choose another video.",
-          assessment,
-        },
-        { status: 422 },
+        { error: error.message },
+        { status: error.status },
       );
-    return NextResponse.json({
-      videoId: yt.videoId,
-      title: yt.title,
-      author: yt.author,
-      durationSeconds: yt.durationSeconds,
-      transcript: yt.transcript,
-      transcriptSource: yt.transcriptSource,
-      transcriptChars: yt.transcriptChars,
-      topics: assessment.topics,
-      assessment,
-      warning:
-        yt.transcriptSource === "video-digest"
-          ? "Captions were unavailable. This is an AI-extracted video digest, not a verbatim transcript. Review it before generating."
-          : assessment.classification === "mixed"
-            ? "This video mixes teaching and other content. Review the source and keep only relevant material."
-            : null,
-    });
-  } catch {
-    return NextResponse.json(
-      {
-        error:
-          "Video suitability checking is temporarily unavailable. Please retry; no lesson was created.",
-      },
-      { status: 503 },
-    );
+    throw error;
   }
-}
-export const POST = apiHandler(handlePOST);
+  kickWorker();
+  return NextResponse.json(videoProjection(job), {
+    status: job.status === "done" ? 200 : 202,
+  });
+});
+
+export const GET = apiHandler(async (req: NextRequest) => {
+  const denied = await authError(req);
+  if (denied) return denied;
+  const jobs = await listOwnedVideos((await currentUser(req))!.id);
+  if (
+    jobs.some((job) => ["queued", "reading", "assessing"].includes(job.status))
+  )
+    kickWorker();
+  return NextResponse.json({ jobs });
+});

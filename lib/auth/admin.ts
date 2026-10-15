@@ -60,7 +60,7 @@ export function adminRouteScope(
   if (path?.startsWith("/admin/users")) return "users";
   if (path?.startsWith("/admin/payments")) return "payments";
   if (path?.startsWith("/admin/support")) return "support";
-  if (path && /^\/admin\/(publications|campus|growth)(\/|$)/.test(path))
+  if (path && /^\/admin\/(publications|campus|growth|reviews)(\/|$)/.test(path))
     return "editorial";
   return null;
 }

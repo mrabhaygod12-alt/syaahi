@@ -1,5 +1,11 @@
 export const PDF_TEMPLATES = [
   {
+    id: "atlas",
+    label: "Illustrated study atlas",
+    blurb:
+      "Pastel concept cards, numbered sections, clear process diagrams and highlighted takeaways.",
+  },
+  {
     id: "study",
     label: "Study notebook",
     blurb:
@@ -28,12 +34,14 @@ export const PDF_TEMPLATES = [
   {
     id: "exam",
     label: "Exam revision",
-    blurb: "Ruled paper, highlighter marks and generous margins for last-minute revision.",
+    blurb:
+      "Ruled paper, highlighter marks and generous margins for last-minute revision.",
   },
   {
     id: "annotated",
     label: "Annotated notebook",
-    blurb: "Margin-note prompts, warm paper and visual emphasis for deeper review.",
+    blurb:
+      "Margin-note prompts, warm paper and visual emphasis for deeper review.",
   },
 ] as const;
 

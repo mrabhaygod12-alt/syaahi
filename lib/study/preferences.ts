@@ -9,7 +9,7 @@ export interface ReaderPreferences {
 }
 export const readerDefaults = (): ReaderPreferences => ({
   revision: 0,
-  mode: "print",
+  mode: "reading",
   size: 20,
   width: 68,
   lineHeight: 1.7,

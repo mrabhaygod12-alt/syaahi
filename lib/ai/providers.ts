@@ -10,7 +10,8 @@ export type ProviderType =
   | "nvidia"
   | "mistral"
   | "deepseek"
-  | "apinex";
+  | "apinex"
+  | "radox";
 
 export interface ProviderDef {
   id: string;
@@ -130,7 +131,26 @@ export const PROVIDERS: ProviderDef[] = [
   ),
 ];
 export function eligibleProviders(): ProviderDef[] {
-  return PROVIDERS.filter(
+  const gateway: ProviderDef[] =
+    process.env.ENABLE_RADOX === "true" &&
+    process.env.RADOX_MODEL?.trim() &&
+    process.env.RADOX_API_KEY?.trim()
+      ? [
+          {
+            id: "radox-configured",
+            type: "radox",
+            model: process.env.RADOX_MODEL.trim(),
+            maxCtx: Math.max(
+              8192,
+              Math.min(200000, Number(process.env.RADOX_MAX_CONTEXT) || 8192),
+            ),
+            priority: 2.5,
+            tier: "auto",
+            note: "Opt-in gateway. Active catalog and capabilities checked before use; gateway model labels are unverified upstream claims.",
+          },
+        ]
+      : [];
+  return [...PROVIDERS, ...gateway].filter(
     (p) =>
       providerKeys(providerEnvKey(p.type)).length > 0 &&
       (p.type !== "zen" || process.env.ENABLE_ZEN_API === "true") &&
@@ -142,13 +162,16 @@ export function eligibleProviders(): ProviderDef[] {
 export const PROVIDER_BASE_URL: Record<ProviderType, string> = {
   openrouter: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   zen: process.env.ZEN_BASE_URL || "https://opencode.ai/zen/v1",
-  gemini: process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai",
+  gemini:
+    process.env.GEMINI_BASE_URL ||
+    "https://generativelanguage.googleapis.com/v1beta/openai",
   groq: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
   cerebras: process.env.CEREBRAS_BASE_URL || "https://api.cerebras.ai/v1",
   nvidia: process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1",
   mistral: process.env.MISTRAL_BASE_URL || "https://api.mistral.ai/v1",
   deepseek: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
   apinex: process.env.APINEX_BASE_URL || "https://api.apinex.bond/v1",
+  radox: "https://radoxai.com/v1",
 };
 
 export function providerEnvKey(t: ProviderType): string {
@@ -162,5 +185,6 @@ export function providerEnvKey(t: ProviderType): string {
     mistral: "MISTRAL_API_KEY",
     deepseek: "DEEPSEEK_API_KEY",
     apinex: "APINEX_API_KEY",
+    radox: "RADOX_API_KEY",
   }[t];
 }

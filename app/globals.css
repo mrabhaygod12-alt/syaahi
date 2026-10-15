@@ -3950,3 +3950,6 @@ summary::marker {
     grid-template-columns: 1fr;
   }
 }
+
+.app-copyright{padding:18px 24px;display:flex;justify-content:center;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--muted,#52635c);border-top:1px solid var(--line,#d8dfd7)}
+.company-copyright{font-size:12px;line-height:1.6}

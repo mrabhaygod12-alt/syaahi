@@ -48,7 +48,7 @@
     "check": "tsc --noEmit --incremental false",
     "test": "tsx scripts/test-integrity.ts",
     "worker": "tsx scripts/worker.ts",
-    "audit:providers": "node scripts/audit-providers.mjs",
+    "audit:providers": "tsx scripts/audit-provider-runtime.ts",
     "format": "prettier --write app components lib scripts docs *.md *.json *.js *.ts",
     "test:study": "tsx scripts/test-study.ts",
     "test:auth": "tsx scripts/test-auth-verification.ts",
@@ -77,7 +77,10 @@
     "billing:plans": "tsx scripts/provision-monthly-plans.ts",
     "billing:diagnose": "tsx scripts/diagnose-razorpay.ts",
     "test:deployment-config": "tsx scripts/test-deployment-config.ts",
-    "verify:deployment": "node scripts/verify-deployment.mjs"
+    "verify:deployment": "node scripts/verify-deployment.mjs",
+    "test:video-reviews": "tsx scripts/test-video-reviews.ts && tsx scripts/test-video-reviews.ts --mongo",
+    "test:radox": "tsx scripts/test-radox.ts",
+    "test:video-reviews-browser": "tsx scripts/test-video-reviews-browser.ts"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",

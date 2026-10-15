@@ -3,12 +3,26 @@ import { startTransition, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import { useAccount } from "@/components/WorkspaceProvider";
+import {
+  Menu,
+  Search,
+  LayoutDashboard,
+  Users,
+  PenLine,
+  CreditCard,
+  LifeBuoy,
+  ChartNoAxesCombined,
+  ShieldCheck,
+  MessageSquare,
+} from "lucide-react";
 import "./admin.css";
 export default function AdminShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [navOpen, setNavOpen] = useState(false),
+    [filter, setFilter] = useState("");
   const path = usePathname(),
     account = useAccount(),
     [access, setAccess] = useState<any>(null),
@@ -73,33 +87,111 @@ export default function AdminShell({
     ["Payments", "/admin/payments", access.scopes.payments],
     ["Support", "/admin/support", access.scopes.support],
     ["Growth", "/admin/growth", access.scopes.editorial],
+    ["Reviews", "/admin/reviews", access.scopes.editorial],
     ["Security", "/admin/security", true],
   ];
+  const icons = [
+    LayoutDashboard,
+    Users,
+    PenLine,
+    CreditCard,
+    LifeBuoy,
+    ChartNoAxesCombined,
+    MessageSquare,
+    ShieldCheck,
+  ];
   return (
-    <div className="admin-space" key={access.owner}>
-      <nav className="admin-nav" aria-label="Administration">
+    <div
+      className={`admin-space ${navOpen ? "admin-nav-open" : ""}`}
+      key={access.owner}
+    >
+      <header className="admin-topbar">
         <a href="/admin" className="admin-brand">
-          Syaahi <span>Control room</span>
+          Syaahii<span>Control room</span>
         </a>
+        <button
+          type="button"
+          aria-label={
+            navOpen
+              ? "Close administration navigation"
+              : "Open administration navigation"
+          }
+          aria-expanded={navOpen}
+          onClick={() => setNavOpen(!navOpen)}
+        >
+          <Menu size={22} />
+        </button>
+        <label className="admin-search">
+          <Search size={18} aria-hidden="true" />
+          <input
+            aria-label="Find administration page"
+            placeholder="Find a control…"
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setNavOpen(true);
+            }}
+          />
+        </label>
+        <a className="admin-account" href="/admin/security">
+          <ShieldCheck size={18} aria-hidden="true" />
+          <span>
+            {account.user?.name}
+            <small>Protected administration</small>
+          </span>
+        </a>
+      </header>
+      {navOpen && (
+        <button
+          className="admin-nav-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setNavOpen(false)}
+        />
+      )}
+      <nav className="admin-nav" aria-label="Administration">
+        <p className="admin-nav-label">PLATFORM</p>
         <div>
           {links
-            .filter((l) => l[2])
-            .map(([name, href]) => (
+            .map(([name, href, enabled], index) => ({
+              name: String(name),
+              href: String(href),
+              enabled,
+              Icon: icons[index],
+            }))
+            .filter(
+              (l) =>
+                l.enabled &&
+                l.name.toLowerCase().includes(filter.toLowerCase()),
+            )
+            .map(({ name, href, Icon }) => (
               <a
-                key={String(href)}
-                href={String(href)}
+                key={href}
+                href={href}
                 aria-current={path === href ? "page" : undefined}
+                onClick={() => setNavOpen(false)}
               >
+                <Icon size={19} aria-hidden="true" />
                 {name}
               </a>
             ))}
         </div>
+        <div className="admin-nav-bottom">
+          <p>Every change has an owner.</p>
+          <a href="/dashboard">Return to workspace</a>
+        </div>
       </nav>
-      {!access.requiresMfa || path === "/admin/security" ? (
-        children
-      ) : (
-        <p role="status">Verify your authenticator to continue.</p>
-      )}
+      <div className="admin-workbench">
+        <div className="admin-breadcrumb">
+          <span>Administration</span>
+          <span>/</span>
+          <b>{links.find((l) => l[1] === path)?.[0] || "Control room"}</b>
+        </div>
+        {!access.requiresMfa || path === "/admin/security" ? (
+          children
+        ) : (
+          <p role="status">Verify your authenticator to continue.</p>
+        )}
+      </div>
     </div>
   );
 }

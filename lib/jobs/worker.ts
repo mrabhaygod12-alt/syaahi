@@ -1,3 +1,4 @@
+import { processPendingVideo } from "@/lib/youtube/jobs";
 import { workerConcurrency } from "./capacity";
 import { pendingJobs } from "./store";
 import { processJob } from "./runner";
@@ -37,6 +38,7 @@ export function kickWorker(standalone = false) {
         (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
       );
       await processPendingDeck();
+      await processPendingVideo();
       if (standalone) await indexDocumentBatch();
       // Email reminders are deliberately throttled; generation keeps priority.
       if (

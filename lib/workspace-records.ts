@@ -89,8 +89,13 @@ export async function mutateRecord<T extends WorkspaceRecord>(
             kind: next.kind,
             updatedAt: next.updatedAt,
             payload: next,
-            ...(next.kind === "presentation-source"
-              ? { sourceCacheExpiresAt: new Date(Date.now() + 86400000) }
+            ...(["presentation-source", "video-ingestion"].includes(next.kind)
+              ? {
+                  sourceCacheExpiresAt: new Date(
+                    Date.now() +
+                      (next.kind === "video-ingestion" ? 7 : 1) * 86400000,
+                  ),
+                }
               : {}),
           },
         },

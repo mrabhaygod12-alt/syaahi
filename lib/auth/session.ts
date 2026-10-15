@@ -10,6 +10,14 @@ export interface DemoUser {
   workspace?: "student" | "writer";
 }
 const KEY = "syaahi-user";
+function cacheUser(user: DemoUser | null) {
+  try {
+    if (user) localStorage.setItem(KEY, JSON.stringify(user));
+    else localStorage.removeItem(KEY);
+  } catch {
+    // Cookies remain authoritative when the browser blocks local storage.
+  }
+}
 export function getUser(): DemoUser | null {
   if (typeof window === "undefined") return null;
   try {
@@ -69,7 +77,7 @@ export async function signIn(
     throw err;
   }
   if (data.user && !data.requireVerification) {
-    localStorage.setItem(KEY, JSON.stringify(data.user));
+    cacheUser(data.user);
   }
   return data;
 }
@@ -78,22 +86,30 @@ export async function refreshUser(): Promise<DemoUser | null> {
   if (!response.ok)
     throw new Error(data.error || "Could not check your session.");
   const { user } = data;
-  if (user) localStorage.setItem(KEY, JSON.stringify(user));
-  else localStorage.removeItem(KEY);
+  cacheUser(user || null);
   return user;
 }
 export async function signOut() {
-  const { response, data } = await requestJson("/api/auth", {
-    method: "DELETE",
-  });
+  const { response, data } = await requestJson(
+    "/api/auth",
+    {
+      method: "DELETE",
+    },
+    20000,
+  );
   if (!response.ok)
     throw new Error(data.error || "Could not sign out. Please retry.");
-  localStorage.removeItem(KEY);
-  for (const key of Object.keys(localStorage))
-    if (
-      /^syaahi-(composer|offline|review-queue|deck-draft|deck-selection):/.test(
-        key,
+  cacheUser(null);
+  try {
+    for (const key of Object.keys(localStorage))
+      if (
+        /^syaahi-(composer|offline|review-queue|deck-draft|deck-selection):/.test(
+          key,
+        )
       )
-    )
-      localStorage.removeItem(key);
+        localStorage.removeItem(key);
+  } catch {
+    /* A revoked server session must not be reported as a failed logout. */
+  }
+  window.dispatchEvent(new Event("syaahi:signed-out"));
 }

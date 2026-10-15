@@ -19,6 +19,7 @@ export default function ProfileView() {
   const [previewCustom, setPreviewCustom] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"avatar" | "details" | "security">("avatar");
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false), [logoutError, setLogoutError] = useState("");
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -674,13 +675,19 @@ export default function ProfileView() {
               className="btn light"
               style={{ color: "#dc2626", borderColor: "#fca5a5" }}
               onClick={async () => {
-                const { signOut } = await import("@/lib/auth/session");
-                await signOut();
-                window.location.href = "/login";
+                if (signingOut) return;
+                setSigningOut(true); setLogoutError("");
+                try {
+                  const { signOut } = await import("@/lib/auth/session");
+                  await signOut(); window.location.href = "/login";
+                } catch (error) {
+                  setLogoutError(error instanceof Error ? error.message : "Sign out failed. Please retry.");
+                } finally { setSigningOut(false); }
               }}
             >
-              Sign Out
+              {signingOut ? "Signing out…" : "Sign Out"}
             </button>
+            {logoutError && <p role="alert">{logoutError}</p>}
           </div>
         </div>
       )}

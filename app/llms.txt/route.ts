@@ -66,6 +66,8 @@ ${offers}
 - [Subjects](${SITE.url}/subjects)
 - [Library](${SITE.url}/library)
 - [Pricing](${SITE.url}/pricing)
+- [AI-generated notes](${SITE.url}/ai-generated-notes)
+- [YouTube video to notes](${SITE.url}/youtube-video-to-notes)
 - [Presentations](${SITE.url}/ai-presentations)
 - [About](${SITE.url}/about)
 - [Study blog](${SITE.url}/blog)

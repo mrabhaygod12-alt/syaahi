@@ -7,6 +7,7 @@ export default function UserChip({ writer = false }: { writer?: boolean }) {
   const { user, loading } = useAccount(),
     [open, setOpen] = useState(false),
     [error, setError] = useState(""),
+    [signingOut, setSigningOut] = useState(false),
     [writerIdentity, setWriterIdentity] = useState<{
       name: string;
       avatar: string;
@@ -94,16 +95,22 @@ export default function UserChip({ writer = false }: { writer?: boolean }) {
             Help & support
           </a>
           <button
+            disabled={signingOut}
             onClick={async () => {
+              if (signingOut) return;
+              setSigningOut(true);
+              setError("");
               try {
                 await signOut();
                 location.assign(writer ? "/writing" : "/");
               } catch (e) {
                 setError(e instanceof Error ? e.message : "Sign out failed.");
+              } finally {
+                setSigningOut(false);
               }
             }}
           >
-            Sign out
+            {signingOut ? "Signing out…" : "Sign out"}
           </button>
           {error && <p role="alert">{error}</p>}
         </div>
