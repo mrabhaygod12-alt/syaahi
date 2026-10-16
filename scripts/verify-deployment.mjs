@@ -6,6 +6,10 @@ if (at >= 0 && !/^[a-f0-9]{40}$/.test(expected || ""))
 const origin = "https://www.syaahii.in";
 const checks = [
   ["/", 200, "growth-landing"],
+  ["/login", 200, "auth-stage"],
+  ["/signup", 200, "auth-stage"],
+  ["/forgot-password", 200, "auth-stage"],
+  ["/api/reviews/assist", 401, undefined, undefined, "POST"],
   ["/writing", 200, "writer-public-landing"],
   ["/blog", 200, "syaahi-blog"],
   ["/syaahi", 200, "Syaahi: learn, present and publish."],

@@ -1,5 +1,21 @@
 export const PDF_TEMPLATES = [
   {
+    id: "sketchnote",
+    label: "Pastel sketchnotes",
+    blurb:
+      "Handwritten explanations, soft marker highlights and pen-drawn concept diagrams.",
+  },
+  {
+    id: "bluepen",
+    label: "Blue-pen notebook",
+    blurb: "Ruled paper, blue ink and carefully worked examples.",
+  },
+  {
+    id: "cornell",
+    label: "Cornell revision",
+    blurb: "Recall margin, focused explanations and a revision summary.",
+  },
+  {
     id: "atlas",
     label: "Illustrated study atlas",
     blurb:
@@ -44,6 +60,8 @@ export const PDF_TEMPLATES = [
       "Margin-note prompts, warm paper and visual emphasis for deeper review.",
   },
 ] as const;
+
+export const NOTEBOOK_TEMPLATES = PDF_TEMPLATES.slice(0, 3);
 
 export type PdfTemplateId = (typeof PDF_TEMPLATES)[number]["id"];
 

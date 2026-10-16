@@ -1,6 +1,6 @@
 export interface ReaderPreferences {
   revision: number;
-  mode: "print" | "reading";
+  mode: "print" | "reading" | "notebook";
   size: 18 | 20 | 24 | 28;
   width: 56 | 68 | 80;
   lineHeight: 1.5 | 1.7 | 2;
@@ -9,7 +9,7 @@ export interface ReaderPreferences {
 }
 export const readerDefaults = (): ReaderPreferences => ({
   revision: 0,
-  mode: "reading",
+  mode: "notebook",
   size: 20,
   width: 68,
   lineHeight: 1.7,
@@ -22,7 +22,7 @@ export function validateReader(
 ): ReaderPreferences {
   if (
     !value ||
-    !["print", "reading"].includes(value.mode) ||
+    !["print", "reading", "notebook"].includes(value.mode) ||
     ![18, 20, 24, 28].includes(value.size) ||
     ![56, 68, 80].includes(value.width) ||
     ![1.5, 1.7, 2].includes(value.lineHeight) ||

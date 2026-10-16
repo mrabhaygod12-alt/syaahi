@@ -13,6 +13,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "./WorkspaceProvider";
 import { requestJson } from "@/lib/http-client";
 import StudyComposer from "./StudyComposer";
+import Logo from "./Logo";
+import UserChip from "./UserChip";
 import StudyOrganisation from "./StudyOrganisation";
 import type { hubView } from "@/lib/study/hub";
 import "./student-dashboard.css";
@@ -22,6 +24,7 @@ import StudyRetention from "./growth/StudyRetention";
 import "./growth/growth.css";
 type Hub = Awaited<ReturnType<typeof hubView>>;
 type Lesson = {
+  preview?: string;
   id: string;
   title: string | null;
   topics: string[];
@@ -82,6 +85,21 @@ export default function StudentDashboard() {
     setError("");
   }, []);
   useEffect(() => {
+    const requestedTab = new URLSearchParams(location.search).get("tab");
+    if (
+      requestedTab &&
+      [
+        "today",
+        "create",
+        "library",
+        "review",
+        "planner",
+        "sources",
+        "wallet",
+        "settings",
+      ].includes(requestedTab)
+    )
+      setTab(requestedTab);
     const initial = new URLSearchParams(location.search).get("topic");
     if (initial) {
       setTopic(initial);
@@ -135,10 +153,22 @@ export default function StudentDashboard() {
       setBusy(false);
     }
   }
-  const current = hub?.continue,
+  const readyLesson = jobs.find((j) => j.status === "done");
+  const current =
+      hub?.continue ||
+      (readyLesson
+        ? {
+            id: readyLesson.id,
+            title: readyLesson.title || readyLesson.topics[0],
+            completed: 0,
+            total: readyLesson.total,
+            room: "notes",
+          }
+        : null),
     card = hub?.due[0];
   const titles: Record<string, string> = {
-    create: "Make something click.",
+    create: "Start with your source.",
+    settings: "Make this space yours.",
     library: "Your learning library.",
     review: "A little recall, every day.",
     planner: "Make room for your exam.",
@@ -146,8 +176,11 @@ export default function StudentDashboard() {
     wallet: "Every credit, accounted for.",
   };
   return (
-    <div className="student-hub">
+    <div className="student-hub student-redesign">
       <aside className="hub-rail">
+        <a href="/" className="hub-brand" aria-label="Syaahii home">
+          <Logo size={30} />
+        </a>
         <p className="hub-wordmark">
           <GraduationCap size={23} aria-hidden="true" />
           <span>
@@ -156,13 +189,11 @@ export default function StudentDashboard() {
         </p>
         <nav aria-label="Study workspace">
           {[
-            ["today", "Today"],
+            ["today", "Home"],
             ["create", "Create lesson"],
-            ["library", "Library"],
-            ["review", "Review"],
+            ["library", "Notebooks"],
+            ["review", "Practice"],
             ["planner", "Exam planner"],
-            ["sources", "Sources"],
-            ["wallet", "Credits"],
           ].map(([key, label], index) => {
             const Icon = [
               Sun,
@@ -187,9 +218,18 @@ export default function StudentDashboard() {
               </button>
             );
           })}
-          <a href="/presentations">Presentation studio ↗</a>
-          <a href="/interview">Interview practice ↗</a>
-          <a href="/blog">Blog · AI, CS & new ideas ↗</a>
+          <details className="hub-tools-menu">
+            <summary>More tools</summary>
+            <a href="/presentations">Presentation studio</a>
+            <a href="/interview">Interview practice</a>
+            <a href="/blog">Study blog</a>
+            <button onClick={() => setTab("sources")}>Sources</button>
+            <button onClick={() => setTab("wallet")}>Credits</button>
+            <button onClick={() => setTab("settings")}>
+              Study preferences
+            </button>
+            <a href="/support">Help</a>
+          </details>
         </nav>
         <a className="hub-rail-bottom" href="/account/billing">
           Manage membership
@@ -205,29 +245,67 @@ export default function StudentDashboard() {
                 : titles[tab]}
             </h1>
           </div>
-          <a className="hub-balance" href="/pricing">
-            {credits ?? "…"}
-            <span>available credits</span>
-          </a>
+          <div className="hub-account">
+            <UserChip />
+            <a className="hub-balance" href="/pricing">
+              {credits ?? "…"}
+              <span>credits</span>
+            </a>
+          </div>
         </header>
-        <div className="hub-tools">
-          <input
-            aria-label="Search your lesson content"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search notes, sources and flashcards…"
-          />
-          <button
-            className="btn dark"
-            onClick={() => {
-              setQuery("");
-              setTab("create");
+        {tab === "today" && hub && !hub.state.preferences && (
+          <div className="hub-onboarding-hint">
+            <span>Make your first notebook relevant to your course.</span>
+            <button className="btn light" onClick={() => setTab("settings")}>
+              Choose course & language
+            </button>
+          </div>
+        )}
+        {tab === "today" && (
+          <form
+            className="hub-start"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (topic.trim()) setTab("create");
             }}
           >
-            ＋ New lesson
-          </button>
-        </div>
+            <label htmlFor="home-source">
+              What would you like to understand?
+            </label>
+            <div>
+              <input
+                id="home-source"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                maxLength={2000}
+                placeholder="A university topic or YouTube lecture link…"
+                required
+              />
+              <button className="btn dark">Create notes</button>
+            </div>
+            <small>Review the outline and credit cost before generating.</small>
+          </form>
+        )}
+        {tab !== "today" && tab !== "create" && (
+          <div className="hub-tools">
+            <input
+              aria-label="Search your lesson content"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search notes, sources and flashcards…"
+            />
+            <button
+              className="btn dark"
+              onClick={() => {
+                setQuery("");
+                setTab("create");
+              }}
+            >
+              ＋ New lesson
+            </button>
+          </div>
+        )}
         <VideoQueue key={user?.id || "guest"} />
         {error && (
           <div role="alert" className="hub-error">
@@ -258,7 +336,7 @@ export default function StudentDashboard() {
           </section>
         ) : (
           <>
-            {tab === "today" && (
+            {tab === "settings" && (
               <>
                 {hub && (
                   <LearningSetup
@@ -277,29 +355,10 @@ export default function StudentDashboard() {
                 {hub && (
                   <StudyRetention hub={hub} change={change} busy={busy} />
                 )}
-                <section className="hub-summary">
-                  <article>
-                    <strong>{hub?.dueCount ?? "…"}</strong>
-                    <p>cards due</p>
-                    <button onClick={() => setTab("review")}>
-                      Start recall →
-                    </button>
-                  </article>
-                  <article>
-                    <strong>{hub?.streak ?? 0}</strong>
-                    <p>day study streak</p>
-                    <small>Saved reviews and quizzes count.</small>
-                  </article>
-                  <article>
-                    <strong>
-                      {jobs.filter((j) => j.status === "done").length}
-                    </strong>
-                    <p>ready lessons</p>
-                    <button onClick={() => setTab("library")}>
-                      Open library →
-                    </button>
-                  </article>
-                </section>
+              </>
+            )}
+            {tab === "today" && (
+              <>
                 <section className="hub-continue">
                   <div>
                     <p className="eyebrow">CONTINUE LEARNING</p>
@@ -328,6 +387,30 @@ export default function StudentDashboard() {
                     </button>
                   )}
                 </section>
+                <section className="hub-summary">
+                  <article>
+                    <strong>{hub?.dueCount ?? "…"}</strong>
+                    <p>cards due</p>
+                    <button onClick={() => setTab("review")}>
+                      Start recall →
+                    </button>
+                  </article>
+                  <article>
+                    <strong>{hub?.streak ?? 0}</strong>
+                    <p>day study streak</p>
+                    <small>Saved reviews and quizzes count.</small>
+                  </article>
+                  <article>
+                    <strong>
+                      {jobs.filter((j) => j.status === "done").length}
+                    </strong>
+                    <p>ready lessons</p>
+                    <button onClick={() => setTab("library")}>
+                      Open library →
+                    </button>
+                  </article>
+                </section>
+
                 <div className="hub-split">
                   <section className="hub-panel">
                     <p className="eyebrow">WHAT TO REVISIT</p>
@@ -412,6 +495,14 @@ export default function StudentDashboard() {
                     .filter((j) => folder === null || folder.includes(j.id))
                     .map((j) => (
                       <a key={j.id} href={`/lesson/${j.id}/notes`}>
+                        {j.preview && (
+                          <div
+                            className="hub-notebook-preview"
+                            aria-label="Saved note excerpt"
+                          >
+                            {j.preview}
+                          </div>
+                        )}
                         <small>
                           {j.status === "done"
                             ? "READY TO STUDY"

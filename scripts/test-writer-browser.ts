@@ -106,13 +106,15 @@ async function main() {
     const modal = page.getByRole("dialog");
     await modal.waitFor();
     assert.match(page.url(), /\/writing$/);
-    await modal.getByRole("heading", { name: "Welcome back." }).waitFor();
+    await modal
+      .getByRole("heading", { name: "Good to see you again." })
+      .waitFor();
     await page.screenshot({ path: "output/writer-redesign/auth-dialog.png" });
     await modal
       .getByRole("link", { name: "Create account", exact: true })
       .click();
     await modal
-      .getByRole("heading", { name: "Your words belong here." })
+      .getByRole("heading", { name: "Your next story starts here." })
       .waitFor();
     await page.keyboard.press("Escape");
     await modal.waitFor({ state: "hidden" });
@@ -121,7 +123,9 @@ async function main() {
     await page
       .getByRole("link", { name: "Sign in to join this lesson" })
       .click();
-    await modal.getByRole("heading", { name: "Welcome back." }).waitFor();
+    await modal
+      .getByRole("heading", { name: "Good to see you again." })
+      .waitFor();
     assert.match(page.url(), /\/share\//);
     await page.keyboard.press("Escape");
     await modal.waitFor({ state: "hidden" });

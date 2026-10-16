@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { REVIEW_TOPICS, type ReviewTopic } from "./review-topics";
 import type { Account } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { collection, useMongo } from "@/lib/storage/mongo";
@@ -16,6 +17,7 @@ export class ReviewError extends Error {
   }
 }
 export interface Testimonial extends WorkspaceRecord {
+  category?: ReviewTopic;
   kind: "testimonial";
   stars: number;
   text: string;
@@ -76,6 +78,11 @@ export function reviewInput(body: any) {
   const text =
     typeof body.text === "string" ? body.text.trim().normalize("NFKC") : "";
   if (
+    body.category !== undefined &&
+    !Object.prototype.hasOwnProperty.call(REVIEW_TOPICS, body.category)
+  )
+    throw new ReviewError("Choose a supported feedback topic.");
+  if (
     !Number.isInteger(body.stars) ||
     body.stars < 1 ||
     body.stars > 5 ||
@@ -93,6 +100,7 @@ export function reviewInput(body: any) {
       "Remove links, markup or repeated promotional text from your review.",
     );
   return {
+    category: (body.category || "general") as ReviewTopic,
     stars: body.stars as number,
     text,
     fingerprint: createHash("sha256")

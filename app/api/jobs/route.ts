@@ -273,6 +273,9 @@ async function handleGET(req: NextRequest) {
       style: j.style,
       status: j.status,
       done: j.pages.length,
+      preview: (j.pages[0]?.markdown || "")
+        .replace(/[#*>`]/g, "")
+        .slice(0, 240),
       total: j.total,
       plannedTotal: j.plannedTotal,
       creditsSpent: j.creditsSpent,

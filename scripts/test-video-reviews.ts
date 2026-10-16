@@ -56,7 +56,7 @@ async function main() {
       /complete a lesson/,
     );
     const lesson = await jobs.createJob(user.id, ["Normalization"], "concise");
-    assert.equal(lesson.pdfTemplate, "atlas");
+    assert.equal(lesson.pdfTemplate, "sketchnote");
     const lease = (await jobs.claimJob(lesson.id))!;
     await jobs.commitPage(lesson.id, lease.token, 0, {
       topic: "Normalization",

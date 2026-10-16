@@ -30,6 +30,7 @@ export const POST = apiHandler(async (req: Request) => {
             email: String(userObj.email),
             name: String(userObj.name),
             createdAt: String(userObj.createdAt || userObj.created_at),
+            workspace: userObj.workspace === "writer" ? "writer" : "student",
           },
           req,
         );

@@ -31,6 +31,8 @@ export default function SiteHeader() {
     };
   }, []);
   if (
+    path === "/dashboard" ||
+    path === "/generate" ||
     path === "/admin" ||
     path.startsWith("/admin/") ||
     path.startsWith("/lesson/") ||
@@ -41,6 +43,15 @@ export default function SiteHeader() {
     path.startsWith("/writer/")
   )
     return null;
+  if (["/login", "/signup", "/forgot-password", "/verify-email"].includes(path))
+    return (
+      <header className="auth-topbar">
+        <a href="/" aria-label="Syaahii home">
+          <Logo size={30} />
+        </a>
+        <a href="/support">Need help?</a>
+      </header>
+    );
   const editorial = publishingPath(path) || user?.workspace === "writer";
   const links = editorial
     ? [

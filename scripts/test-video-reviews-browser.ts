@@ -183,11 +183,14 @@ async function main() {
       assert(html.includes("Syaahii Pvt. Ltd."));
     }
     await page.goto(`${origin}/lesson/${job.id}/notes`);
+    await page.getByText("Notebook options", { exact: true }).click();
+    await page.getByText("Notebook appearance", { exact: true }).click();
     await page.getByLabel("PDF template", { exact: true }).waitFor();
     assert.equal(
       await page.getByLabel("PDF template", { exact: true }).inputValue(),
-      "atlas",
+      "sketchnote",
     );
+    await page.getByText("History & learning goals", { exact: true }).click();
     await page
       .getByText(/Active recall: explain Database normalization/)
       .click();
@@ -198,8 +201,9 @@ async function main() {
     await page.reload();
     await page.getByLabel("Reviewed", { exact: true }).waitFor();
     assert(await page.getByLabel("Reviewed", { exact: true }).isChecked());
-    await page.locator(".reading-page").waitFor();
+    await page.locator(".notebook-page").waitFor();
     await layout("atlas-reader");
+    await page.getByText("Notebook options", { exact: true }).click();
     await page.getByText("Reading & accessibility", { exact: true }).click();
     await page.getByLabel("View", { exact: true }).selectOption("print");
     const frame = page.frameLocator(".print-note iframe");
@@ -218,6 +222,57 @@ async function main() {
       await frame.getByText("Identify redundancy", { exact: false }).count(),
     );
     await layout("atlas-notes");
+    // Every approved composition must paginate without clipping and save per owner.
+    await page.getByText("Notebook appearance", { exact: true }).click();
+    for (const template of ["sketchnote", "bluepen", "cornell"]) {
+      await page
+        .getByLabel("PDF template", { exact: true })
+        .selectOption(template);
+      const currentFrame = page.frameLocator(".print-note iframe");
+      await currentFrame
+        .locator(`.sheet.template-${template}`)
+        .first()
+        .waitFor({ timeout: 30000 });
+      assert(
+        await currentFrame
+          .locator(".sheet-body")
+          .evaluateAll((items) =>
+            items.every((el) => el.scrollHeight <= el.clientHeight + 3),
+          ),
+      );
+      await page.screenshot({
+        path: `output/video-reviews/notebook-${template}-print.png`,
+        fullPage: true,
+      });
+    }
+    await page
+      .getByRole("button", { name: "Save notebook style", exact: true })
+      .click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Notebook appearance saved to your account." })
+      .waitFor();
+    await page.reload();
+    await page.locator(".notebook-page.template-cornell").waitFor();
+    await page.getByText("Notebook options", { exact: true }).click();
+    await page.getByText("Notebook appearance", { exact: true }).click();
+    assert.equal(
+      await page.getByLabel("PDF template", { exact: true }).inputValue(),
+      "cornell",
+    );
+    await page
+      .getByLabel("PDF template", { exact: true })
+      .selectOption("sketchnote");
+    await page
+      .getByRole("button", { name: "Save notebook style", exact: true })
+      .click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Notebook appearance saved to your account." })
+      .waitFor();
+    await page.getByText("Notebook options", { exact: true }).click();
+    await layout("approved-notebook");
+
     await page.goto(origin + "/dashboard");
     await page.getByRole("heading", { name: /Your next step/ }).waitFor();
     await layout("student-workspace");

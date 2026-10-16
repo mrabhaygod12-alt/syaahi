@@ -87,6 +87,9 @@ export interface Job {
   planNote: string | null;
   progress: JobProgress | null;
   pdfTemplate:
+    | "sketchnote"
+    | "bluepen"
+    | "cornell"
     | "classic"
     | "poster"
     | "lab"
@@ -96,6 +99,7 @@ export interface Job {
     | "annotated"
     | "atlas"
     | null;
+  notebookAppearance?: import("@/lib/notes/appearance").NotebookAppearance;
   podcastScript: string | null;
   error: string | null;
   creditsSpent: number;
@@ -158,7 +162,7 @@ export async function createJob(
     total: topics.length,
     plannedTotal: topics.length,
     progress: { completed: [] },
-    pdfTemplate: "atlas",
+    pdfTemplate: "sketchnote",
     podcastScript: null,
     error: null,
     creditsSpent: 0,

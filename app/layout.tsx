@@ -15,6 +15,7 @@ import "@/components/writer/reader.css";
 import WorkspaceProvider from "@/components/WorkspaceProvider";
 import "./experience-upgrade.css";
 import "./product-public.css";
+import "./redesign.css";
 import "katex/dist/katex.min.css";
 import GrowthVisit from "@/components/growth/GrowthVisit";
 

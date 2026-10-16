@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { originError, AccountAccessError } from "@/lib/auth/server";
 import { abuseGuard } from "@/lib/security/abuse";
+import {
+  enforceRequestBudget,
+  RequestBudgetError,
+} from "@/lib/security/request-budget";
+import { admitRequest } from "@/lib/security/admission";
 /** Keep infrastructure errors and credentials out of public responses. */
 export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
   handler: T,
@@ -9,50 +14,8 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
   return async (...args: Parameters<T>): Promise<Response> => {
     const req = args[0] instanceof Request ? (args[0] as Request) : undefined;
     const requestId = randomUUID();
-    try {
-      if (req) {
-        const crossOrigin = originError(req);
-        if (crossOrigin) return crossOrigin;
-        const abuse = await abuseGuard(req);
-        if (abuse) return abuse;
-        const bytes = Number(req.headers.get("content-length") || 0);
-        const limit = req.headers
-          .get("content-type")
-          ?.includes("multipart/form-data")
-          ? 12 * 1024 * 1024
-          : 2 * 1024 * 1024;
-        if (bytes > limit)
-          return NextResponse.json(
-            { error: "Request exceeds the supported upload size.", requestId },
-            { status: 413 },
-          );
-        // Enforce the actual streamed bytes too: Content-Length is optional and
-        // untrusted. The original body remains available to the route handler.
-        if (req.body) {
-          const reader = req.clone().body!.getReader();
-          let received = 0;
-          try {
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              received += value.byteLength;
-              if (received > limit) {
-                void reader.cancel().catch(() => {});
-                return NextResponse.json(
-                  {
-                    error: "Request exceeds the supported upload size.",
-                    requestId,
-                  },
-                  { status: 413 },
-                );
-              }
-            }
-          } finally {
-            reader.releaseLock();
-          }
-        }
-      }
-      const response = await handler(...args);
+    const release = req ? admitRequest(req) : () => {};
+    const decorate = (response: Response) => {
       response.headers.set("X-Request-Id", requestId);
       if (
         req &&
@@ -61,11 +24,37 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
       )
         response.headers.set("Cache-Control", "no-store");
       return response;
+    };
+    try {
+      if (!release)
+        return decorate(
+          NextResponse.json(
+            { error: "The service is busy. Please retry shortly.", requestId },
+            { status: 503, headers: { "Retry-After": "3" } },
+          ),
+        );
+      if (req) {
+        const crossOrigin = originError(req);
+        if (crossOrigin) return decorate(crossOrigin);
+        const abuse = await abuseGuard(req);
+        if (abuse) return decorate(abuse);
+        await enforceRequestBudget(req);
+      }
+      return decorate(await handler(...args));
     } catch (error) {
+      if (error instanceof RequestBudgetError)
+        return decorate(
+          NextResponse.json(
+            { error: error.message, requestId },
+            { status: error.status },
+          ),
+        );
       if (error instanceof AccountAccessError)
-        return NextResponse.json(
-          { error: error.message, code: "ACCOUNT_DISABLED" },
-          { status: 403, headers: { "Cache-Control": "no-store" } },
+        return decorate(
+          NextResponse.json(
+            { error: error.message, code: "ACCOUNT_DISABLED" },
+            { status: 403, headers: { "Cache-Control": "no-store" } },
+          ),
         );
       console.error(
         JSON.stringify({
@@ -86,6 +75,8 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
           headers: { "Cache-Control": "no-store", "X-Request-Id": requestId },
         },
       );
+    } finally {
+      release?.();
     }
   };
 }

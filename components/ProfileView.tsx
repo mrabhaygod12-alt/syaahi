@@ -1,5 +1,6 @@
 "use client";
 import SessionSecurity from "./SessionSecurity";
+import { requestJson } from "@/lib/http-client";
 
 import { useEffect, useState, useRef } from "react";
 import { ANIME_AVATARS, getAnimeAvatar } from "@/lib/avatars";
@@ -17,19 +18,24 @@ export default function ProfileView() {
   const [name, setName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState<string>("");
   const [previewCustom, setPreviewCustom] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"avatar" | "details" | "security">("avatar");
+  const [activeTab, setActiveTab] = useState<"avatar" | "details" | "security">(
+    "details",
+  );
   const [saving, setSaving] = useState(false);
-  const [signingOut, setSigningOut] = useState(false), [logoutError, setLogoutError] = useState("");
-  const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [signingOut, setSigningOut] = useState(false),
+    [logoutError, setLogoutError] = useState("");
+  const [statusMsg, setStatusMsg] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const res = await fetch("/api/user/profile");
+        const { response: res, data } = await requestJson("/api/user/profile");
         if (res.ok) {
-          const data = await res.json();
           setProfile(data.user);
           setName(data.user.name || "");
           const currentAv = data.user.avatar || getAnimeAvatar(data.user.id).id;
@@ -59,7 +65,7 @@ export default function ProfileView() {
     setStatusMsg(null);
     try {
       const avatarToSave = previewCustom || selectedAvatar;
-      const res = await fetch("/api/user/profile", {
+      const { response: res, data } = await requestJson("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -67,12 +73,17 @@ export default function ProfileView() {
           avatar: avatarToSave,
         }),
       });
-      const data = await res.json();
+
       if (!res.ok) throw new Error(data.error || "Failed to update profile.");
 
-      setProfile((prev) => (prev ? { ...prev, name: name.trim(), avatar: avatarToSave } : null));
+      setProfile((prev) =>
+        prev ? { ...prev, name: name.trim(), avatar: avatarToSave } : null,
+      );
       await refreshUser();
-      setStatusMsg({ type: "success", text: "Profile updated successfully! ✨" });
+      setStatusMsg({
+        type: "success",
+        text: "Profile updated successfully! ✨",
+      });
     } catch (e) {
       setStatusMsg({
         type: "error",
@@ -87,8 +98,15 @@ export default function ProfileView() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setStatusMsg({ type: "error", text: "Image must be under 2MB." });
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+      setStatusMsg({
+        type: "error",
+        text: "Choose a PNG, JPEG, WebP or GIF image.",
+      });
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setStatusMsg({ type: "error", text: "Image must be under 1MB." });
       return;
     }
 
@@ -97,7 +115,10 @@ export default function ProfileView() {
       const dataUrl = reader.result as string;
       setPreviewCustom(dataUrl);
       setSelectedAvatar(dataUrl);
-      setStatusMsg({ type: "success", text: "Custom image loaded! Click Save to apply." });
+      setStatusMsg({
+        type: "success",
+        text: "Custom image loaded! Click Save to apply.",
+      });
     };
     reader.readAsDataURL(file);
   }
@@ -105,13 +126,17 @@ export default function ProfileView() {
   async function handleSendVerification() {
     setVerifying(true);
     try {
-      const res = await fetch("/api/auth/verify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not send verification email.");
+      const { response: res, data } = await requestJson(
+        "/api/auth/verify-email",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+
+      if (!res.ok)
+        throw new Error(data.error || "Could not send verification email.");
       setStatusMsg({
         type: "success",
         text: "Verification link sent to your email! Please check your inbox.",
@@ -128,7 +153,10 @@ export default function ProfileView() {
 
   if (loading) {
     return (
-      <div className="wrap" style={{ padding: "80px 24px", maxWidth: 900, textAlign: "center" }}>
+      <div
+        className="wrap"
+        style={{ padding: "80px 24px", maxWidth: 900, textAlign: "center" }}
+      >
         <p className="small">Loading your profile...</p>
       </div>
     );
@@ -136,9 +164,14 @@ export default function ProfileView() {
 
   if (!profile) {
     return (
-      <div className="wrap" style={{ padding: "80px 24px", maxWidth: 600, textAlign: "center" }}>
+      <div
+        className="wrap"
+        style={{ padding: "80px 24px", maxWidth: 600, textAlign: "center" }}
+      >
         <h1>Sign In Required</h1>
-        <p className="small">Please sign in to view and manage your profile settings.</p>
+        <p className="small">
+          Please sign in to view and manage your profile settings.
+        </p>
         <a href="/login" className="btn dark" style={{ marginTop: 20 }}>
           Sign In
         </a>
@@ -147,14 +180,33 @@ export default function ProfileView() {
   }
 
   const currentAnime = getAnimeAvatar(selectedAvatar || profile.id);
-  const isCustomImage = selectedAvatar?.startsWith("data:image/") || selectedAvatar?.startsWith("https://");
+  const isCustomImage =
+    selectedAvatar?.startsWith("data:image/") ||
+    selectedAvatar?.startsWith("https://");
 
   return (
-    <div className="wrap" style={{ maxWidth: 980, padding: "50px 20px 100px" }}>
+    <div
+      className="wrap profile-redesign"
+      style={{ maxWidth: 980, padding: "50px 20px 100px" }}
+    >
       {/* Top Breadcrumb & Title */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <p className="small" style={{ textTransform: "uppercase", letterSpacing: "0.08em", color: "#6b7280" }}>
+          <p
+            className="small"
+            style={{
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "#6b7280",
+            }}
+          >
             ACCOUNT & SETTINGS
           </p>
           <h1 style={{ margin: "4px 0 0", fontSize: "2rem" }}>Your Profile</h1>
@@ -209,7 +261,7 @@ export default function ProfileView() {
                 height: 96,
                 borderRadius: "50%",
                 objectFit: "cover",
-                border: "3px solid #6246ea",
+                border: "3px solid #245447",
                 boxShadow: "0 4px 12px rgba(98,70,234,0.25)",
               }}
             />
@@ -252,7 +304,14 @@ export default function ProfileView() {
 
         {/* User Details Header */}
         <div style={{ flex: "1 1 300px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <h2 style={{ margin: 0, fontSize: "1.6rem" }}>{profile.name}</h2>
             {profile.verified ? (
               <span
@@ -288,9 +347,23 @@ export default function ProfileView() {
               </span>
             )}
           </div>
-          <p style={{ margin: "4px 0 8px", color: "#4b5563", fontSize: "0.95rem" }}>{profile.email}</p>
+          <p
+            style={{
+              margin: "4px 0 8px",
+              color: "#4b5563",
+              fontSize: "0.95rem",
+            }}
+          >
+            {profile.email}
+          </p>
           <p style={{ margin: 0, color: "#9ca3af", fontSize: "0.8rem" }}>
-            Member since {new Date(profile.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })} · ID: {profile.id.slice(0, 8)}...
+            Member since{" "}
+            {new Date(profile.createdAt).toLocaleDateString("en-IN", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}{" "}
+            · ID: {profile.id.slice(0, 8)}...
           </p>
         </div>
 
@@ -305,10 +378,24 @@ export default function ProfileView() {
             minWidth: 200,
           }}
         >
-          <div style={{ fontSize: "0.8rem", color: "#6b7280", textTransform: "uppercase", fontWeight: 700 }}>
+          <div
+            style={{
+              fontSize: "0.8rem",
+              color: "#6b7280",
+              textTransform: "uppercase",
+              fontWeight: 700,
+            }}
+          >
             Remaining Tokens
           </div>
-          <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#b45309", margin: "4px 0" }}>
+          <div
+            style={{
+              fontSize: "1.8rem",
+              fontWeight: 800,
+              color: "#b45309",
+              margin: "4px 0",
+            }}
+          >
             ⚡ {profile.tokens ?? Math.floor((profile.balance ?? 0) / 3)} Tokens
           </div>
           <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
@@ -321,7 +408,7 @@ export default function ProfileView() {
               marginTop: 8,
               fontSize: "0.8rem",
               fontWeight: 700,
-              color: "#6246ea",
+              color: "#245447",
               textDecoration: "underline",
             }}
           >
@@ -348,8 +435,11 @@ export default function ProfileView() {
             fontWeight: 700,
             fontSize: "1rem",
             cursor: "pointer",
-            borderBottom: activeTab === "avatar" ? "3px solid #6246ea" : "3px solid transparent",
-            color: activeTab === "avatar" ? "#6246ea" : "#6b7280",
+            borderBottom:
+              activeTab === "avatar"
+                ? "3px solid #245447"
+                : "3px solid transparent",
+            color: activeTab === "avatar" ? "#245447" : "#6b7280",
             marginBottom: -2,
           }}
         >
@@ -364,8 +454,11 @@ export default function ProfileView() {
             fontWeight: 700,
             fontSize: "1rem",
             cursor: "pointer",
-            borderBottom: activeTab === "details" ? "3px solid #6246ea" : "3px solid transparent",
-            color: activeTab === "details" ? "#6246ea" : "#6b7280",
+            borderBottom:
+              activeTab === "details"
+                ? "3px solid #245447"
+                : "3px solid transparent",
+            color: activeTab === "details" ? "#245447" : "#6b7280",
             marginBottom: -2,
           }}
         >
@@ -380,8 +473,11 @@ export default function ProfileView() {
             fontWeight: 700,
             fontSize: "1rem",
             cursor: "pointer",
-            borderBottom: activeTab === "security" ? "3px solid #6246ea" : "3px solid transparent",
-            color: activeTab === "security" ? "#6246ea" : "#6b7280",
+            borderBottom:
+              activeTab === "security"
+                ? "3px solid #245447"
+                : "3px solid transparent",
+            color: activeTab === "security" ? "#245447" : "#6b7280",
             marginBottom: -2,
           }}
         >
@@ -408,9 +504,12 @@ export default function ProfileView() {
             }}
           >
             <div>
-              <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem" }}>Upload Your Custom Profile Photo</h3>
+              <h3 style={{ margin: "0 0 4px", fontSize: "1.1rem" }}>
+                Upload Your Custom Profile Photo
+              </h3>
               <p className="small" style={{ margin: 0, color: "#6b7280" }}>
-                Supports JPG, PNG or WebP under 2MB. Your photo will replace the avatar.
+                Supports JPG, PNG or WebP under 1MB. Your photo will replace the
+                avatar.
               </p>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -446,8 +545,17 @@ export default function ProfileView() {
 
           {/* 20 Anime Character Avatars Grid */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ margin: 0 }}>Or Choose From 20 Iconic Anime Characters</h3>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>
+                Or Choose From 20 Iconic Anime Characters
+              </h3>
               <span className="small" style={{ color: "#6b7280" }}>
                 Click any character to select
               </span>
@@ -472,13 +580,17 @@ export default function ProfileView() {
                     }}
                     style={{
                       background: isSelected ? "#f5f3ff" : "#fff",
-                      border: isSelected ? "2.5px solid #6246ea" : "1px solid #e5e0d8",
+                      border: isSelected
+                        ? "2.5px solid #245447"
+                        : "1px solid #e5e0d8",
                       borderRadius: 12,
                       padding: 14,
                       textAlign: "center",
                       cursor: "pointer",
                       transition: "all 0.15s ease",
-                      boxShadow: isSelected ? "0 4px 14px rgba(98,70,234,0.2)" : "none",
+                      boxShadow: isSelected
+                        ? "0 4px 14px rgba(98,70,234,0.2)"
+                        : "none",
                       position: "relative",
                     }}
                   >
@@ -488,7 +600,7 @@ export default function ProfileView() {
                           position: "absolute",
                           top: 8,
                           right: 8,
-                          background: "#6246ea",
+                          background: "#245447",
                           color: "#fff",
                           fontSize: "0.7rem",
                           borderRadius: "50%",
@@ -519,9 +631,32 @@ export default function ProfileView() {
                     >
                       {anime.emoji}
                     </div>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#111827" }}>{anime.name}</div>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 2 }}>{anime.anime}</div>
-                    <div style={{ fontSize: "0.7rem", color: "#9ca3af", marginTop: 2, fontStyle: "italic" }}>
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: "0.95rem",
+                        color: "#111827",
+                      }}
+                    >
+                      {anime.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#6b7280",
+                        marginTop: 2,
+                      }}
+                    >
+                      {anime.anime}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "#9ca3af",
+                        marginTop: 2,
+                        fontStyle: "italic",
+                      }}
+                    >
                       {anime.tagline}
                     </div>
                   </button>
@@ -563,7 +698,11 @@ export default function ProfileView() {
                 maxLength={80}
                 onChange={(e) => setName(e.target.value)}
                 required
-                style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #d1d5db" }}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #d1d5db",
+                }}
               />
             </label>
 
@@ -581,8 +720,12 @@ export default function ProfileView() {
                   color: "#6b7280",
                 }}
               />
-              <span className="small" style={{ color: "#6b7280", fontWeight: 400 }}>
-                Email cannot be changed directly for security and billing protection.
+              <span
+                className="small"
+                style={{ color: "#6b7280", fontWeight: 400 }}
+              >
+                Email cannot be changed directly for security and billing
+                protection.
               </span>
             </label>
 
@@ -609,9 +752,12 @@ export default function ProfileView() {
                     className="btn light"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `${window.location.origin}/signup?ref=${profile.referralCode}`
+                        `${window.location.origin}/signup?ref=${profile.referralCode}`,
                       );
-                      setStatusMsg({ type: "success", text: "Referral invite link copied to clipboard! 📋" });
+                      setStatusMsg({
+                        type: "success",
+                        text: "Referral invite link copied to clipboard! 📋",
+                      });
                     }}
                   >
                     Copy Link
@@ -676,13 +822,21 @@ export default function ProfileView() {
               style={{ color: "#dc2626", borderColor: "#fca5a5" }}
               onClick={async () => {
                 if (signingOut) return;
-                setSigningOut(true); setLogoutError("");
+                setSigningOut(true);
+                setLogoutError("");
                 try {
                   const { signOut } = await import("@/lib/auth/session");
-                  await signOut(); window.location.href = "/login";
+                  await signOut();
+                  window.location.href = "/login";
                 } catch (error) {
-                  setLogoutError(error instanceof Error ? error.message : "Sign out failed. Please retry.");
-                } finally { setSigningOut(false); }
+                  setLogoutError(
+                    error instanceof Error
+                      ? error.message
+                      : "Sign out failed. Please retry.",
+                  );
+                } finally {
+                  setSigningOut(false);
+                }
               }}
             >
               {signingOut ? "Signing out…" : "Sign Out"}

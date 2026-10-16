@@ -19,6 +19,9 @@ jobs:
       - run: npm run test:admin-mfa-lifecycle
       - run: npm run test:workspace-routing
       - run: npm run test:security
+      - run: npx tsx scripts/test-request-budget.ts
+      - run: npx tsx scripts/test-redesign.ts
+      - run: npx tsx scripts/test-redesign.ts --mongo
       - run: npm run test:oauth-identity
       - run: npm run test:monthly-catalog
       - run: npm run test:growth

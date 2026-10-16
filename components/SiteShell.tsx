@@ -10,6 +10,15 @@ export function SiteFooter() {
   const pathname = usePathname();
   const { user } = useAccount();
   if (
+    [
+      "/dashboard",
+      "/generate",
+      "/profile",
+      "/login",
+      "/signup",
+      "/forgot-password",
+      "/verify-email",
+    ].includes(pathname || "") ||
     pathname === "/admin" ||
     pathname?.startsWith("/admin/") ||
     pathname?.startsWith("/lesson/") ||
@@ -23,6 +32,8 @@ export function SiteFooter() {
       <footer className="app-copyright">
         <CompanyCopyright />
         <a href="/feedback">Share feedback</a>
+        <a href="/support">Help</a>
+        <a href="/privacy">Privacy</a>
       </footer>
     );
   if (user?.workspace === "writer" || publishingPath(pathname || ""))

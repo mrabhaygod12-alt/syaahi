@@ -1,4 +1,5 @@
 import LearningBento from "./LearningBento";
+import DeviceDemo from "./DeviceDemo";
 import { ReviewWidget } from "./Reviews";
 import PreviewCta from "./PreviewCta";
 import GuestPreview, { PreviewPaper } from "./GuestPreview";
@@ -89,6 +90,7 @@ export default function GrowthLanding({
         </div>
       </section>
       <LearningBento />
+      <DeviceDemo />
       <section className="growth-proof-strip">
         <div className="growth-wrap">
           <span>{t("TOPIC / PDF / LECTURE", "विषय / PDF / लेक्चर")}</span>

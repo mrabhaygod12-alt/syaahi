@@ -80,7 +80,8 @@
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "test:video-reviews": "tsx scripts/test-video-reviews.ts && tsx scripts/test-video-reviews.ts --mongo",
     "test:radox": "tsx scripts/test-radox.ts",
-    "test:video-reviews-browser": "tsx scripts/test-video-reviews-browser.ts"
+    "test:video-reviews-browser": "tsx scripts/test-video-reviews-browser.ts",
+    "test:redesign": "tsx scripts/test-redesign.ts && tsx scripts/test-redesign.ts --mongo && tsx scripts/test-request-budget.ts"
   },
   "dependencies": {
     "@fontsource/caveat": "^5.3.0",

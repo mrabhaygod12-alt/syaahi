@@ -167,7 +167,7 @@ async function main() {
       .getByRole("heading", { name: "Your next step, Browser." })
       .waitFor();
     await page
-      .getByRole("button", { name: "Review", exact: false })
+      .getByRole("button", { name: /^Practice/, exact: false })
       .first()
       .click();
     await page.getByRole("heading", { name: "Cell?" }).waitFor();
@@ -176,7 +176,7 @@ async function main() {
     await page
       .getByRole("button", { name: "Exam planner", exact: true })
       .click();
-    await page.getByRole("button", { name: "Today", exact: true }).click();
+    await page.getByRole("button", { name: "Home", exact: true }).click();
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.screenshot({
@@ -210,7 +210,9 @@ async function main() {
     await page.setViewportSize({ width: 1440, height: 1000 });
     const { balance } = await import("../lib/credits/store"),
       beforePlanning = await balance(user.id);
-    await page.getByRole("button", { name: /New lesson/ }).click();
+    await page
+      .getByRole("button", { name: "Create lesson", exact: true })
+      .click();
     await page
       .getByRole("heading", { name: "Shape your study outline" })
       .waitFor();
@@ -239,7 +241,9 @@ async function main() {
     );
     await page.getByText("Saved to your account", { exact: true }).waitFor();
     await page.reload();
-    await page.getByRole("button", { name: /New lesson/ }).click();
+    await page
+      .getByRole("button", { name: "Create lesson", exact: true })
+      .click();
     await page
       .getByRole("heading", { name: "Review before generation" })
       .waitFor();
@@ -344,6 +348,7 @@ async function main() {
         .isEnabled(),
     );
     await page.goto(`http://localhost:3151/lesson/${job.id}/notes#page-1`);
+    await page.getByText("Notebook options", { exact: true }).click();
     await page.getByText("Reading & accessibility", { exact: true }).click();
     await page.getByLabel("View", { exact: true }).selectOption("reading");
     await page.getByLabel("Text size", { exact: true }).selectOption("28");

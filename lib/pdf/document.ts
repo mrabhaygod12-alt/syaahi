@@ -1,6 +1,8 @@
 import katex from "katex";
 import { parseNote, type Block } from "@/lib/notes/parse";
 import type { StyleOpts } from "@/lib/handwriting/options";
+import { NOTEBOOK_CSS } from "@/lib/notes/notebook";
+import { isPdfTemplate } from "./templates";
 
 export interface PrintNote {
   markdown: string;
@@ -114,6 +116,7 @@ const paginate = String.raw`
     const output = document.getElementById('pages');
     function makeSheet(source) {
       const page = document.createElement('article'); page.className = 'sheet ' + source.dataset.paper;
+      page.dataset.paper=(source.dataset.paper||'cream').split(' ')[0];
       page.style.cssText = source.getAttribute('style') || '';
       const body = document.createElement('div'); body.className = 'sheet-body';
       const footer = document.createElement('footer');
@@ -219,7 +222,7 @@ export function renderDocument(
           );
         })
         .join("");
-      return `<section class="source" data-paper="${paper} template-${["classic", "poster", "lab", "magazine", "study", "exam", "annotated", "atlas"].includes(note.template || "") ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${rendered}</section>`;
+      return `<section class="source" data-paper="${paper} template-${isPdfTemplate(note.template) ? note.template : "classic"}" data-footer="${escapeHtml(note.topic || note.footer || "Syaahi · Study notes")}" style="font-family:'${font}',sans-serif;color:${ink};font-size:${size}px">${rendered}</section>`;
     })
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -261,5 +264,6 @@ export function renderDocument(
   .template-atlas .definition b,.template-atlas .summary b,.template-atlas .alert b,.template-atlas .tip b{display:block;font-size:17px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
   .template-atlas .visual{background:#eaf1f8;border:1.5px solid #8caabc;border-radius:12px;padding:18px;margin:16px 0}.template-atlas .visual-label{font-size:16px;font-family:Arial,sans-serif;color:#466579;letter-spacing:.07em}.template-atlas .diagram-node{background:#fffdf6;border:1.5px solid #759aab;border-radius:9px;font-size:22px;color:#283f50}.template-atlas .diagram-node span{background:#f2d797;color:#594525}.template-atlas .flow-arrow{color:#597f8c}.template-atlas .concepts span{background:#faf0d5;border:1px solid #c3ae7d;border-radius:9px}
   .template-atlas .alert{background:#fae5df;border:1px solid #d6a69e;border-left:5px solid #c56c63;border-radius:10px;padding:14px 18px}.template-atlas .summary{background:#e3efdf;border:1px solid #9bb290;border-left:5px solid #7a9e68;border-radius:10px;padding:14px 18px}.template-atlas .tip{background:#fff0ce;border:1px solid #d6b57b;border-left:5px solid #cfa155;border-radius:10px;padding:14px 18px}.template-atlas table{border-collapse:separate;border-spacing:0;font-size:.85em;border-radius:9px;overflow:hidden}.template-atlas th{background:#e7dfea;color:#573b61}.template-atlas td{background:#fffdf8}.template-atlas .code{background:#eef2f5;border-color:#b7c9d4;border-radius:8px}.template-atlas .bullet{margin-bottom:12px;padding-left:22px}.template-atlas .bullet-dot{color:#627e49}
+  ${NOTEBOOK_CSS}
   </style></head><body><main id="pages"></main><div id="sources">${sources}</div><script>${paginate}</script></body></html>`;
 }

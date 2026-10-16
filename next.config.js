@@ -29,6 +29,10 @@ module.exports = {
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
           {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+          {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
           },
@@ -39,7 +43,7 @@ module.exports = {
           {
             key: "Content-Security-Policy",
             value:
-              "object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self' blob: data: https:; frame-src 'self' blob: https://api.razorpay.com https://*.razorpay.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
           },
         ],
       },

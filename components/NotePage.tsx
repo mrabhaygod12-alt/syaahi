@@ -15,6 +15,9 @@ export default function NotePage({
   footer: string;
   seedKey?: string;
   template?:
+    | "sketchnote"
+    | "bluepen"
+    | "cornell"
     | "classic"
     | "poster"
     | "lab"

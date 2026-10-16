@@ -131,7 +131,17 @@ export function originError(req: Request): NextResponse | null {
       { error: "Cross-origin request rejected." },
       { status: 403 },
     );
-  const origin = req.headers.get("origin");
+  let origin = req.headers.get("origin");
+  if (!origin && req.headers.has("referer")) {
+    try {
+      origin = new URL(req.headers.get("referer")!).origin;
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request origin." },
+        { status: 403 },
+      );
+    }
+  }
   if (!origin) return null;
 
   // The proxy authenticates infrastructure, not the browser Origin.

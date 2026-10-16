@@ -4,6 +4,7 @@ import { Star, BadgeCheck, MessageSquare } from "lucide-react";
 import { requestJson } from "@/lib/http-client";
 import { useAccount } from "@/components/WorkspaceProvider";
 import "./reviews.css";
+import { REVIEW_TOPICS, type ReviewTopic } from "@/lib/growth/review-topics";
 export function ReviewWidget() {
   const [reviews, setReviews] = useState<any[]>([]),
     [loaded, setLoaded] = useState(false),
@@ -80,6 +81,7 @@ export function ReviewWidget() {
   );
 }
 export default function ReviewForm() {
+  const [category, setCategory] = useState<ReviewTopic>("general");
   const { user, loading } = useAccount();
   const owner = useRef(user?.id);
   owner.current = user?.id;
@@ -87,6 +89,11 @@ export default function ReviewForm() {
     [text, setText] = useState(""),
     [consent, setConsent] = useState(false),
     [website, setWebsite] = useState("");
+  const [assisting, setAssisting] = useState(false),
+    [suggestion, setSuggestion] = useState<{
+      original: string;
+      proposal: string;
+    } | null>(null);
   const [state, setState] = useState<any>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -96,6 +103,8 @@ export default function ReviewForm() {
     setMessage("");
     setText("");
     setConsent(false);
+    setCategory("general");
+    setSuggestion(null);
     if (!user) return;
     const controller = new AbortController();
     requestJson("/api/reviews?mine=1", { signal: controller.signal })
@@ -104,6 +113,7 @@ export default function ReviewForm() {
         if (controller.signal.aborted) return;
         setState({ ...data, owner: user.id });
         if (data.review) {
+          setCategory(data.review.category || "general");
           setStars(data.review.stars);
           setText(data.review.text);
         }
@@ -135,6 +145,7 @@ export default function ReviewForm() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               stars,
+              category,
               text,
               consent,
               website,
@@ -196,6 +207,20 @@ export default function ReviewForm() {
         </div>
       </fieldset>
       <label>
+        Feedback topic
+        <select
+          aria-label="Feedback topic"
+          value={category}
+          onChange={(e) => setCategory(e.target.value as ReviewTopic)}
+        >
+          {Object.entries(REVIEW_TOPICS).map(([id, label]) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
         Your experience
         <textarea
           required
@@ -207,6 +232,78 @@ export default function ReviewForm() {
         />
       </label>
       <small>{text.length}/800 characters</small>
+      <div className="review-assist">
+        <button
+          type="button"
+          className="btn light"
+          disabled={
+            busy || assisting || !state?.eligible || text.trim().length < 40
+          }
+          onClick={async () => {
+            const submittingOwner = user.id;
+            setAssisting(true);
+            setMessage("");
+            setSuggestion(null);
+            try {
+              const { response, data } = await requestJson(
+                "/api/reviews/assist",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ text }),
+                },
+              );
+              if (owner.current !== submittingOwner) return;
+              if (!response.ok) throw new Error(data.error);
+              setSuggestion({
+                original: data.original,
+                proposal: data.proposal,
+              });
+            } catch (e) {
+              if (owner.current === submittingOwner)
+                setMessage(
+                  e instanceof Error
+                    ? e.message
+                    : "Could not prepare a suggestion.",
+                );
+            } finally {
+              if (owner.current === submittingOwner) setAssisting(false);
+            }
+          }}
+        >
+          {assisting ? "Preparing a suggestion…" : "Help me phrase my feedback"}
+        </button>
+        <small>
+          Optional. This sends only your written feedback to AI. Review its
+          wording before applying.
+        </small>
+        {suggestion && (
+          <div className="review-assist-proposal">
+            <strong>Suggested wording</strong>
+            <p>{suggestion.proposal}</p>
+            <button
+              type="button"
+              className="btn light"
+              disabled={text.trim().normalize("NFKC") !== suggestion.original}
+              onClick={() => {
+                setText(suggestion.proposal);
+                setConsent(false);
+                setSuggestion(null);
+              }}
+            >
+              Use this wording
+            </button>
+            <button
+              type="button"
+              className="btn light"
+              onClick={() => setSuggestion(null)}
+            >
+              Keep my original
+            </button>
+            <small>Applying this suggestion does not submit your review.</small>
+          </div>
+        )}
+      </div>
       <label className="review-honeypot" aria-hidden="true">
         Website
         <input

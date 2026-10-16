@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { LessonJob } from "./types";
 import { touchStudyDay } from "@/lib/study/streak";
+import { requestJson } from "@/lib/http-client";
 
 export interface TutorContext {
   goal: string;
@@ -26,7 +27,6 @@ interface Ctx {
   balance: number | null;
   refresh: () => Promise<void>;
   markComplete: (index: number, on?: boolean) => void;
-  setTemplate: (id: string) => void;
   // Slide-over AI chat controller: any room can open the drawer,
   // optionally with a prefilled question (e.g. selected note text).
   chatOpen: boolean;
@@ -52,6 +52,7 @@ export default function LessonProvider({
 }) {
   const [job, setJob] = useState<LessonJob | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progressError, setProgressError] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [tutorContext, setTutorContext] = useState<TutorContext | null>(null);
@@ -75,11 +76,21 @@ export default function LessonProvider({
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`/api/jobs/${id}`);
-      const j = await r.json();
-      setJob(j.error && !j.id ? null : j);
+      const { response, data } = await requestJson(`/api/jobs/${id}`);
+      if ([401, 403, 404].includes(response.status)) {
+        setJob(null);
+        return;
+      }
+      if (!response.ok || typeof data.id !== "string")
+        throw new Error(
+          "The lesson could not refresh. Your last loaded notes are still available.",
+        );
+      setJob(data as LessonJob);
+      setProgressError("");
     } catch {
-      /* offline */
+      setProgressError(
+        "The lesson could not refresh. Check your connection and retry.",
+      );
     } finally {
       setLoading(false);
     }
@@ -87,22 +98,42 @@ export default function LessonProvider({
 
   useEffect(() => {
     let alive = true;
+    let inFlight = false;
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
+      if (inFlight || !alive) return;
       if (document.hidden) {
         timer = setTimeout(tick, 5000);
         return;
       }
+      inFlight = true;
       try {
-        const r = await fetch(`/api/jobs/${id}`);
-        const j = await r.json();
+        const { response: r, data: j } = await requestJson(`/api/jobs/${id}`, {
+          signal: controller.signal,
+        });
         if (!alive) return;
-        setJob(j.error && !j.id ? null : j);
+        if ([401, 403, 404].includes(r.status)) {
+          setJob(null);
+          setLoading(false);
+          return;
+        }
+        if (!r.ok || typeof j.id !== "string")
+          throw new Error("Lesson unavailable");
+        setJob(j as LessonJob);
+        setProgressError("");
         setLoading(false);
         if (j.status === "working" || j.status === "queued")
           timer = setTimeout(tick, 2200);
       } catch {
-        if (alive) setLoading(false);
+        if (alive) {
+          setProgressError(
+            "Your lesson could not load. Check your connection and retry.",
+          );
+          timer = setTimeout(tick, 5000);
+        }
+      } finally {
+        inFlight = false;
       }
     };
     tick();
@@ -116,6 +147,7 @@ export default function LessonProvider({
       .catch(() => {});
     return () => {
       alive = false;
+      controller.abort();
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
@@ -142,16 +174,27 @@ export default function LessonProvider({
 
   const persistProgress = useCallback(
     async (completed: number[], lastRoom?: string, pdfTemplate?: string) => {
-      await fetch(`/api/jobs/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "progress",
-          completed,
-          lastRoom,
-          pdfTemplate,
-        }),
-      }).catch(() => {});
+      setProgressError("");
+      try {
+        const result = await requestJson(`/api/jobs/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "progress",
+            completed,
+            lastRoom,
+            pdfTemplate,
+          }),
+        });
+        if (!result.response.ok)
+          throw new Error(
+            result.data.error || "Review progress could not be saved.",
+          );
+      } catch {
+        setProgressError(
+          "Review progress was not saved. Reload the lesson, then try marking it again.",
+        );
+      }
     },
     [id],
   );
@@ -159,40 +202,23 @@ export default function LessonProvider({
   const markComplete = useCallback(
     (index: number, on = true) => {
       if (on) touchStudyDay();
-      setJob((cur) => {
-        if (!cur) return cur;
-        const set = new Set(cur.progress?.completed ?? []);
-        if (on) set.add(index);
-        else set.delete(index);
-        const completed = [...set].sort((a, b) => a - b);
-        const next = {
-          ...cur,
-          progress: { ...(cur.progress ?? { completed: [] }), completed },
-        };
-        persistProgress(
-          completed,
-          cur.progress?.lastRoom,
-          cur.pdfTemplate ?? undefined,
-        );
-        return next;
+      const cur = job;
+      if (!cur) return;
+      const completed = new Set(cur.progress?.completed ?? []);
+      if (on) completed.add(index);
+      else completed.delete(index);
+      const values = [...completed].sort((a, b) => a - b);
+      setJob({
+        ...cur,
+        progress: { ...(cur.progress ?? { completed: [] }), completed: values },
       });
+      void persistProgress(
+        values,
+        cur.progress?.lastRoom,
+        cur.pdfTemplate ?? undefined,
+      );
     },
-    [persistProgress],
-  );
-
-  const setTemplate = useCallback(
-    (tpl: string) => {
-      setJob((cur) => {
-        if (!cur) return cur;
-        persistProgress(
-          cur.progress?.completed ?? [],
-          cur.progress?.lastRoom,
-          tpl,
-        );
-        return { ...cur, pdfTemplate: tpl };
-      });
-    },
-    [persistProgress],
+    [job, persistProgress],
   );
 
   const value = useMemo(
@@ -203,7 +229,6 @@ export default function LessonProvider({
       balance,
       refresh: load,
       markComplete,
-      setTemplate,
       chatOpen,
       tutorContext,
       openTutor,
@@ -218,7 +243,6 @@ export default function LessonProvider({
       balance,
       load,
       markComplete,
-      setTemplate,
       chatOpen,
       tutorContext,
       openTutor,
@@ -228,5 +252,17 @@ export default function LessonProvider({
     ],
   );
 
-  return <LessonCtx.Provider value={value}>{children}</LessonCtx.Provider>;
+  return (
+    <LessonCtx.Provider value={value}>
+      {progressError && (
+        <div role="alert" className="ws-progress-error">
+          {progressError}
+          <button className="btn light" onClick={() => void load()}>
+            Reload lesson
+          </button>
+        </div>
+      )}
+      {children}
+    </LessonCtx.Provider>
+  );
 }

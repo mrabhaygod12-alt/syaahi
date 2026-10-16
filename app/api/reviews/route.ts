@@ -21,6 +21,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
       review: item
         ? {
             stars: item.stars,
+            category: item.category || "general",
             text: item.text,
             status: item.status,
             revision: item.revision,

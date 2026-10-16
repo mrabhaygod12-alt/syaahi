@@ -91,6 +91,8 @@ async function main() {
         "/resources",
         "/pricing",
         "/signup?workspace=student",
+        "/login",
+        "/forgot-password",
       ]) {
         await page.goto("http://localhost:3157" + path);
         await page.waitForTimeout(250);
@@ -133,6 +135,39 @@ async function main() {
       quality: 82,
     });
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("http://localhost:3157/");
+    const walkthrough = page.getByRole("group", {
+      name: "Explore the study demonstration",
+    });
+    await walkthrough
+      .getByRole("button", { name: /Make your notebook/ })
+      .click();
+    await page.getByRole("heading", { name: "One fact. One place." }).waitFor();
+    assert.equal(
+      await walkthrough
+        .getByRole("button", { name: /Make your notebook/ })
+        .getAttribute("aria-pressed"),
+      "true",
+    );
+    await page
+      .locator(".device-story-sticky")
+      .screenshot({ path: "output/growth/device-demo-mobile.png" });
+    await page.setViewportSize({ width: 1440, height: 1050 });
+    await page
+      .locator(".device-story-sticky")
+      .screenshot({ path: "output/growth/device-demo-desktop.png" });
+    for (const path of ["/login", "/signup", "/forgot-password"]) {
+      await page.goto("http://localhost:3157" + path);
+      await page.locator(".auth-stage").waitFor();
+      assert(
+        (await page.locator(".auth-topbar").boundingBox())!.width > 1000,
+        "Desktop auth header should span its layout rather than shrink around links",
+      );
+      await page.screenshot({
+        path: `output/growth/auth-${path.slice(1)}-desktop.png`,
+        fullPage: true,
+      });
+    }
     await page.goto("http://localhost:3157/hi");
     assert((await page.locator("h1").innerText()).includes("नोट"));
     await context.addCookies([
@@ -146,6 +181,10 @@ async function main() {
       },
     ]);
     await page.goto("http://localhost:3157/dashboard");
+    await page.getByText("More tools", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Study preferences", exact: true })
+      .click();
     await page
       .getByRole("heading", { name: "Make your first lesson relevant." })
       .waitFor();
@@ -161,6 +200,10 @@ async function main() {
       .getByRole("heading", { name: "PG · Data science / AI & ML" })
       .waitFor();
     await page.reload();
+    await page.getByText("More tools", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Study preferences", exact: true })
+      .click();
     await page
       .getByRole("heading", { name: "PG · Data science / AI & ML" })
       .waitFor();
@@ -171,7 +214,7 @@ async function main() {
       .getByRole("button", { name: "Transformer attention mechanisms" })
       .click();
     await page
-      .getByRole("heading", { name: "Make something click." })
+      .getByRole("heading", { name: "Start with your source." })
       .waitFor();
     for (const width of [320, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
@@ -202,6 +245,21 @@ async function main() {
       ).status(),
       404,
     );
+    await page.goto("http://localhost:3157/profile");
+    await page.locator(".profile-redesign").waitFor();
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 2,
+        ),
+        "Profile overflow " + width,
+      );
+      await page.screenshot({
+        path: `output/growth/profile-${width}.png`,
+        fullPage: true,
+      });
+    }
     assert.deepEqual(errors, []);
     console.log(
       "PASS browser: guest CS preview, Hindi/result labels, signup topic continuity, UG/PG saved preferences, self-reported goal, responsive public/dashboard routes (320/390/768/1440), reduced motion, arrow-free selects and real PDF download.",

@@ -10,6 +10,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob, updateJob, deleteJob } from "@/lib/jobs/store";
 import { randomUUID } from "node:crypto";
 import { studyActivity } from "@/lib/study/hub";
+import {
+  notebookAppearance,
+  NotebookAppearanceError,
+} from "@/lib/notes/appearance";
 
 export const runtime = "nodejs";
 
@@ -105,6 +109,35 @@ async function handlePOST(
       { status: 403 },
     );
   kickWorker();
+  if (body.action === "notebook-appearance") {
+    try {
+      const appearance = notebookAppearance(body.appearance, owned.id);
+      const updated = await reviseJob(owned.id, (job) => {
+        if (body.revision !== (job.revision || 0))
+          throw new Error(
+            "This notebook changed. Reload it before saving its appearance.",
+          );
+        job.notebookAppearance = appearance;
+        job.pdfTemplate = appearance.template as typeof job.pdfTemplate;
+        job.revision = (job.revision || 0) + 1;
+        return job;
+      });
+      return NextResponse.json({
+        appearance: updated?.notebookAppearance,
+        revision: updated?.revision,
+      });
+    } catch (e) {
+      if (e instanceof NotebookAppearanceError)
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      if (
+        e instanceof Error &&
+        e.message ===
+          "This notebook changed. Reload it before saving its appearance."
+      )
+        return NextResponse.json({ error: e.message }, { status: 409 });
+      throw e;
+    }
+  }
   if (body.action === "progress") {
     const completed: number[] = Array.isArray(body.completed)
       ? (body.completed as unknown[])

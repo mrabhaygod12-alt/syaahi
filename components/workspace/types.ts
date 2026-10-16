@@ -17,6 +17,7 @@ export interface QuizQ {
   sources?: import("@/lib/study/practice").PracticeSource[];
 }
 export interface LessonJob {
+  notebookAppearance?: import("@/lib/notes/appearance").NotebookAppearance;
   sourceScans?: import("@/lib/study/scans").ScanReview[];
   sections?: Array<{
     id: string;
