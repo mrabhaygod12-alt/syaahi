@@ -233,6 +233,13 @@ async function main() {
         .locator(`.sheet.template-${template}`)
         .first()
         .waitFor({ timeout: 30000 });
+      await currentFrame.locator('html[data-ready="true"]').waitFor();
+      assert(
+        await currentFrame
+          .getByText("Identify redundancy", { exact: false })
+          .isVisible(),
+      );
+      await page.locator(".print-note iframe").scrollIntoViewIfNeeded();
       assert(
         await currentFrame
           .locator(".sheet-body")
@@ -244,6 +251,11 @@ async function main() {
         path: `output/video-reviews/notebook-${template}-print.png`,
         fullPage: true,
       });
+      await page
+        .locator(".print-note iframe")
+        .screenshot({
+          path: `output/video-reviews/notebook-${template}-frame.png`,
+        });
     }
     await page
       .getByRole("button", { name: "Save notebook style", exact: true })
@@ -392,7 +404,7 @@ async function main() {
     );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS browser: authentic negative feedback, MFA-protected moderation, responsive admin navigation, real homepage widget, bento workflow, indexable product pages, atlas pagination, saved review progress, resumable queued video-to-outline without credit charges, responsive student workspace and logout with blocked local storage.",
+      "PASS browser: authentic negative feedback, MFA-protected moderation, responsive admin navigation, real homepage widget, bento workflow, indexable product pages, all three notebook templates and pagination, persisted appearance and review progress, resumable queued video-to-outline without credit charges, responsive student workspace and logout with blocked local storage.",
     );
   } finally {
     await browser?.close();
