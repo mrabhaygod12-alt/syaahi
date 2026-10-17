@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { releaseRevision } from "./lib/release";
 import { purchasableMonthlyTier } from "./lib/billing/subscription-plans";
+import { contentSecurityPolicy } from "./lib/security/csp";
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname.toLowerCase();
   const isTrap =
@@ -93,6 +94,14 @@ export function middleware(req: NextRequest) {
     const headers = new Headers(req.headers);
     headers.set("x-syaahi-proxy", secret);
     headers.set(
+      "x-syaahi-client-ip",
+      process.env.VERCEL === "1"
+        ? req.headers.get("x-vercel-forwarded-for") ||
+            req.headers.get("x-forwarded-for") ||
+            "unknown"
+        : "unknown",
+    );
+    headers.set(
       "x-forwarded-for",
       // Vercel overwrites x-forwarded-for at its trusted ingress.
       (process.env.VERCEL === "1"
@@ -107,7 +116,27 @@ export function middleware(req: NextRequest) {
 
   const pageHeaders = new Headers(req.headers);
   pageHeaders.set("x-syaahi-pathname", req.nextUrl.pathname);
-  if (isFrontend) return frontendResponse(NextResponse.next({ request: { headers: pageHeaders } }));
+  const pageResponse = () => {
+    if (!isApiRequest) {
+      const nonce = btoa(
+        String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))),
+      );
+      const policy = contentSecurityPolicy(
+        nonce,
+        process.env.NODE_ENV !== "production",
+      );
+      pageHeaders.set("x-nonce", nonce);
+      pageHeaders.set("Content-Security-Policy", policy);
+      const response = NextResponse.next({ request: { headers: pageHeaders } });
+      response.headers.set("Content-Security-Policy", policy);
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+    pageHeaders.delete("x-nonce");
+    pageHeaders.delete("Content-Security-Policy");
+    return NextResponse.next({ request: { headers: pageHeaders } });
+  };
+  if (isFrontend) return frontendResponse(pageResponse());
 
   if (role === "backend" && req.nextUrl.pathname !== "/api/health") {
     const secret = process.env.BACKEND_PROXY_SECRET;
@@ -119,7 +148,7 @@ export function middleware(req: NextRequest) {
   }
   if (isTrap)
     return NextResponse.rewrite(new URL("/api/security/trap", req.url));
-  return NextResponse.next({ request: { headers: pageHeaders } });
+  return pageResponse();
 }
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

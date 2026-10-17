@@ -115,13 +115,8 @@ for (const base of [origin, "https://syaahi.onrender.com"]) {
     results.push({
       path: `${base}/api/health`,
       status: response.status,
-      revision: health.revision || null,
       passed:
-        response.ok &&
-        health.ok === true &&
-        health.mongo === true &&
-        health.role === "backend" &&
-        (!expected || health.revision === expected),
+        response.ok && health.ok === true && Object.keys(health).length === 1,
     });
   } catch {
     results.push({

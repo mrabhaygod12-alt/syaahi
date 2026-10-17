@@ -19,6 +19,7 @@ jobs:
       - run: npm run test:admin-mfa-lifecycle
       - run: npm run test:workspace-routing
       - run: npm run test:security
+      - run: npm run test:security-remediation
       - run: npx tsx scripts/test-request-budget.ts
       - run: npx tsx scripts/test-redesign.ts
       - run: npx tsx scripts/test-redesign.ts --mongo
@@ -58,6 +59,7 @@ jobs:
         env:
           NEXT_DIST_DIR: .next-validation
           NEXT_PUBLIC_APP_URL: https://www.syaahii.in
+      - run: npm run test:security-browser
       - run: npm run test:student-studio-browser
       - run: npm run test:learning-studio-browser
       - run: npm run test:video-reviews-browser

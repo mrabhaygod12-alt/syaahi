@@ -50,7 +50,11 @@ async function main() {
       route.POST(
         new NextRequest(`http://localhost:3192/api/jobs/${job.id}`, {
           method: "POST",
-          headers: { cookie: c, "Content-Type": "application/json" },
+          headers: {
+            cookie: c,
+            origin: "http://localhost:3192",
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(b),
         }),
         { params: Promise.resolve({ id: job.id }) },
@@ -148,7 +152,11 @@ async function main() {
       assist.POST(
         new Request("http://localhost:3192/api/reviews/assist", {
           method: "POST",
-          headers: { cookie: c, "Content-Type": "application/json" },
+          headers: {
+            cookie: c,
+            origin: "http://localhost:3192",
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ text: feedback }),
         }),
       );

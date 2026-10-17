@@ -7,6 +7,7 @@ import {
   RequestBudgetError,
 } from "@/lib/security/request-budget";
 import { admitRequest } from "@/lib/security/admission";
+import { InputValidationError } from "@/lib/security/validation";
 /** Keep infrastructure errors and credentials out of public responses. */
 export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
   handler: T,
@@ -42,6 +43,13 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
       }
       return decorate(await handler(...args));
     } catch (error) {
+      if (error instanceof InputValidationError)
+        return decorate(
+          NextResponse.json(
+            { error: error.message, requestId },
+            { status: 400 },
+          ),
+        );
       if (error instanceof RequestBudgetError)
         return decorate(
           NextResponse.json(

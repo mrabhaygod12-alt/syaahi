@@ -160,7 +160,11 @@ async function main() {
   process.env.VERCEL_GIT_COMMIT_SHA = commit;
   const { GET } = await import("../app/api/health/route");
   const health = await GET();
-  assert.equal((await health.json()).revision, commit);
+  assert.deepEqual(
+    await health.json(),
+    { ok: true },
+    "Public health exposes no revision or topology",
+  );
   assert.equal(health.headers.get("cache-control"), "no-store");
   console.log(
     "PASS deployment/payment configuration: sanitized release identity, normalized authentication, GET-only diagnostics, matching monthly prices, rejected-auth classification and no secret/provider-body disclosure.",

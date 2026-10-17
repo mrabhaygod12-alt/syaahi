@@ -40,11 +40,6 @@ module.exports = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(self), geolocation=()",
           },
-          {
-            key: "Content-Security-Policy",
-            value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self' blob: data: https:; frame-src 'self' blob: https://api.razorpay.com https://*.razorpay.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
-          },
         ],
       },
     ];

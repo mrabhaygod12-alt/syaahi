@@ -8,6 +8,7 @@ import {
   type DocumentChunk,
 } from "./retrieval";
 import { semanticChunks, vectorEnabled } from "./vectors";
+import { assertQueryString } from "@/lib/security/validation";
 
 export interface StudyDocument {
   id: string;
@@ -21,6 +22,7 @@ export interface StudyDocument {
   vectorOffset?: number;
 }
 export async function listDocuments(owner: string) {
+  assertQueryString(owner);
   let documents: StudyDocument[];
   if (useMongo())
     documents = (await (
@@ -63,6 +65,7 @@ export async function saveDocument(
   pageCount: number,
   pages: Array<{ num: number; text: string }>,
 ) {
+  assertQueryString(owner);
   const chunks = chunkPages(pages);
   if (!chunks.length)
     throw new Error(
@@ -92,6 +95,8 @@ export async function getDocument(
   owner: string,
   id: string,
 ): Promise<StudyDocument | null> {
+  assertQueryString(owner);
+  assertQueryString(id);
   if (useMongo())
     return (await (
       await collection("study_documents")
@@ -107,6 +112,8 @@ export async function getDocument(
   return row ? JSON.parse(String(row.payload)) : null;
 }
 export async function deleteDocument(owner: string, id: string) {
+  assertQueryString(owner);
+  assertQueryString(id);
   if (useMongo()) {
     const docs = await collection("study_documents");
     // Revoke access immediately. Keep a tombstone until vector cleanup succeeds.

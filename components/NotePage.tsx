@@ -33,7 +33,12 @@ export default function NotePage({
     null,
   );
   const [error, setError] = useState("");
+  const [nonce, setNonce] = useState<string | undefined>();
   useEffect(() => {
+    setNonce(
+      document.querySelector<HTMLMetaElement>('meta[name="csp-nonce"]')
+        ?.content || undefined,
+    );
     let alive = true;
     if (!cachedAssets)
       cachedAssets = fetch("/api/print-assets").then((r) => {
@@ -72,9 +77,10 @@ export default function NotePage({
             [{ markdown, style, footer, template }],
             assets.fonts,
             assets.math,
+            nonce,
           )
         : "",
-    [markdown, style, footer, template, assets],
+    [markdown, style, footer, template, assets, nonce],
   );
   return (
     <div

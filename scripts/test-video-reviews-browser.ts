@@ -56,7 +56,7 @@ async function main() {
     mfa.totp(setup.secret),
   );
   const markdown =
-    "## Database normalization\n**Definition:** Organise relational data to reduce redundancy.\n### Core idea\n- Keep each **fact** in one place.\n- Connect tables using keys.\n### Worked example\n- Store a department name once in its department table.\nDiagram: flow | Identify redundancy | Separate entities | Connect with keys\n| Before | After |\n| Repeated departments | One department record |\nExam alert: Splitting tables without preserving relationships loses meaning.\nSummary: Normalize carefully, then verify dependencies.\n";
+    "## Database normalization\n**Definition:** Organise relational data to reduce redundancy.\n### Core idea\n- Keep each **fact** in one place.\n- Connect tables using keys.\n### Worked example\n- Store a department name once in its department table.\nDiagram: flow | Identify redundancy | Separate entities | Connect with keys\n| Before | After |\n| Repeated departments | One department record |\nExam alert: Splitting tables without preserving relationships loses meaning.\nSummary: Normalize carefully, then verify dependencies.\n### Math rendering fixture\n$\\sqrt{x^2+y^2}$\n";
   const job = await jobs.createJob(
       user.id,
       ["Database normalization"],
@@ -202,6 +202,10 @@ async function main() {
     await page.getByLabel("Reviewed", { exact: true }).waitFor();
     assert(await page.getByLabel("Reviewed", { exact: true }).isChecked());
     await page.locator(".notebook-page").waitFor();
+    assert(
+      (await page.locator(".notebook-page .katex svg path").count()) > 0,
+      "Sanitization preserves safe KaTeX vector radicals",
+    );
     await layout("atlas-reader");
     await page.getByText("Notebook options", { exact: true }).click();
     await page.getByText("Reading & accessibility", { exact: true }).click();
@@ -251,11 +255,9 @@ async function main() {
         path: `output/video-reviews/notebook-${template}-print.png`,
         fullPage: true,
       });
-      await page
-        .locator(".print-note iframe")
-        .screenshot({
-          path: `output/video-reviews/notebook-${template}-frame.png`,
-        });
+      await page.locator(".print-note iframe").screenshot({
+        path: `output/video-reviews/notebook-${template}-frame.png`,
+      });
     }
     await page
       .getByRole("button", { name: "Save notebook style", exact: true })

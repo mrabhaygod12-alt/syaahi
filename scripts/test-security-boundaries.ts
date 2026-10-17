@@ -21,6 +21,7 @@ async function main() {
   const oversized = await handler(
     new Request("https://www.syaahii.in/api/test", {
       method: "POST",
+      headers: { origin: "https://www.syaahii.in" },
       body: '"' + "x".repeat(2 * 1024 * 1024) + '"',
     }),
   );

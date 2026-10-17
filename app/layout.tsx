@@ -1,6 +1,7 @@
 import { SiteFooter } from "@/components/SiteShell";
 import SiteHeader from "@/components/SiteHeader";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Caveat, Instrument_Sans, Kalam, Patrick_Hand } from "next/font/google";
 import "./globals.css";
 import "./upi-payments.css";
@@ -74,22 +75,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce") || undefined;
   return (
     <html
       lang="en-IN"
       className={`${instrument.variable} ${caveat.variable} ${kalam.variable} ${patrickHand.variable}`}
     >
       <head>
+        <meta name="csp-nonce" content={nonce} />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(orgSchema()) }}
         />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(websiteSchema()) }}
         />

@@ -142,7 +142,18 @@ export function originError(req: Request): NextResponse | null {
       );
     }
   }
-  if (!origin) return null;
+  // Provider webhooks authenticate their raw body with an HMAC, never cookies.
+  if (
+    !origin &&
+    new URL(req.url).pathname === "/api/razorpay/webhook" &&
+    !req.headers.has("cookie")
+  )
+    return null;
+  if (!origin)
+    return NextResponse.json(
+      { error: "A trusted request origin is required." },
+      { status: 403 },
+    );
 
   // The proxy authenticates infrastructure, not the browser Origin.
   // Keep CSRF checks when Vercel forwards the request to Render.
@@ -318,6 +329,9 @@ export async function endSession(req: Request): Promise<NextResponse> {
   response.cookies.set(COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
+    secure:
+      process.env.NODE_ENV === "production" ||
+      new URL(req.url).protocol === "https:",
     path: "/",
     maxAge: 0,
   });

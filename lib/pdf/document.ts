@@ -191,6 +191,7 @@ export function renderDocument(
   notes: PrintNote[],
   fontCss = "",
   mathCss = "",
+  nonce?: string,
 ): string {
   const sources = notes
     .map((note) => {
@@ -265,5 +266,5 @@ export function renderDocument(
   .template-atlas .visual{background:#eaf1f8;border:1.5px solid #8caabc;border-radius:12px;padding:18px;margin:16px 0}.template-atlas .visual-label{font-size:16px;font-family:Arial,sans-serif;color:#466579;letter-spacing:.07em}.template-atlas .diagram-node{background:#fffdf6;border:1.5px solid #759aab;border-radius:9px;font-size:22px;color:#283f50}.template-atlas .diagram-node span{background:#f2d797;color:#594525}.template-atlas .flow-arrow{color:#597f8c}.template-atlas .concepts span{background:#faf0d5;border:1px solid #c3ae7d;border-radius:9px}
   .template-atlas .alert{background:#fae5df;border:1px solid #d6a69e;border-left:5px solid #c56c63;border-radius:10px;padding:14px 18px}.template-atlas .summary{background:#e3efdf;border:1px solid #9bb290;border-left:5px solid #7a9e68;border-radius:10px;padding:14px 18px}.template-atlas .tip{background:#fff0ce;border:1px solid #d6b57b;border-left:5px solid #cfa155;border-radius:10px;padding:14px 18px}.template-atlas table{border-collapse:separate;border-spacing:0;font-size:.85em;border-radius:9px;overflow:hidden}.template-atlas th{background:#e7dfea;color:#573b61}.template-atlas td{background:#fffdf8}.template-atlas .code{background:#eef2f5;border-color:#b7c9d4;border-radius:8px}.template-atlas .bullet{margin-bottom:12px;padding-left:22px}.template-atlas .bullet-dot{color:#627e49}
   ${NOTEBOOK_CSS}
-  </style></head><body><main id="pages"></main><div id="sources">${sources}</div><script>${paginate}</script></body></html>`;
+  </style></head><body><main id="pages"></main><div id="sources">${sources}</div><script${nonce && /^[A-Za-z0-9+/=_-]{16,128}$/.test(nonce) ? ` nonce="${nonce}"` : ""}>${paginate}</script></body></html>`;
 }

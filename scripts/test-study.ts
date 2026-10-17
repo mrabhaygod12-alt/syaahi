@@ -17,7 +17,11 @@ async function main() {
   const req = (cookie: string, body?: unknown, path = "/api/study") =>
     new NextRequest("http://localhost:3101" + path, {
       method: body ? "POST" : "GET",
-      headers: { cookie, "Content-Type": "application/json" },
+      headers: {
+        cookie,
+        origin: "http://localhost:3101",
+        "Content-Type": "application/json",
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
   const owner = await auth.register(

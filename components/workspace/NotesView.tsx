@@ -15,7 +15,7 @@ import { useToast } from "@/components/Toasts";
 import { lessonTitle } from "./types";
 import NoteHistory from "./NoteHistory";
 import { useReader } from "./useReader";
-import { renderReadingBody } from "@/lib/pdf/document";
+import { renderSafeReadingBody } from "@/lib/notes/safe-html";
 import "katex/dist/katex.min.css";
 import "./reading.css";
 import { NOTEBOOK_CSS, NOTEBOOK_VERSION } from "@/lib/notes/notebook";
@@ -770,8 +770,8 @@ export default function NotesView() {
                   dangerouslySetInnerHTML={{
                     __html:
                       reader.mode === "notebook"
-                        ? `<div class="cornell-body">${renderReadingBody(p.markdown)}</div>`
-                        : renderReadingBody(p.markdown),
+                        ? `<div class="cornell-body">${renderSafeReadingBody(p.markdown)}</div>`
+                        : renderSafeReadingBody(p.markdown),
                   }}
                 />
               ) : (

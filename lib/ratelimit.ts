@@ -2,6 +2,7 @@ import { useMongo, collection } from "@/lib/storage/mongo";
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { currentUser } from "@/lib/auth/server";
+import { isIP } from "node:net";
 
 // Minimal in-memory IP throttle for expensive routes (dev + single-server).
 // Production multi-instance needs Upstash/Redis: same call shape, swap inside.
@@ -24,12 +25,29 @@ export function throttle(
 }
 
 export function clientIp(req: Request): string {
+  const valid = (value: string | null | undefined) =>
+    value && isIP(value.trim()) ? value.trim() : null;
+  // The frontend overwrites this private header; accept it only with the
+  // authenticated proxy envelope, independently of generic header trust.
+  const secret = process.env.BACKEND_PROXY_SECRET;
+  if (secret && req.headers.get("x-syaahi-proxy") === secret)
+    return valid(req.headers.get("x-syaahi-client-ip")) || "unknown";
+  if (process.env.VERCEL === "1")
+    return (
+      valid(req.headers.get("x-vercel-forwarded-for")) ||
+      valid(req.headers.get("x-forwarded-for")) ||
+      "unknown"
+    );
   if (process.env.TRUST_PROXY_HEADERS !== "true") return "local";
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "local"
-  );
+  // Custom ingress must append a known number of hops and prevent direct access.
+  const hops = Number(process.env.TRUSTED_PROXY_HOPS || "1");
+  if (!Number.isInteger(hops) || hops < 1 || hops > 8) return "unknown";
+  const chain =
+    req.headers
+      .get("x-forwarded-for")
+      ?.split(",")
+      .map((ip) => ip.trim()) || [];
+  return valid(chain[chain.length - hops]) || "unknown";
 }
 
 /** 429 response when over limit. Returns null when allowed. */
@@ -51,6 +69,18 @@ export async function rateLimit(
   const identity = user
     ? `user:${createHash("sha256").update(user.id).digest("hex")}`
     : `ip:${clientIp(req)}`;
+  if (
+    !user &&
+    process.env.APP_ROLE === "backend" &&
+    ["ip:local", "ip:unknown"].includes(identity)
+  )
+    return NextResponse.json(
+      {
+        error:
+          "Request ingress could not be verified. Please retry through the application.",
+      },
+      { status: 503, headers: { "Retry-After": "5" } },
+    );
   let allowed: boolean;
   if (useMongo()) {
     const bucket = Math.floor(Date.now() / windowMs);

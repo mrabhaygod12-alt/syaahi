@@ -2,15 +2,24 @@ import { activeJobLimit, QueueCapacityError } from "../jobs/capacity";
 import { randomUUID } from "node:crypto";
 import { collection, mongoTransaction } from "./mongo";
 import type { Job, JobPage } from "../jobs/store";
+import {
+  assertQueryString,
+  InputValidationError,
+} from "../security/validation";
 const clean = (doc: any): Job | null => {
   if (!doc) return null;
   const { _id, leaseUntil, leaseToken, ...job } = doc;
   return job as Job;
 };
 export async function mongoGetJob(id: string) {
+  assertQueryString(id);
   return clean(await (await collection("jobs")).findOne({ _id: id }));
 }
 export async function mongoCreateJob(job: Job) {
+  assertQueryString(job.id);
+  assertQueryString(job.user);
+  if (!Number.isSafeInteger(job.total) || job.total < 1 || job.total > 500)
+    throw new InputValidationError();
   await mongoTransaction(async (d, session) => {
     const opts = { session };
     const existing = clean(
@@ -66,16 +75,22 @@ export async function mongoCreateJob(job: Job) {
   return job;
 }
 export async function mongoRevise(id: string, fn: (j: Job) => Job) {
+  assertQueryString(id);
   return mongoTransaction(async (d, session) => {
     const c = d.collection<any>("jobs");
     const doc = await c.findOne({ _id: id }, { session });
     if (!doc) return null;
     const result = fn(clean(doc)!);
+    if (result.id !== id || result.user !== doc.user)
+      throw new InputValidationError();
     await c.updateOne({ _id: id }, { $set: result }, { session });
     return result;
   });
 }
 export async function mongoList(user: string, limit: number) {
+  assertQueryString(user);
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+    throw new InputValidationError();
   return (
     await (
       await collection("jobs")
@@ -87,6 +102,7 @@ export async function mongoList(user: string, limit: number) {
   ).map((d) => clean(d)!);
 }
 export async function mongoDelete(id: string) {
+  assertQueryString(id);
   return !!(
     await (
       await collection("jobs")
@@ -94,6 +110,7 @@ export async function mongoDelete(id: string) {
   ).deletedCount;
 }
 export async function mongoClaim(id: string) {
+  assertQueryString(id);
   const token = randomUUID();
   const doc = await (
     await collection("jobs")
@@ -117,6 +134,8 @@ export async function mongoClaim(id: string) {
   return doc ? { job: clean(doc)!, token } : null;
 }
 export async function mongoRenew(id: string, token: string) {
+  assertQueryString(id);
+  assertQueryString(token);
   await (
     await collection("jobs")
   ).updateOne(
@@ -130,6 +149,10 @@ export async function mongoCommit(
   index: number,
   page: JobPage,
 ) {
+  assertQueryString(id);
+  assertQueryString(token);
+  if (!Number.isSafeInteger(index) || index < 0 || index > 500)
+    throw new InputValidationError();
   return mongoTransaction(async (d, session) => {
     const opts = { session };
     const c = d.collection<any>("jobs");
@@ -155,6 +178,8 @@ export async function mongoCommit(
   });
 }
 export async function mongoFinish(id: string, token: string, error?: string) {
+  assertQueryString(id);
+  assertQueryString(token);
   await mongoTransaction(async (d, session) => {
     const opts = { session };
     const c = d.collection<any>("jobs");
@@ -198,6 +223,7 @@ export async function mongoFinish(id: string, token: string, error?: string) {
   });
 }
 export async function mongoResume(id: string) {
+  assertQueryString(id);
   return mongoTransaction(async (d, session) => {
     const opts = { session };
     const c = d.collection<any>("jobs");

@@ -14,7 +14,11 @@ async function main() {
   const request = (body?: unknown, cookie = "", path = "/api/auth") =>
     new NextRequest("http://localhost" + path, {
       method: body ? "POST" : "GET",
-      headers: { cookie, "Content-Type": "application/json" },
+      headers: {
+        cookie,
+        origin: "http://localhost",
+        "Content-Type": "application/json",
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
   const form = {

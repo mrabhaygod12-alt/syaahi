@@ -1,5 +1,9 @@
 import { collection, useMongo, mongoTransaction } from "@/lib/storage/mongo";
 import { db, transaction } from "@/lib/db";
+import {
+  assertQueryString,
+  InputValidationError,
+} from "@/lib/security/validation";
 export interface WorkspaceRecord {
   id: string;
   owner: string;
@@ -9,6 +13,7 @@ export interface WorkspaceRecord {
 export async function record<T extends WorkspaceRecord>(
   id: string,
 ): Promise<T | null> {
+  assertQueryString(id);
   if (useMongo())
     return ((await (await collection("workspace_records")).findOne({ _id: id }))
       ?.payload || null) as T | null;
@@ -21,6 +26,8 @@ export async function records<T extends WorkspaceRecord>(
   kind: string,
   owner?: string,
 ): Promise<T[]> {
+  assertQueryString(kind);
+  if (owner !== undefined) assertQueryString(owner);
   if (useMongo())
     return (
       await (
@@ -50,11 +57,23 @@ export async function mutateRecord<T extends WorkspaceRecord>(
   change: (old: T | null) => T,
   credit?: { delta: number; event: string; reason?: string },
 ): Promise<T> {
+  assertQueryString(id);
+  const validate = (next: T) => {
+    assertQueryString(next.id);
+    assertQueryString(next.owner);
+    assertQueryString(next.kind);
+    if (next.id !== id) throw new InputValidationError();
+    return next;
+  };
+  if (credit) {
+    assertQueryString(credit.event);
+    if (!Number.isSafeInteger(credit.delta)) throw new InputValidationError();
+  }
   if (useMongo())
     return mongoTransaction(async (database, session) => {
       const c = database.collection<any>("workspace_records"),
         old = (await c.findOne({ _id: id }, { session }))?.payload || null;
-      const next = change(old);
+      const next = validate(change(old));
       if (
         credit &&
         !(await database
@@ -107,7 +126,7 @@ export async function mutateRecord<T extends WorkspaceRecord>(
     const row = db()
         .prepare("SELECT payload FROM workspace_records WHERE id=?")
         .get(id),
-      next = change(row ? JSON.parse(String(row.payload)) : null);
+      next = validate(change(row ? JSON.parse(String(row.payload)) : null));
     if (
       credit &&
       !db().prepare("SELECT id FROM ledger WHERE id=?").get(credit.event)

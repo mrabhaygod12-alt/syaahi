@@ -2,11 +2,9 @@ import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { collection, useMongo } from "@/lib/storage/mongo";
 
-// Public, secret-free liveness signal for the separate generation worker.
-// Point an uptime monitor here in addition to /api/health.
+// Public liveness only. Detailed topology is available through the MFA admin API.
 async function handleGET() {
-  if (!useMongo())
-    return NextResponse.json({ ok: true, worker: "local-or-embedded" });
+  if (!useMongo()) return NextResponse.json({ ok: true });
   try {
     const heartbeat = await (
       await collection("system_state")
@@ -15,7 +13,7 @@ async function handleGET() {
     const ageMs = seenAt ? Math.max(0, Date.now() - seenAt) : null;
     const ok = ageMs !== null && ageMs < 45_000;
     return NextResponse.json(
-      { ok, worker: ok ? "running" : "not-reporting", ageMs },
+      { ok },
       {
         status: ok ? 200 : 503,
         headers: { "Cache-Control": "no-store" },
@@ -26,7 +24,7 @@ async function handleGET() {
       kind: error instanceof Error ? error.name : "unknown",
     });
     return NextResponse.json(
-      { ok: false, worker: "unknown" },
+      { ok: false },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { heuristicSplit } from "@/lib/ai/prompts";
 import { officeText } from "@/lib/intake/office";
 import { rateLimit } from "@/lib/ratelimit";
+import { extractPdf } from "@/lib/documents/extract";
 export const runtime = "nodejs";
 async function handlePOST(req: Request) {
   const denied =
@@ -24,13 +25,13 @@ async function handlePOST(req: Request) {
       if (extension === "pdf") {
         if (buf.subarray(0, 5).toString() !== "%PDF-")
           throw new Error("Upload a valid PDF.");
-        const { PDFParse } = await import("pdf-parse");
-        const parser = new PDFParse({ data: new Uint8Array(buf) });
-        try {
-          text = (await parser.getText()).text.slice(0, 100000);
-        } finally {
-          await parser.destroy();
-        }
+        const result = await extractPdf(new Uint8Array(buf), {
+          signal: req.signal,
+        });
+        text = result.pages
+          .map((page) => page.text)
+          .join("\n")
+          .slice(0, 100000);
       } else if (extension === "docx" || extension === "pptx") {
         if (buf[0] !== 0x50 || buf[1] !== 0x4b)
           throw new Error("Upload a valid Office document.");

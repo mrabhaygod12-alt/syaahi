@@ -93,7 +93,11 @@ async function main() {
   const req = (c: string, b?: unknown, path = "/api/student/quiz") =>
     new NextRequest("http://localhost:3150" + path, {
       method: b ? "POST" : "GET",
-      headers: { cookie: c, "Content-Type": "application/json" },
+      headers: {
+        cookie: c,
+        origin: "http://localhost:3150",
+        "Content-Type": "application/json",
+      },
       body: b ? JSON.stringify(b) : undefined,
     });
   const jobs = await import("../lib/jobs/store"),
@@ -109,7 +113,11 @@ async function main() {
     readerRoute.PATCH(
       new NextRequest("http://localhost:3150/api/student/preferences", {
         method: "PATCH",
-        headers: { cookie: c, "Content-Type": "application/json" },
+        headers: {
+          cookie: c,
+          origin: "http://localhost:3150",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(b),
       }),
     );
@@ -660,7 +668,8 @@ async function main() {
   process.env.BACKEND_PROXY_SECRET = "fixture-proxy";
   const probe = new Request("http://localhost:3150/api/credits", {
     headers: {
-      "x-backend-proxy-secret": "fixture-proxy",
+      "x-syaahi-proxy": "fixture-proxy",
+      "x-syaahi-client-ip": "203.0.113.8",
       "x-forwarded-for": "203.0.113.8",
     },
   });
