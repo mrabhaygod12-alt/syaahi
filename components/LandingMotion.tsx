@@ -6,10 +6,12 @@ export default function LandingMotion() {
     const nodes = document.querySelectorAll<HTMLElement>(
       ".landing-page [data-reveal]",
     );
-    if (reduced.matches) {
-      nodes.forEach((n) => n.classList.add("is-visible"));
-      return;
-    }
+    // Content is always visible; motion is a progressive enhancement.
+    const resetMotion = () => {
+      if (reduced.matches) nodes.forEach((n) => n.classList.add("is-visible"));
+    };
+    resetMotion();
+    reduced.addEventListener("change", resetMotion);
     document.documentElement.classList.add("landing-motion-ready");
     const observer = new IntersectionObserver(
       (entries) => {
@@ -20,7 +22,7 @@ export default function LandingMotion() {
           }
         });
       },
-      { threshold: 0.12 },
+      { threshold: 0.05 },
     );
     nodes.forEach((n) => observer.observe(n));
     let frame = 0;
@@ -43,13 +45,54 @@ export default function LandingMotion() {
       });
     };
     addEventListener("scroll", update, { passive: true });
+    const depthNodes = document.querySelectorAll<HTMLElement>(
+      ".growth-editorial [data-depth]",
+    );
+    const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+    const cleanups = Array.from(depthNodes, (node) => {
+      let pending = 0;
+      const reset = () => {
+        cancelAnimationFrame(pending);
+        node.style.removeProperty("--depth-x");
+        node.style.removeProperty("--depth-y");
+      };
+      const move = (event: PointerEvent) => {
+        if (reduced.matches || !finePointer.matches) return;
+        cancelAnimationFrame(pending);
+        pending = requestAnimationFrame(() => {
+          const rect = node.getBoundingClientRect();
+          const x = Math.max(
+            -1,
+            Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1),
+          );
+          const y = Math.max(
+            -1,
+            Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1),
+          );
+          node.style.setProperty("--depth-x", `${-y * 3}deg`);
+          node.style.setProperty("--depth-y", `${x * 4}deg`);
+        });
+      };
+      node.addEventListener("pointermove", move);
+      node.addEventListener("pointerleave", reset);
+      reduced.addEventListener("change", reset);
+      return () => {
+        reset();
+        node.removeEventListener("pointermove", move);
+        node.removeEventListener("pointerleave", reset);
+        reduced.removeEventListener("change", reset);
+      };
+    });
     update();
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
       removeEventListener("scroll", update);
+      reduced.removeEventListener("change", resetMotion);
+      cleanups.forEach((cleanup) => cleanup());
       document.documentElement.classList.remove("landing-motion-ready");
       document.documentElement.style.removeProperty("--hero-scroll");
+      document.documentElement.style.removeProperty("--landing-progress");
     };
   }, []);
   return null;

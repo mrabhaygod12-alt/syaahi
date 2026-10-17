@@ -50,6 +50,7 @@ export default function LearningBento() {
   return (
     <section
       className="growth-wrap learning-bento"
+      id="learning-system"
       aria-labelledby="bento-heading"
     >
       <header data-reveal>

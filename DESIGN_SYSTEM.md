@@ -32,6 +32,12 @@ Authentication uses one compact form and consistent recovery/verification states
 
 Use 160–240ms transitions for orientation. Keep the device walkthrough bounded, scroll-controlled and manually operable. Label it illustrative. Respect reduced motion and retain static content. Do not add perpetual motion to study content. Provide visible focus, meaningful accessible names, reflow at narrow widths and usable touch targets.
 
+## Public landing composition
+
+The landing page uses an editorial paper-and-ink composition, scoped to `.growth-editorial`. Give each chapter its own structure: layered notebook hero, chapter navigation, asymmetric lecture cards, device walkthrough, live preview desk, sample sheets, revision checklist, stacked presentation deck, genuine reviews, dark writer spread, resource links, two-column FAQ and a single final preview action. Keep student creation primary and writer enrollment a distinct secondary destination.
+
+Depth is CSS only, with bounded pointer rotation on fine pointers. Scroll reveals translate once without hiding content. Desktop walkthrough steps follow scrolling; phones and reduced-motion users control them with buttons. Honour live changes to reduced-motion preferences and clean up listeners when leaving the page. No canvas, autoplay video or animation package is needed. Preserve server-rendered content and real forms; illustrative product art must remain labelled.
+
 ## Feedback and trust
 
 Only eligible real users can submit testimonials. AI assistance edits the user's existing words; it must not invent experiences, ratings or praise. Show the proposal before applying it, require renewed consent after changes and retain moderation. Never automatically publish feedback or fabricated counters.

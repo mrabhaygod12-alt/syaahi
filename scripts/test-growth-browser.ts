@@ -46,6 +46,31 @@ async function main() {
     const errors: string[] = [];
     page.on("pageerror", (e: any) => errors.push(e.message));
     await page.goto("http://localhost:3157/");
+    await page.locator(".growth-editorial").waitFor();
+    for (const link of await page.locator(".editorial-index a").all()) {
+      const destination = await link.getAttribute("href");
+      assert.equal(
+        await page.locator(destination!).count(),
+        1,
+        "Landing chapter links resolve",
+      );
+    }
+    await page.locator(".growth-faq summary").first().click();
+    assert(
+      (await page
+        .locator(".growth-faq details")
+        .first()
+        .getAttribute("open")) !== null,
+    );
+    const hero = page.locator(".growth-hero-note");
+    await hero.hover({ position: { x: 40, y: 60 } });
+    await page.waitForTimeout(300);
+    assert(
+      await hero.evaluate((node: HTMLElement) =>
+        node.style.getPropertyValue("--depth-y"),
+      ),
+      "Desktop pointer drives bounded paper depth",
+    );
     await page
       .getByRole("button", { name: "Essential only", exact: true })
       .click();
@@ -117,6 +142,17 @@ async function main() {
           box.scroll <= box.width + 2,
           `Overflow ${path} at ${width}: ${box.scroll}`,
         );
+        if (path === "/" && width <= 390) {
+          assert(
+            await page
+              .locator("h1")
+              .evaluate(
+                (el: Element) =>
+                  parseFloat(getComputedStyle(el).fontSize) >= 40,
+              ),
+            "Mobile hero retains its intended hierarchy",
+          );
+        }
       }
     }
     mkdirSync("output/growth", { recursive: true });
@@ -136,6 +172,13 @@ async function main() {
     });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("http://localhost:3157/");
+    assert.equal(
+      await page
+        .locator(".growth-hero-note")
+        .evaluate((el: Element) => getComputedStyle(el).transform),
+      "none",
+      "Reduced motion removes pointer depth",
+    );
     const walkthrough = page.getByRole("group", {
       name: "Explore the study demonstration",
     });
@@ -156,6 +199,51 @@ async function main() {
     await page
       .locator(".device-story-sticky")
       .screenshot({ path: "output/growth/device-demo-desktop.png" });
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      for (const section of [
+        "growth-hero",
+        "learning-bento",
+        "growth-preview-section",
+        "growth-gallery",
+        "growth-routine",
+        "growth-product-section",
+        "review-section",
+        "growth-writer",
+        "growth-trust",
+        "growth-faq",
+        "growth-final",
+      ]) {
+        await page.locator(`.${section}`).screenshot({
+          path: `output/growth/editorial-${section}-${width}.png`,
+        });
+      }
+    }
+    // On phones the demonstration is manual, so page scrolling must not reset a choice.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await walkthrough.getByRole("button", { name: /Recall the idea/ }).click();
+    await page.locator(".growth-gallery").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250);
+    assert.equal(
+      await walkthrough
+        .getByRole("button", { name: /Recall the idea/ })
+        .getAttribute("aria-pressed"),
+      "true",
+    );
+    const staticContext = await browser.newContext({
+      javaScriptEnabled: false,
+    });
+    const staticPage = await staticContext.newPage();
+    await staticPage.goto("http://localhost:3157/");
+    assert(
+      await staticPage.locator("h1").isVisible(),
+      "Server-rendered landing content survives without JavaScript",
+    );
+    assert(await staticPage.locator(".growth-writer h2").isVisible());
+    await staticContext.close();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 1050 });
     for (const path of ["/login", "/signup", "/forgot-password"]) {
       await page.goto("http://localhost:3157" + path);
       await page.locator(".auth-stage").waitFor();

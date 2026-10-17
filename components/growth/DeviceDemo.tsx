@@ -27,12 +27,16 @@ export default function DeviceDemo() {
   const root = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = root.current;
-    if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!el) return;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+    const desktop = matchMedia("(min-width: 761px)");
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame);
+      if (reduced.matches || !desktop.matches) return;
       frame = requestAnimationFrame(() => {
         const box = el.getBoundingClientRect();
+        if (box.bottom < 0 || box.top > innerHeight) return;
         const distance = Math.max(1, box.height - innerHeight);
         setActive(
           Math.min(3, Math.max(0, Math.floor((-box.top / distance) * 4))),
@@ -40,8 +44,12 @@ export default function DeviceDemo() {
       });
     };
     addEventListener("scroll", update, { passive: true });
+    reduced.addEventListener("change", update);
+    desktop.addEventListener("change", update);
     return () => {
       removeEventListener("scroll", update);
+      reduced.removeEventListener("change", update);
+      desktop.removeEventListener("change", update);
       cancelAnimationFrame(frame);
     };
   }, []);

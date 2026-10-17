@@ -13,6 +13,7 @@ import {
 import { Faq } from "../site";
 
 import "./growth.css";
+import "./landing-editorial.css";
 export const GROWTH_FAQS = [
   {
     q: "Can I try Syaahi before signing up?",
@@ -43,7 +44,10 @@ export default function GrowthLanding({
   const hi = language === "hindi",
     t = (en: string, hindi: string) => (hi ? hindi : en);
   return (
-    <div className="landing-page growth-landing" lang={hi ? "hi" : "en-IN"}>
+    <div
+      className="landing-page growth-landing growth-editorial"
+      lang={hi ? "hi" : "en-IN"}
+    >
       <LandingMotion />
       <div className="landing-scroll-progress" aria-hidden="true" />
       <section className="growth-hero growth-wrap">
@@ -78,7 +82,15 @@ export default function GrowthLanding({
             )}
           </a>
         </div>
-        <div className="growth-hero-note" data-reveal>
+        <div className="growth-hero-note" data-reveal data-depth>
+          <span
+            className="editorial-paper-layer layer-one"
+            aria-hidden="true"
+          />
+          <span
+            className="editorial-paper-layer layer-two"
+            aria-hidden="true"
+          />
           <span className="growth-orbit" aria-hidden="true" />
           <span className="growth-annotation">
             {t("One idea. One useful page.", "एक विचार। एक उपयोगी पन्ना।")}
@@ -89,6 +101,28 @@ export default function GrowthLanding({
           </span>
         </div>
       </section>
+      <nav
+        className="editorial-index growth-wrap"
+        aria-label={t("Explore Syaahi", "Syaahi देखें")}
+      >
+        <span>{t("YOUR NEXT CHAPTER", "आपका अगला अध्याय")}</span>
+        <a href="#learning-system">
+          <small>01</small>
+          {t("Understand", "समझें")}
+        </a>
+        <a href="#preview">
+          <small>02</small>
+          {t("Try a notebook", "नोट्स आज़माएँ")}
+        </a>
+        <a href="#learn">
+          <small>03</small>
+          {t("Explore samples", "नमूने देखें")}
+        </a>
+        <a href="#writer-space">
+          <small>04</small>
+          {t("Find your voice", "अपने विचार लिखें")}
+        </a>
+      </nav>
       <LearningBento />
       <DeviceDemo />
       <section className="growth-proof-strip">
@@ -131,12 +165,21 @@ export default function GrowthLanding({
           </p>
         </div>
         <div className="growth-sample-grid">
-          {UNIVERSITY_SAMPLES.map((s) => (
+          {UNIVERSITY_SAMPLES.map((s, index) => (
             <article key={s.id} data-reveal>
               <div className="growth-sample-input">
+                <span className="editorial-sample-number" aria-hidden="true">
+                  0{index + 1}
+                </span>
                 <span>{s.subject}</span>
                 <small>{t("YOU START WITH", "शुरुआत")}</small>
                 <h3>{s.topic}</h3>
+              </div>
+              <div className="editorial-sample-sheet" aria-hidden="true">
+                <span>{s[language].title}</span>
+                {s[language].points.slice(0, 3).map((point) => (
+                  <b key={point.heading}>{point.heading}</b>
+                ))}
               </div>
               <div className="growth-sample-after">
                 <small>{t("YOU LEAVE WITH", "आपको मिलता है")}</small>
@@ -228,6 +271,7 @@ export default function GrowthLanding({
         <div
           className="growth-deck-art"
           data-reveal
+          data-depth
           aria-label="Illustration of the six-layout presentation studio"
         >
           <div>
@@ -280,7 +324,7 @@ export default function GrowthLanding({
         </div>
       </section>
       <ReviewWidget />
-      <section className="growth-writer">
+      <section className="growth-writer" id="writer-space">
         <div className="growth-wrap growth-two">
           <div data-reveal>
             <p className="growth-eyebrow">
@@ -300,7 +344,7 @@ export default function GrowthLanding({
               {t("Meet your writing space ↗", "अपना लेखक स्थान देखें ↗")}
             </a>
           </div>
-          <div className="growth-writer-page" data-reveal>
+          <div className="growth-writer-page" data-reveal data-depth>
             <small>DRAFT / PRIVATE UNTIL REVIEWED</small>
             <h3>
               {t(
@@ -379,6 +423,21 @@ export default function GrowthLanding({
         </div>
       </section>
       <section className="growth-wrap growth-faq">
+        <header className="editorial-faq-intro" data-reveal>
+          <p className="growth-eyebrow">
+            {t("BEFORE YOU BEGIN", "शुरू करने से पहले")}
+          </p>
+          <h2>{t("A little clarity.", "कुछ स्पष्ट जवाब।")}</h2>
+          <p>
+            {t(
+              "Your material, your time, your choice. Here is how it works.",
+              "आपकी सामग्री, आपका समय, आपका चुनाव। जानिए यह कैसे काम करता है।",
+            )}
+          </p>
+          <a href="/support">
+            {t("Still have a question? →", "और कोई सवाल? →")}
+          </a>
+        </header>
         <Faq
           items={
             hi
@@ -401,6 +460,7 @@ export default function GrowthLanding({
         />
       </section>
       <section className="growth-final">
+        <span className="editorial-final-orbit" aria-hidden="true" />
         <p className="growth-eyebrow">
           {t("MAKE THE NEXT TOPIC CLICK", "अगला विषय समझें")}
         </p>
