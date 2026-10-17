@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { heuristicSplit } from "@/lib/ai/prompts";
 import { officeText } from "@/lib/intake/office";
 import { rateLimit } from "@/lib/ratelimit";
-import { extractPdf } from "@/lib/documents/extract";
+import { extractPdf, ExtractionError } from "@/lib/documents/extract";
 export const runtime = "nodejs";
 async function handlePOST(req: Request) {
   const denied =
@@ -64,7 +64,7 @@ async function handlePOST(req: Request) {
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Document extraction failed." },
-      { status: 400 },
+      { status: e instanceof ExtractionError ? e.status : 400 },
     );
   }
 }
