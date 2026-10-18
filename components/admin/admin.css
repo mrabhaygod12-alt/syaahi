@@ -235,6 +235,22 @@ body:has(.admin-space) #main-content {
 .admin-table-wrap {
   overflow: auto;
 }
+.provider-catalog,
+.provider-catalog .admin-panel {
+  min-width: 0;
+}
+.provider-catalog code,
+.provider-catalog p {
+  overflow-wrap: anywhere;
+}
+.provider-catalog .admin-table {
+  min-width: 760px;
+}
+.provider-catalog button {
+  max-width: 100%;
+  min-height: 44px;
+  white-space: normal;
+}
 .admin-table {
   border-collapse: collapse;
   width: 100%;

@@ -4,7 +4,9 @@ async function main() {
   const { eligibleProviders, PROVIDER_BASE_URL, providerEnvKey } =
     await import("../lib/ai/providers");
   const { providerKeys } = await import("../lib/ai/keys");
-  const { radoxModel } = await import("../lib/ai/radox");
+  const { gatewayModel } = await import("../lib/ai/gateway-catalog");
+  const { isGateway, gatewayBase, gatewayKeys } =
+    await import("../lib/ai/gateway-config");
   const byType = new Map<
     string,
     ReturnType<typeof eligibleProviders>[number]
@@ -14,15 +16,16 @@ async function main() {
   const candidates = [...byType.values()];
   const results = await Promise.all(
     candidates.map(async (p) => {
-      const key =
-        p.type === "radox"
-          ? process.env.RADOX_API_KEY!.trim()
-          : providerKeys(providerEnvKey(p.type))[0];
+      const key = isGateway(p.type)
+        ? gatewayKeys(p.type)[0]
+        : providerKeys(providerEnvKey(p.type))[0];
       const start = Date.now();
       try {
-        if (p.type === "radox") await radoxModel(key, p.model);
+        if (isGateway(p.type)) await gatewayModel(p.type, key, p.model);
         const response = await fetch(
-          PROVIDER_BASE_URL[p.type] + "/chat/completions",
+          (isGateway(p.type)
+            ? gatewayBase(p.type)
+            : PROVIDER_BASE_URL[p.type]) + "/chat/completions",
           {
             method: "POST",
             headers: {
@@ -41,6 +44,7 @@ async function main() {
               max_tokens: 600,
             }),
             signal: AbortSignal.timeout(30000),
+            redirect: "error",
           },
         );
         const body = await response.json().catch(() => ({}));

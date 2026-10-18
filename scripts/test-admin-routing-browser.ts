@@ -209,6 +209,75 @@ async function main() {
     await page
       .getByRole("heading", { name: "A clear view of your platform." })
       .waitFor();
+    // Synthetic catalogs exercise the operator UI without sending prompts or keys upstream.
+    await page.route("**/api/admin/overview", async (route) => {
+      const upstream = await route.fetch();
+      const data = await upstream.json();
+      data.services.gateways = data.services.gateways.map((p: any) => ({
+        ...p,
+        keyCount: 1,
+        status: "configured",
+      }));
+      await route.fulfill({ response: upstream, json: data });
+    });
+    await page.route("**/api/admin/providers?*", async (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      if (query.get("provider") === "logfare")
+        return route.fulfill({
+          status: 502,
+          json: { error: "The provider did not authorize this key." },
+        });
+      const offset = Number(query.get("offset") || 0);
+      await route.fulfill({
+        json: {
+          total: 55,
+          nextOffset: offset ? null : 50,
+          models: Array.from({ length: offset ? 5 : 50 }, (_, i) => ({
+            id: `fixture-model-${offset + i}`,
+            kind: "text",
+            context_window: 8192,
+            contextKnown: false,
+            streaming: null,
+            advertisedFree: null,
+            accessible: null,
+            trainingConsentRequired: false,
+          })),
+        },
+      });
+    });
+    mkdirSync("output/admin", { recursive: true });
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(origin + "/admin");
+      await page
+        .getByRole("button", { name: "Inspect AIHubMix models" })
+        .click();
+      await page
+        .getByText("50 of 55 models loaded.", { exact: false })
+        .waitFor();
+      await page.getByRole("button", { name: "Load more models" }).click();
+      await page
+        .getByText("55 of 55 models loaded.", { exact: false })
+        .waitFor();
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth + 1,
+        ),
+        false,
+        `Provider catalog overflows ${width}px`,
+      );
+      await page.screenshot({
+        path: `output/admin/provider-catalog-${width}.png`,
+        fullPage: true,
+      });
+    }
+    await page.getByRole("button", { name: "Inspect Logfare models" }).click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "The provider did not authorize this key." })
+      .waitFor();
+    await page.unroute("**/api/admin/overview");
+    await page.unroute("**/api/admin/providers?*");
     await page.goto(origin + "/admin/users");
     await page.getByLabel("Search users").fill("student-browser@example.test");
     await page.getByRole("button", { name: "Search accounts" }).click();
@@ -409,7 +478,7 @@ async function main() {
     assert.equal(await w.locator(".writer-workspace").count(), 0);
     assert.deepEqual(errors, []);
     console.log(
-      "Production browser checks passed: real MFA enrollment, recovery rotation/authenticator replacement, error reference/retry, account-bound admin controls, admin accounts/support, private note redaction, 390/768/1440px layout, writer route matrix and stale account response isolation.",
+      "Production browser checks passed: real MFA enrollment, recovery rotation/authenticator replacement, error reference/retry, account-bound admin controls, admin accounts/support, private note redaction, provider catalog pagination/errors at 320/390/768/1440px, writer route matrix and stale account response isolation.",
     );
   } finally {
     await browser?.close();

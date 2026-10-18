@@ -1,4 +1,4 @@
-// Six credentials can be managed for authorised failover. They do not increase
+// Credentials can be managed for authorised failover. They do not increase
 // an organisation/project's quota, and quota errors must cool down the provider.
 const cursor = new Map<string, number>();
 export function providerKeys(name: string): string[] {
@@ -18,8 +18,8 @@ export function providerKeys(name: string): string[] {
   }
   return keys.slice(0, 10);
 }
-export function orderedKeys(name: string): string[] {
-  const keys = providerKeys(name);
+export function orderedKeys(name: string, limit = 10): string[] {
+  const keys = providerKeys(name).slice(0, limit);
   if (!keys.length) return [];
   const index = (cursor.get(name) || 0) % keys.length;
   cursor.set(name, index + 1);

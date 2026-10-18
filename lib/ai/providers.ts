@@ -1,5 +1,11 @@
 // Dated provider evidence and access limits: docs/PROVIDERS.md.
 import { providerKeys } from "./keys";
+import {
+  GATEWAYS,
+  gatewayBase,
+  gatewaySetup,
+  type GatewayType,
+} from "./gateway-config";
 
 export type ProviderType =
   | "openrouter"
@@ -11,7 +17,7 @@ export type ProviderType =
   | "mistral"
   | "deepseek"
   | "apinex"
-  | "radox";
+  | GatewayType;
 
 export interface ProviderDef {
   id: string;
@@ -131,25 +137,32 @@ export const PROVIDERS: ProviderDef[] = [
   ),
 ];
 export function eligibleProviders(): ProviderDef[] {
-  const gateway: ProviderDef[] =
-    process.env.ENABLE_RADOX === "true" &&
-    process.env.RADOX_MODEL?.trim() &&
-    process.env.RADOX_API_KEY?.trim()
-      ? [
-          {
-            id: "radox-configured",
-            type: "radox",
-            model: process.env.RADOX_MODEL.trim(),
-            maxCtx: Math.max(
+  const gateway: ProviderDef[] = gatewaySetup()
+    .filter((p) => p.ready)
+    .flatMap((p, index) =>
+      p.models.map((model, modelIndex) => ({
+        id:
+          modelIndex === 0
+            ? `${p.type}-configured`
+            : `${p.type}-configured-${modelIndex + 1}`,
+        type: p.type,
+        model,
+        maxCtx: Math.max(
+          8192,
+          Math.min(
+            200000,
+            Number(process.env[`${GATEWAYS[p.type].prefix}_MAX_CONTEXT`]) ||
               8192,
-              Math.min(200000, Number(process.env.RADOX_MAX_CONTEXT) || 8192),
-            ),
-            priority: 2.5,
-            tier: "auto",
-            note: "Opt-in gateway. Active catalog and capabilities checked before use; gateway model labels are unverified upstream claims.",
-          },
-        ]
-      : [];
+          ),
+        ),
+        priority:
+          p.type === "radox"
+            ? 2.5 + modelIndex / 10
+            : 12 + index + modelIndex / 10,
+        tier: "auto" as const,
+        note: "Explicit opt-in; active catalog checked before requests. Account quotas apply; gateway labels do not attest upstream identity or free billing.",
+      })),
+    );
   return [...PROVIDERS, ...gateway].filter(
     (p) =>
       providerKeys(providerEnvKey(p.type)).length > 0 &&
@@ -172,6 +185,10 @@ export const PROVIDER_BASE_URL: Record<ProviderType, string> = {
   deepseek: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
   apinex: process.env.APINEX_BASE_URL || "https://api.apinex.bond/v1",
   radox: "https://radoxai.com/v1",
+  logfare: "https://logfare.ai/v1",
+  unorouter: "https://api.unorouter.com/v1",
+  aihubmix: "https://aihubmix.com/v1",
+  antseed: gatewayBase("antseed"),
 };
 
 export function providerEnvKey(t: ProviderType): string {
@@ -186,5 +203,9 @@ export function providerEnvKey(t: ProviderType): string {
     deepseek: "DEEPSEEK_API_KEY",
     apinex: "APINEX_API_KEY",
     radox: "RADOX_API_KEY",
+    logfare: "LOGFARE_API_KEY",
+    unorouter: "UNOROUTER_API_KEY",
+    aihubmix: "AIHUBMIX_API_KEY",
+    antseed: "ANTSEED_API_KEY",
   }[t];
 }

@@ -9,7 +9,7 @@ async function main() {
       delete process.env[name];
   Object.assign(process.env, {
     RADOX_API_KEY: "fixture-gateway-key",
-    RADOX_API_KEY_1: "must-never-rotate-to-this",
+    RADOX_API_KEY_1: "same-account-spare-fixture",
     RADOX_MODEL: "fixture-model",
     ENABLE_RADOX: "false",
   });
@@ -74,7 +74,7 @@ async function main() {
     assert.equal(result.provider, "radox-configured");
     assert(seen.every((key) => key === "Bearer fixture-gateway-key"));
     console.log(
-      "PASS Radox: explicit opt-in, live catalog validation, JSON capability, gateway-reported identity and one-account key only. All calls use local fixtures; no live access claimed.",
+      "PASS Radox: explicit opt-in, active catalog validation, JSON capability, gateway-reported identity and first authorized credential. All calls use local fixtures; no live access claimed.",
     );
   } finally {
     globalThis.fetch = original;

@@ -2,6 +2,7 @@ import { collection, useMongo } from "@/lib/storage/mongo";
 import { db } from "@/lib/db";
 import { eligibleProviders } from "@/lib/ai/providers";
 import { breakerStatus } from "@/lib/ai/router";
+import { gatewaySetup } from "@/lib/ai/gateway-config";
 export async function serviceStatus() {
   const states = ["queued", "reading", "assessing"];
   const queue = useMongo()
@@ -28,6 +29,7 @@ export async function serviceStatus() {
   const seen = heartbeat ? new Date(heartbeat).toISOString() : null;
   const breakers = breakerStatus();
   return {
+    gateways: gatewaySetup(),
     videoQueue: queue,
     worker: {
       mode: process.env.WORKER_MODE === "external" ? "external" : "embedded",

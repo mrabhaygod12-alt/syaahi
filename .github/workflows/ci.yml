@@ -37,6 +37,7 @@ jobs:
       - run: npm run test:learning-studio
       - run: npm run test:video-reviews
       - run: npm run test:radox
+      - run: npm run test:gateways
       - run: npm run test:writer-platform
       - run: npm run test:writer-editor-reliability
       - run: npm run test:writer-service-errors

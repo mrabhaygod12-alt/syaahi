@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:gateways": "tsx scripts/test-gateways.ts",
     "test:security-remediation": "tsx scripts/test-security-remediation.ts",
     "test:security-browser": "tsx scripts/test-security-browser.ts",
     "test:learning-studio-browser": "tsx scripts/test-learning-studio-browser.ts",

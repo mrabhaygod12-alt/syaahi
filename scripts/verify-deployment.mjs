@@ -59,6 +59,7 @@ const checks = [
   ["/api/admin/users", 403],
   ["/api/admin/support", 403],
   ["/api/admin/overview", 403],
+  ["/api/admin/providers", 403],
   ["/api/admin/mfa", 403],
   ["/api/user/sessions", 401],
   ["/api/presentations/sources", 401],
@@ -80,7 +81,7 @@ const results = await Promise.all(
     const started = Date.now();
     try {
       const response = await fetch(origin + path, {
-        ...(method ? { method } : {}),
+        ...(method ? { method, headers: { Origin: origin } } : {}),
         ...(redirect ? { redirect: "manual" } : {}),
         cache: "no-store",
         signal: AbortSignal.timeout(45000),

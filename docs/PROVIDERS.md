@@ -1,5 +1,7 @@
 # Provider integration and access
 
+For AIHubMix, UnoRouter, Logfare, Antseed and the extended Radox integration, see [the 18 October 2026 implementation and activation report](AI-GATEWAY-INTEGRATION-2026-10-18.md). The older provider observations below retain their original review date.
+
 Reviewed against public documentation on 24 September 2026. Public catalog entries do not prove account access, upstream model identity or permanent free capacity.
 
 ## APInex

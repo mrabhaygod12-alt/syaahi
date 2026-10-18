@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
+import ProviderCatalog from "./ProviderCatalog";
 export default function AdminOverview() {
   const [data, setData] = useState<any>(null),
     [error, setError] = useState("");
@@ -146,6 +147,9 @@ export default function AdminOverview() {
                 )}
               </section>
             </div>
+          )}
+          {data.services?.gateways && (
+            <ProviderCatalog providers={data.services.gateways} />
           )}
           {data.scopes.users && (
             <section className="admin-panel">

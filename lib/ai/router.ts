@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { radoxModel } from "./radox";
+import { gatewayModel, GatewayModelError } from "./gateway-catalog";
+import { gatewayBase, gatewayKeys, isGateway } from "./gateway-config";
 import { orderedKeys } from "./keys";
 import {
   eligibleProviders,
@@ -84,27 +85,35 @@ async function callOne(
   schema?: OutputSchema,
   signal?: AbortSignal,
 ) {
-  const keys =
-    p.type === "radox"
-      ? [process.env.RADOX_API_KEY!.trim()]
-      : orderedKeys(providerEnvKey(p.type));
+  const keys = isGateway(p.type)
+    ? gatewayKeys(p.type, true)
+    : orderedKeys(providerEnvKey(p.type));
   let lastError: unknown;
   for (const key of keys) {
-    const gateway = p.type === "radox" ? await radoxModel(key, p.model) : null;
-    if (
-      gateway &&
-      JSON.stringify(messages).length / 3 + maxTokens > gateway.context_window
-    )
-      throw new Error("Gateway context window is too small for this request");
-    const client = new OpenAI({
-      apiKey: key,
-      baseURL: PROVIDER_BASE_URL[p.type],
-      fetch: globalThis.fetch,
-      maxRetries: 0,
-      timeout,
-    });
-    const started = Date.now();
     try {
+      const gateway = isGateway(p.type)
+        ? await gatewayModel(p.type, key, p.model)
+        : null;
+      if (
+        gateway &&
+        JSON.stringify(messages).length / 3 + maxTokens > gateway.context_window
+      )
+        throw new GatewayModelError(
+          "Gateway context window is too small for this request",
+        );
+      const client = new OpenAI({
+        apiKey: key,
+        baseURL: isGateway(p.type)
+          ? gatewayBase(p.type)
+          : PROVIDER_BASE_URL[p.type],
+        fetch: isGateway(p.type)
+          ? (input, init) =>
+              globalThis.fetch(input, { ...init, redirect: "error" })
+          : globalThis.fetch,
+        maxRetries: 0,
+        timeout,
+      });
+      const started = Date.now();
       const result = await client.chat.completions.create(
         {
           model: p.model,
@@ -214,16 +223,23 @@ export async function chatWithFallback(
       return response;
     } catch (error) {
       const status = Number((error as { status?: number })?.status) || 0;
-      if (status === 429 || status >= 500 || status === 0) temporary = true;
+      if (
+        !(error instanceof GatewayModelError) &&
+        (status === 429 || status >= 500 || status === 0)
+      )
+        temporary = true;
       const message =
         error instanceof Error ? error.message : "Provider failed";
-      const kind = message.includes("TRUNCATED")
-        ? "truncated"
-        : message.includes("EMPTY")
-          ? "empty"
-          : status
-            ? `HTTP ${status}`
-            : "timeout or network";
+      const kind =
+        error instanceof GatewayModelError
+          ? "model unavailable"
+          : message.includes("TRUNCATED")
+            ? "truncated"
+            : message.includes("EMPTY")
+              ? "empty"
+              : status
+                ? `HTTP ${status}`
+                : "timeout or network";
       errors.push(`${p.id}: ${kind}`);
       const failures = (breaker.get(p.type)?.fails || 0) + 1;
       const retryHeader = (
@@ -239,7 +255,8 @@ export async function chatWithFallback(
           : [401, 403].includes(status)
             ? 300000
             : Math.min(30000 * failures, 120000);
-      breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
+      if (!(error instanceof GatewayModelError))
+        breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
     } finally {
       active.set(p.type, Math.max(0, (active.get(p.type) || 1) - 1));
     }
@@ -305,21 +322,36 @@ export async function* chatStreamWithFallback(
     let emitted = false;
     try {
       let lastError: unknown;
-      for (const key of p.type === "radox"
-        ? [process.env.RADOX_API_KEY!.trim()]
+      for (const key of isGateway(p.type)
+        ? gatewayKeys(p.type, true)
         : orderedKeys(providerEnvKey(p.type))) {
-        if (p.type === "radox") await radoxModel(key, p.model, true);
-        const client = new OpenAI({
-          apiKey: key,
-          baseURL: PROVIDER_BASE_URL[p.type],
-          fetch: globalThis.fetch,
-          maxRetries: 0,
-          timeout: Math.max(
-            1000,
-            Math.min(30000, 90000 - (Date.now() - started)),
-          ),
-        });
         try {
+          if (isGateway(p.type)) {
+            const model = await gatewayModel(p.type, key, p.model, true);
+            if (
+              messages.reduce((n, m) => n + m.content.length, 0) / 2 +
+                maxTokens >
+              model.context_window
+            )
+              throw new GatewayModelError(
+                "Gateway context window is too small for this request",
+              );
+          }
+          const client = new OpenAI({
+            apiKey: key,
+            baseURL: isGateway(p.type)
+              ? gatewayBase(p.type)
+              : PROVIDER_BASE_URL[p.type],
+            fetch: isGateway(p.type)
+              ? (input, init) =>
+                  globalThis.fetch(input, { ...init, redirect: "error" })
+              : globalThis.fetch,
+            maxRetries: 0,
+            timeout: Math.max(
+              1000,
+              Math.min(30000, 90000 - (Date.now() - started)),
+            ),
+          });
           const stream = await client.chat.completions.create(
             {
               model: p.model,
@@ -366,13 +398,16 @@ export async function* chatStreamWithFallback(
       const status = Number((error as { status?: number })?.status) || 0;
       const message =
         error instanceof Error ? error.message : "Provider failed";
-      const kind = message.includes("TRUNCATED")
-        ? "truncated"
-        : message.includes("EMPTY")
-          ? "empty"
-          : status
-            ? `HTTP ${status}`
-            : "timeout or network";
+      const kind =
+        error instanceof GatewayModelError
+          ? "model unavailable"
+          : message.includes("TRUNCATED")
+            ? "truncated"
+            : message.includes("EMPTY")
+              ? "empty"
+              : status
+                ? `HTTP ${status}`
+                : "timeout or network";
       errors.push(`${p.id}: ${kind}`);
       const failures = (breaker.get(p.type)?.fails || 0) + 1;
       const retryHeader = (
@@ -388,7 +423,8 @@ export async function* chatStreamWithFallback(
           : [401, 403].includes(status)
             ? 300000
             : Math.min(30000 * failures, 120000);
-      breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
+      if (!(error instanceof GatewayModelError))
+        breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
 
       // Once text is visible, finish with a clear interruption marker rather
       // than silently switching providers or replaying the user's prompt.
