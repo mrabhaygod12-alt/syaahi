@@ -19,6 +19,7 @@ import "./product-public.css";
 import "./redesign.css";
 import "katex/dist/katex.min.css";
 import GrowthVisit from "@/components/growth/GrowthVisit";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const instrument = Instrument_Sans({
   subsets: ["latin"],
@@ -113,6 +114,7 @@ export default async function RootLayout({
           <GrowthVisit />
           <AuthDialog />
         </WorkspaceProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
