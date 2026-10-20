@@ -221,6 +221,45 @@ async function main() {
     ),
   );
   assert.equal(repairs, 2, "Extraction repair is bounded");
+  let storyCalls = 0;
+  const repairedStory = await planHybrid(
+    {
+      prompt: input.prompt,
+      audience: "University learners",
+      language: "english",
+      count: 6,
+      sources: [fixtureSource],
+      planCap: 30,
+      balance: 50,
+    },
+    async (messages, options) => {
+      const generated = await fixtureGenerate(messages, options);
+      if (
+        messages.some(
+          (m) =>
+            m.role === "user" &&
+            m.content.includes('"task":"extract-evidence"'),
+        )
+      )
+        return generated;
+      storyCalls++;
+      if (storyCalls === 1) {
+        const invalid = JSON.parse(generated.text);
+        invalid.beats[1].role = "pillar_1";
+        return { ...generated, text: JSON.stringify(invalid) };
+      }
+      assert(
+        messages.at(-1)!.content.includes("Slide 2: role must be exactly"),
+      );
+      return generated;
+    },
+  );
+  assert.equal(
+    storyCalls,
+    2,
+    "Narrative repair remains bounded with specific field feedback",
+  );
+  assert.equal(repairedStory.beats[1].role, "context");
   const changedSlides = deck.slides.map((s, i) =>
     i
       ? s

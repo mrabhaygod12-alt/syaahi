@@ -50,26 +50,37 @@ function validateBeats(
     throw new Error(`Return exactly ${count} storyboard beats.`);
   const known = new Set(facts.map((f) => f.id)),
     used = new Set<string>();
-  const beats: HybridBeat[] = value.beats.map((b: any) => {
+  const beats: HybridBeat[] = value.beats.map((b: any, index: number) => {
     if (
       typeof b?.title !== "string" ||
       !b.title.trim() ||
       b.title.length > 100 ||
       b.title.trim().split(/\s+/u).length > 8 ||
-      /^(introduction|overview)$/i.test(b.title.trim()) ||
-      typeof b.purpose !== "string" ||
-      b.purpose.length > 160 ||
-      !["hook", "context", "pillar", "evidence", "takeaway"].includes(b.role) ||
+      /^(introduction|overview)$/i.test(b.title.trim())
+    )
+      throw new Error(
+        `Slide ${index + 1}: title must contain 1–8 words, at most 100 characters, and cannot be Introduction or Overview.`,
+      );
+    if (typeof b.purpose !== "string" || b.purpose.length > 160)
+      throw new Error(
+        `Slide ${index + 1}: purpose must be a string of at most 160 characters.`,
+      );
+    if (!["hook", "context", "pillar", "evidence", "takeaway"].includes(b.role))
+      throw new Error(
+        `Slide ${index + 1}: role must be exactly hook, context, pillar, evidence or takeaway. Use pillar for every core pillar.`,
+      );
+    if (
       !Array.isArray(b.factIds) ||
       b.factIds.length < 1 ||
       b.factIds.length > 3 ||
-      b.factIds.some(
-        (id: unknown) => typeof id !== "string" || !known.has(id),
-      ) ||
-      used.has(b.factIds[0])
+      b.factIds.some((id: unknown) => typeof id !== "string" || !known.has(id))
     )
       throw new Error(
-        "Use concise headings and distinct, supplied source fact IDs.",
+        `Slide ${index + 1}: factIds must contain 1–3 complete IDs copied from supplied facts. Do not use source IDs, indexes or abbreviated IDs.`,
+      );
+    if (used.has(b.factIds[0]))
+      throw new Error(
+        `Slide ${index + 1}: the primary fact ID is already used. Select a different supplied fact for the first factIds entry.`,
       );
     used.add(b.factIds[0]);
     const selected = classifyVisual(b.title, b.role);
@@ -184,6 +195,9 @@ export async function planHybrid(
         brief: input.prompt,
         audience: input.audience,
         language: input.language,
+        roleValues: ["hook", "context", "pillar", "evidence", "takeaway"],
+        rules:
+          "Every beat requires title (1–8 words, <=100 characters), purpose (<=160 characters), role (exactly one roleValues entry), factIds (1–3 complete supplied fact IDs), engine and metaphor. First role is hook; last role is takeaway. Core pillars use role pillar, without numbers or suffixes. Each beat must have a different first fact ID. Never abbreviate IDs.",
         engines: VISUAL_ENGINES.filter((e) => e !== "spline"),
         metaphors: VISUAL_METAPHORS,
         sourceNames: input.sources.map((s) => ({ id: s.id, name: s.name })),

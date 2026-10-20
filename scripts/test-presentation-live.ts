@@ -42,6 +42,9 @@ async function main() {
         "live-engine-" + randomUUID() + "@example.test",
         "safe-fixture-password",
       );
+  const dir = "output/live-audit/hybrid-live";
+  mkdirSync(dir, { recursive: true });
+  let calls = 0;
   if (!deck) {
     const sources = await ownedSources(
       owner.id,
@@ -56,18 +59,28 @@ async function main() {
     );
     const { createHybridDraft } =
       await import("../lib/presentations/hybrid/create");
-    const draft = await createHybridDraft(owner.id, {
-      prompt:
-        "Explain Syaahi to university learners using the supplied public source. Focus on six distinct supported ideas.",
-      count: 6,
-      language: "english",
-      sources: sources.map((s) => ({
-        kind: "text",
-        name: s.name,
-        text: s.text,
-      })),
-      liveResearch: false,
-    });
+    const draft = await createHybridDraft(
+      owner.id,
+      {
+        prompt:
+          "Explain Syaahi to university learners using the supplied public source. Focus on six distinct supported ideas.",
+        count: 6,
+        language: "english",
+        sources: sources.map((s) => ({
+          kind: "text",
+          name: s.name,
+          text: s.text,
+        })),
+        liveResearch: false,
+      },
+      async (messages, options) => {
+        const result = await chatWithFallback(messages, options);
+        // This isolated smoke uses only Syaahi's public About page.
+        writeFileSync(dir + "/planning-pass-" + ++calls + ".json", result.text);
+        console.log("Planning model pass", calls, "provider", result.provider);
+        return result;
+      },
+    );
     deck = await createDeck(owner.id, {
       prompt: draft.prompt,
       context: sources[0].text,
@@ -75,15 +88,12 @@ async function main() {
       template: draft.template,
       count: draft.count,
       outline: draft.outline,
-      sources,
+      sources: draft.sources,
       designEngine: 3,
       hybridPlan: draft.hybridPlan,
     });
   }
-  const dir = "output/live-audit/hybrid-live";
-  mkdirSync(dir, { recursive: true });
-  let calls = 0,
-    retries = 0;
+  let retries = 0;
   if (deck.status === "error") deck = await retryDeck(owner.id, deck.id);
   while (deck.status !== "done") {
     if (deck.leaseUntil > Date.now()) {
