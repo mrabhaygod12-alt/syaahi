@@ -1,4 +1,6 @@
 import { processPendingVideo } from "@/lib/youtube/jobs";
+import { kickPlanTasks } from "@/lib/presentations/hybrid/tasks";
+import { kickMedia, cleanExpiredMedia } from "@/lib/presentations/hybrid/media";
 import { workerConcurrency } from "./capacity";
 import { pendingJobs } from "./store";
 import { processJob } from "./runner";
@@ -34,6 +36,9 @@ export function kickWorker(standalone = false) {
         }
       }
       await publishDueStories();
+      kickPlanTasks();
+      kickMedia();
+      await cleanExpiredMedia();
       await Promise.all(
         (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
       );

@@ -8,7 +8,7 @@ import {
 export const metadata = pageMeta({
   title: "AI Presentation Studio — Source, Story, Slides",
   description:
-    "Research public sources, review a storyboard and build concise presentations using six visual layouts. Edit and export PPTX, PDF and PNG.",
+    "Import complete lecture sources, review a cited storyboard and direct interactive visual scenes. Export editable PPTX, PDF, PNG or an offline web deck.",
   path: "/presentations",
 });
 export default function Page() {

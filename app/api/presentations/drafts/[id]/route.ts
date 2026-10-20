@@ -35,6 +35,7 @@ export const PATCH = apiHandler(
           {
             ...(isDeckTemplate(b.template) ? { template: b.template } : {}),
             ...(b.storyboard ? { storyboard: b.storyboard } : {}),
+            ...(b.hybridPlan ? { hybridPlan: b.hybridPlan } : {}),
           },
         ),
       });

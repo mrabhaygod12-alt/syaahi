@@ -17,7 +17,11 @@ async function main() {
   const request = (cookie: string, body?: unknown) =>
     new NextRequest("http://localhost:3101/api/interview", {
       method: body ? "POST" : "GET",
-      headers: { cookie, "Content-Type": "application/json" },
+      headers: {
+        cookie,
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3101",
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -30,6 +34,23 @@ async function main() {
   const cookie = (await auth.startSession(user, request(""))).headers
     .get("set-cookie")!
     .split(";")[0];
+  assert.equal(
+    (
+      await interview.POST(
+        new NextRequest("http://localhost:3101/api/interview", {
+          method: "POST",
+          headers: {
+            cookie,
+            Origin: "https://foreign.example",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "plan" }),
+        }),
+      )
+    ).status,
+    403,
+    "Cross-site interview writes stay blocked",
+  );
 
   const created = await interview.POST(
     request(cookie, {

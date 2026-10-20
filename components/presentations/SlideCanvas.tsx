@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import UniversalStage from "./hybrid/UniversalStage";
 import ArchetypeArtwork from "./ArchetypeArtwork";
 import { archetypeScene } from "@/lib/presentations/scene";
 import { semanticTheme } from "@/lib/presentations/theme";
@@ -93,6 +94,8 @@ export default function SlideCanvas({
       document.fonts.removeEventListener("loadingdone", measure);
     };
   }, [slide, template, brand, language, onMeasure]);
+  if (slide.manifest)
+    return <UniversalStage slide={slide.manifest} index={index} />;
   const theme = deckTheme(template, brand),
     objects = slideObjects(slide, theme.ink, theme.accent, theme.background),
     chart = slide.chart,

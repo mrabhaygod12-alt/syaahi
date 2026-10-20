@@ -314,8 +314,8 @@ export default function GrowthLanding({
           </h2>
           <p>
             {t(
-              "Bring your sources. Review the narrative plan. Use six structured layouts and nine themes, then preview, edit and export your deck.",
-              "अपने स्रोत लाएँ। कहानी की योजना जाँचें। छह लेआउट और नौ थीम से स्लाइड बनाएँ, प्रीव्यू देखें, संपादन और एक्सपोर्ट करें।",
+              "Bring your sources. Review a cited narrative, explore interactive visual scenes, then edit, present and export your deck.",
+              "अपने स्रोत लाएँ। प्रमाण सहित योजना जाँचें। दृश्य स्लाइड बनाएँ, प्रीव्यू देखें, संपादन और एक्सपोर्ट करें।",
             )}
           </p>
           <a className="growth-text-link" href="/ai-presentations">

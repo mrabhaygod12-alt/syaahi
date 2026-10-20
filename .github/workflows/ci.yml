@@ -20,6 +20,7 @@ jobs:
       - run: npm run test:workspace-routing
       - run: npm run test:security
       - run: npm run test:security-remediation
+      - run: npm run test:interview
       - run: npx tsx scripts/test-request-budget.ts
       - run: npx tsx scripts/test-redesign.ts
       - run: npx tsx scripts/test-redesign.ts --mongo
@@ -33,6 +34,7 @@ jobs:
       - run: npm run test:chat-answer
       - run: npm run test:presentation-preview
       - run: npm run test:presentation-engine
+      - run: npm run test:presentation-media
       - run: npm run test:presentation-research
       - run: npm run test:learning-studio
       - run: npm run test:video-reviews

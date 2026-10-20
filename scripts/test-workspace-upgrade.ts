@@ -183,8 +183,14 @@ async function main() {
       };
     throw new Error(`Unexpected mocked operation ${path}`);
   };
-  await assert.rejects(() => billing.createSubscription(user.id, "starter", provider));
-  assert.equal(posts, 0, "Retired recurring tiers must not create provider mandates");
+  await assert.rejects(() =>
+    billing.createSubscription(user.id, "starter", provider),
+  );
+  assert.equal(
+    posts,
+    0,
+    "Retired recurring tiers must not create provider mandates",
+  );
   const creates = await Promise.allSettled([
     billing.createSubscription(user.id, "max", provider),
     billing.createSubscription(user.id, "max", provider),
@@ -207,7 +213,7 @@ async function main() {
     billing.settleSubscription("sub_UnitMonthly", "pay_CycleOne", provider),
   ]);
   assert.equal(await balance(user.id), 379);
-  assert.equal(await billing.presentationLimit(user.id), 15);
+  assert.equal(await billing.presentationLimit(user.id), 30);
   await assert.rejects(() =>
     billing.settleSubscription(
       "sub_UnitMonthly",
@@ -244,70 +250,31 @@ async function main() {
     } = await import("../lib/presentations/store"),
     { validateSlide } = await import("../lib/presentations/model"),
     { exportDeck } = await import("../lib/presentations/export");
-  const base = (title: string, layout = "points") => ({
-    title,
-    layout,
-    subtitle: "Study one concept at a time",
-    bullets: ["Describe the problem", "Check evidence", "Test understanding"],
-    notes: "A teaching example; check against your original sources.",
-    citations: [],
-    columns: [
-      { title: "Before", points: ["Unstructured study"] },
-      { title: "After", points: ["A focused plan"] },
-    ],
-    steps: ["Read", "Recall", "Review"],
-    table: [
-      ["Step", "Purpose"],
-      ["Review", "Recall"],
-    ],
-    chart: {
-      labels: ["A", "B"],
-      values: [2, 4],
-      label: "Supplied example data",
-    },
-  });
-  const deck = await createDeck(user.id, {
-    prompt: "Explain study skills to university students.",
-    context: "Example data: A 2 and B 4",
-    language: "english",
-    template: "classroom",
-    count: 6,
-  });
+  const { fixtureDraft } = await import("./hybrid-fixture");
+  const presentationDraft = await fixtureDraft(user.id),
+    presentationInput = {
+      prompt: presentationDraft.prompt,
+      context: "Private fixture",
+      language: presentationDraft.language,
+      template: presentationDraft.template,
+      count: presentationDraft.count,
+      outline: presentationDraft.outline,
+      sources: presentationDraft.sources,
+      designEngine: 3 as const,
+      hybridPlan: presentationDraft.hybridPlan,
+    };
+  const deck = await createDeck(user.id, presentationInput);
   assert.equal(await balance(user.id), 374);
   assert.equal(await ownedDeck(other.id, deck.id), null);
   let calls = 0;
-  const generated = async () => {
+  await processDeck(deck.id, async () => {
     calls++;
-    const current = (await ownedDeck(user.id, deck.id))!;
-    return {
-      provider: "mock",
-      text: JSON.stringify(
-        current.outline.length
-          ? base(
-              `Slide ${current.slides.length + 1}`,
-              ["cover", "points", "comparison", "process", "table", "chart"][
-                current.slides.length
-              ],
-            )
-          : {
-              title: "Study skills",
-              outline: [
-                "Introduction",
-                "Why recall",
-                "Before and after",
-                "Process",
-                "Schedule",
-                "Results",
-              ],
-            },
-      ),
-    };
-  };
-  for (let i = 0; i < 6; i++) await processDeck(deck.id, generated);
+    throw new Error("The retired renderer must not be called");
+  });
   const complete = (await ownedDeck(user.id, deck.id))!;
   assert.equal(complete.status, "done");
   assert.equal(complete.slides.length, 6);
-  assert.equal(calls, 7);
+  assert.equal(calls, 0);
   assert.equal(await balance(user.id), 374);
   const ppt = await exportDeck(complete);
   assert.equal(ppt.subarray(0, 2).toString(), "PK");
@@ -324,16 +291,24 @@ async function main() {
   await assert.rejects(() =>
     editDeck(user.id, deck.id, complete.slides, "stale"),
   );
-  const failed = await createDeck(user.id, {
-    prompt: "Explain a complex learning topic to students",
-    context: "",
-    language: "english",
-    template: "technical",
-    count: 4,
-  });
-  await processDeck(failed.id, async () => {
-    throw new Error("Provider outage");
-  });
+  const failed = await createDeck(user.id, presentationInput);
+  const { mutateRecord: changeFixture } =
+      await import("../lib/workspace-records"),
+    { manifestForBeat, manifestSlide } =
+      await import("../lib/presentations/hybrid/pipeline");
+  await changeFixture<any>(failed.id, (old) => ({
+    ...old,
+    slides: [
+      manifestSlide(
+        {
+          ...manifestForBeat(presentationDraft.hybridPlan!, 0),
+          headline: "W".repeat(90),
+        },
+        presentationDraft.sources,
+      ),
+    ],
+  }));
+  await processDeck(failed.id);
   assert.equal((await ownedDeck(user.id, failed.id))?.status, "error");
   assert.equal(await balance(user.id), 374);
   const retries = await Promise.allSettled([

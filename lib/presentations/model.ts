@@ -1,4 +1,5 @@
 import { validateArchetype, type ArchetypeSlide } from "./archetypes";
+import { validateManifest, type SlideManifest } from "./hybrid/model";
 export const DECK_TEMPLATES = {
   editorial: {
     name: "Editorial",
@@ -95,6 +96,7 @@ export interface BrandKit {
   font: "Arial" | "Aptos" | "Georgia" | "Nirmala UI";
 }
 export interface DeckSlide {
+  manifest?: SlideManifest;
   semantic?: ArchetypeSlide;
   id?: string;
   title: string;
@@ -175,6 +177,9 @@ export function validateSlide(input: unknown): DeckSlide {
   if (objects && new Set(objects.map((o) => o.id)).size !== objects.length)
     throw new Error("Object IDs must be unique.");
   return {
+    ...(s.manifest
+      ? { manifest: validateManifest({ ...s.manifest, headline: s.title }) }
+      : {}),
     ...(s.semantic
       ? { semantic: validateArchetype({ ...s.semantic, title: s.title }) }
       : {}),

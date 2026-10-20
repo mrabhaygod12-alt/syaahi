@@ -27,6 +27,17 @@ export const GET = apiHandler(
         { status: 409 },
       );
     const format = req.nextUrl.searchParams.get("format") || "pptx";
+    if (format === "web" && deck.designEngine === 3) {
+      const { portableWebDeck, brandImages } =
+        await import("@/lib/presentations/hybrid/export");
+      return new Response(portableWebDeck(deck, await brandImages(deck)), {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Disposition": `attachment; filename="syaahi-${deck.id}.html"`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
     if (!["pptx", "pdf", "png", "notes"].includes(format))
       return NextResponse.json(
         { error: "Choose PPTX, PDF, notes PDF or a slide image." },

@@ -17,6 +17,7 @@ const decode = (s: string) =>
 export async function officeText(
   buffer: Buffer,
   kind: "docx" | "pptx",
+  options: { maxText?: number; rejectTruncation?: boolean } = {},
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     fromBuffer(
@@ -85,12 +86,20 @@ export async function officeText(
           parts.sort((a, b) =>
             a.name.localeCompare(b.name, undefined, { numeric: true }),
           );
-          resolve(
-            parts
-              .map((p) => p.text)
-              .join("\n\n")
-              .slice(0, 100000),
-          );
+          const text = parts.map((p) => p.text).join("\n\n"),
+            limit = Math.min(
+              1200000,
+              Math.max(1000, options.maxText || 100000),
+            );
+          if (options.rejectTruncation && text.length > limit) {
+            reject(
+              new Error(
+                "Document exceeds the complete-text budget. Split it before importing.",
+              ),
+            );
+            return;
+          }
+          resolve(text.slice(0, limit));
         });
         zip.readEntry();
       },

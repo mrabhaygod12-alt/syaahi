@@ -10,6 +10,7 @@ process.env.DATA_DIR =
 process.env.DATA_BACKEND = "sqlite";
 process.env.MONGODB_URI = "";
 process.env.WORKER_MODE = "external";
+process.env.APP_ROLE = "all";
 // This fixture never syncs an account to hosted authentication.
 process.env.SUPABASE_SERVICE_ROLE_KEY = "";
 process.env.SUPABASE_SECRET_KEY = "";
@@ -17,7 +18,7 @@ process.env.SUPABASE_URL = "";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "";
 async function main() {
   const { register } = await import("../lib/auth/server"),
-    { ownedSources, planDeck } = await import("../lib/presentations/drafts"),
+    { ownedSources } = await import("../lib/presentations/drafts"),
     { createDeck, processDeck, ownedDeck, retryDeck } =
       await import("../lib/presentations/store"),
     { exportDeck } = await import("../lib/presentations/native-export"),
@@ -53,21 +54,20 @@ async function main() {
       sources[0].locator,
       sources[0].text.length,
     );
-    const draft = await planDeck(owner.id, {
+    const { createHybridDraft } =
+      await import("../lib/presentations/hybrid/create");
+    const draft = await createHybridDraft(owner.id, {
       prompt:
-        "Explain Syaahi's purpose to a new learner using the supplied About page. Create a clear six-slide story: hook, context, useful ideas and a takeaway. Use at least three qualitative layouts, concise headings and restrained descriptions. Only use claims supported by the source.",
-      language: "english",
-      template: "studio",
+        "Explain Syaahi to university learners using the supplied public source. Focus on six distinct supported ideas.",
       count: 6,
-      audience: "New learners",
-      format: "presenter",
-      sources,
-      designEngine: 2,
+      language: "english",
+      sources: sources.map((s) => ({
+        kind: "text",
+        name: s.name,
+        text: s.text,
+      })),
+      liveResearch: false,
     });
-    console.log(
-      "PASS live storyboard",
-      draft.storyboard?.beats.map((b) => b.archetype),
-    );
     deck = await createDeck(owner.id, {
       prompt: draft.prompt,
       context: sources[0].text,
@@ -76,11 +76,11 @@ async function main() {
       count: draft.count,
       outline: draft.outline,
       sources,
-      designEngine: 2,
-      storyboard: draft.storyboard,
+      designEngine: 3,
+      hybridPlan: draft.hybridPlan,
     });
   }
-  const dir = "output/live-audit/archetype-live";
+  const dir = "output/live-audit/hybrid-live";
   mkdirSync(dir, { recursive: true });
   let calls = 0,
     retries = 0;

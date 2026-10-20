@@ -5,15 +5,30 @@ export const metadata = pageMeta({
   title: "Source-based AI presentations with editable PowerPoint export",
   path: "/ai-presentations",
   description:
-    "Create a source-based narrative, review the plan, preview and edit six slide layouts, then export editable PPTX, PDF or PNG with Syaahi Presentation Studio.",
+    "Review exact source evidence, build a cited narrative, direct interactive visual scenes and export PPTX, PDF or an offline web deck.",
 });
 const layouts = [
-  ["Hero headline", "One decisive takeaway with breathing room."],
-  ["Bento grid", "A primary idea and two supporting cards."],
-  ["Metric trio", "Three source-supported numerical statistics."],
-  ["Split comparison", "Two choices, approaches or perspectives."],
-  ["Linear stepper", "A sequence of three or four phases."],
-  ["Attributed quote", "A verbatim source quotation and attribution."],
+  [
+    "Knowledge hub",
+    "Complete bounded imports, source passages and page attribution.",
+  ],
+  [
+    "Narrative plan",
+    "Review concise scene headings and inspect the evidence before approval.",
+  ],
+  [
+    "Universal stage",
+    "Explore conceptual 3D, vector and shader scenes with device fallbacks.",
+  ],
+  ["Camera director", "Move through a retained 3D world in presentation mode."],
+  [
+    "Checked delivery",
+    "Exact quotations, measured text bounds and readable contrast.",
+  ],
+  [
+    "Portable output",
+    "Editable PowerPoint, PDF and an offline interactive HTML deck.",
+  ],
 ];
 export default function Page() {
   return (
@@ -31,17 +46,21 @@ export default function Page() {
           <li>
             <strong>Bring the evidence.</strong> Add accessible public article
             links, pasted material or owned lessons and PDFs. Imports are
-            bounded to six sources and 48,000 characters.
+            bounded to six imported sources and 1.2 million extracted
+            characters. Research adds explicitly labelled excerpts or abstracts.
+            Provider context limits also apply.
           </li>
           <li>
             <strong>Review the narrative.</strong> Check titles, slide purposes,
-            layout choices and the theme. Planning is free. Save and reopen the
-            plan before approving generation.
+            scene choices and the design genome. Planning does not charge
+            credits, but at least five available credits are required. Save and
+            reopen the plan before approving generation.
           </li>
           <li>
-            <strong>Generate with structure.</strong> Separate slot-filling and
-            editorial passes prepare concise copy. Fixed layouts control
-            typography and geometry; the AI does not position boxes.
+            <strong>Generate with structure.</strong> Separate evidence
+            extraction and narrative passes prepare typed manifests. Approved
+            rendering code controls typography and geometry; model-supplied code
+            and coordinates are never executed.
           </li>
           <li>
             <strong>Preview, edit and present.</strong> Refine content, review
@@ -54,10 +73,11 @@ export default function Page() {
         </a>
       </section>
       <section aria-labelledby="layout-heading">
-        <h2 id="layout-heading">Six layouts, nine original themes.</h2>
+        <h2 id="layout-heading">From evidence to a visual world.</h2>
         <p>
-          The palette and visual layout are separate choices. Short copy and
-          shared design tokens keep spacing consistent.
+          Choose an original design genome, visual metaphor and engine. The
+          source inspector keeps factual statements connected to their exact
+          saved passages.
         </p>
         <div className="product-feature-grid">
           {layouts.map(([title, body], i) => (
@@ -79,10 +99,10 @@ export default function Page() {
       <section className="product-answer">
         <h2>Know what the source supports.</h2>
         <p>
-          Metric layouts require three source-supported numbers in the plan and
-          exact excerpts in the generated slide. Quotes must match original
-          source text. Private source text and speaker notes are excluded from
-          audience and shared payloads.
+          Each factual card must match a saved source quotation and attribution.
+          The quality gate checks contrast and text clipping in headless
+          Chromium before a new deck is delivered. Private source text and
+          speaker notes are excluded from audience and shared payloads.
         </p>
         <p>
           Extraction does not bypass restricted sites or paywalls. These checks
@@ -91,10 +111,12 @@ export default function Page() {
         </p>
         <h2>What does generation cost?</h2>
         <p>
-          Planning costs no credits. Explicit approval reserves five credits per
-          deck. A saved-slide regeneration uses one credit. Failed generation
-          preserves completed slides and returns the charge according to its
-          failure rules. Free accounts can create up to six slides.
+          Planning costs no credits. Explicit approval reserves five credits for
+          up to ten scenes, plus two credits for each additional group of up to
+          five scenes. The plan shows its exact cost. A saved-slide regeneration
+          uses one credit. Failed generation preserves completed slides and
+          returns the charge according to its failure rules. Free accounts can
+          create up to six slides.
         </p>
         <a href="/pricing">See student plans and slide limits →</a>
       </section>

@@ -27,6 +27,7 @@ const runtime = globalThis as unknown as {
   deckPrintActive?: number;
 };
 export async function deckHtml(deck: Deck) {
+  if(deck.designEngine===3)return (await import("./hybrid/export")).hybridHtml(deck);
   const theme = deckTheme(deck.template, deck.brand),
     images = new Map<string, string>();
   for (const slide of deck.slides)
@@ -99,6 +100,7 @@ export async function visualExport(
   format: "pdf" | "png" | "notes",
   slideIndex = 0,
 ) {
+  if(deck.designEngine===3)return (await import("./hybrid/export")).hybridVisualExport(deck,format,slideIndex);
   if ((runtime.deckPrintActive || 0) >= 1)
     throw new Error("Presentation renderer is busy. Retry shortly.");
   runtime.deckPrintActive = (runtime.deckPrintActive || 0) + 1;

@@ -4,7 +4,7 @@ export const MONTHLY_PLANS = {
   popular: { label: "Popular", inr: 79, credits: 36, maxSlides: 12 },
   // Historical subscriptions keep their original grants and renewal terms.
   pro: { label: "Pro", inr: 179, credits: 90, maxSlides: 12 },
-  max: { label: "Max", inr: 399, credits: 360, maxSlides: 15 },
+  max: { label: "Max", inr: 399, credits: 360, maxSlides: 30 },
 } as const;
 export type MonthlyTier = keyof typeof MONTHLY_PLANS;
 export const STUDENT_MONTHLY_TIERS = ["max"] as const;

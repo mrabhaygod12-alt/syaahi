@@ -30,7 +30,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
       sources: await ownedSources(
         (await currentUser(req))!.id,
         b.sources,
-        b.designEngine === 2 ? 48000 : 18000,
+        b.designEngine === 3 ? 1200000 : b.designEngine === 2 ? 48000 : 18000,
         typeof b.focus === "string" ? b.focus.slice(0, 3000) : "",
       ),
     });

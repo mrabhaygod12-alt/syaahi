@@ -1,7 +1,32 @@
 import type { DeckSlide } from "./model";
 /** Keep presenter notes and extracted evidence out of every audience channel. */
 export function audienceSlide(slide: DeckSlide): DeckSlide {
-  const visible = { ...slide, notes: "", evidence: [] };
+  const visible = {
+    ...slide,
+    notes: "",
+    evidence: [],
+    citations: slide.citations.map((c) =>
+      c.split(" — ")[0].replace(/https?:\/\/\S+/gi, "Source link omitted"),
+    ),
+  };
+  if (slide.manifest)
+    visible.manifest = {
+      ...slide.manifest,
+      visualEngine:
+        slide.manifest.visualEngine === "spline"
+          ? "two"
+          : slide.manifest.visualEngine,
+      visual: { ...slide.manifest.visual, splineAssetId: undefined },
+      notes: "",
+      facts: slide.manifest.facts.map((f) => ({
+        ...f,
+        sourceId: "",
+        exactQuote: f.statement,
+        start: 0,
+        end: f.statement.length,
+      })),
+      genome: { ...slide.manifest.genome, logoId: undefined },
+    };
   if (slide.semantic) {
     visible.semantic = { ...slide.semantic, notes: "", evidence: [] };
     if (visible.semantic.archetype === "metric_trio")

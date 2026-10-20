@@ -13,7 +13,20 @@ module.exports = {
         ? ".next-production"
         : ".next"),
   devIndicators: false,
-  serverExternalPackages: ["playwright", "playwright-core", "pdf-parse"],
+  serverExternalPackages: [
+    "playwright",
+    "playwright-core",
+    "pdf-parse",
+    "@remotion/renderer",
+    "@remotion/bundler",
+  ],
+  outputFileTracingIncludes: {
+    "/api/presentations/**/*": [
+      "./lib/presentations/hybrid/VideoRoot.tsx",
+      "./lib/presentations/hybrid/visual.ts",
+      "./lib/presentations/hybrid/model.ts",
+    ],
+  },
   webpack(config, { isServer }) {
     if (isServer)
       config.externals.push({ "node:sqlite": "commonjs node:sqlite" });

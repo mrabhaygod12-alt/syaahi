@@ -22,7 +22,12 @@ import {
   deleteDeckComment,
 } from "@/lib/presentations/operations";
 import { records } from "@/lib/workspace-records";
+import {
+  deckMedia,
+  mediaConfiguration,
+} from "@/lib/presentations/hybrid/media";
 type Context = { params: Promise<{ id: string }> };
+import { narrationEnabled } from "@/lib/presentations/hybrid/services";
 export const GET = apiHandler(async (req: NextRequest, ctx: Context) => {
   const denied = await authError(req);
   if (denied) return denied;
@@ -38,6 +43,8 @@ export const GET = apiHandler(async (req: NextRequest, ctx: Context) => {
   kickWorker();
   return NextResponse.json({
     deck: safeDeck(deck),
+    exports: await deckMedia(deck.owner, deck.id),
+    media: { ...mediaConfiguration(), narration: narrationEnabled() },
     maxSlides: await presentationLimit(deck.owner),
     regenerations: (await records<any>("deck-regeneration", deck.owner))
       .filter((r) => r.deck === deck.id)
@@ -118,6 +125,7 @@ export const PATCH = apiHandler(async (req: NextRequest, ctx: Context) => {
                   body.slides,
                   body.expectedUpdatedAt,
                   await presentationLimit(owner),
+                  body.confirmCredits === true,
                 );
     kickWorker();
     return NextResponse.json({ deck: safeDeck(deck) });

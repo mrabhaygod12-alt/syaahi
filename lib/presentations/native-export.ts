@@ -13,6 +13,7 @@ import { semanticTheme } from "./theme";
 import { iconSvg } from "./artwork-html";
 import { citationCaption } from "./public-view";
 export async function exportDeck(deck: Deck) {
+  if(deck.designEngine===3)return (await import("./hybrid/export")).hybridPptx(deck);
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.author = "Syaahi user";

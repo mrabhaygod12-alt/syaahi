@@ -17,6 +17,7 @@ export interface StudyDocument {
   pageCount: number;
   createdAt: string;
   chunks: DocumentChunk[];
+  originalPages?: Array<{ num: number; text: string }>;
   vectorReady?: boolean;
   vectorModel?: string;
   vectorOffset?: number;
@@ -30,7 +31,7 @@ export async function listDocuments(owner: string) {
     )
       .find(
         { owner, deletedAt: { $exists: false } },
-        { projection: { chunks: 0 } },
+        { projection: { chunks: 0, originalPages: 0 } },
       )
       .sort({ createdAt: -1 })
       .limit(100)
@@ -78,6 +79,9 @@ export async function saveDocument(
     pageCount,
     createdAt: new Date().toISOString(),
     chunks,
+    ...(pages.reduce((n, p) => n + p.text.length, 0) <= 1200000
+      ? { originalPages: pages }
+      : {}),
   };
   if (useMongo())
     await (

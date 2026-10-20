@@ -124,22 +124,22 @@ export const WRITING_FAQS = [
 export const PRESENTATION_FAQS = [
   {
     q: "Can Syaahi turn source links into a presentation?",
-    a: "Yes. Supply up to six accessible public article links, pasted text or owned lesson/PDF references. Review the extracted material and saved narrative plan before approving five-credit generation. Link access and extraction policy determine availability.",
+    a: "Yes. Supply up to six accessible public article links, pasted text or owned lesson/PDF references. Review the extracted material and saved narrative plan before approving the exact credit reservation. Link access and extraction policy determine availability.",
   },
   {
     q: "How does Syaahi design AI slides?",
-    a: "It creates a narrative storyboard, fills one of six typed visual layouts and performs a separate editorial pass. The renderer controls spacing and typography; the AI supplies structured content rather than coordinates.",
+    a: "It extracts exact evidence passages from the complete bounded source set, builds a narrative storyboard and compiles typed scene manifests into allowlisted visual engines. Source spans, contrast, text bounds and approved shaders are checked before delivery. The AI cannot supply executable rendering code or coordinates.",
   },
   {
     q: "Can I preview and edit the generated slides?",
-    a: "Yes. The studio includes thumbnails, a 16:9 slide preview, content editing, speaker notes and presentation controls. Existing saved decks remain editable.",
+    a: "Yes. The studio includes thumbnails, a 16:9 slide preview, content editing, speaker notes and presentation controls. The new editor adds a source inspector, camera controls and source-passage Q&A. Archived decks retain read and export compatibility.",
   },
   {
     q: "Which export formats are supported?",
-    a: "Syaahi supports native editable PowerPoint PPTX, slide PDF, PNG images and speaker-note handouts. Fonts installed on the recipient’s device can affect PowerPoint text wrapping.",
+    a: "Syaahi supports native editable PowerPoint PPTX, slide PDF, PNG images, speaker-note handouts and an offline interactive HTML deck. Queued 4K/60 or vertical MP4 export requires an enabled rendering worker and applicable Remotion license eligibility. Fonts installed on the recipient’s device can affect PowerPoint text wrapping.",
   },
   {
     q: "Are numerical claims and quotations checked?",
-    a: "Metrics need source-supported numbers and exact excerpts. Quotations must match supplied source text. These structural checks do not prove that a source is true or that every interpretation is correct; review important claims yourself.",
+    a: "Every factual card displays a verbatim passage and its saved source attribution. Numerical statements cannot be invented independently of those passages. These structural checks do not prove that a source is true or that every interpretation is correct; review important claims yourself.",
   },
 ];

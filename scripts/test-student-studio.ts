@@ -397,56 +397,25 @@ async function main() {
     { kind: "lesson", id: job.id },
   ]);
   const before = await balance(owner.id);
-  const draft = await drafts.planDeck(
-    owner.id,
-    {
-      prompt: "Explain cells for biology students",
-      language: "english",
-      template: "editorial",
-      count: 4,
-      sources,
-      audience: "Students",
-      format: "detailed",
-    },
-    randomUUID(),
-    async () => ({
-      text: JSON.stringify({
-        outline: ["Cells", "Structure", "Compare", "Summary"],
+  await assert.rejects(
+    () =>
+      drafts.planDeck(owner.id, {
+        prompt: "Explain cells for biology students",
+        language: "english",
+        template: "editorial",
+        count: 4,
+        sources,
+        audience: "Students",
+        format: "detailed",
       }),
-      provider: "fixture",
-    }),
+    /retired/,
   );
-  assert.equal(await balance(owner.id), before, "Planning must not charge");
-  const approved = await drafts.approveDraft(
-    owner.id,
-    draft.id,
-    0,
-    draft.outline,
-  );
-  assert.equal(approved.revision, 1);
   assert.equal(
-    (await drafts.approveDraft(owner.id, draft.id, 0, draft.outline)).revision,
-    1,
+    await balance(owner.id),
+    before,
+    "Retired planning must not charge",
   );
-  await assert.rejects(() =>
-    drafts.approveDraft(other.id, draft.id, 1, draft.outline),
-  );
-  const id = "deck-" + draft.id,
-    input = {
-      prompt: draft.prompt,
-      context: "PRIVATE SOURCE",
-      language: "english",
-      template: "editorial" as const,
-      count: 4,
-      outline: draft.outline,
-      sources,
-    };
-  await Promise.all([
-    store.createDeck(owner.id, input, id),
-    store.createDeck(owner.id, input, id),
-  ]);
-  assert.equal(await balance(owner.id), before - 5);
-  await assert.rejects(() => ops.createDeckShare(owner.id, id));
+  const id = randomUUID();
   const fixture = (title: string) => ({
     title,
     layout: "points",
@@ -460,11 +429,32 @@ async function main() {
     citations: [],
     evidence: [sources[0].id],
   });
-  for (let i = 0; i < 4; i++)
-    await store.processDeck(id, async () => ({
-      text: JSON.stringify(fixture("Cells " + i)),
-      provider: "fixture",
-    }));
+  const { mutateRecord } = await import("../lib/workspace-records");
+  await mutateRecord<any>(id, () => ({
+    id,
+    owner: owner.id,
+    kind: "presentation",
+    title: "Cells",
+    prompt: "",
+    context: "PRIVATE SOURCE",
+    language: "english",
+    template: "editorial",
+    count: 4,
+    outline: ["Cells 0", "Cells 1", "Cells 2", "Cells 3"],
+    sources,
+    slides: Array.from({ length: 4 }, (_, i) => ({
+      ...validateSlide(fixture("Cells " + i)),
+      id: randomUUID(),
+    })),
+    status: "done",
+    attempt: 1,
+    lease: null,
+    leaseUntil: 0,
+    provider: "archive",
+    error: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
   let deck = (await store.ownedDeck(owner.id, id))!;
   assert.equal(deck.status, "done");
   assert.equal(new Set(deck.slides.map((s) => s.id)).size, 4);
@@ -541,52 +531,22 @@ async function main() {
     6,
   );
   assert.equal(deck.slides[0].title, "Cells 0");
-  const wallet = await balance(owner.id),
-    event = randomUUID();
-  const regen = await ops.queueSlide(
-    owner.id,
-    id,
-    deck.slides[0].id!,
-    "Make the heading concise",
-    event,
-  );
-  assert.equal(
-    (
-      await ops.queueSlide(
+  await assert.rejects(
+    () =>
+      ops.queueSlide(
         owner.id,
         id,
         deck.slides[0].id!,
         "Make the heading concise",
-        event,
-      )
-    ).id,
-    regen.id,
+        randomUUID(),
+      ),
+    /saved/,
   );
-  assert.equal(await balance(owner.id), wallet - 1);
-  await ops.runSlide(regen.id, async () => {
-    throw new Error("fixture failure");
-  });
-  assert.equal(await balance(owner.id), wallet);
-  await ops.runSlide(regen.id, async () => {
-    throw new Error("should not run");
-  });
-  assert.equal(await balance(owner.id), wallet);
-  const successful = await ops.queueSlide(
-    owner.id,
-    id,
-    deck.slides[0].id!,
-    "Improve this slide heading",
-    randomUUID(),
-  );
-  await ops.runSlide(successful.id, async () => ({
-    text: JSON.stringify(fixture("Improved")),
-    provider: "fixture",
-  }));
   assert.equal(
-    (await store.ownedDeck(owner.id, id))!.slides[0].title,
-    "Improved",
+    await balance(owner.id),
+    before,
+    "Archived decks never trigger generation charges",
   );
-  assert.equal(await balance(owner.id), wallet - 1);
   const share = await ops.createDeckShare(owner.id, id),
     shareRoute = await import("../app/api/presentations/share/[token]/route");
   const commentBody = {

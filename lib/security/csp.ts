@@ -2,7 +2,7 @@
 export function contentSecurityPolicy(nonce: string, development = false) {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://checkout.razorpay.com${development ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval' https://checkout.razorpay.com${development ? " 'unsafe-eval'" : ""}`,
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.googleusercontent.com https://images.unsplash.com https://images.pexels.com https://upload.wikimedia.org https://avatars.githubusercontent.com https://*.supabase.co https://*.razorpay.com",
