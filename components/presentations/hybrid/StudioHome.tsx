@@ -30,6 +30,8 @@ type Task = {
   stage: string;
   draftId?: string;
   error?: string;
+  canRetry?: boolean;
+  retryAt?: number;
 };
 export function GenomePicker({
   value,
@@ -155,7 +157,21 @@ export default function StudioHome({
           20000,
         );
         if (controller.signal.aborted) return;
-        if (!response.ok) throw new Error(data.error);
+        if (!response.ok) {
+          if ([401, 403, 404].includes(response.status)) {
+            setTask(null);
+            if (response.status === 404)
+              try {
+                localStorage.removeItem(`syaahi-hybrid-task:${user.id}`);
+              } catch {}
+            setError(
+              data.error || "Sign in again to reconnect to your research.",
+            );
+            return;
+          }
+          throw new Error(data.error);
+        }
+        setError("");
         setTask(data.task);
         if (data.task.status === "done") {
           try {
@@ -163,9 +179,10 @@ export default function StudioHome({
           } catch {}
           location.assign(`/presentations/plan/${data.task.draftId}`);
         } else if (["error", "cancelled"].includes(data.task.status)) {
-          try {
-            localStorage.removeItem(`syaahi-hybrid-task:${user.id}`);
-          } catch {}
+          if (data.task.status === "cancelled")
+            try {
+              localStorage.removeItem(`syaahi-hybrid-task:${user.id}`);
+            } catch {}
           if (data.task.error) setError(data.task.error);
         } else timer = setTimeout(poll, 2500);
       } catch (e) {
@@ -237,6 +254,23 @@ export default function StudioHome({
         } catch {}
     } catch (e) {
       setError((e as Error).message);
+    }
+  }
+  async function retrySaved() {
+    if (!task || !user) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { response, data } = await requestJson(
+        `/api/presentations/tasks/${task.id}`,
+        { method: "POST" },
+      );
+      if (!response.ok) throw new Error(data.error);
+      setTask(data.task);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   const running = !!task && ["queued", "researching"].includes(task.status),
@@ -478,6 +512,29 @@ export default function StudioHome({
             <button className="cv-button subtle" onClick={() => void cancel()}>
               Cancel delivery
             </button>
+          </section>
+        )}
+        {task?.status === "error" && (
+          <section
+            className="cv-job-status"
+            aria-label="Saved research recovery"
+          >
+            <div>
+              <strong>Your saved brief and sources are safe.</strong>
+              <p>
+                No planning credits were charged. Wait one minute before
+                retrying. Retrying reuses the original sources and settings.
+              </p>
+            </div>
+            {task.canRetry && (
+              <button
+                className="cv-button"
+                disabled={busy}
+                onClick={() => void retrySaved()}
+              >
+                Retry saved brief
+              </button>
+            )}
           </section>
         )}
         <div className="cv-preview-heading">

@@ -26,7 +26,7 @@ async function main() {
     { markEmailVerified } = await import("../lib/billing/rewards"),
     { runPendingPlan } = await import("../lib/presentations/hybrid/tasks"),
     { ownedDeck, processDeck } = await import("../lib/presentations/store"),
-    { records } = await import("../lib/workspace-records");
+    { records, mutateRecord } = await import("../lib/workspace-records");
   const user = await register(
     "Studio Student",
     "hybrid-ui@example.test",
@@ -119,7 +119,52 @@ async function main() {
         r.request().method() === "POST",
     );
     await page.getByRole("button", { name: "Research & plan" }).click();
-    assert.equal((await queued).status(), 202);
+    const queuedResponse = await queued;
+    assert.equal(queuedResponse.status(), 202);
+    const planTask = (await queuedResponse.json()).task;
+    assert.equal(
+      (
+        await fetch(
+          `http://localhost:3154/api/presentations/tasks/${planTask.id}`,
+          {
+            method: "POST",
+            headers: { Cookie: cookie, Origin: "https://foreign.example" },
+          },
+        )
+      ).status,
+      403,
+      "Cross-site retry must stay blocked",
+    );
+    assert.equal(
+      (
+        await fetch(
+          `http://localhost:3154/api/presentations/tasks/${planTask.id}`,
+          {
+            method: "POST",
+            headers: { Origin: "http://localhost:3154" },
+          },
+        )
+      ).status,
+      401,
+      "Retry requires an authenticated account",
+    );
+    await mutateRecord<any>(planTask.id, (old) => ({
+      ...old,
+      status: "error",
+      stage: "Research needs attention",
+      error: "Provider capacity fixture. No credits were charged.",
+      lease: null,
+      leaseUntil: 0,
+    }));
+    await page.reload();
+    await page.getByRole("button", { name: "Retry saved brief" }).waitFor();
+    const retryResponse = page.waitForResponse(
+      (r) =>
+        r.url().endsWith(`/tasks/${planTask.id}`) &&
+        r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Retry saved brief" }).click();
+    assert.equal((await retryResponse).status(), 202);
     await runPendingPlan(fixtureGenerate);
     await page.waitForURL(/\/presentations\/plan\//, { timeout: 20000 });
     await page

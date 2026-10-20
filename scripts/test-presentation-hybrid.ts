@@ -431,7 +431,7 @@ async function main() {
     /retired/,
   );
   await assert.rejects(() => retryDeck(other.id, id));
-  const { queuePlan, runPendingPlan } =
+  const { queuePlan, runPendingPlan, retryPlan, publicPlanTask } =
       await import("../lib/presentations/hybrid/tasks"),
     { AIUnavailableError } = await import("../lib/ai/router");
   const queued = await queuePlan(user.id, randomUUID(), {
@@ -452,6 +452,44 @@ async function main() {
     if (attempt < 2)
       await mutateRecord<any>(queued.id, (old) => ({ ...old, leaseUntil: 0 }));
   }
+  const failedPlan = await record<any>(queued.id);
+  assert.equal(publicPlanTask(failedPlan).canRetry, true);
+  assert(
+    !("input" in publicPlanTask(failedPlan)),
+    "Recovery must not expose private sources",
+  );
+  await assert.rejects(() => retryPlan(other.id, queued.id));
+  await assert.rejects(() => retryPlan(user.id, queued.id), /wait one minute/);
+  await mutateRecord<any>(queued.id, (old) => ({ ...old, leaseUntil: 0 }));
+  const recovered = await retryPlan(user.id, queued.id);
+  assert.deepEqual(
+    recovered.input,
+    failedPlan.input,
+    "Retry retains all saved source/settings",
+  );
+  assert.equal(recovered.status, "queued");
+  assert.equal(recovered.manualRetries, 1);
+  assert.equal(
+    (await retryPlan(user.id, queued.id)).manualRetries,
+    1,
+    "Repeated retry is idempotent",
+  );
+  await runPendingPlan(fixtureGenerate);
+  assert.equal((await record<any>(queued.id)).status, "done");
+  assert.equal(
+    await balance(user.id),
+    retryWallet,
+    "Planning retry never charges credits",
+  );
+  await assert.rejects(() => retryPlan(user.id, queued.id), /Only a failed/);
+  await mutateRecord<any>(queued.id, (old) => ({
+    ...old,
+    status: "error",
+    manualRetries: 2,
+    leaseUntil: 0,
+  }));
+  assert.equal(publicPlanTask((await record<any>(queued.id))!).canRetry, false);
+  await assert.rejects(() => retryPlan(user.id, queued.id), /retry limit/);
   const { uploadScene, ownedScene } =
     await import("../lib/presentations/hybrid/scene-assets");
   await assert.rejects(

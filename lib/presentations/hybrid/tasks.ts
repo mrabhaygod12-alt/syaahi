@@ -22,6 +22,7 @@ export interface PlanTask extends WorkspaceRecord {
   error?: string;
   createdAt: string;
   providerRetries?: number;
+  manualRetries?: number;
 }
 export function publicPlanTask({
   id,
@@ -30,8 +31,61 @@ export function publicPlanTask({
   draftId,
   error,
   updatedAt,
+  leaseUntil,
+  manualRetries,
 }: PlanTask) {
-  return { id, status, stage, draftId, error, updatedAt };
+  return {
+    id,
+    status,
+    stage,
+    draftId,
+    error,
+    updatedAt,
+    canRetry: status === "error" && (manualRetries || 0) < 2,
+    retryAt: status === "error" ? leaseUntil : undefined,
+  };
+}
+export async function retryPlan(owner: string, id: string) {
+  const existing = await record<PlanTask>(id);
+  if (
+    !existing ||
+    existing.kind !== "presentation-plan-task" ||
+    existing.owner !== owner
+  )
+    throw new Error("Research task not found.");
+  if (["queued", "researching"].includes(existing.status)) return existing;
+  await assertPendingCapacity(owner);
+  if ((await balance(owner)) < 5)
+    throw new Error(
+      "At least five available credits are needed. Retrying does not charge them.",
+    );
+  return mutateRecord<PlanTask>(id, (old) => {
+    if (!old || old.kind !== "presentation-plan-task" || old.owner !== owner)
+      throw new Error("Research task not found.");
+    // A repeated click cannot create another task or reset a running lease.
+    if (["queued", "researching"].includes(old.status)) return old;
+    if (old.status !== "error")
+      throw new Error("Only a failed research task can be retried.");
+    if ((old.manualRetries || 0) >= 2)
+      throw new Error(
+        "Saved-brief retry limit reached. Review your sources and start a new brief.",
+      );
+    if (old.leaseUntil > Date.now())
+      throw new Error(
+        "Please wait one minute after the failure before retrying this saved brief.",
+      );
+    return {
+      ...old,
+      status: "queued",
+      stage: "Retrying your saved sources and brief",
+      error: undefined,
+      providerRetries: 0,
+      manualRetries: (old.manualRetries || 0) + 1,
+      lease: null,
+      leaseUntil: 0,
+      updatedAt: new Date().toISOString(),
+    };
+  });
 }
 export async function queuePlan(owner: string, event: string, input: Input) {
   if (
@@ -60,26 +114,7 @@ export async function queuePlan(owner: string, event: string, input: Input) {
       throw new Error("Use a new request ID for a different brief.");
     return previous;
   }
-  const pending = useMongo()
-    ? await (
-        await collection("workspace_records")
-      ).countDocuments(
-        {
-          kind: "presentation-plan-task",
-          owner,
-          "payload.status": { $in: ["queued", "researching"] },
-        },
-        { limit: 2 },
-      )
-    : Number(
-        db()
-          .prepare(
-            "SELECT COUNT(*) AS n FROM workspace_records WHERE kind='presentation-plan-task' AND owner=? AND json_extract(payload,'$.status') IN ('queued','researching')",
-          )
-          .get(owner)?.n || 0,
-      );
-  if (pending >= 2)
-    throw new Error("Finish or cancel a pending research task first.");
+  await assertPendingCapacity(owner);
   const since = new Date(Date.now() - 86400000).toISOString(),
     daily = useMongo()
       ? await (
@@ -123,6 +158,28 @@ export async function queuePlan(owner: string, event: string, input: Input) {
         updatedAt: new Date().toISOString(),
       },
   );
+}
+async function assertPendingCapacity(owner: string) {
+  const pending = useMongo()
+    ? await (
+        await collection("workspace_records")
+      ).countDocuments(
+        {
+          kind: "presentation-plan-task",
+          owner,
+          "payload.status": { $in: ["queued", "researching"] },
+        },
+        { limit: 2 },
+      )
+    : Number(
+        db()
+          .prepare(
+            "SELECT COUNT(*) AS n FROM workspace_records WHERE kind='presentation-plan-task' AND owner=? AND json_extract(payload,'$.status') IN ('queued','researching')",
+          )
+          .get(owner)?.n || 0,
+      );
+  if (pending >= 2)
+    throw new Error("Finish or cancel a pending research task first.");
 }
 let active = false;
 export function kickPlanTasks() {
@@ -240,7 +297,7 @@ export async function runPendingPlan(generate?: HybridGenerate) {
         error:
           "The storyboard could not be verified. No credits were charged. Check source readability, provider capacity and the research query, then try again.",
         lease: null,
-        leaseUntil: 0,
+        leaseUntil: Date.now() + 60000,
         updatedAt: new Date().toISOString(),
       };
     }).catch(() => {});

@@ -53,6 +53,13 @@ const checks = [
   ["/api/presentations/import", 401, undefined, undefined, "POST"],
   ["/api/presentations/tasks/verification-fixture", 401],
   [
+    "/api/presentations/tasks/verification-fixture",
+    401,
+    undefined,
+    undefined,
+    "POST",
+  ],
+  [
     "/api/presentations/verification-fixture/ask",
     401,
     undefined,

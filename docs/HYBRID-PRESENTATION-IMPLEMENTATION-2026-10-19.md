@@ -60,3 +60,9 @@ The delivery message records the pushed revision, CI status and revision-matched
 - The live browser loaded the new source hub and visual-direction gallery. Full authenticated flows were exercised with controlled local/CI fixtures; existing live providers still returned the errors documented above.
 - The public smoke script checks server metadata for account-bound client workspaces. Their actual hydrated layout is checked by the browser suite; a missing client-only CSS class in raw HTML is not treated as an application outage.
 - A subsequent dependency-bot merge changed only the `setup-node` workflow version. The final verification-script/documentation commit does not change application behavior.
+
+### Saved-brief recovery follow-up
+
+Failed planning tasks now retain their browser recovery reference and expose an owned, rate-limited retry action. Retrying reuses the server-saved sources and settings, does not charge planning credits, and cannot create a second task through repeated clicks. Each failed task permits at most two manual retries after a one-minute cooldown; existing pending-task limits and bounded provider retries still apply. Successful/cancelled tasks cannot be restarted through this endpoint. Authentication failures stop polling without discarding the account-scoped recovery reference; missing tasks clear that reference.
+
+The recovery regression covers SQLite/MongoDB ownership, cooldown, retry limits, saved-input integrity, no-charge behavior and successful completion. The production browser journey includes failure → reload → authenticated retry → storyboard, plus unauthenticated and foreign-origin POST rejection. These controlled tests do not resolve upstream provider billing or availability.
