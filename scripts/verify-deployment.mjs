@@ -46,8 +46,10 @@ const checks = [
   ["/examples?sample=dbms", 200, "Normalization"],
   ["/subjects/computer-science", 200, "STARTER TOPIC"],
   ["/api/admin/growth", 403],
-  ["/presentations", 200, "cv-creation"],
-  ["/presentations/templates", 200, "cv-direction-grid"],
+  // The account boundary hydrates the workspace client-side. Check server
+  // metadata here; the browser suite verifies the actual creation/gallery UI.
+  ["/presentations", 200, "AI Presentation Studio — Source, Story, Slides"],
+  ["/presentations/templates", 200, "original design genomes"],
   ["/api/presentations/import", 401, undefined, undefined, "POST"],
   ["/api/presentations/tasks/verification-fixture", 401],
   [

@@ -50,3 +50,13 @@ Production video/narration/vision features depend on configured resources and ap
 ## Release
 
 The delivery message records the pushed revision, CI status and revision-matched hosted smoke result. Those rollout checks are separate from fixture/provider and hardware-specific tests above. No paid compute change was made.
+
+### Accepted application release
+
+- Application commit: `998e7428f18af0c29d84150f9b19a89a15633c1e`, pushed to `main`.
+- Full GitHub CI passed: [run 39384938983](https://github.com/mrabhaygod12-alt/syaahi/actions/runs/39384938983), including production build and the new studio browser journey.
+- Render reported this commit live at 07:17:41 UTC on 20 October 2026. Public frontend responses also carried this exact revision.
+- Hosted public smoke at 07:18:34 UTC: **63/63 passed**, including the new routes' unauthenticated access boundaries, health, public content and billing-catalog shape. This is not an authenticated live-generation or payment-settlement claim.
+- The live browser loaded the new source hub and visual-direction gallery. Full authenticated flows were exercised with controlled local/CI fixtures; existing live providers still returned the errors documented above.
+- The public smoke script checks server metadata for account-bound client workspaces. Their actual hydrated layout is checked by the browser suite; a missing client-only CSS class in raw HTML is not treated as an application outage.
+- A subsequent dependency-bot merge changed only the `setup-node` workflow version. The final verification-script/documentation commit does not change application behavior.
