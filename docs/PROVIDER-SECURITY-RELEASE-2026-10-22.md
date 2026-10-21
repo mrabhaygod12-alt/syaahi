@@ -34,3 +34,9 @@ Official references: https://unorouter.com/en/docs/platform/platform-api , https
 Test evidence: auth, security/boundaries, new report regressions, OAuth identity, security remediation, gateways, growth in SQLite/Mongo, writer platform in SQLite/Mongo and hybrid presentations in SQLite/Mongo passed. The new report tests verify native identity mismatch/unconfirmed rejection and forged analytics consent. Build/browser/deployment results are recorded in the final release response. No system can guarantee every possible web attack is impossible.
 
 Later AI Ink live rewrite probes on the same UnoRouter account timed out. The earlier full presentation pass remains valid evidence of that run, not continuous availability. Production provider health must be observed after deployment; no unlimited or always-available inference promise is made.
+
+## Dependency follow-up
+
+The production audit identified `follow-redirects` 1.16.0 (through Razorpay/axios and also the Mongo test harness). Updated the lockfile to patched 1.16.1 for GHSA-q3jh-wrc6-jgq8 and GHSA-8r9p-f939-6h3c. A local two-server redirect regression verified that array-form Authorization/Cookie and regex-special custom credential headers are stripped across origins. `npm audit --omit=dev` reports zero known vulnerabilities after the update; this does not certify the absence of application vulnerabilities.
+
+The captured-payment/ownership regression passed. The separate configured Razorpay checkout smoke reached the provider but returned 401 merchant authentication; no customer payment was made. Merchant credential/configuration repair is still required and is not attributed to the dependency patch.
