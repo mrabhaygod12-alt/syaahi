@@ -100,25 +100,26 @@ async function run(backend: string) {
   );
   assert.equal(login.status, 403);
   assert.equal(login.headers.get("set-cookie"), null);
-  assert.equal(
-    (
-      await auth.POST(
-        req(
-          "/api/auth",
-          "POST",
-          {
-            email,
-            password: "wrong-password-42",
-            mode: "signup",
-            workspace: "writer",
-            ...consent,
-          },
-          false,
-        ),
-      )
-    ).status,
-    401,
+  const concealedSignup = await auth.POST(
+    req(
+      "/api/auth",
+      "POST",
+      {
+        email,
+        password: "wrong-password-42",
+        mode: "signup",
+        workspace: "writer",
+        ...consent,
+      },
+      false,
+    ),
   );
+  assert.equal(
+    concealedSignup.status,
+    202,
+    "Wrong credentials do not disclose an existing writer-enrollment identity",
+  );
+  assert.equal(concealedSignup.headers.get("set-cookie"), null);
   assert.equal(await writerProfile(user.id), null);
   const enrolled = await auth.POST(
     req(

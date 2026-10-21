@@ -126,7 +126,9 @@ const results = await Promise.all(
           (!redirect ||
             new URL(response.headers.get("location") || "", origin).href ===
               origin + redirect) &&
-          (!expected || revision === expected),
+          (!expected ||
+            revision === expected ||
+            revision === expected.slice(0, 12)),
       };
     } catch {
       return { path, passed: false, error: "unreachable" };

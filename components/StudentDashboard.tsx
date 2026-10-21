@@ -221,6 +221,7 @@ export default function StudentDashboard() {
           <details className="hub-tools-menu">
             <summary>More tools</summary>
             <a href="/presentations">Presentation studio</a>
+            <a href="/ink">AI Ink — integrity check</a>
             <a href="/interview">Interview practice</a>
             <a href="/blog">Study blog</a>
             <button onClick={() => setTab("sources")}>Sources</button>

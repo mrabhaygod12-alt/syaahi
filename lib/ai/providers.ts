@@ -168,7 +168,7 @@ export function eligibleProviders(): ProviderDef[] {
       providerKeys(providerEnvKey(p.type)).length > 0 &&
       (p.type !== "zen" || process.env.ENABLE_ZEN_API === "true") &&
       (p.type !== "nvidia" || process.env.ENABLE_NVIDIA_TRIAL === "true") &&
-      (p.type !== "apinex" || process.env.ENABLE_APINEX !== "false"),
+      (p.type !== "apinex" || process.env.ENABLE_APINEX === "true"),
   );
 }
 
@@ -185,6 +185,7 @@ export const PROVIDER_BASE_URL: Record<ProviderType, string> = {
   deepseek: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
   apinex: process.env.APINEX_BASE_URL || "https://api.apinex.bond/v1",
   radox: "https://radoxai.com/v1",
+  llm7: "https://api.llm7.io/v1",
   logfare: "https://logfare.ai/v1",
   unorouter: "https://api.unorouter.com/v1",
   aihubmix: "https://aihubmix.com/v1",
@@ -203,6 +204,7 @@ export function providerEnvKey(t: ProviderType): string {
     deepseek: "DEEPSEEK_API_KEY",
     apinex: "APINEX_API_KEY",
     radox: "RADOX_API_KEY",
+    llm7: "LLM7_API_KEY",
     logfare: "LOGFARE_API_KEY",
     unorouter: "UNOROUTER_API_KEY",
     aihubmix: "AIHUBMIX_API_KEY",

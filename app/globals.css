@@ -798,6 +798,16 @@ body:has(.ws-gate) footer {
   color: #214b40;
   background: #edf5f1;
 }
+/* AI Ink is a separate surface, not another lesson room — a rule separates it. */
+.ws-nav-item--ink {
+  margin-top: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #e4ddd4;
+  border-radius: 0;
+}
+.ws-nav-item--ink:hover {
+  color: #214b40;
+}
 .ws-body {
   flex: 1;
   min-width: 0;

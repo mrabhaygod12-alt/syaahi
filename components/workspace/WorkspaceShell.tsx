@@ -275,6 +275,28 @@ export default function WorkspaceShell({
               </Link>
             );
           })}
+          {/* AI Ink is a separate surface from the lesson rooms, so it leaves
+              the workspace rather than swapping the room in place. */}
+          <Link
+            href="/ink"
+            className="ws-nav-item ws-nav-item--ink"
+            title="Check a draft for copied passages, uncited claims and padded prose"
+          >
+            <svg
+              width={22}
+              height={22}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#9a9289"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            >
+              <path d="M4 20l4-1 9-9a2.1 2.1 0 0 0-3-3l-9 9-1 4z" />
+              <path d="M14 8l2 2" />
+              <path d="M4 4h6" />
+            </svg>
+            <span>AI Ink</span>
+          </Link>
         </nav>
       </aside>
       <div className="ws-body">

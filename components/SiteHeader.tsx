@@ -38,6 +38,8 @@ export default function SiteHeader() {
     path.startsWith("/lesson/") ||
     path === "/presentations" ||
     path.startsWith("/presentations/") ||
+    path === "/ink" ||
+    path.startsWith("/ink/") ||
     path === "/write" ||
     path === "/writer" ||
     path.startsWith("/writer/")

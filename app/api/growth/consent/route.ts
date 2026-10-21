@@ -9,6 +9,7 @@ import {
   visitorVariant,
 } from "@/lib/growth/metrics";
 import { rateLimit } from "@/lib/ratelimit";
+import { measurementProof } from "@/lib/growth/consent-proof";
 export const POST = apiHandler(async (req: NextRequest) => {
   const denied = await rateLimit(req, "measurement-consent", 20, 60000);
   if (denied) return denied;
@@ -44,5 +45,16 @@ export const POST = apiHandler(async (req: NextRequest) => {
     path: "/",
     maxAge: b.allowed ? 90 * 86400 : 0,
   });
+  r.cookies.set(
+    "syaahi-measurement-proof",
+    b.allowed ? measurementProof(visitor) : "",
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure,
+      path: "/",
+      maxAge: b.allowed ? 90 * 86400 : 0,
+    },
+  );
   return r;
 });

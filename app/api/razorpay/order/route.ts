@@ -1,5 +1,5 @@
 import { purchasablePack } from "@/lib/billing/packs";
-import { isAdmin } from "@/lib/billing/upi";
+import { adminScopes } from "@/lib/auth/admin";
 import { randomUUID } from "node:crypto";
 import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
@@ -55,7 +55,7 @@ async function handlePOST(req: NextRequest) {
   if (
     testMode &&
     process.env.NODE_ENV === "production" &&
-    !(await isAdmin(user.id))
+    !adminScopes(user).payments
   )
     return NextResponse.json(
       {

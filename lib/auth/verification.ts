@@ -87,14 +87,20 @@ export async function confirmVerification(
   return userId;
 }
 export async function sendVerification(user: { id: string; email: string }) {
+  const fallback = async () =>
+    (await import("./hosted-verification")).resendHostedVerification(
+      user.email,
+    );
   if (
     !process.env.RESEND_API_KEY ||
     !process.env.EMAIL_FROM ||
     !process.env.NEXT_PUBLIC_APP_URL
-  )
+  ) {
+    if (await fallback()) return;
     throw new RewardError(
       "Email verification delivery is not configured. Contact support; no referral reward is issued until verification.",
     );
+  }
   const token = await issueVerification(user.id);
   const url = new URL("/verify-email", process.env.NEXT_PUBLIC_APP_URL);
   // Fragment keeps the bearer token out of HTTP access logs and referrers.
@@ -112,8 +118,8 @@ export async function sendVerification(user: { id: string; email: string }) {
       text: `Verify your email to qualify your referral. Sign in to the same account, then open this link within one hour:\n${url.href}\nIf you did not request this, ignore this message.`,
     }),
     signal: AbortSignal.timeout(15000),
-  });
-  if (!r.ok)
+  }).catch(() => null);
+  if (!r?.ok && !(await fallback()))
     throw new RewardError(
       "Verification email could not be sent. Please retry later.",
     );

@@ -22,7 +22,7 @@ function clear() {
   for (const name of Object.keys(process.env)) {
     if (
       /_API_KEY(?:_\d+)?$/.test(name) ||
-      /^(ENABLE_(RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED)|(?:RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED)_(MODEL|MODELS|BASE_URL|DATA_POLICY_ACK))$/.test(
+      /^(ENABLE_(RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED|LLM7)|(?:RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED|LLM7)_(MODEL|MODELS|BASE_URL|DATA_POLICY_ACK|FREE_ONLY|DOWNSTREAM_APPROVED))$/.test(
         name,
       )
     )
@@ -37,6 +37,7 @@ function enable(type: GatewayType, suffix: string, model = "fixture-text") {
   if (type === "antseed")
     process.env.ANTSEED_BASE_URL = "https://gateway.example.test/v1";
   if (type === "logfare") process.env.LOGFARE_DATA_POLICY_ACK = "true";
+  if (type === "llm7") process.env.LLM7_DOWNSTREAM_APPROVED = "true";
 }
 function request(input: Parameters<typeof fetch>[0], init?: RequestInit) {
   return {
@@ -278,7 +279,98 @@ async function main() {
   );
 
   clear();
-  enable("aihubmix", "stream");
+  enable("radox", "retired", "fixture-retired,fixture-active");
+  globalThis.fetch = async (input, init) => {
+    const r = request(input, init);
+    if (r.url.endsWith("/models"))
+      return Response.json({
+        data: ["fixture-retired", "fixture-active"].map((id) => ({
+          id,
+          type: "text",
+          context_window: 32000,
+        })),
+      });
+    return (await r.body()).model === "fixture-retired"
+      ? Response.json({ error: "retired" }, { status: 400 })
+      : answer();
+  };
+  assert.equal(
+    (await chatWithFallback(prompt)).provider,
+    "radox-configured-2",
+    "A bad model does not disable sibling models",
+  );
+
+  clear();
+  enable("aihubmix", "quota-text");
+  enable("unorouter", "quota-text-fallback");
+  let softFailures = 0;
+  globalThis.fetch = async (input, init) => {
+    const r = request(input, init);
+    if (r.url.endsWith("/models")) return catalog();
+    if (r.url.startsWith(gatewayBase("aihubmix"))) {
+      softFailures++;
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content:
+                "Sorry, to prevent abuse of free resources, accounts that have not been recharged can only try 10 times.",
+            },
+          },
+        ],
+      });
+    }
+    return answer();
+  };
+  assert.equal(
+    (await chatWithFallback(prompt)).provider,
+    "unorouter-configured",
+  );
+  assert.equal(
+    (await chatWithFallback(prompt)).provider,
+    "unorouter-configured",
+  );
+  assert.equal(
+    softFailures,
+    1,
+    "HTTP 200 quota warnings cause fallback and provider cooldown",
+  );
+
+  clear();
+  enable("llm7", "capacity");
+  let release!: () => void,
+    inFlight = 0;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  globalThis.fetch = async (input, init) => {
+    const r = request(input, init);
+    if (r.url.endsWith("/models")) return catalog();
+    if (r.url.startsWith(gatewayBase("llm7"))) {
+      inFlight++;
+      await gate;
+    }
+    return answer();
+  };
+  const pendingCalls = [chatWithFallback(prompt), chatWithFallback(prompt)];
+  try {
+    for (let n = 0; n < 100 && inFlight < 2; n++)
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    assert.equal(inFlight, 2);
+    enable("unorouter", "capacity-fallback");
+    assert.equal(
+      (await chatWithFallback(prompt)).provider,
+      "unorouter-configured",
+      "Saturated providers shed load to another provider",
+    );
+  } finally {
+    release();
+  }
+  await Promise.all(pendingCalls);
+
+  clear();
+  enable("llm7", "stream");
   enable("unorouter", "fallback");
   let streamCalls = 0;
   globalThis.fetch = async (input, init) => {
@@ -410,8 +502,30 @@ async function main() {
   const failed = await GET(req("?provider=logfare"));
   assert.equal(failed.status, 502);
   assert(!JSON.stringify(await failed.json()).includes("secret-redaction-key"));
+  clear();
+  enable("llm7", "approval-guard");
+  delete process.env.LLM7_DOWNSTREAM_APPROVED;
+  assert.equal(eligibleProviders().length, 0, "embedded use requires downstream approval");
+  assert.equal(gatewaySetup().find(p => p.type === "llm7")!.status, "downstream approval required");
+  clear();
+  process.env.UNOROUTER_FREE_ONLY = "true";
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/v1/models")) return Response.json({data:[{id:"free-accessible"},{id:"unknown-price"}]});
+    assert.equal(url, "https://api.unorouter.com/api/pricing/catalog");
+    assert.equal(new Headers(init?.headers).get("authorization"), null, "public metadata never receives a credential");
+    return Response.json({models:[
+      {model_name:"free-accessible",type:"text",is_free:true,online:true,own_purpose:{consent_required:false}},
+      {model_name:"not-in-account",type:"text",is_free:true,online:true},
+    ]});
+  };
+  const enriched = await gatewayCatalog("unorouter", "metadata-fixture-only");
+  assert.equal(enriched.length,2,"metadata cannot add catalog access");
+  assert.equal((await gatewayModel("unorouter","metadata-fixture-only","free-accessible")).advertisedFree,true);
+  await assert.rejects(gatewayModel("unorouter","metadata-fixture-only","unknown-price"),/not verified as free/);
+  await assert.rejects(gatewayModel("unorouter","metadata-fixture-only","not-in-account"),/active catalog/);
   console.log(
-    "PASS gateways: five adapters, explicit opt-in, bounded key pools, catalog isolation/validation, media/training guards, structured output, 401 failover, 429 cooldown, interrupted stream safety, MFA-protected paginated catalog and secret redaction. Fixtures only; no live inference.",
+    "PASS gateways: six adapters, explicit opt-in, bounded key pools, catalog isolation/validation, media/training guards, structured output, 401 failover, 429 cooldown, per-model isolation, bounded in-flight requests, 200 quota rejection, interrupted stream safety, MFA-protected paginated catalog and secret redaction. Fixtures only; no live inference.",
   );
 }
 main()

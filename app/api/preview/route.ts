@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { rateLimit } from "@/lib/ratelimit";
-import { guestPreview } from "@/lib/growth/preview";
+import { guestPreview, isSamplePreview } from "@/lib/growth/preview";
+import { currentUser } from "@/lib/auth/server";
 export const POST = apiHandler(async (req: NextRequest) => {
   const limited = await rateLimit(req, "guest-preview", 5, 60000);
   if (limited) return limited;
@@ -25,6 +26,10 @@ export const POST = apiHandler(async (req: NextRequest) => {
       { error: "Preview could not start." },
       { status: 400 },
     );
+  if (!isSamplePreview(body.topic) && !(await currentUser(req))) {
+    const daily = await rateLimit(req, "guest-preview-daily", 3, 86400000);
+    if (daily) return daily;
+  }
   try {
     return NextResponse.json(
       await guestPreview(body.topic.trim(), body.language),

@@ -1,13 +1,14 @@
 /** Small original text PDF; no network or external assets. */
-export function fixturePdf() {
+export function fixturePdf(content = "Safe database normalization lecture") {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Count 1 /Kids [4 0 R] >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>",
   ];
-  const text =
-    "BT /F1 12 Tf 40 700 Td (Safe database normalization lecture) Tj ET";
+  const lines = content.match(/.{1,65}(?:\s|$)|.{1,65}/g) || [content];
+  const escaped = lines.map(line => line.trim().replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)"));
+  const text = `BT /F1 12 Tf 40 700 Td 16 TL ${escaped.map(line => `(${line}) Tj T*`).join(" ")} ET`;
   objects.push(`<< /Length ${text.length} >>\nstream\n${text}\nendstream`);
   let pdf = "%PDF-1.4\n";
   const offsets = [0];

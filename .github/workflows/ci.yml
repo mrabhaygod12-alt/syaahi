@@ -40,6 +40,7 @@ jobs:
       - run: npm run test:video-reviews
       - run: npm run test:radox
       - run: npm run test:gateways
+      - run: npm run test:ink
       - run: npm run test:writer-platform
       - run: npm run test:writer-editor-reliability
       - run: npm run test:writer-service-errors
@@ -63,6 +64,7 @@ jobs:
           NEXT_DIST_DIR: .next-validation
           NEXT_PUBLIC_APP_URL: https://www.syaahii.in
       - run: npm run test:security-browser
+      - run: npx tsx scripts/test-ink-browser.ts
       - run: npm run test:student-studio-browser
       - run: npm run test:learning-studio-browser
       - run: npm run test:video-reviews-browser

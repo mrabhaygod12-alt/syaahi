@@ -9,6 +9,7 @@ import { publishingPath } from "@/lib/workspace-routing";
 export function SiteFooter() {
   const pathname = usePathname();
   const { user } = useAccount();
+  if (pathname === "/ink" || pathname?.startsWith("/ink/")) return null;
   if (
     [
       "/dashboard",
@@ -24,6 +25,8 @@ export function SiteFooter() {
     pathname?.startsWith("/lesson/") ||
     pathname === "/presentations" ||
     pathname?.startsWith("/presentations/") ||
+    pathname === "/ink" ||
+    pathname?.startsWith("/ink/") ||
     pathname === "/write" ||
     pathname === "/writer" ||
     pathname?.startsWith("/writer/")

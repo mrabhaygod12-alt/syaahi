@@ -10,6 +10,8 @@ import {
 } from "./samples";
 const cache = new Map<string, { expires: number; preview: NotePreview }>();
 const pending = new Map<string, Promise<NotePreview>>();
+export const isSamplePreview = (topic: string) =>
+  [...UNIVERSITY_SAMPLES, ...SAMPLE_NOTES].some((s) => s.match.test(topic));
 export function validatePreview(value: unknown): NotePreview {
   const v = value as NotePreview;
   const text = (x: unknown, max: number) =>
@@ -39,7 +41,11 @@ export function validatePreview(value: unknown): NotePreview {
 async function reserveBudget() {
   const day = new Date().toISOString().slice(0, 10),
     id = `guest-preview:${day}`;
-  if (!useMongo()) return throttle(id, 100, 86400000);
+  const configured = Number(process.env.GUEST_PREVIEW_DAILY_BUDGET ?? 20);
+  const limit = Number.isInteger(configured)
+    ? Math.max(0, Math.min(100, configured))
+    : 20;
+  if (!useMongo()) return throttle(id, limit, 86400000);
   const limits = await collection("limits");
   const row = await limits.findOneAndUpdate(
     { _id: id },
@@ -49,7 +55,7 @@ async function reserveBudget() {
     },
     { upsert: true, returnDocument: "after" },
   );
-  return Number(row?.count) <= 100;
+  return Number(row?.count) <= limit;
 }
 export async function guestPreview(topic: string, language: PreviewLanguage) {
   const sample = [...UNIVERSITY_SAMPLES, ...SAMPLE_NOTES].find((s) =>

@@ -23,3 +23,6 @@ The prior account probe returned a client-only free-tier denial. No client imper
 Groq and direct Gemini remain the primary routes. Only configured and enabled integrations are eligible. The router limits actual calls to five attempts within its overall budget; skipped unavailable providers no longer consume an attempt. Provider cooldowns respect quota failures. Credential slots are not a quota multiplier.
 
 Before production promotion, run a small non-sensitive evaluation covering factual correctness, diagrams, structured answers, refusal/error behaviour, latency and account billing. Keep a paid-capacity budget and a user-visible queue when free allowances are exhausted.
+
+
+Dated activation evidence and provider/security limits: [22 October 2026 release](PROVIDER-SECURITY-RELEASE-2026-10-22.md). UnoRouter now has a successful local live presentation/export test; Radox and AIHubMix supplied accounts are quota blocked.

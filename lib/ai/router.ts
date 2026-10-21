@@ -24,6 +24,75 @@ export interface Usage {
 }
 const breaker = new Map<string, { fails: number; until: number }>();
 const active = new Map<string, number>();
+const quotaPrefix = "sorry, to prevent abuse of free resources";
+async function inferenceFetch(input: RequestInfo | URL, init?: RequestInit) {
+  const response = await globalThis.fetch(input, { ...init, redirect: "error" });
+  if (!response.body) return response;
+  const reader = response.body.getReader();
+  let bytes = 0;
+  return new Response(new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const chunk = await reader.read();
+        if (chunk.done) { controller.close(); return; }
+        bytes += chunk.value.byteLength;
+        if (bytes > 4 * 1024 * 1024) {
+          await reader.cancel();
+          controller.error(new Error("Provider response exceeds the supported size."));
+          return;
+        }
+        controller.enqueue(chunk.value);
+      } catch (error) { controller.error(error); }
+    },
+    cancel(reason) { return reader.cancel(reason); },
+  }), { status: response.status, statusText: response.statusText, headers: response.headers });
+}
+function assertProviderText(p: ProviderDef, text: string) {
+  if (
+    p.type === "aihubmix" &&
+    text.trimStart().toLowerCase().startsWith(quotaPrefix)
+  )
+    throw Object.assign(new Error("Provider quota unavailable."), {
+      status: 402,
+    });
+}
+function providerAtCapacity(p: ProviderDef) {
+  const value = Number(process.env.AI_PROVIDER_MAX_IN_FLIGHT || 2);
+  const max = Number.isInteger(value) && value >= 1 && value <= 8 ? value : 2;
+  return (active.get(p.type) || 0) >= max;
+}
+function cooling(p: ProviderDef) {
+  return (
+    Math.max(
+      breaker.get(p.type)?.until || 0,
+      breaker.get(`model:${p.type}:${p.model}`)?.until || 0,
+    ) > Date.now()
+  );
+}
+function recordFailure(p: ProviderDef, error: unknown) {
+  if (error instanceof GatewayModelError) return;
+  const status = Number((error as { status?: number })?.status) || 0;
+  // A retired/invalid model must not disable other models at the same provider.
+  const key = [400, 404, 410].includes(status)
+    ? `model:${p.type}:${p.model}`
+    : p.type;
+  const failures = (breaker.get(key)?.fails || 0) + 1;
+  const raw = (
+    error as { headers?: { get?: (key: string) => string | null } }
+  ).headers?.get?.("retry-after");
+  const delay =
+    raw && /^\d+(?:\.\d+)?$/.test(raw)
+      ? Number(raw) * 1000
+      : raw
+        ? Date.parse(raw) - Date.now()
+        : 0;
+  const cooldown = [401, 402, 403].includes(status)
+    ? 300000
+    : status === 429
+      ? Math.max(30000, Number.isFinite(delay) ? Math.min(900000, delay) : 0)
+      : Math.min(30000 * failures, 120000);
+  breaker.set(key, { fails: failures, until: Date.now() + cooldown });
+}
 export function breakerStatus() {
   return Object.fromEntries(
     [...breaker].map(([id, b]) => [
@@ -106,10 +175,7 @@ async function callOne(
         baseURL: isGateway(p.type)
           ? gatewayBase(p.type)
           : PROVIDER_BASE_URL[p.type],
-        fetch: isGateway(p.type)
-          ? (input, init) =>
-              globalThis.fetch(input, { ...init, redirect: "error" })
-          : globalThis.fetch,
+        fetch: inferenceFetch,
         maxRetries: 0,
         timeout,
       });
@@ -142,6 +208,7 @@ async function callOne(
         throw new Error("TRUNCATED_OUTPUT");
       const text = choice?.message?.content?.trim();
       if (!text) throw new Error("EMPTY_OUTPUT");
+      assertProviderText(p, text);
       const u = result.usage;
       return {
         text,
@@ -187,11 +254,19 @@ export async function chatWithFallback(
   const deadlineSignal = AbortSignal.timeout(deadline);
   const errors: string[] = [];
   let temporary = false;
+  let saturated = false;
   // Keep the best available model first; spread only when its organization is busy.
   const queue = [
     ...candidates.filter((p) => (active.get(p.type) || 0) < 1),
     ...candidates.filter((p) => (active.get(p.type) || 0) >= 1),
   ];
+  // A retry must not hit the same provider lane that just failed. `rotateBy`
+  // shifts the ranking so attempt N starts further down the priority list,
+  // which is what the lesson runner expects when it retries a page.
+  if (opts?.rotateBy) {
+    const shift = opts.rotateBy % queue.length;
+    queue.push(...queue.splice(0, shift));
+  }
   let attempts = 0;
   for (const p of queue) {
     if (
@@ -199,7 +274,11 @@ export async function chatWithFallback(
       Date.now() - start > deadline
     )
       break;
-    if ((breaker.get(p.type)?.until || 0) > Date.now()) continue;
+    if (cooling(p)) continue;
+    if (providerAtCapacity(p)) {
+      saturated = true;
+      continue;
+    }
     const budget = opts?.maxTokens || 2500;
     // Conservative estimate for multilingual text; reserve output room as well.
     if (
@@ -220,6 +299,7 @@ export async function chatWithFallback(
         deadlineSignal,
       );
       breaker.delete(p.type);
+      breaker.delete(`model:${p.type}:${p.model}`);
       return response;
     } catch (error) {
       const status = Number((error as { status?: number })?.status) || 0;
@@ -241,22 +321,7 @@ export async function chatWithFallback(
                 ? `HTTP ${status}`
                 : "timeout or network";
       errors.push(`${p.id}: ${kind}`);
-      const failures = (breaker.get(p.type)?.fails || 0) + 1;
-      const retryHeader = (
-        error as { headers?: { get?: (name: string) => string | null } }
-      ).headers?.get?.("retry-after");
-      const retrySeconds = Number(retryHeader);
-      const cooldown =
-        status === 429
-          ? Math.max(
-              30000,
-              Number.isFinite(retrySeconds) ? retrySeconds * 1000 : 0,
-            )
-          : [401, 403].includes(status)
-            ? 300000
-            : Math.min(30000 * failures, 120000);
-      if (!(error instanceof GatewayModelError))
-        breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
+      recordFailure(p, error);
     } finally {
       active.set(p.type, Math.max(0, (active.get(p.type) || 1) - 1));
     }
@@ -266,7 +331,7 @@ export async function chatWithFallback(
     .filter((n) => n > 0);
   throw new AIUnavailableError(
     `AI providers unavailable. ${errors.join("; ") || "Quotas are cooling down; retry shortly."}`,
-    temporary || (!attempts && cooldowns.some((n) => n <= 120000)),
+    temporary || saturated || (!attempts && cooldowns.some((n) => n <= 120000)),
     Math.max(30000, Math.min(120000, ...cooldowns)),
   );
 }
@@ -309,7 +374,7 @@ export async function* chatStreamWithFallback(
   for (const p of queue) {
     if (opts?.signal?.aborted) return;
     if (attempts >= 5 || Date.now() - started > 90000) break;
-    if ((breaker.get(p.type)?.until || 0) > Date.now()) continue;
+    if (cooling(p) || providerAtCapacity(p)) continue;
     const maxTokens = opts?.maxTokens || 1500;
     if (
       messages.reduce((n, m) => n + m.content.length, 0) / 2 + maxTokens >
@@ -342,10 +407,7 @@ export async function* chatStreamWithFallback(
             baseURL: isGateway(p.type)
               ? gatewayBase(p.type)
               : PROVIDER_BASE_URL[p.type],
-            fetch: isGateway(p.type)
-              ? (input, init) =>
-                  globalThis.fetch(input, { ...init, redirect: "error" })
-              : globalThis.fetch,
+            fetch: inferenceFetch,
             maxRetries: 0,
             timeout: Math.max(
               1000,
@@ -365,20 +427,35 @@ export async function* chatStreamWithFallback(
 
           let model = p.model;
           let truncated = false;
+          let initial = "";
           for await (const chunk of stream) {
             if (opts?.signal?.aborted) return;
             if (chunk.model) model = chunk.model;
             if (chunk.choices?.[0]?.finish_reason === "length")
               truncated = true;
-            const text = chunk.choices?.[0]?.delta?.content;
+            let text = chunk.choices?.[0]?.delta?.content;
             if (typeof text !== "string" || !text) continue;
+            if (p.type === "aihubmix" && !emitted) {
+              initial += text;
+              assertProviderText(p, initial);
+              if (quotaPrefix.startsWith(initial.trimStart().toLowerCase()))
+                continue;
+              text = initial;
+              initial = "";
+            }
             const first = !emitted;
             emitted = true;
             yield first ? { t: text, provider: p.id, model } : { t: text };
           }
+          if (!emitted && initial) {
+            assertProviderText(p, initial);
+            emitted = true;
+            yield { t: initial, provider: p.id, model };
+          }
 
           if (!emitted) throw new Error("EMPTY_OUTPUT");
           breaker.delete(p.type);
+          breaker.delete(`model:${p.type}:${p.model}`);
           if (truncated) {
             yield {
               error:
@@ -409,22 +486,7 @@ export async function* chatStreamWithFallback(
                 ? `HTTP ${status}`
                 : "timeout or network";
       errors.push(`${p.id}: ${kind}`);
-      const failures = (breaker.get(p.type)?.fails || 0) + 1;
-      const retryHeader = (
-        error as { headers?: { get?: (name: string) => string | null } }
-      ).headers?.get?.("retry-after");
-      const retrySeconds = Number(retryHeader);
-      const cooldown =
-        status === 429
-          ? Math.max(
-              30000,
-              Number.isFinite(retrySeconds) ? retrySeconds * 1000 : 0,
-            )
-          : [401, 403].includes(status)
-            ? 300000
-            : Math.min(30000 * failures, 120000);
-      if (!(error instanceof GatewayModelError))
-        breaker.set(p.type, { fails: failures, until: Date.now() + cooldown });
+      recordFailure(p, error);
 
       // Once text is visible, finish with a clear interruption marker rather
       // than silently switching providers or replaying the user's prompt.

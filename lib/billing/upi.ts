@@ -66,13 +66,19 @@ export function paymentPage(value: unknown): number {
     throw new PaymentError("Invalid page.");
   return n;
 }
+/**
+ * Payment administration is decided by the single canonical admin model in
+ * lib/auth/admin.ts. This function reports ELIGIBILITY only, because it has no
+ * access to live MFA state. The MFA requirement is enforced by the callers
+ * that hold the authenticated session (app/api/upi/admin/route.ts and
+ * app/api/razorpay/order/route.ts), which check adminScopes().
+ */
 export async function isAdmin(userId: string): Promise<boolean> {
   const { readState } = await import("@/lib/study/state"),
     { DEFAULT_CONTROL } = await import("@/lib/auth/session-security");
+  const { adminEligibility } = await import("@/lib/auth/admin");
   const control = await readState(userId, "account-control", DEFAULT_CONTROL);
   if (control.status !== "active") return false;
-  if (control.role !== null)
-    return control.role === "admin" || control.role === "billing";
   const email = useMongo()
     ? (
         await (
@@ -80,28 +86,19 @@ export async function isAdmin(userId: string): Promise<boolean> {
         ).findOne({ _id: userId }, { projection: { email: 1 } })
       )?.email
     : db().prepare("SELECT email FROM users WHERE id=?").get(userId)?.email;
-  if (
-    email &&
-    (process.env.ADMIN_EMAILS || "")
-      .split(",")
-      .map((x) => x.trim().toLowerCase())
-      .includes(String(email).toLowerCase())
-  )
-    return true;
-  if (
-    (process.env.PAYMENT_ADMIN_IDS || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .includes(userId)
-  )
-    return true;
-  return (
+  const legacyPaymentAdmin =
     useMongo() &&
     !!(await (
       await collection("payment_admins")
-    ).findOne({ _id: userId, active: true }))
-  );
+    ).findOne({ _id: userId, active: true }));
+  const account = {
+    id: userId,
+    email: String(email || ""),
+    adminRole: control.role,
+    legacyPaymentAdmin,
+  } as unknown as Parameters<typeof adminEligibility>[0];
+  const scopes = adminEligibility(account);
+  return Boolean(scopes.payments || scopes.users);
 }
 async function requireAdmin(id: string) {
   if (!(await isAdmin(id)))

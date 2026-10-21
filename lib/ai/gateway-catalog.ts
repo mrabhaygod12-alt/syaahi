@@ -31,6 +31,8 @@ export function normalizeCatalogModel(
     return null;
   const metadata = m.upstream_metadata || {};
   const capabilities = strings(m.capabilities ?? metadata.capabilities);
+  if (m.json_mode === true || m.capabilities?.json_mode === true)
+    capabilities.push("json_mode");
   const parameters = strings(
     m.supported_parameters ?? metadata.supported_parameters,
   );
@@ -41,10 +43,11 @@ export function normalizeCatalogModel(
     capabilities.push("json_mode");
   const output = strings(
     m.architecture?.output_modalities ??
+      m.modalities?.output ??
       m.output_modalities ??
       metadata.output_modalities,
   );
-  const declared = typeof m.type === "string" ? m.type.toLowerCase() : "";
+  const declared = String(m.type || m.model_type || "").toLowerCase();
   const endpoints = strings(m.endpoints);
   const kind =
     output.includes("text") ||
@@ -68,15 +71,16 @@ export function normalizeCatalogModel(
               ? "embedding"
               : "unknown";
   const context = Number(
-    m.context_window ??
+    m.context_window?.tokens ??
+      m.context_window ??
       m.context_length ??
       m.max_context_length ??
       metadata.context_length ??
       metadata.context_window,
   );
   const prices = m.pricing;
-  const input = prices?.prompt ?? prices?.input_per_1k,
-    completion = prices?.completion ?? prices?.output_per_1k;
+  const input = prices?.prompt ?? prices?.input_per_1k ?? prices?.input,
+    completion = prices?.completion ?? prices?.output_per_1k ?? prices?.output;
   const knownPricing =
     input !== undefined &&
     input !== null &&
@@ -102,7 +106,9 @@ export function normalizeCatalogModel(
     streaming:
       capabilities.includes("streaming") ||
       parameters.includes("stream") ||
-      m.supports_streaming === true
+      m.supports_streaming === true ||
+      m.stream === true ||
+      m.capabilities?.stream === true
         ? true
         : m.supports_streaming === false ||
             (type === "radox" && Array.isArray(m.capabilities))
@@ -119,7 +125,9 @@ export function normalizeCatalogModel(
         : typeof m.accessible === "boolean"
           ? m.accessible
           : null,
-    trainingConsentRequired: m.requires_training_optin === true,
+    trainingConsentRequired:
+      m.requires_training_optin === true ||
+      m.own_purpose?.consent_required === true,
   };
 }
 export async function gatewayCatalog(
@@ -173,9 +181,58 @@ export async function gatewayCatalog(
     }
     if (!Array.isArray(body?.data))
       throw new GatewayModelError("Invalid gateway catalog.");
+    // Membership comes only from the credential-scoped catalog. Public
+    // metadata may enrich those IDs, but can never grant model access.
+    let metadata = new Map<string, any>();
+    if (
+      ["aihubmix", "unorouter"].includes(type) &&
+      body.data.some((m: any) => !m.context_window && !m.context_length)
+    ) {
+      try {
+        const url =
+          type === "aihubmix"
+            ? "https://aihubmix.com/api/v1/models"
+            : "https://api.unorouter.com/api/pricing/catalog";
+        const extra = await fetch(url, {
+          signal: AbortSignal.timeout(8000),
+          redirect: "error",
+          cache: "no-store",
+        });
+        const data = await boundedMetadata(extra);
+        const list = type === "aihubmix" ? data.data : data.models;
+        if (Array.isArray(list))
+          metadata = new Map(
+            list
+              .slice(0, 4000)
+              .map((m: any) => [m.model_id || m.model_name, m]),
+          );
+      } catch {
+        /* Unknown limits stay conservative; free-only routing fails closed. */
+      }
+    }
     const models: CatalogModel[] = body.data
       .slice(0, 4000)
-      .map((m: unknown) => normalizeCatalogModel(m, type))
+      .map((m: any) => {
+        const extra = metadata.get(m.id);
+        return normalizeCatalogModel(
+          extra
+            ? {
+                ...extra,
+                ...m,
+                type: m.type || extra.type || extra.types,
+                context_length: m.context_length || extra.context_length,
+                pricing: m.pricing || extra.pricing,
+                is_free: m.is_free ?? extra.is_free,
+                own_purpose: extra.own_purpose,
+                accessible: extra.online === false ? false : m.accessible,
+                output_modalities:
+                  m.output_modalities ||
+                  String(extra.output_modalities || "").split(","),
+              }
+            : m,
+          type,
+        );
+      })
       .filter((m: CatalogModel | null): m is CatalogModel => !!m);
     if (cached.size >= 64) cached.delete(cached.keys().next().value!);
     cached.set(fingerprint, { expires: Date.now() + 300000, models });
@@ -214,7 +271,34 @@ export async function gatewayModel(
     throw new GatewayModelError(
       "Training-opt-in models are excluded from study content.",
     );
+  if (
+    process.env[`${type.toUpperCase()}_FREE_ONLY`] === "true" &&
+    model.advertisedFree !== true
+  )
+    throw new GatewayModelError(
+      "This model is not verified as free in the current catalog.",
+    );
   if (streaming && model.streaming === false)
     throw new GatewayModelError("Gateway model does not support streaming.");
   return model;
+}
+async function boundedMetadata(response: Response) {
+  if (!response.ok || !response.body)
+    throw new GatewayModelError("Metadata unavailable.");
+  const reader = response.body.getReader(),
+    chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > 2 * 1024 * 1024)
+        throw new GatewayModelError("Metadata too large.");
+      chunks.push(chunk.value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }

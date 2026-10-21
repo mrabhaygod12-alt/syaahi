@@ -1,5 +1,11 @@
 import { providerKeys, orderedKeys } from "./keys";
 export const GATEWAYS = {
+  llm7: {
+    label: "LLM7",
+    prefix: "LLM7",
+    base: "https://api.llm7.io/v1",
+    docs: "https://github.com/chigwell/llm7.io/blob/main/TERMS.md",
+  },
   radox: {
     label: "Radox AI",
     prefix: "RADOX",
@@ -98,7 +104,8 @@ export function gatewaySetup() {
       models = gatewayModels(type),
       base = gatewayBase(type);
     const policyReady =
-      type !== "logfare" || process.env.LOGFARE_DATA_POLICY_ACK === "true";
+      (type !== "logfare" || process.env.LOGFARE_DATA_POLICY_ACK === "true") &&
+      (type !== "llm7" || process.env.LLM7_DOWNSTREAM_APPROVED === "true");
     const status = !enabled
       ? "disabled"
       : !base
@@ -108,7 +115,9 @@ export function gatewaySetup() {
           : !models.length
             ? "model IDs required"
             : !policyReady
-              ? "data policy review required"
+              ? type === "llm7"
+                ? "downstream approval required"
+                : "data policy review required"
               : "configured";
     return {
       type,

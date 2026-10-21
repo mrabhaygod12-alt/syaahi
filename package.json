@@ -55,7 +55,7 @@
     "format": "prettier --write app components lib scripts docs *.md *.json *.js *.ts",
     "test:study": "tsx scripts/test-study.ts",
     "test:auth": "tsx scripts/test-auth-verification.ts",
-    "test:security": "tsx scripts/test-security-audit.ts && tsx scripts/test-security-boundaries.ts",
+    "test:security": "tsx scripts/test-security-audit.ts && tsx scripts/test-security-boundaries.ts && tsx scripts/test-security-report.ts",
     "check:env": "node scripts/check-env.mjs",
     "test:mobile-nav": "tsx scripts/test-mobile-nav.ts",
     "test:chat-stream": "tsx scripts/test-chat-stream.ts",
@@ -86,7 +86,8 @@
     "test:video-reviews-browser": "tsx scripts/test-video-reviews-browser.ts",
     "test:redesign": "tsx scripts/test-redesign.ts && tsx scripts/test-redesign.ts --mongo && tsx scripts/test-request-budget.ts",
     "test:presentation-hybrid": "tsx scripts/test-presentation-hybrid.ts && tsx scripts/test-presentation-hybrid.ts --mongo",
-    "test:presentation-media": "tsx scripts/test-presentation-media.ts"
+    "test:presentation-media": "tsx scripts/test-presentation-media.ts",
+    "test:ink": "tsx scripts/test-ink.ts && tsx scripts/test-ink-api.ts && tsx scripts/test-ink-api.ts --mongo"
   },
   "dependencies": {
     "@babylonjs/core": "^9.31.0",

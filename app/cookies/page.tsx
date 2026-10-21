@@ -21,7 +21,7 @@ const sections = [
   ],
   [
     "Optional product measurement",
-    "With Allow analytics, Syaahi uses HttpOnly syaahi-measurement and syaahi-visitor cookies for up to 90 days. Consented visit, preview, signup, lesson-ready, practice, payment and sharing events use pseudonymous IDs and daily dates. Note text, topics, source URLs, email addresses and payment secrets are not collected in this dataset. It expires after 90 days of inactivity. Essential only stops collection and deletes the current browser/account cohort from Syaahi's own measurement store. It does not erase historical data received separately by Vercel Analytics. Consented visitors may see one of two preview-button labels for product testing.",
+    "With Allow analytics, Syaahi uses HttpOnly syaahi-measurement, syaahi-visitor and signed syaahi-measurement-proof cookies for up to 90 days. Consented visit, preview, signup, lesson-ready, practice, payment and sharing events use pseudonymous IDs and daily dates. Note text, topics, source URLs, email addresses and payment secrets are not collected in this dataset. It expires after 90 days of inactivity. Essential only stops collection and deletes the current browser/account cohort from Syaahi's own measurement store. It does not erase historical data received separately by Vercel Analytics. Consented visitors may see one of two preview-button labels for product testing.",
   ],
   [
     "Your controls",

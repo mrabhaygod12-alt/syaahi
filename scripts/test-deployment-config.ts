@@ -14,7 +14,7 @@ import {
 
 async function main() {
   const commit = "a".repeat(40);
-  assert.equal(releaseRevision(` ${commit} `), commit);
+  assert.equal(releaseRevision(` ${commit} `), commit.slice(0, 12));
   for (const invalid of [
     undefined,
     "secret",
@@ -31,7 +31,7 @@ async function main() {
       middleware(new NextRequest(`https://frontend.test${path}`)).headers.get(
         "x-syaahi-frontend-revision",
       ),
-      commit,
+      commit.slice(0, 12),
     );
   process.env.VERCEL_GIT_COMMIT_SHA = "not-a-commit";
   assert.equal(

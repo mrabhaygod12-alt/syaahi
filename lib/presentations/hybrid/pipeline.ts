@@ -162,7 +162,14 @@ export async function planHybrid(
       ...new Map(list.map((f: any) => [f.id, f])).values(),
     ] as HybridPlan["facts"];
   };
-  let evidence = await generate(extraction, { maxTokens: 8000, json: true }),
+  const evidenceTokens = Math.min(
+    8000,
+    600 + Math.min(60, Math.max(15, input.count * 2)) * 100,
+  );
+  let evidence = await generate(extraction, {
+      maxTokens: evidenceTokens,
+      json: true,
+    }),
     facts: HybridPlan["facts"];
   try {
     facts = parseFacts(evidence.text);
@@ -176,7 +183,7 @@ export async function planHybrid(
           content: `Repair extraction only: ${error instanceof Error ? error.message : "Invalid quotations"}. Copy exact passages from the complete supplied text.`,
         },
       ],
-      { maxTokens: 8000, json: true },
+      { maxTokens: evidenceTokens, json: true },
     );
     facts = parseFacts(evidence.text);
   }
