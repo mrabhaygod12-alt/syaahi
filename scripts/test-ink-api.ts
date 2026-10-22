@@ -50,6 +50,13 @@ async function main() {
     assert.equal((await api.POST(req(cookies[0],{...body,text:"x".repeat(120001)}))).status,400);
     assert.equal((await api.POST(req(cookies[0],null))).status,400);
     assert.equal((await rewrite.POST(req(cookies[0],{mode:"__proto__",text}))).status,400);
+    assert.equal((await rewrite.POST(req(cookies[0],{mode:"plain",text:"x".repeat(6001)}))).status,400);
+    // No provider credentials are present in this isolated test. Service outages
+    // must be retryable 503 responses rather than blaming the learner's draft.
+    for (const key of Object.keys(process.env)) if (/API_KEY(?:_?\d+)?$/.test(key)) delete process.env[key];
+    const unavailable = await rewrite.POST(req(cookies[0],{mode:"plain",text}));
+    assert.equal(unavailable.status,503);
+    assert(Number(unavailable.headers.get("retry-after")) > 0);
     const noSources = await analyse({text,allowWeb:false}); assert.equal(noSources.comparedSources,0);
     assert.throws(()=>assertPreserved("Results: 12.5% [3].", "Results: 25% [3]."));
     assertPreserved("Results: 12.5% [3].", "The result was 12.5% [3].");

@@ -4,6 +4,7 @@ import { inkAccount } from "@/lib/ink/access";
 import { rateLimit } from "@/lib/ratelimit";
 import { rewrite, REWRITE_MODES, type RewriteMode } from "@/lib/ink/rewrite";
 import { readState } from "@/lib/study/state";
+import { AIUnavailableError } from "@/lib/ai/router";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
@@ -44,6 +45,8 @@ async function handlePOST(req: NextRequest) {
     );
 
   const text = typeof body.text === "string" ? body.text : "";
+  if (text.trim().length < 40 || text.length > 6000)
+    return NextResponse.json({ error: "Select one passage containing 40–6,000 characters. Your full draft remains unchanged." }, { status: 400 });
   const mode = String(body.mode || "tighten") as RewriteMode;
   if (!Object.hasOwn(REWRITE_MODES, mode))
     return NextResponse.json(
@@ -76,6 +79,11 @@ async function handlePOST(req: NextRequest) {
     });
     return NextResponse.json({ result });
   } catch (error) {
+    if (error instanceof AIUnavailableError || (error instanceof Error && error.message.startsWith("NO_KEYS:")))
+      return NextResponse.json(
+        { error: "AI editing is temporarily unavailable. Your draft has not changed. Please retry shortly.", code: "INK_AI_UNAVAILABLE" },
+        { status: 503, headers: { "Retry-After": String(Math.ceil(Math.max(1000, error instanceof AIUnavailableError ? error.retryAfterMs : 30000) / 1000)) } },
+      );
     return NextResponse.json(
       {
           error: "The rewrite could not be completed. Try a shorter section or retry shortly.",
