@@ -121,7 +121,7 @@
     "katex": "^0.18.7",
     "lucide-react": "^1.52.0",
     "mongodb": "^7.6.0",
-    "next": "^15.5.24",
+    "next": "^15.5.28",
     "ogl": "^1.0.11",
     "openai": "^4.67.3",
     "p5": "^2.3.4",
@@ -155,6 +155,9 @@
     "typescript": "^5.5.0"
   },
   "overrides": {
+    "@remotion/bundler": {
+      "zod": "^4.6.7"
+    },
     "postcss": "^8.5.23",
     "image-size": "^2.0.4"
   },

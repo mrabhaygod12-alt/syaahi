@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, Newsreader } from "next/font/google";
-import Link from "next/link";
 import "./ink.css";
 import InkAccess from "./InkAccess";
 import CompanyCopyright from "@/components/CompanyCopyright";
+import { InkMotion, InkNavigation } from "./InkUI";
 
 /**
  * AI Ink lives under its own type identity — a proofing desk, not another SaaS
@@ -33,36 +33,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const NAV = [
-  { href: "/ink", label: "New check" },
-  { href: "/ink/reports", label: "Reports" },
-  { href: "/ink/rewrite", label: "Rewrite desk" },
-  { href: "/ink/how-it-works", label: "How it works" },
-];
-
-export default function InkLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function InkLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`ink-shell ${newsreader.variable} ${plexSans.variable}`}>
-      <header className="ink-bar">
-        <Link href="/ink" className="ink-mark">
-          <b>AI Ink</b>
-          <span>by Syaahii</span>
-        </Link>
-        <nav aria-label="AI Ink">
-          <Link href="/dashboard">Workspace</Link>
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-      <InkAccess>{children}</InkAccess>
-      <footer className="ink-footer"><CompanyCopyright /><span>Private reports. Clear evidence. Your final judgement.</span></footer>
+      <InkNavigation />
+      <InkMotion>
+        <InkAccess>{children}</InkAccess>
+        <footer className="ink-footer">
+          <CompanyCopyright />
+          <span>Private documents. Clearer writing.</span>
+        </footer>
+      </InkMotion>
     </div>
   );
 }

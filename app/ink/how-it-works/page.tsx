@@ -1,201 +1,90 @@
 import Link from "next/link";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "How AI Ink works",
-  description:
-    "What AI Ink measures, how source matching works, and the limits of both.",
-  robots: { index: false, follow: false },
-};
-
-const MATCHING = [
-  {
-    step: "Fingerprint",
-    body: "Your text is split into overlapping runs of eight words. Each run is a fingerprint — long enough that finding it elsewhere is meaningful, short enough to survive a changed comma.",
-  },
-  {
-    step: "Search",
-    body: "The most distinctive sentences become search queries. Results come back as full page text where the provider allows it, so the comparison is against the source itself rather than a summary of it.",
-  },
-  {
-    step: "Cluster",
-    body: "Where a run is found in a source, neighbouring runs are joined. Only a contiguous stretch of twelve or more words in the same order is reported. Shared vocabulary and shared subject matter are never enough.",
-  },
-  {
-    step: "Report",
-    body: "Each confirmed passage is listed with the source, the word count and its share of your document. You can read the source passage beside your own.",
-  },
-];
-
-const STYLE = [
-  {
-    step: "Sentence rhythm",
-    body: "The spread of sentence lengths, measured as the standard deviation of words per sentence. Uniform rhythm can be worth reviewing, regardless of who wrote it.",
-  },
-  {
-    step: "Stock phrasing",
-    body: "Density of phrases that carry no information — “plays a crucial role”, “in today’s world”, “it is important to note”. Counted per hundred words.",
-  },
-  {
-    step: "Word range",
-    body: "How many words are used only once. An unusually high rate often means simple words were swapped for longer synonyms.",
-  },
-  {
-    step: "Paragraph shape",
-    body: "Whether paragraphs expand and contract with their ideas, or all run to the same length.",
-  },
-  {
-    step: "Flat emphasis",
-    body: "Generic intensifiers — “highly significant”, “truly remarkable” — that replace evidence with volume.",
-  },
-  {
-    step: "Long-word share",
-    body: "The proportion of words eight letters or longer, as a check against vocabulary inflation.",
-  },
-];
-
-const LIMITS = [
-  "Web matching only covers what the search provider returns. Paywalled journals, closed databases and printed books are outside its reach, so a clean report is not proof of originality.",
-  "Style measurements describe writing, not authorship. A careful human writer can score high; a lightly edited machine draft can score low. The numbers point you at passages to look at — they do not decide anything.",
-  "The citation audit recognises common citation formats. Unusual styles may be missed, and a sentence can legitimately need no citation.",
-  "Your institution may use a different system with a different corpus. Use the findings to review attribution and follow your institution’s academic integrity rules.",
-];
-
+import { ArrowRight, FileText, Link2, PenLine, Quote } from "lucide-react";
 export default function HowItWorks() {
   return (
     <main className="ink-page">
-      <div className="ink-lead">
-        <p className="ink-kicker">Method</p>
-        <h1>What this actually measures.</h1>
-        <p>
-          Most integrity tools give you a number and no way to argue with it. AI
-          Ink is built the other way round: every finding names the passage,
-          shows the evidence, and explains the measurement in a sentence you can
-          check yourself.
-        </p>
+      <div className="ink-lead" data-ink-reveal>
+        <p className="ink-kicker">THE METHOD</p>
+        <h1>
+          Evidence you can
+          <br />
+          actually read.
+        </h1>
+        <p>One document. Clear findings. A better next draft.</p>
       </div>
-
-      <section style={{ marginBottom: 56 }}>
-        <h2 className="ink-h2">Matching against sources</h2>
-        <div className="ink-grid-2">
-          {MATCHING.map((item, i) => (
-            <div
-              key={item.step}
-              style={{
-                borderTop: "1px solid var(--ink-rule)",
-                paddingTop: 14,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "baseline",
-                  marginBottom: 6,
-                }}
-              >
-                <span className="ink-card-n ink-figure">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <h3
-                  style={{
-                    margin: 0,
-                    fontFamily: "var(--ink-serif)",
-                    fontSize: 18,
-                    fontWeight: 500,
-                  }}
-                >
-                  {item.step}
-                </h3>
-              </div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13.5,
-                  lineHeight: 1.62,
-                  color: "var(--ink-2)",
-                }}
-              >
-                {item.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 56 }}>
-        <h2 className="ink-h2">Writing style</h2>
-        <p className="ink-note" style={{ marginBottom: 22, maxWidth: "62ch" }}>
-          Six measurements, weighted into a single footprint from 0 to 100.
-          Higher means more of the property being measured. Nothing here tries
-          to guess whether a machine wrote your text.
-        </p>
-        <table className="ink-table">
-          <thead>
-            <tr>
-              <th style={{ width: 190 }}>Measurement</th>
-              <th>What it is</th>
-            </tr>
-          </thead>
-          <tbody>
-            {STYLE.map((item) => (
-              <tr key={item.step}>
-                <td style={{ fontWeight: 500 }}>{item.step}</td>
-                <td style={{ color: "var(--ink-2)" }}>{item.body}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section style={{ marginBottom: 56 }}>
-        <h2 className="ink-h2">Where this stops</h2>
-        <ul
-          style={{
-            margin: 0,
-            paddingLeft: 0,
-            listStyle: "none",
-            maxWidth: "68ch",
-          }}
-        >
-          {LIMITS.map((limit, i) => (
-            <li
-              key={limit}
-              style={{
-                display: "flex",
-                gap: 14,
-                padding: "14px 0",
-                borderTop: i ? "1px solid var(--ink-rule-soft)" : 0,
-                fontSize: 13.5,
-                lineHeight: 1.65,
-                color: "var(--ink-2)",
-              }}
-            >
-              <span
-                className="ink-card-n ink-figure"
-                style={{ paddingTop: 2, minWidth: 20 }}
-              >
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span>{limit}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <div className="ink-banner" data-tone="warn">
-        AI Ink is a study tool, not a certification. Use it to find the passages
-        worth rewriting and the claims worth sourcing — then do that work
-        yourself.
+      <div className="ink-method-grid" data-ink-reveal>
+        {[
+          {
+            Icon: FileText,
+            title: "01. Bring your document",
+            body: "Upload a searchable PDF or DOCX, or paste text. Work with 200–120,000 characters per check.",
+          },
+          {
+            Icon: Link2,
+            title: "02. Compare your sources",
+            body: "Add references from your library or paste a source. Optional web search sends selected excerpts to the configured search provider.",
+          },
+          {
+            Icon: Quote,
+            title: "03. Read the evidence",
+            body: "Review matched passages beside their sources, check attribution and see explainable writing patterns.",
+          },
+          {
+            Icon: PenLine,
+            title: "04. Shape your next draft",
+            body: "Choose a passage, try an editing mode, and compare both versions before accepting a change.",
+          },
+        ].map(({ Icon, title, body }) => (
+          <section className="ink-method-card" key={title}>
+            <Icon size={25} />
+            <h2>{title}</h2>
+            <p>{body}</p>
+          </section>
+        ))}
       </div>
-
-      <div style={{ marginTop: 24 }}>
-        <Link
-          href="/ink"
-          className="ink-btn"
-          style={{ display: "inline-block", textDecoration: "none" }}
-        >
-          Check a draft
+      <section
+        className="ink-method-details"
+        aria-label="Coverage and privacy"
+        data-ink-reveal
+      >
+        {[
+          {
+            title: "What does similarity measure?",
+            body: "The share of your draft’s words in matching runs of at least twelve words, against the sources actually compared. Shared keywords alone do not count. Duplicate sources cannot inflate the total. Similarity can include legitimate quotations; it is not a plagiarism verdict.",
+          },
+          {
+            title: "Is this an AI detector?",
+            body: "No. Writing-pattern measurements describe phrasing, repetition and rhythm. They cannot prove who or what wrote a passage. AI Ink does not promise detector bypass or AI-footprint removal.",
+          },
+          {
+            title: "Which sources are covered?",
+            body: "Your supplied sources and retrieved web pages when search is configured. Turnitin, iThenticate, paywalled journal corpora and printed books are not integrated. With no comparison sources, overlap is unmeasured rather than certified clear.",
+          },
+          {
+            title: "What happens to my document?",
+            body: "Your private report stores the extracted draft and matched excerpts until you delete it. Full third-party pages are not retained. Uploaded files are parsed for text; they are not added to a public repository. Rewrites send your selected passage and optional writing sample to the configured AI provider. Database backups follow the operator’s backup policy.",
+          },
+          {
+            title: "What files can I upload?",
+            body: "Searchable PDF and DOCX up to 10 MB; UTF-8 TXT, Markdown and LaTeX up to 500 KB. Scanned PDFs need OCR first. Legacy .doc and password-protected files are not supported. Text is extracted, not rendered as the original page layout.",
+          },
+          {
+            title: "Can an edit change my meaning?",
+            body: "It can. Numbers, common citations, quotations, code and equations are checked for preservation, but those checks cannot prove semantic accuracy. Keep attribution and review every claim before using the revised passage.",
+          },
+        ].map((item) => (
+          <details key={item.title}>
+            <summary>{item.title}</summary>
+            <p>{item.body}</p>
+          </details>
+        ))}
+      </section>
+      <div className="ink-dialog-actions">
+        <p className="ink-small-print">
+          Included with a purchased student pack or active paid subscription.
+        </p>
+        <Link className="ink-btn" href="/ink">
+          Open document check <ArrowRight size={16} />
         </Link>
       </div>
     </main>

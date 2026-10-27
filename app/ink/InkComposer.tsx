@@ -1,341 +1,577 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { requestJson } from "@/app/ink/client";
+import {
+  ArrowRight,
+  UploadCloud,
+  FileText,
+  ScanLine,
+  Check,
+  Plus,
+  Link2,
+  Quote,
+  PenLine,
+  ShieldCheck,
+  LoaderCircle,
+  FolderOpen,
+} from "lucide-react";
+import { requestJson } from "./client";
+import { InkDialog, InkPaperArt } from "./InkUI";
 import type { InkSummary } from "./types";
-
+import { useInkSearch } from "./InkAccess";
 interface DocumentOption {
   id: string;
   name: string;
-  pageCount: number;
-  createdAt: string;
 }
-
-const CHECKLIST = [
-  {
-    title: "Source overlap",
-    body: "Compares your text against live web results and any sources you attach, using contiguous word runs rather than shared keywords.",
-  },
-  {
-    title: "Uncited claims",
-    body: "Finds sentences that report a figure, a study or a finding without naming where it came from.",
-  },
-  {
-    title: "Writing style",
-    body: "Measures patterns in prose — even sentence rhythm, stock phrasing, inflated vocabulary — and points at each passage.",
-  },
-];
-
 export default function InkComposer() {
   const router = useRouter();
+  const searchConfigured = useInkSearch();
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
+  const [filename, setFilename] = useState("");
   const [referenceText, setReferenceText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [allowWeb, setAllowWeb] = useState(false);
+  const [busy, setBusy] = useState<"import" | "scan" | null>(null);
+  const [error, setError] = useState("");
   const [documents, setDocuments] = useState<DocumentOption[]>([]);
   const [attached, setAttached] = useState<string[]>([]);
   const [recent, setRecent] = useState<InkSummary[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
-  const requestId = useRef<string>("");
-
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [pending, setPending] = useState<File | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const requestId = useRef("");
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const ready = text.trim().length >= 200 && text.length <= 120000 && !busy;
-
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await requestJson<{ reports: InkSummary[] }>(
-          "/api/ink",
-        );
-        if (!cancelled) setRecent(data.reports.slice(0, 5));
-      } catch {
-        /* an empty history is not an error worth showing */
-      } finally {
-        if (!cancelled) setLoadingList(false);
-      }
-    })();
+    let active = true;
+    requestJson<{ reports: InkSummary[] }>("/api/ink")
+      .then(({ data }) => {
+        if (active) setRecent(data.reports.slice(0, 3));
+      })
+      .catch(() => {
+        if (active) setListError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    requestJson<{ documents: DocumentOption[] }>("/api/documents")
+      .then(({ data }) => {
+        if (active) setDocuments(data.documents || []);
+      })
+      .catch(() => {});
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, []);
-
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await requestJson<{ documents: DocumentOption[] }>(
-          "/api/documents",
-        );
-        if (!cancelled) setDocuments(data.documents || []);
-      } catch {
-        /* attaching is optional */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+    requestId.current = "";
+  }, [text, title, referenceText, allowWeb, attached]);
   async function run() {
     if (!ready) return;
-    setBusy(true);
-    setError(null);
-    // A stable id per attempt means a network retry cannot create two reports.
-    if (!requestId.current)
-      requestId.current = `ink-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setBusy("scan");
+    setError("");
+    if (!requestId.current) requestId.current = crypto.randomUUID();
     try {
-      const { data } = await requestJson<{ report: { id: string } }>("/api/ink", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "analyse",
-          title: title.trim(),
-          text,
-          allowWeb,
-          sourceIds: attached,
-          referenceText,
-          requestId: requestId.current,
-        }),
-      });
+      const { data } = await requestJson<{ report: { id: string } }>(
+        "/api/ink",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "analyse",
+            title,
+            text,
+            referenceText,
+            allowWeb,
+            sourceIds: attached,
+            requestId: requestId.current,
+          }),
+        },
+      );
       router.push(`/ink/report/${data.report.id}`);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "The check could not be completed.",
+        e instanceof Error
+          ? e.message
+          : "Check failed. Your draft is unchanged.",
       );
-      setBusy(false);
-      requestId.current = "";
+      setBusy(null);
     }
   }
-
-  async function importFile(file?: File) {
-    if (!file) return;
-    setBusy(true); setError(null);
+  async function importFile(file?: File, replace = false) {
+    if (!file || busy) return;
+    if (!/\.(pdf|docx|txt|md|tex)$/i.test(file.name)) {
+      setError("Choose a PDF, DOCX, TXT, Markdown or LaTeX file.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Choose a document under 10 MB.");
+      return;
+    }
+    if (text.trim() && !replace) {
+      setPending(file);
+      return;
+    }
+    setPending(null);
+    setBusy("import");
+    setError("");
     try {
-      const body = new FormData(); body.set("file", file);
-      const {data} = await requestJson<{text: string; name: string}>("/api/ink/import", {method: "POST", body}, 55000);
-      setText(data.text); if (!title) setTitle(data.name);
-    } catch (e) { setError(e instanceof Error ? e.message : "Import failed."); }
-    finally { setBusy(false); }
+      const body = new FormData();
+      body.set("file", file);
+      const { data } = await requestJson<{ text: string; name: string }>(
+        "/api/ink/import",
+        { method: "POST", body },
+        55000,
+      );
+      setText(data.text);
+      setFilename(data.name);
+      setTitle(data.name.replace(/\.[^.]+$/, ""));
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Import failed. Your existing draft is unchanged.",
+      );
+    } finally {
+      setBusy(null);
+    }
   }
-
-  function toggle(id: string) {
-    setAttached((current) =>
-      current.includes(id)
-        ? current.filter((x) => x !== id)
-        : current.length >= 10
-          ? current
-          : [...current, id],
-    );
-  }
-
   return (
     <main className="ink-page ink-page--wide">
-      <div className="ink-lead">
-        <p className="ink-kicker">Integrity check</p>
-        <h1>Read your draft the way an examiner will.</h1>
-        <p>
-          Paste a chapter, a paper or a paragraph. AI Ink highlights source overlap,
-          flags claims that need a source, and shows you exactly which sentences
-          read as padded — then helps you fix them in your own words.
-        </p>
-      </div>
-
-      <div className="ink-desk-grid">
-        <section className="ink-compose" aria-label="Submit a draft">
-          <label htmlFor="ink-title">Title</label>
-          <input
-            id="ink-title"
-            className="ink-title-input"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Chapter 3 — literature review"
-            maxLength={160}
-            autoComplete="off"
-          />
-
-          <label htmlFor="ink-file">Import a paper or chapter</label>
-          <input id="ink-file" type="file" accept=".pdf,.txt,.md,.tex" disabled={busy} onChange={e => { void importFile(e.target.files?.[0]); e.target.value = ""; }} />
-          <p className="ink-note">Searchable PDF up to 10 MB, or UTF-8 TXT, Markdown and LaTeX up to 500 KB. Import replaces the text below; it does not upload to a public repository.</p>
-          <label htmlFor="ink-text">Your text</label>
-          <textarea
-            id="ink-text"
-            className="ink-textarea"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Paste your draft here. Nothing is submitted anywhere — this compares your text against sources and reports what it finds."
-            spellCheck
-            aria-describedby="ink-text-help"
-          />
-          <p id="ink-text-help" className="ink-count" style={{ marginTop: 6 }}>
-            {text.length > 120000
-              ? "Over the 120,000 character limit — split the document by chapter."
-              : "Up to 120,000 characters. Compare one chapter or section at a time for the most useful output."}
+      <div className="ink-lead ink-composer-lead" data-ink-reveal>
+        <div>
+          <p className="ink-kicker">
+            <span /> DOCUMENT CHECK
           </p>
-
-          <label htmlFor="ink-reference" style={{ marginTop: 24 }}>Reference text to compare (optional)</label>
-          <textarea id="ink-reference" className="ink-textarea" style={{ minHeight: 130 }} maxLength={60000} value={referenceText} onChange={e => setReferenceText(e.target.value)} placeholder="Paste the original source passage here, or attach sources from your library below." />
-          {documents.length > 0 && (
-            <details style={{ marginTop: 18 }}>
-              <summary
-                style={{
-                  cursor: "pointer",
-                  fontSize: 12.5,
-                  color: "var(--ink-2)",
-                  fontWeight: 500,
-                }}
-              >
-                Attach your own sources ({attached.length}/10)
-              </summary>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginTop: 10,
-                }}
-              >
-                {documents.map((doc) => {
-                  const on = attached.includes(doc.id);
-                  return (
-                    <button
-                      key={doc.id}
-                      type="button"
-                      className="ink-btn ink-btn--ghost"
-                      style={{
-                        fontSize: 11.5,
-                        padding: "5px 10px",
-                        ...(on
-                          ? {
-                              background: "var(--ink-blue-soft)",
-                              borderColor: "var(--ink-blue)",
-                            }
-                          : {}),
-                      }}
-                      aria-pressed={on}
-                      onClick={() => toggle(doc.id)}
-                      title={doc.name}
-                    >
-                      {doc.name.length > 32
-                        ? `${doc.name.slice(0, 30)}…`
-                        : doc.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </details>
-          )}
-
-          <div className="ink-compose-foot">
-            <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
-              <span className="ink-count">
-                {words.toLocaleString()} word{words === 1 ? "" : "s"}
-              </span>
-              <label className="ink-toggle">
-                <input
-                  type="checkbox"
-                  checked={allowWeb}
-                  onChange={(e) => setAllowWeb(e.target.checked)}
-                />
-                Allow selected excerpts to be sent to web search
-              </label>
-            </div>
-            <button
-              type="button"
-              className="ink-btn"
-              disabled={!ready}
-              onClick={run}
-            >
-              {busy ? "Checking your draft…" : "Check this draft"}
-            </button>
+          <h1>
+            Good ideas.
+            <br />
+            <span>Your words.</span>
+          </h1>
+          <p>Check your sources. Refine your writing. Submit with care.</p>
+        </div>
+        <div className="ink-process" aria-label="Workflow">
+          <span className="is-current">
+            <b>01</b> Upload
+          </span>
+          <i />
+          <span>
+            <b>02</b> Review
+          </span>
+          <i />
+          <span>
+            <b>03</b> Improve
+          </span>
+        </div>
+      </div>
+      <div className="ink-studio-grid" data-ink-reveal>
+        <section className="ink-upload-card" aria-label="Submit a draft">
+          <div className="ink-section-head">
+            <span>
+              <FileText size={18} /> Your document
+            </span>
+            <span className="ink-tag">PDF · DOCX · TEXT</span>
           </div>
-
-          {error && (
+          <input
+            ref={fileInput}
+            id="ink-file"
+            className="ink-visually-hidden"
+            type="file"
+            aria-label="Import a paper or chapter"
+            accept=".pdf,.docx,.txt,.md,.tex"
+            disabled={!!busy}
+            onChange={(e) => {
+              void importFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          {!text ? (
             <div
-              className="ink-banner"
-              data-tone="bad"
-              role="alert"
-              style={{ marginTop: 16, marginBottom: 0 }}
+              className={`ink-dropzone${dragging ? " is-dragging" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!busy) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                void importFile(e.dataTransfer.files[0]);
+              }}
             >
-              {error}
+              <InkPaperArt scanning={busy === "import"} />
+              <h2>
+                {busy === "import"
+                  ? "Reading your document…"
+                  : "Drop your document here"}
+              </h2>
+              <p>Research paper, book chapter or a first draft.</p>
+              <button
+                className="ink-btn"
+                disabled={!!busy}
+                onClick={() => fileInput.current?.click()}
+              >
+                <UploadCloud size={18} /> Upload document
+              </button>
+              <span className="ink-file-limits">PDF or DOCX, up to 10 MB</span>
+              <button
+                className="ink-text-link"
+                disabled={!!busy}
+                onClick={() => setPasteOpen(true)}
+              >
+                Or paste your text <ArrowRight size={14} />
+              </button>
             </div>
-          )}
-          {busy && (
-            <div
-              className="ink-banner"
-              style={{ marginTop: 16, marginBottom: 0 }}
-              role="status"
-            >
-              Comparing against sources and measuring style. This usually takes
-              fifteen to forty seconds.
-            </div>
-          )}
-        </section>
-
-        <aside>
-          <div className="ink-panel">
-            <h2 className="ink-h3">Know what was compared</h2>
-            <p className="ink-note">Attach your sources or paste a reference for a direct comparison. Optional web matching covers retrieved pages only, when search is configured. AI Ink has no access to Turnitin, iThenticate or closed journal databases. A style score is not an AI-authorship probability.</p>
-          </div>
-          <div className="ink-panel">
-            <h2 className="ink-h3">What gets checked</h2>
-            <dl style={{ margin: 0 }}>
-              {CHECKLIST.map((item) => (
-                <div key={item.title} style={{ marginBottom: 16 }}>
-                  <dt
-                    style={{
-                      fontFamily: "var(--ink-serif)",
-                      fontSize: 15,
-                      fontWeight: 500,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {item.title}
-                  </dt>
-                  <dd
-                    style={{
-                      margin: 0,
-                      fontSize: 12.5,
-                      lineHeight: 1.55,
-                      color: "var(--ink-2)",
-                    }}
-                  >
-                    {item.body}
-                  </dd>
+          ) : (
+            <div className="ink-loaded-document">
+              <div className="ink-file-chip">
+                <span className="ink-file-symbol">
+                  <FileText size={21} />
+                </span>
+                <div>
+                  <strong>{filename || "Pasted draft"}</strong>
+                  <small>{words.toLocaleString()} words</small>
                 </div>
-              ))}
-            </dl>
+                <button
+                  className="ink-icon-btn"
+                  disabled={!!busy}
+                  aria-label="Replace document"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <UploadCloud size={18} />
+                </button>
+              </div>
+              <label htmlFor="ink-title">Title</label>
+              <input
+                id="ink-title"
+                className="ink-title-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={160}
+                disabled={!!busy}
+                placeholder="Untitled research paper"
+              />
+              <label htmlFor="ink-text">Your text</label>
+              <textarea
+                id="ink-text"
+                className="ink-textarea ink-document-editor"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                disabled={!!busy}
+                spellCheck
+                aria-describedby="ink-text-help"
+              />
+              <div className="ink-editor-bottom">
+                <span id="ink-text-help" className="ink-count">
+                  {text.length.toLocaleString()} / 120,000 characters
+                </span>
+                <span className="ink-tag" data-tone="good">
+                  <Check size={12} /> Draft ready
+                </span>
+              </div>
+            </div>
+          )}
+          <div className="ink-upload-footer">
+            <ShieldCheck size={15} />
+            <span>Private report. No public document repository.</span>
           </div>
-
-          <div className="ink-panel">
-            <h2 className="ink-h3">Recent checks</h2>
-            {loadingList ? (
-              <p className="ink-note">Loading…</p>
-            ) : recent.length === 0 ? (
-              <p className="ink-note">
-                Your reports will appear here once you run a check.
-              </p>
+        </section>
+        <aside className="ink-scan-settings">
+          <div className="ink-settings-head">
+            <span className="ink-icon-tile">
+              <ScanLine size={22} />
+            </span>
+            <h2>Your check, in focus.</h2>
+            <p>Three ways to strengthen your draft.</p>
+          </div>
+          <div className="ink-check-types">
+            {[
+              {
+                Icon: Link2,
+                label: "Source overlap",
+                hint: "Passages that match your sources",
+                tone: "coral",
+              },
+              {
+                Icon: Quote,
+                label: "Citation review",
+                hint: "Claims that may need a reference",
+                tone: "amber",
+              },
+              {
+                Icon: PenLine,
+                label: "Writing patterns",
+                hint: "Clarity, repetition and phrasing",
+                tone: "green",
+              },
+            ].map(({ Icon, label, hint, tone }) => (
+              <div className="ink-check-type" key={label}>
+                <span className={`ink-check-icon ${tone}`}>
+                  <Icon size={17} />
+                </span>
+                <div>
+                  <strong>{label}</strong>
+                  <small>{hint}</small>
+                </div>
+                <Check size={15} />
+              </div>
+            ))}
+          </div>
+          <button
+            className="ink-source-button"
+            disabled={!!busy}
+            onClick={() => setSourcesOpen(true)}
+          >
+            <Plus size={16} />
+            <span>Add comparison sources</span>
+            <span className="ink-source-count">
+              {attached.length + (referenceText.trim() ? 1 : 0)}
+            </span>
+          </button>
+          <label className="ink-web-toggle">
+            <span>
+              <strong>
+                {searchConfigured ? "Search the web" : "Web search unavailable"}
+              </strong>
+              <small>
+                {searchConfigured
+                  ? "Send selected excerpts to search"
+                  : "Compare with your added sources"}
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={allowWeb}
+              onChange={(e) => setAllowWeb(e.target.checked)}
+              disabled={!!busy || !searchConfigured}
+              aria-label="Allow selected excerpts to be sent to web search"
+            />
+          </label>
+          <button
+            className="ink-btn ink-btn--scan"
+            disabled={!ready}
+            onClick={run}
+          >
+            {busy ? (
+              <LoaderCircle className="ink-spin" size={18} />
             ) : (
-              <ul className="ink-panel-list">
-                {recent.map((report) => (
-                  <li key={report.id}>
-                    <a href={`/ink/report/${report.id}`}>
-                      <strong>{report.title}</strong>
-                      <small>
-                        {report.words.toLocaleString()} words ·{" "}
-                        {report.matched}% matched · {report.citations}% cited
-                      </small>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+              <ScanLine size={18} />
+            )}{" "}
+            {busy === "scan"
+              ? "Checking your draft…"
+              : busy === "import"
+                ? "Reading document…"
+                : "Check this draft"}
+            {!busy && <ArrowRight size={17} />}
+          </button>
+          <p className="ink-small-print">
+            200–120,000 characters. Style checks aren’t AI-authorship detection.{" "}
+            <Link href="/ink/how-it-works">See coverage</Link>
+          </p>
+          {text && !referenceText.trim() && !attached.length && !allowWeb && (
+            <p className="ink-inline-notice">
+              Add a source to compare overlap. Without one, only style and
+              citation checks run.
+            </p>
+          )}
         </aside>
       </div>
+      {error && (
+        <div className="ink-banner" data-tone="bad" role="alert">
+          {error}
+        </div>
+      )}
+      <section className="ink-recent-section" data-ink-reveal>
+        <div className="ink-section-title">
+          <h2>Recent documents</h2>
+          <Link href="/ink/reports">
+            All reports <ArrowRight size={15} />
+          </Link>
+        </div>
+        {loading ? (
+          <p role="status" className="ink-note">
+            Loading your reports…
+          </p>
+        ) : listError ? (
+          <p className="ink-note">
+            Reports couldn’t load.{" "}
+            <Link href="/ink/reports">Try the library.</Link>
+          </p>
+        ) : recent.length ? (
+          <div className="ink-recent-grid">
+            {recent.map((r) => (
+              <Link
+                className="ink-recent-card"
+                key={r.id}
+                href={`/ink/report/${r.id}`}
+              >
+                <span className="ink-file-symbol">
+                  <FileText size={21} />
+                </span>
+                <h3>{r.title}</h3>
+                <span className="ink-count">
+                  {r.words.toLocaleString()} words
+                </span>
+                <div>
+                  <span className="ink-tag" data-tone="info">
+                    {r.sources
+                      ? `${r.matched}% matched`
+                      : "No sources compared"}
+                  </span>
+                  <ArrowRight size={17} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="ink-recent-empty">
+            <FolderOpen size={23} />
+            <span>Your first report will appear here.</span>
+            <span className="ink-count">A fresh start.</span>
+          </div>
+        )}
+      </section>
+      <InkDialog
+        open={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        title="Paste your draft"
+        wide
+      >
+        <label htmlFor="ink-paste-title">Title</label>
+        <input
+          id="ink-paste-title"
+          className="ink-title-input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={160}
+          placeholder="Research paper title"
+        />
+        <label htmlFor="ink-paste-text">Your text</label>
+        <textarea
+          id="ink-paste-text"
+          className="ink-textarea"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setFilename("");
+          }}
+          placeholder="Paste at least 200 characters…"
+        />
+        <div className="ink-dialog-actions">
+          <span className="ink-count">{words.toLocaleString()} words</span>
+          <button
+            className="ink-btn"
+            disabled={!text.trim()}
+            onClick={() => setPasteOpen(false)}
+          >
+            Use this draft <ArrowRight size={16} />
+          </button>
+        </div>
+      </InkDialog>
+      <InkDialog
+        open={sourcesOpen}
+        onClose={() => setSourcesOpen(false)}
+        title="Comparison sources"
+        wide
+      >
+        <p className="ink-note">
+          Compare with a passage or your library documents.
+        </p>
+        <label htmlFor="ink-reference">
+          Reference text to compare (optional)
+        </label>
+        <textarea
+          id="ink-reference"
+          className="ink-textarea"
+          maxLength={60000}
+          value={referenceText}
+          onChange={(e) => setReferenceText(e.target.value)}
+          placeholder="Paste the original source passage…"
+        />
+        {documents.length > 0 && (
+          <>
+            <h3 className="ink-h3">Library · {attached.length}/10 selected</h3>
+            <div className="ink-library-options">
+              {documents.map((d) => (
+                <button
+                  key={d.id}
+                  aria-pressed={attached.includes(d.id)}
+                  onClick={() =>
+                    setAttached((v) =>
+                      v.includes(d.id)
+                        ? v.filter((x) => x !== d.id)
+                        : v.length < 10
+                          ? [...v, d.id]
+                          : v,
+                    )
+                  }
+                >
+                  <FileText size={17} />
+                  <span>{d.name}</span>
+                  {attached.includes(d.id) ? (
+                    <Check size={17} />
+                  ) : (
+                    <Plus size={17} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="ink-dialog-actions">
+          <Link href="/library" className="ink-text-link">
+            Open library
+          </Link>
+          <button className="ink-btn" onClick={() => setSourcesOpen(false)}>
+            Done <Check size={16} />
+          </button>
+        </div>
+      </InkDialog>
+      <InkDialog
+        open={!!pending}
+        onClose={() => setPending(null)}
+        title="Replace your current draft?"
+      >
+        <p className="ink-note">
+          The new document replaces this desk’s text. Saved reports stay in your
+          library.
+        </p>
+        <div className="ink-dialog-actions">
+          <button
+            className="ink-btn ink-btn--ghost"
+            onClick={() => setPending(null)}
+          >
+            Keep current draft
+          </button>
+          <button
+            className="ink-btn"
+            onClick={() => void importFile(pending || undefined, true)}
+          >
+            Replace draft
+          </button>
+        </div>
+      </InkDialog>
+      <InkDialog
+        open={busy === "scan"}
+        onClose={() => {}}
+        dismissible={false}
+        title="Checking your document"
+      >
+        <div className="ink-scanning-state">
+          <InkPaperArt scanning />
+          <h3>Looking a little closer.</h3>
+          <p role="status">Comparing sources and reviewing writing patterns…</p>
+          <span className="ink-progress-track">
+            <i />
+          </span>
+          <small>Your report opens when the check finishes.</small>
+        </div>
+      </InkDialog>
     </main>
   );
 }

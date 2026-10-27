@@ -74,8 +74,14 @@ export async function officeText(
               const xml = Buffer.concat(chunks).toString("utf8");
               const text = xml
                 .replace(/<\/(?:w:p|a:p)>/g, "\n")
-                .replace(/<(?:w:tab|a:br)[^>]*\/>/g, " ")
-                .replace(/<[^>]*>/g, "");
+                .replace(/<(?:w:tab|a:br)[^<>]*\/>/g, " ")
+                .replace(/<[^<>]*>/g, "");
+              // Never scan across another '<': unterminated, repeated tags
+              // otherwise cause quadratic backtracking on the HTTP event loop.
+              if (text.includes("<")) {
+                fail(new Error("Malformed Office document XML."));
+                return;
+              }
               parts.push({ name: entry.fileName, text: decode(text) });
               zip.readEntry();
             });
