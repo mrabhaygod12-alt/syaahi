@@ -70,6 +70,7 @@ export default function SiteHeader() {
         ]
       : [
           ["Workspace", "/dashboard"],
+          ["AI Ink", user ? "/ink" : "/ai-ink"],
           ["Subjects", "/subjects"],
           ["Blog", "/blog"],
           ["About", "/about"],

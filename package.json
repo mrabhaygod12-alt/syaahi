@@ -87,7 +87,7 @@
     "test:redesign": "tsx scripts/test-redesign.ts && tsx scripts/test-redesign.ts --mongo && tsx scripts/test-request-budget.ts",
     "test:presentation-hybrid": "tsx scripts/test-presentation-hybrid.ts && tsx scripts/test-presentation-hybrid.ts --mongo",
     "test:presentation-media": "tsx scripts/test-presentation-media.ts",
-    "test:ink": "tsx scripts/test-ink.ts && tsx scripts/test-ink-api.ts && tsx scripts/test-ink-api.ts --mongo"
+    "test:ink": "tsx scripts/test-ink.ts && tsx scripts/test-ink-research.ts && tsx scripts/test-ink-api.ts && tsx scripts/test-ink-api.ts --mongo"
   },
   "dependencies": {
     "@babylonjs/core": "^9.31.0",

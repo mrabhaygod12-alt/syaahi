@@ -78,7 +78,7 @@ async function main() {
     page.on("pageerror", (e) => errors.push(e.message));
     const text =
       "Machine learning models require substantial amounts of labelled training data to generalise well. When the training set is small or biased the resulting model tends to reproduce those biases at inference time. Researchers have therefore explored semi supervised approaches that combine a small labelled set with a much larger unlabelled corpus.";
-    const out = "output/ink-redesign";
+    const out = "output/ink-research";
     mkdirSync(out, { recursive: true });
     const overflow = async (label: string) =>
       assert(
@@ -87,6 +87,40 @@ async function main() {
         ),
         label + " overflows",
       );
+    await page.goto(origin + "/ink/sources");
+    if (
+      await page
+        .getByRole("button", { name: "Essential only", exact: true })
+        .isVisible()
+    )
+      await page
+        .getByRole("button", { name: "Essential only", exact: true })
+        .click();
+    await page.getByRole("button", { name: "Add source", exact: true }).click();
+    const indexDialog = page.getByRole("dialog", {
+      name: "Add a private source",
+    });
+    await indexDialog.getByLabel("Import index source").setInputFiles({
+      name: "research-reference.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: fixtureDocx(text),
+    });
+    await indexDialog
+      .getByLabel("Source title")
+      .fill("Private research reference");
+    await indexDialog
+      .getByRole("button", { name: "Index source", exact: true })
+      .click();
+    await indexDialog.waitFor({ state: "hidden" });
+    await page
+      .getByRole("heading", { name: "Private research reference", exact: true })
+      .waitFor();
+    await page
+      .getByLabel("Search indexed sources")
+      .fill("missing source title");
+    await page.getByText("No sources found.", { exact: true }).waitFor();
+    await page.getByLabel("Search indexed sources").fill("");
     await page.goto(origin + "/ink");
     await page
       .getByRole("button", { name: "Upload document", exact: true })
@@ -191,6 +225,46 @@ async function main() {
       .waitFor();
     assert((await page.locator("mark[data-kind=plag]").count()) > 0);
     const id = page.url().split("/").pop()!;
+    await page
+      .getByText(/Private index: 1 indexed, 1 candidates, 1 compared/)
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Similarity filters", exact: true })
+      .click();
+    const filters = page.getByRole("dialog", {
+      name: "Similarity filters",
+      exact: true,
+    });
+    await filters.getByLabel("Exclude bibliography", { exact: true }).check();
+    await filters
+      .getByLabel("Exclude paired quotations", { exact: true })
+      .check();
+    await filters
+      .getByLabel("Minimum matching words", { exact: true })
+      .fill("100");
+    await filters.getByRole("button", { name: "Done", exact: true }).click();
+    assert.equal(
+      await page.locator("mark[data-kind=plag]").count(),
+      0,
+      "minimum run filter removes short runs",
+    );
+    await page
+      .getByRole("button", { name: "Similarity filters", exact: true })
+      .click();
+    await filters
+      .getByRole("button", { name: "Reset filters", exact: true })
+      .click();
+    assert.equal(
+      await filters
+        .getByLabel("Exclude bibliography", { exact: true })
+        .isChecked(),
+      false,
+    );
+    await filters.getByRole("button", { name: "Done", exact: true }).click();
+    assert(
+      (await page.locator("mark[data-kind=plag]").count()) > 0,
+      "reset restores original evidence",
+    );
     await page.getByRole("tab", { name: /Document/ }).focus();
     await page.keyboard.press("ArrowRight");
     await page
@@ -315,6 +389,8 @@ async function main() {
         ["rewrite", `/ink/rewrite?report=${id}`],
         ["library", "/ink/reports"],
         ["method", "/ink/how-it-works"],
+        ["source-index", "/ink/sources"],
+        ["product", "/ai-ink"],
       ]) {
         await page.goto(origin + path);
         await page.locator("main h1").waitFor();
@@ -328,6 +404,107 @@ async function main() {
           animations: "disabled",
         });
       }
+    }
+    // Public discovery is indexable; the working report remains private/noindex.
+    await page.goto(origin + "/ai-ink");
+    // This page is prerendered using the build-time origin, not this test server's port.
+    assert.equal(
+      new URL(
+        (await page.locator('link[rel="canonical"]').getAttribute("href"))!,
+      ).pathname,
+      "/ai-ink",
+    );
+    assert(
+      !(
+        await page.locator('meta[name="robots"]').getAttribute("content")
+      )?.includes("noindex"),
+    );
+    const schemas = await page
+      .locator('script[type="application/ld+json"]')
+      .allTextContents();
+    assert(schemas.some((s) => JSON.parse(s)["@type"] === "FAQPage"));
+    await page.goto(origin + `/ink/report/${id}`);
+    assert(
+      (
+        await page.locator('meta[name="robots"]').getAttribute("content")
+      )?.includes("noindex"),
+    );
+    // Exercise new candidate/reference presentation against the real backend, not a route fixture.
+    const original =
+      "Machine learning models need a representative training collection and careful evaluation before their findings can support a practical research conclusion.";
+    const nearText = original
+      .replace("representative", "balanced")
+      .replace("practical", "reliable");
+    const nearResult = await context.request.post(origin + "/api/ink", {
+      headers: { Origin: origin },
+      data: {
+        text:
+          nearText +
+          "\n\n" +
+          nearText +
+          " Results improved by 20 percent [3].\n\nReferences\n[1] Smith, J. (2024). Research. doi:10.1234/fixture-reference",
+        referenceText: original.repeat(3),
+        allowWeb: false,
+        useIndex: false,
+        verifyScholarly: false,
+        title: "Changed wording review",
+        requestId: "browser-phrase-reference",
+      },
+    });
+    assert.equal(nearResult.status(), 200, await nearResult.text());
+    const nearReport = (await nearResult.json()).report;
+    assert(nearReport.phrasing.candidates.length > 0);
+    await page.goto(origin + `/ink/report/${nearReport.id}`);
+    await page.locator("mark[data-kind=phrase]").first().waitFor();
+    await page
+      .getByRole("button", { name: "Compare source", exact: true })
+      .first()
+      .click();
+    await page.getByRole("dialog", { name: "Side-by-side evidence" }).waitFor();
+    await page.keyboard.press("Escape");
+    await page.getByRole("tab", { name: /Citations/ }).click();
+    await page
+      .getByText("Citation [3] has no matching numbered reference.", {
+        exact: true,
+      })
+      .waitFor();
+    await page.screenshot({ path: out + "/references.png", fullPage: true });
+    await page.goto(origin + "/ink/sources");
+    await page
+      .getByRole("button", {
+        name: "Remove Private research reference",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Keep source", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Private research reference", exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", {
+        name: "Remove Private research reference",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Delete indexed source", exact: true })
+      .click();
+    await page
+      .getByText("A private comparison shelf.", { exact: true })
+      .waitFor();
+    for (const width of [320, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto(origin + "/dashboard");
+      const primaryInk = page.locator(".hub-rail nav > a.hub-primary-ink");
+      await primaryInk.waitFor();
+      assert.equal(await primaryInk.getAttribute("href"), "/ink");
+      assert.equal(
+        await page.locator('.hub-tools-menu a[href="/ink"]').count(),
+        0,
+      );
+      await overflow(`dashboard primary navigation ${width}`);
     }
     await page.goto(origin + "/ink/reports");
     await page.getByLabel("Search reports").fill("does-not-exist");
@@ -364,7 +541,7 @@ async function main() {
     await page.getByRole("link", { name: "Sign in", exact: true }).waitFor();
     assert.deepEqual(errors, []);
     console.log(
-      "PASS AI Ink redesign: real PDF/DOCX uploads, invalid import preservation, replace/cancel, modal escape/focus, source evidence, selected-passage rewrite, fixture error/success/apply, searchable history, deletion, paid/free/login gates; all five pages at 320/390/768/1440px. No live AI/search calls.",
+      "PASS AI Ink research studio: private-source DOCX import, index/search/delete/cancel, report filters/reset, real phrase evidence/reference issues, public canonical/FAQ and private noindex, PDF/DOCX import/error preservation, selected-passage rewrite with explicit provider fixtures, paid/free/login gates; seven pages at 320/390/768/1440px. No live AI/search calls.",
     );
   } finally {
     await browser.close();

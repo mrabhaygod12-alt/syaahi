@@ -45,6 +45,7 @@ async function main() {
     const { analyse } = await import("../lib/ink/analyse");
     const { assertPreserved } = await import("../lib/ink/rewrite");
     const { getReport } = await import("../lib/ink/store");
+    const indexApi = await import("../app/api/ink/sources/route");
     const cookies: string[] = [];
     const users = [];
     for (let i = 0; i < 3; i++) {
@@ -166,6 +167,135 @@ async function main() {
       requestId: "fixture-report",
       title: "Private thesis",
     };
+    assert.equal(
+      (await indexApi.GET(req("", undefined, "/sources"))).status,
+      401,
+    );
+    assert.equal(
+      (await indexApi.GET(req(cookies[2], undefined, "/sources"))).status,
+      402,
+    );
+    const added = await indexApi.POST(
+      req(
+        cookies[0],
+        { action: "add", title: "Private source", text },
+        "/sources",
+      ),
+    );
+    assert.equal(added.status, 200, await added.clone().text());
+    const indexedId = (await added.json()).id;
+    const list = await (
+      await indexApi.GET(req(cookies[0], undefined, "/sources"))
+    ).json();
+    assert.equal(list.sources.length, 1);
+    assert.equal(
+      list.sources[0].text,
+      undefined,
+      "source bodies never leak in summaries",
+    );
+    assert.equal(
+      list.sources[0].fingerprints,
+      undefined,
+      "fingerprints never leak in summaries",
+    );
+    for (const data of [
+      { action: "delete", id: { $ne: null } },
+      { action: "add", text, title: { $gt: "" } },
+      { action: "add", text: "a ".repeat(12001), title: "Too many words" },
+    ])
+      assert.equal(
+        (await indexApi.POST(req(cookies[0], data, "/sources"))).status,
+        400,
+      );
+    const privateIndex = await import("../lib/ink/source-index");
+    for (let i = 0; i < 20; i++)
+      await privateIndex.addIndexSource(
+        "index-bounds-fixture",
+        `Source ${i}`,
+        text + ` Unique ending ${i}.`,
+      );
+    await assert.rejects(
+      privateIndex.addIndexSource(
+        "index-bounds-fixture",
+        "Overflow",
+        text + " Additional unique ending.",
+      ),
+      /up to 20/,
+    );
+    const capped = await privateIndex.querySourceIndex(
+      "index-bounds-fixture",
+      text,
+      2,
+    );
+    assert.equal(capped.trace.compared, 2);
+    assert.equal(capped.trace.candidates, 20);
+    assert.equal(capped.trace.limited, true);
+    assert.equal(
+      (
+        await (
+          await indexApi.GET(req(cookies[1], undefined, "/sources"))
+        ).json()
+      ).sources.length,
+      0,
+    );
+    assert.equal(
+      (
+        await indexApi.POST(
+          req(cookies[1], { action: "delete", id: indexedId }, "/sources"),
+        )
+      ).status,
+      400,
+      "foreign source cannot be deleted",
+    );
+    const replayIndex = await indexApi.POST(
+      req(cookies[0], { action: "add", title: "Duplicate", text }, "/sources"),
+    );
+    assert.equal(
+      (await replayIndex.json()).id,
+      indexedId,
+      "content duplicate must reuse source",
+    );
+    const fromIndex = await api.POST(
+      req(cookies[0], {
+        ...body,
+        referenceText: "",
+        useIndex: true,
+        requestId: "private-index-report",
+      }),
+    );
+    assert.equal(fromIndex.status, 200, await fromIndex.clone().text());
+    const indexReport = (await fromIndex.json()).report;
+    assert.equal(indexReport.match.coverage, 1);
+    assert.equal(indexReport.index.indexed, 1);
+    assert.equal(indexReport.index.compared, 1);
+    assert.equal(
+      (
+        await indexApi.POST(
+          req(
+            cookies[0],
+            { action: "add", title: "Too long", text: "x".repeat(60001) },
+            "/sources",
+          ),
+        )
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await indexApi.POST(
+          req(cookies[0], { action: "delete", id: indexedId }, "/sources"),
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await (
+          await indexApi.GET(req(cookies[0], undefined, "/sources"))
+        ).json()
+      ).sources.length,
+      0,
+    );
     const response = await api.POST(req(cookies[0], body));
     assert.equal(response.status, 200, await response.clone().text());
     const { report } = await response.json();
@@ -250,7 +380,7 @@ async function main() {
     assert.equal(await getReport(users[0].id, report.id), null);
     if (replica) await (await mongo()).client.close();
     console.log(
-      `PASS AI Ink ${replica ? "Mongo" : "SQLite"}: paid access, anonymous denial, private report ownership, matching evidence, repeat idempotency, input bounds, prototype-mode rejection, preservation checks, permanent deletion. No live inference.`,
+      `PASS AI Ink ${replica ? "Mongo" : "SQLite"}: paid access, anonymous denial, report/index ownership, no source/hash disclosure, indexed matching, deduplication, 20-source cap and limited retrieval, input bounds/selectors, report idempotency, preservation and deletion. No live inference.`,
     );
   } finally {
     await replica?.stop();

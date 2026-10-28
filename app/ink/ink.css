@@ -884,6 +884,55 @@
   }
 }
 /* Document illustration: drawn in CSS, no remote image or tracking. */
+.ink-filter-option {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  font-size: 13px !important;
+  overflow-wrap: anywhere;
+}
+.ink-filter-option input {
+  accent-color: #637f38;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.ink-reference-issues {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 30px;
+}
+.ink-reference-issues article {
+  padding: 16px;
+  border: 1px solid var(--ink-rule);
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+}
+.ink-reference-issues p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ink-reference-issues blockquote {
+  margin: 10px 0 0;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .ink-sidebar nav a {
+    font-size: 9px;
+    padding: 9px 3px;
+    min-width: 0;
+  }
+  .ink-sidebar nav a span {
+    max-width: 67px;
+  }
+  .ink-topbar a {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
 .ink-paper-art {
   width: 180px;
   height: 162px;
@@ -1324,6 +1373,13 @@
   background: #fff0bc;
   border-bottom: 1px solid #d7bb66;
 }
+.ink-manuscript-body mark[data-kind="phrase"] {
+  background: #deeaf5;
+  border-bottom: 1px solid #8aa7c0;
+}
+.ink-manuscript-body mark[data-kind="phrase"]::after {
+  background: #416784;
+}
 .ink-manuscript-body mark[data-active="true"] {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
@@ -1383,6 +1439,9 @@
 }
 .ink-card[data-kind="cite"] {
   border-left-color: var(--ink-amber);
+}
+.ink-card[data-kind="phrase"] {
+  border-left-color: #416784;
 }
 .ink-card[data-active="true"] {
   border-color: #859c6c;

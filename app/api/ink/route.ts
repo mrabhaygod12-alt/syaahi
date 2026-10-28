@@ -11,6 +11,8 @@ import {
   saveReport,
 } from "@/lib/ink/store";
 import type { SourceDocument } from "@/lib/ink/match";
+import { querySourceIndex } from "@/lib/ink/source-index";
+import { InputValidationError } from "@/lib/security/validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -34,7 +36,10 @@ async function loadSources(
   for (const id of ids.slice(0, MAX_SOURCES)) {
     try {
       const doc = await getDocument(owner, id);
-      if (!doc) throw new Error("An attached source is unavailable. Remove it and retry.");
+      if (!doc)
+        throw new Error(
+          "An attached source is unavailable. Remove it and retry.",
+        );
       const text = (doc.chunks || [])
         .map((c) => c.text)
         .join("\n")
@@ -48,7 +53,9 @@ async function loadSources(
         retrievedAt: new Date().toISOString(),
       });
     } catch {
-      throw new Error("An attached source could not be loaded. Remove it and retry.");
+      throw new InputValidationError(
+        "An attached source could not be loaded. Remove it and retry.",
+      );
     }
   }
   return out;
@@ -60,8 +67,18 @@ async function handleGET(req: NextRequest) {
   const user = access.user!;
   const entitled = await inkEntitled(user);
   if (new URL(req.url).searchParams.has("access"))
-    return NextResponse.json({ entitled, searchConfigured: (await import("@/lib/ink/search")).searchConfigured() });
-  if (!entitled) return NextResponse.json({ error: "A purchased student plan is required.", code: "INK_PLAN_REQUIRED" }, { status: 402 });
+    return NextResponse.json({
+      entitled,
+      searchConfigured: (await import("@/lib/ink/search")).searchConfigured(),
+    });
+  if (!entitled)
+    return NextResponse.json(
+      {
+        error: "A purchased student plan is required.",
+        code: "INK_PLAN_REQUIRED",
+      },
+      { status: 402 },
+    );
   const id = new URL(req.url).searchParams.get("id");
 
   if (id) {
@@ -86,7 +103,10 @@ async function handlePOST(req: NextRequest) {
   const user = access.user!;
   const body = await req.json().catch(() => ({}));
   if (!body || typeof body !== "object" || Array.isArray(body))
-    return NextResponse.json({ error: "Provide a JSON object." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Provide a JSON object." },
+      { status: 400 },
+    );
 
   const action = String(body.action || "analyse");
 
@@ -98,44 +118,61 @@ async function handlePOST(req: NextRequest) {
         { status: 400 },
       );
 
-    const sourceIds: string[] = Array.isArray(body.sourceIds)
-      ? body.sourceIds.filter((x: unknown) => typeof x === "string").slice(0, MAX_SOURCES)
-      : [];
-
-    try {
-      const sources = sourceIds.length ? await loadSources(user.id, sourceIds) : [];
-      if (typeof body.referenceText === "string" && body.referenceText.trim()) {
-        if (body.referenceText.length > 60000) throw new Error("Keep a pasted reference under 60,000 characters.");
-        sources.push({ id: "pasted-reference", title: "Your pasted reference", kind: "upload", text: body.referenceText });
-      }
-      const analysis = await analyse({
-        text,
-        sources,
-        // Sending unpublished excerpts to search requires an explicit opt-in.
-        allowWeb: body.allowWeb === true,
-      });
-      const report = await saveReport({
-        owner: user.id,
-        title:
-          typeof body.title === "string" && body.title.trim()
-            ? body.title
-            : "Untitled submission",
-        analysis,
-        requestId:
-          typeof body.requestId === "string" ? body.requestId.slice(0, 80) : undefined,
-      });
-      return NextResponse.json({ report, summary: reportSummary(report) });
-    } catch (error) {
+    if (text.trim().length < 200 || text.length > 120000)
       return NextResponse.json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : "The check could not be completed.",
-        },
+        { error: "Use 200–120,000 characters per check." },
         { status: 400 },
       );
+    const sourceIds: string[] = Array.isArray(body.sourceIds)
+      ? body.sourceIds
+          .filter((x: unknown) => typeof x === "string")
+          .slice(0, MAX_SOURCES)
+      : [];
+
+    const sources = sourceIds.length
+      ? await loadSources(user.id, sourceIds)
+      : [];
+    if (typeof body.referenceText === "string" && body.referenceText.trim()) {
+      if (body.referenceText.length > 60000)
+        throw new InputValidationError(
+          "Keep a pasted reference under 60,000 characters.",
+        );
+      sources.push({
+        id: "pasted-reference",
+        title: "Your pasted reference",
+        kind: "upload",
+        text: body.referenceText,
+      });
     }
+    const indexed =
+      body.useIndex === true
+        ? await querySourceIndex(
+            user.id,
+            text,
+            Math.max(0, 10 - sources.length),
+          )
+        : undefined;
+    const analysis = await analyse({
+      text,
+      sources: [...sources, ...(indexed?.sources || [])],
+      // Sending unpublished excerpts to search requires an explicit opt-in.
+      allowWeb: body.allowWeb === true,
+      verifyScholarly: body.verifyScholarly === true,
+      indexTrace: indexed?.trace,
+    });
+    const report = await saveReport({
+      owner: user.id,
+      title:
+        typeof body.title === "string" && body.title.trim()
+          ? body.title
+          : "Untitled submission",
+      analysis,
+      requestId:
+        typeof body.requestId === "string"
+          ? body.requestId.slice(0, 80)
+          : undefined,
+    });
+    return NextResponse.json({ report, summary: reportSummary(report) });
   }
 
   if (action === "delete") {

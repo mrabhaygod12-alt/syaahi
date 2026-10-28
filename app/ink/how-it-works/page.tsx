@@ -58,11 +58,23 @@ export default function HowItWorks() {
           },
           {
             title: "Which sources are covered?",
-            body: "Your supplied sources and retrieved web pages when search is configured. Turnitin, iThenticate, paywalled journal corpora and printed books are not integrated. With no comparison sources, overlap is unmeasured rather than certified clear.",
+            body: "Your supplied sources, matching candidates from your private index, and retrieved web pages when search is configured. Up to twenty indexed sources are stored per account, with at most ten candidates per scan budget. Turnitin, iThenticate and paywalled full-text corpora are not integrated. With no comparison sources, overlap is unmeasured rather than certified clear.",
+          },
+          {
+            title: "What is shared-phrasing review?",
+            body: "A bounded three-word-overlap check finds some sentences with wording changes in compared sources. These candidates do not contribute to exact similarity. It is a lexical review, not comprehensive semantic or translated-plagiarism detection. The report shows when review limits were reached.",
+          },
+          {
+            title: "What do reference checks verify?",
+            body: "Supported numbered and author–year citations are linked to the recognized reference list. Missing links, unused entries and duplicates need manual review. Opt-in Crossref verification sends up to eight DOI identifiers, not your paper. Registry metadata does not prove that a source supports a claim. Scopus status requires an operator-configured API key and licensed commercial access.",
+          },
+          {
+            title: "Can I adjust similarity filters?",
+            body: "You can exclude recognized bibliography sections, paired quotations, individual matching sources and short matching runs. The view recalculates without altering the original report; reset restores the evidence. Removing private index sources does not erase excerpts in existing reports.",
           },
           {
             title: "What happens to my document?",
-            body: "Your private report stores the extracted draft and matched excerpts until you delete it. Full third-party pages are not retained. Uploaded files are parsed for text; they are not added to a public repository. Rewrites send your selected passage and optional writing sample to the configured AI provider. Database backups follow the operator’s backup policy.",
+            body: "Your private report stores the extracted draft and evidence excerpts until you delete it. Full comparison-source bodies are not copied into reports. Sources explicitly added to your private index retain their text and fingerprints until removed. Uploaded files are parsed for text; they are not added to a public repository. Rewrites send your selected passage and optional writing sample to the configured AI provider. Database backups follow the operator’s backup policy.",
           },
           {
             title: "What files can I upload?",

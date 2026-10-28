@@ -15,6 +15,7 @@ const STATIC = [
   "/pricing",
   "/ai-presentations",
   "/ai-generated-notes",
+  "/ai-ink",
   "/youtube-video-to-notes",
   "/syaahi",
   "/writing",

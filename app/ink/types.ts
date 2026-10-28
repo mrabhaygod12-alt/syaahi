@@ -69,6 +69,7 @@ export interface InkSourceMatch {
 }
 
 export interface InkMatch {
+  limited?: boolean;
   sources: InkSourceMatch[];
   matchedWords: number;
   coverage: number;
@@ -76,6 +77,17 @@ export interface InkMatch {
 }
 
 export interface InkCitation {
+  references?: Array<{
+    id: string;
+    text: string;
+    start: number;
+    end: number;
+    number?: number;
+    author?: string;
+    year?: string;
+    dois: string[];
+  }>;
+  issues?: Array<{ kind: string; text: string; start: number; end: number }>;
   uncited: Array<{ start: number; end: number; text: string; reason: string }>;
   cited: number;
   totalClaims: number;
@@ -91,6 +103,18 @@ export interface InkSearch {
 }
 
 export interface InkReport {
+  phrasing?: {
+    candidates: Array<{
+      start: number;
+      end: number;
+      text: string;
+      source: { id: string; title: string; url?: string; text: string };
+      reason: string;
+    }>;
+    comparisons: number;
+    limited: boolean;
+    method: string;
+  };
   id: string;
   owner: string;
   kind: string;
@@ -104,8 +128,34 @@ export interface InkReport {
   style: InkStyle;
   match: InkMatch;
   citations: InkCitation;
+  scholarly?: {
+    enabled: boolean;
+    provider: string;
+    totalDois: number;
+    limited: boolean;
+    message: string;
+    records: Array<{
+      doi: string;
+      status: string;
+      title?: string;
+      year?: number;
+      publisher?: string;
+      scopus: string;
+    }>;
+  };
+  index?: {
+    indexed: number;
+    candidates: number;
+    compared: number;
+    limited: boolean;
+  };
   search: InkSearch;
-  checks: { web: boolean; uploads: boolean; corpus: boolean; citations: boolean };
+  checks: {
+    web: boolean;
+    uploads: boolean;
+    corpus: boolean;
+    citations: boolean;
+  };
 }
 
 export interface InkSummary {

@@ -1,4 +1,4 @@
-import { shingles, tokens, wordCount } from "./text";
+import { shingles, tokens, wordCount, normalise } from "./text";
 
 /**
  * Source-matching for the AI Ink engine.
@@ -46,6 +46,8 @@ export interface SourceMatch {
 }
 
 export interface MatchReport {
+  /** A source, repetition, hit or evidence-span budget was reached. */
+  limited?: boolean;
   sources: SourceMatch[];
   matchedWords: number;
   coverage: number;
@@ -62,7 +64,7 @@ const MIN_RUN_WORDS = 12;
  * n-grams — the cheaper direction (one index, one scan).
  */
 function indexSource(source: string, size: number) {
-  const words = tokens(source);
+  const words = tokens(normalise(source));
   const map = new Map<string, number[]>();
   for (let i = 0; i + size <= words.length; i += 1) {
     const key = words.slice(i, i + size).join(" ");
@@ -83,10 +85,15 @@ export function matchSources(
 
   const results: SourceMatch[] = [];
   const claimed = new Set<number>();
+  let limited = sources.length > 34;
 
   for (const source of sources.slice(0, 34)) {
     if (!source.text || source.text.length < 200) continue;
-    const { words: srcWords, map } = indexSource(source.text.slice(0, 60000), SHINGLE_SIZE);
+    if (source.text.length > 60000) limited = true;
+    const { words: srcWords, map } = indexSource(
+      source.text.slice(0, 60000),
+      SHINGLE_SIZE,
+    );
     if (!srcWords.length) continue;
 
     // Collect every word position in the submission that appears in the source.
@@ -97,19 +104,28 @@ export function matchSources(
     collect: for (const [gram, subPositions] of subShingles) {
       const srcPositions = map.get(gram);
       if (!srcPositions) continue;
+      if (srcPositions.length > 16) limited = true;
       for (const sub of subPositions)
         for (const src of srcPositions.slice(0, 16)) {
-          if (hits.length >= 20000) break collect;
+          if (hits.length >= 20000) {
+            limited = true;
+            break collect;
+          }
           hits.push({ sub, src });
         }
     }
     if (!hits.length) continue;
     // Equal diagonal means exactly the same token order; do not bridge unrelated runs.
-    hits.sort((a, b) => (a.src - a.sub) - (b.src - b.sub) || a.sub - b.sub);
+    hits.sort((a, b) => a.src - a.sub - (b.src - b.sub) || a.sub - b.sub);
 
     // Cluster hits into contiguous runs. Two hits belong to the same run when
     // the gap in both documents is small, which tolerates a stray word.
-    const runs: Array<{ subStart: number; subEnd: number; srcStart: number; srcEnd: number }> = [];
+    const runs: Array<{
+      subStart: number;
+      subEnd: number;
+      srcStart: number;
+      srcEnd: number;
+    }> = [];
     let current: (typeof runs)[number] | null = null;
     for (const hit of hits) {
       // The hit marks where an 8-word gram starts, so it covers
@@ -144,7 +160,10 @@ export function matchSources(
       const subEnd = Math.min(run.subEnd, subWords.length);
       const runWords = subEnd - run.subStart;
       if (runWords < MIN_RUN_WORDS) continue;
-      if (spans.length >= 12) break;
+      if (spans.length >= 12) {
+        limited = true;
+        break;
+      }
 
       const srcEnd = Math.min(run.srcEnd, srcWords.length);
       spans.push({
@@ -156,7 +175,10 @@ export function matchSources(
         text: subWords.slice(run.subStart, subEnd).join(" "),
         sourceText: srcWords.slice(run.srcStart, srcEnd).join(" "),
       });
-      for (let i = run.subStart; i < subEnd; i += 1) { claimed.add(i); sourceClaimed.add(i); }
+      for (let i = run.subStart; i < subEnd; i += 1) {
+        claimed.add(i);
+        sourceClaimed.add(i);
+      }
     }
 
     if (!spans.length) continue;
@@ -177,6 +199,7 @@ export function matchSources(
     matchedWords,
     coverage: Math.min(1, matchedWords / totalWords),
     sourceCount: results.length,
+    limited,
   };
 }
 
@@ -213,7 +236,9 @@ export function searchExcerpts(input: string, limit = 8): string[] {
 
   const scored = sentences.map((s) => {
     const words = tokens(s);
-    const distinctive = words.filter((w) => (freq.get(w) || 0) === 1 && w.length > 5).length;
+    const distinctive = words.filter(
+      (w) => (freq.get(w) || 0) === 1 && w.length > 5,
+    ).length;
     return { s, score: distinctive * 2 + Math.min(words.length, 30) / 10 };
   });
   scored.sort((a, b) => b.score - a.score);

@@ -8,6 +8,11 @@ import { wordOffsets } from "@/lib/ink/text";
 import type { InkReport } from "../../types";
 import { InkDialog } from "../../InkUI";
 import {
+  filterMatches,
+  DEFAULT_MATCH_FILTERS,
+  type MatchFilters,
+} from "@/lib/ink/filters";
+import {
   ArrowLeft,
   ArrowRight,
   Download,
@@ -16,7 +21,7 @@ import {
   PenLine,
 } from "lucide-react";
 
-type Kind = "plag" | "style" | "cite";
+type Kind = "plag" | "style" | "cite" | "phrase";
 
 interface Finding {
   key: string;
@@ -33,9 +38,24 @@ const KIND_LABEL: Record<Kind, string> = {
   plag: "Overlap",
   style: "Style",
   cite: "Citation",
+  phrase: "Phrase review",
 };
 
-export default function InkReportView({ report }: { report: InkReport }) {
+export default function InkReportView({
+  report: originalReport,
+}: {
+  report: InkReport;
+}) {
+  const [filters, setFilters] = useState<MatchFilters>(DEFAULT_MATCH_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtered = useMemo(
+    () => filterMatches(originalReport.text, originalReport.match, filters),
+    [originalReport, filters],
+  );
+  const report = useMemo(
+    () => ({ ...originalReport, match: filtered.match }),
+    [originalReport, filtered],
+  );
   const router = useRouter();
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -93,6 +113,19 @@ export default function InkReportView({ report }: { report: InkReport }) {
         n: 0,
       });
     }
+    for (const candidate of report.phrasing?.candidates || []) {
+      if (filters.excludedSources.includes(candidate.source.id)) continue;
+      list.push({
+        key: `phrase-${candidate.start}`,
+        kind: "phrase",
+        start: candidate.start,
+        end: candidate.end,
+        text: candidate.text,
+        reason: candidate.reason,
+        source: candidate.source,
+        n: 0,
+      });
+    }
 
     for (const span of report.citations.uncited) {
       list.push({
@@ -106,23 +139,24 @@ export default function InkReportView({ report }: { report: InkReport }) {
       });
     }
 
-    list.sort((a, b) => a.start - b.start || b.end - a.end);
+    const priority: Record<Kind, number> = {
+      plag: 0,
+      phrase: 1,
+      cite: 2,
+      style: 3,
+    };
+    list.sort(
+      (a, b) =>
+        priority[a.kind] - priority[b.kind] ||
+        a.start - b.start ||
+        b.end - a.end,
+    );
 
     // Drop overlaps so a style mark never sits inside a copied-passage mark.
     const kept: Finding[] = [];
     for (const item of list) {
-      const clash = kept.find(
-        (k) =>
-          item.start < k.end && item.end > k.start && k.start <= item.start,
-      );
-      if (clash) {
-        // Copied evidence outranks style commentary on the same words.
-        if (item.kind === "plag" && clash.kind !== "plag") {
-          kept.splice(kept.indexOf(clash), 1);
-          kept.push(item);
-        }
-        continue;
-      }
+      // Higher-priority source evidence wins; no nested/overlapping DOM marks.
+      if (kept.some((k) => item.start < k.end && item.end > k.start)) continue;
       kept.push(item);
     }
     kept.sort((a, b) => a.start - b.start);
@@ -130,10 +164,10 @@ export default function InkReportView({ report }: { report: InkReport }) {
       item.n = i + 1;
     });
     return kept;
-  }, [report]);
+  }, [report, filters.excludedSources]);
 
   const counts = useMemo(() => {
-    const c: Record<Kind, number> = { plag: 0, style: 0, cite: 0 };
+    const c: Record<Kind, number> = { plag: 0, style: 0, cite: 0, phrase: 0 };
     for (const f of findings) c[f.kind] += 1;
     return c;
   }, [findings]);
@@ -174,6 +208,12 @@ export default function InkReportView({ report }: { report: InkReport }) {
   return (
     <main className="ink-page ink-page--wide">
       <div className="ink-report-toolbar">
+        <button
+          className="ink-btn ink-btn--ghost"
+          onClick={() => setFiltersOpen(true)}
+        >
+          Similarity filters
+        </button>
         <Link href={`/ink/rewrite?report=${report.id}`} className="ink-btn">
           <PenLine size={15} /> Improve writing <ArrowRight size={14} />
         </Link>
@@ -186,9 +226,26 @@ export default function InkReportView({ report }: { report: InkReport }) {
         <button
           className="ink-btn ink-btn--ghost"
           onClick={() => {
-            const blob = new Blob([JSON.stringify(report, null, 2)], {
-              type: "application/json",
-            });
+            const blob = new Blob(
+              [
+                JSON.stringify(
+                  {
+                    ...originalReport,
+                    view: {
+                      filters,
+                      excludedWords: filtered.excludedWords,
+                      eligibleWords: filtered.eligibleWords,
+                      similarity: report.match.coverage,
+                    },
+                  },
+                  null,
+                  2,
+                ),
+              ],
+              {
+                type: "application/json",
+              },
+            );
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -273,14 +330,14 @@ export default function InkReportView({ report }: { report: InkReport }) {
                 : "bad"
           }
         >
-          <dt>Citation coverage</dt>
+          <dt>Citation markers</dt>
           <dd className="ink-figure">
             {report.citations.score}
             <small>%</small>
           </dd>
           <p>
             {report.citations.cited} of {report.citations.totalClaims} checkable
-            claims name a source.
+            claims contain a supported citation format.
           </p>
         </div>
         <div
@@ -311,10 +368,40 @@ export default function InkReportView({ report }: { report: InkReport }) {
           <dd className="ink-figure">{findings.length}</dd>
           <p>
             {counts.plag} overlap · {counts.style} style · {counts.cite}{" "}
-            citation
+            citation · {counts.phrase} phrase review
           </p>
         </div>
       </dl>
+      <p className="ink-small-print">
+        {report.match.limited && (
+          <>
+            Exact-match limits were reached; displayed coverage is partial.
+            Split long or highly repetitive material into smaller sections.{" "}
+          </>
+        )}
+        Raw similarity:{" "}
+        {originalReport.comparedSources
+          ? `${Math.round(originalReport.match.coverage * 100)}%`
+          : "unmeasured"}
+        . View excludes {filtered.excludedWords} words and{" "}
+        {filters.excludedSources.length} sources.{" "}
+        {report.index && (
+          <>
+            Private index: {report.index.indexed} indexed,{" "}
+            {report.index.candidates} candidates, {report.index.compared}{" "}
+            compared{report.index.limited ? "; candidate limit reached" : ""}.
+          </>
+        )}
+        {report.phrasing && (
+          <>
+            {" "}
+            Shared-phrasing review: {report.phrasing.candidates.length}{" "}
+            candidates across {report.phrasing.comparisons} sentence comparisons
+            {report.phrasing.limited ? "; review limit reached" : ""}.
+            Candidates are separate from exact similarity.
+          </>
+        )}
+      </p>
 
       <div className="ink-tabs" role="tablist" aria-label="Report sections">
         {(
@@ -322,7 +409,12 @@ export default function InkReportView({ report }: { report: InkReport }) {
             ["proof", "Document", findings.length],
             ["sources", "Sources", report.match.sourceCount],
             ["style", "Style", report.style.signals.length],
-            ["citations", "Citations", report.citations.uncited.length],
+            [
+              "citations",
+              "Citations",
+              report.citations.uncited.length +
+                (report.citations.issues?.length || 0),
+            ],
           ] as const
         ).map(([id, label, n]) => (
           <button
@@ -395,8 +487,8 @@ export default function InkReportView({ report }: { report: InkReport }) {
                     >
                       Nothing flagged
                     </strong>
-                    No copied runs, generic phrasing or uncited claims were
-                    found in this draft.
+                    No matching runs, shared-phrasing candidates or citation
+                    prompts were found in this draft.
                   </div>
                 ) : (
                   findings.map((f) => (
@@ -638,6 +730,76 @@ export default function InkReportView({ report }: { report: InkReport }) {
 
         {tab === "citations" && (
           <section className="ink-panel">
+            {!!report.citations.issues?.length && (
+              <>
+                <h2 className="ink-h2">Reference-list checks</h2>
+                <div className="ink-reference-issues">
+                  {report.citations.issues.map((issue, i) => (
+                    <article key={i}>
+                      <span
+                        className="ink-tag"
+                        data-tone={
+                          issue.kind === "missing-reference" ? "warn" : "info"
+                        }
+                      >
+                        {issue.kind.replace(/-/g, " ")}
+                      </span>
+                      <p>{issue.text}</p>
+                      <blockquote>
+                        {report.text
+                          .slice(issue.start, issue.end)
+                          .slice(0, 300)}
+                      </blockquote>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+            {report.scholarly?.enabled && (
+              <>
+                <h2 className="ink-h2">DOI metadata</h2>
+                <p className="ink-note">
+                  {report.scholarly.message}
+                  {report.scholarly.limited &&
+                    " Additional DOIs were not checked."}
+                </p>
+                {report.scholarly.records.length ? (
+                  <div className="ink-reference-issues">
+                    {report.scholarly.records.map((record) => (
+                      <article key={record.doi}>
+                        <a
+                          href={`https://doi.org/${encodeURIComponent(record.doi)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {record.doi}
+                        </a>
+                        <p>{record.title || "No title returned"}</p>
+                        <span
+                          className="ink-tag"
+                          data-tone={
+                            record.status === "found" ? "good" : "warn"
+                          }
+                        >
+                          Crossref: {record.status}
+                        </span>{" "}
+                        <span className="ink-tag">Scopus: {record.scopus}</span>
+                        {record.status === "not-found" && (
+                          <p className="ink-small-print">
+                            No Crossref record was found. This is not proof that
+                            the work does not exist.
+                          </p>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="ink-note">
+                    No DOI identifiers found in this document.
+                  </p>
+                )}
+              </>
+            )}
             <h2 className="ink-h2">Claims that need a source</h2>
             <p className="ink-note" style={{ marginBottom: 20 }}>
               These sentences report a finding, a figure or a date without
@@ -695,6 +857,87 @@ export default function InkReportView({ report }: { report: InkReport }) {
           </section>
         )}
       </div>
+      <InkDialog
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title="Similarity filters"
+      >
+        <p className="ink-note">
+          Filters change this view. Original evidence stays in the saved report.
+        </p>
+        <label className="ink-filter-option">
+          <input
+            type="checkbox"
+            checked={filters.bibliography}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, bibliography: e.target.checked }))
+            }
+          />{" "}
+          Exclude bibliography
+        </label>
+        <label className="ink-filter-option">
+          <input
+            type="checkbox"
+            checked={filters.quotes}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, quotes: e.target.checked }))
+            }
+          />{" "}
+          Exclude paired quotations
+        </label>
+        <label htmlFor="ink-min-match">Minimum matching words</label>
+        <input
+          id="ink-min-match"
+          type="number"
+          min={12}
+          max={100}
+          value={filters.minWords}
+          onChange={(e) =>
+            setFilters((f) => ({
+              ...f,
+              minWords: Math.max(
+                12,
+                Math.min(100, Number(e.target.value) || 12),
+              ),
+            }))
+          }
+        />
+        {originalReport.match.sources.length > 0 && (
+          <>
+            <h3 className="ink-h3" style={{ marginTop: 24 }}>
+              Exclude sources
+            </h3>
+            {originalReport.match.sources.map((s) => (
+              <label className="ink-filter-option" key={s.source.id}>
+                <input
+                  type="checkbox"
+                  checked={filters.excludedSources.includes(s.source.id)}
+                  onChange={(e) =>
+                    setFilters((f) => ({
+                      ...f,
+                      excludedSources: e.target.checked
+                        ? [...f.excludedSources, s.source.id]
+                        : f.excludedSources.filter((id) => id !== s.source.id),
+                    }))
+                  }
+                />
+                {s.source.title}
+              </label>
+            ))}
+          </>
+        )}
+        <div className="ink-dialog-actions">
+          <button
+            className="ink-btn ink-btn--ghost"
+            onClick={() => setFilters(DEFAULT_MATCH_FILTERS)}
+          >
+            Reset filters
+          </button>
+          <button className="ink-btn" onClick={() => setFiltersOpen(false)}>
+            Done
+          </button>
+        </div>
+      </InkDialog>
       <p className="ink-small-print">
         Compared {report.comparedSources} sources. Similarity is measured
         against those sources only. Writing patterns aren’t AI-authorship

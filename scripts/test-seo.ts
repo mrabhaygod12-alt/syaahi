@@ -30,6 +30,7 @@ async function main() {
     "writing/pricing",
     "writing/medium-comparison",
     "ai-presentations",
+    "ai-ink",
   ])
     assert(urls.includes("https://www.syaahii.in/" + path));
   assert(
@@ -42,11 +43,18 @@ async function main() {
     ),
   );
   assert(!urls.some((url) => /\/(login|signup|forgot-password)$/.test(url)));
+  assert(
+    !urls.some((url) => /\/ink(?:\/|$)/.test(url)),
+    "Private integrity reports must not enter the sitemap",
+  );
 
   const facts = await (await llms()).text();
   assert(facts.includes("19 welcome credits after email verification"));
   assert(facts.includes("[How it works](https://www.syaahii.in/how-it-works)"));
   assert(!facts.includes("/dashboard"));
+  assert(facts.includes("https://www.syaahii.in/ai-ink"));
+  const { metadata: inkMeta } = await import("../app/ai-ink/page");
+  assert.equal(inkMeta.alternates?.canonical, "https://www.syaahii.in/ai-ink");
   const { default: robots } = await import("../app/robots");
   const rules = robots().rules as Array<{
     allow: string[];

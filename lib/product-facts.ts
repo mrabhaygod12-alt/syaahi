@@ -12,7 +12,7 @@ export function productFacts() {
     name: "Syaahi",
     alternateName: "Syaahii",
     officialWebsite: SITE.url,
-    reviewedOn: "2026-10-14",
+    reviewedOn: "2026-10-28",
     description:
       "A web workspace for source-based learning, editable AI presentations and reviewed blog publishing.",
     creators: ["Chandan Pandey", "Manish Kumar Singh"],
@@ -26,6 +26,7 @@ export function productFacts() {
           "Reviewed source intake",
           "Quizzes and flashcards",
           "Saved practice and reading preferences",
+          "AI Ink: paid-student PDF/DOCX review, private source index, exact similarity and reference checks",
         ],
       },
       {
@@ -82,6 +83,26 @@ export function productFacts() {
       maxImportedSources: 6,
       sourceCharacterLimit: 48000,
     },
+    aiInk: {
+      url: `${SITE.url}/ai-ink`,
+      access:
+        "Verified student with a recorded purchased pack or active paid subscription",
+      documentCharacters: { min: 200, max: 120000 },
+      privateIndex: {
+        sources: 20,
+        charactersPerSource: 60000,
+        wordsPerSource: 12000,
+        maxCandidatesPerScan: 10,
+      },
+      comparison:
+        "Contiguous source matches and bounded shared-phrasing candidates; no plagiarism verdict or calibrated AI-authorship probability",
+      references:
+        "Supported numbered and author–year citation links, duplicates, unresolved and unused references",
+      scholarly:
+        "Opt-in Crossref DOI metadata, up to eight identifiers; Scopus requires operator-configured licensed commercial access",
+      privacy:
+        "Account-private sources and reports; no automatic cross-account submission repository",
+    },
     limits: [
       "AI output needs checking against original sources.",
       "Public links must be accessible and permitted for extraction; blocked sites and paywalls are not bypassed.",
@@ -93,6 +114,7 @@ export function productFacts() {
       overview: `${SITE.url}/syaahi`,
       writerPricing: `${SITE.url}/writing/pricing`,
       studentPricing: `${SITE.url}/pricing`,
+      aiInk: `${SITE.url}/ai-ink`,
       community: `${SITE.url}/community`,
       about: `${SITE.url}/about`,
       support: `${SITE.url}/support`,

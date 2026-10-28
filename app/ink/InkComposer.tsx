@@ -32,6 +32,8 @@ export default function InkComposer() {
   const [filename, setFilename] = useState("");
   const [referenceText, setReferenceText] = useState("");
   const [allowWeb, setAllowWeb] = useState(false);
+  const [useIndex, setUseIndex] = useState(true);
+  const [verifyScholarly, setVerifyScholarly] = useState(false);
   const [busy, setBusy] = useState<"import" | "scan" | null>(null);
   const [error, setError] = useState("");
   const [documents, setDocuments] = useState<DocumentOption[]>([]);
@@ -70,7 +72,15 @@ export default function InkComposer() {
   }, []);
   useEffect(() => {
     requestId.current = "";
-  }, [text, title, referenceText, allowWeb, attached]);
+  }, [
+    text,
+    title,
+    referenceText,
+    allowWeb,
+    attached,
+    useIndex,
+    verifyScholarly,
+  ]);
   async function run() {
     if (!ready) return;
     setBusy("scan");
@@ -88,6 +98,8 @@ export default function InkComposer() {
             text,
             referenceText,
             allowWeb,
+            useIndex,
+            verifyScholarly,
             sourceIds: attached,
             requestId: requestId.current,
           }),
@@ -333,6 +345,34 @@ export default function InkComposer() {
               {attached.length + (referenceText.trim() ? 1 : 0)}
             </span>
           </button>
+          <label className="ink-web-toggle">
+            <span>
+              <strong>Private source index</strong>
+              <small>Compare with your indexed papers</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={useIndex}
+              onChange={(e) => setUseIndex(e.target.checked)}
+              disabled={!!busy}
+              aria-label="Compare private source index"
+            />
+          </label>
+          <label className="ink-web-toggle">
+            <span>
+              <strong>Verify reference DOIs</strong>
+              <small>
+                Send DOI identifiers to Crossref; Scopus if configured
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={verifyScholarly}
+              onChange={(e) => setVerifyScholarly(e.target.checked)}
+              disabled={!!busy}
+              aria-label="Verify DOI identifiers with Crossref and configured Scopus"
+            />
+          </label>
           <label className="ink-web-toggle">
             <span>
               <strong>

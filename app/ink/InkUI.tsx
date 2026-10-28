@@ -17,6 +17,7 @@ import {
 const links = [
   { href: "/ink", label: "Document check", icon: FileSearch },
   { href: "/ink/reports", label: "My reports", icon: FolderOpen },
+  { href: "/ink/sources", label: "Source index", icon: FileSearch },
   { href: "/ink/rewrite", label: "Improve writing", icon: PenLine },
   { href: "/ink/how-it-works", label: "How it works", icon: CircleHelp },
 ];

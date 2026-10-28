@@ -17,6 +17,9 @@ const checks = [
   ["/writing/pricing", 200, "Two writer plans."],
   ["/writing/medium-comparison", 200, "Choose the tools your writing needs."],
   ["/ai-presentations", 200, "Build a story your audience can follow."],
+  ["/ai-ink", 200, "Research with care. Write with confidence."],
+  ["/api/ink/sources", 401],
+  ["/api/ink/sources", 401, undefined, undefined, "POST"],
   [
     "/ai-generated-notes",
     200,

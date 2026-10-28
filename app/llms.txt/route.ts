@@ -40,6 +40,7 @@ ${SITE.description}
 - Reading and publishing: durable writer follows, public plain-text responses with author moderation, account-private highlights and reading notes, saved reading positions, qualified signed-in reader counts and original-publication canonical links. Following is not newsletter subscription. There is no author payout programme, subscriber paywall or publication team workspace.
 - Community: public articles appear after editorial review, with bookmarking, upvotes and content reports. Private drafts, editorial notes and account information are not public content.
 - Learning: handwritten-style notes, source labels, lesson chat, quizzes, flashcards, saved progress and printable PDFs.
+- AI Ink by Syaahii: paid-student PDF/DOCX document review, account-private source fingerprint index, exact source matches, reversible quote/bibliography/source filters, reference-list checks, opt-in Crossref DOI metadata and passage editing. Scopus checks require a separately configured commercially licensed integration. No Turnitin database access or calibrated AI-authorship detection is claimed. Private reports and source text are not public search content.
 - Inputs: topics, documents, screenshots, audio and supported YouTube sources. Source availability and transcript support vary.
 - Generation languages: English, Hindi, Hinglish, German, French and Spanish. This does not mean that every interface page is translated.
 - New accounts receive ${SIGNUP_CREDITS} welcome credits after email verification. Each generated note section uses one credit. Additional PDF continuation sheets are free.
@@ -67,6 +68,7 @@ ${offers}
 - [Library](${SITE.url}/library)
 - [Pricing](${SITE.url}/pricing)
 - [AI-generated notes](${SITE.url}/ai-generated-notes)
+- [AI Ink research document checks](${SITE.url}/ai-ink)
 - [YouTube video to notes](${SITE.url}/youtube-video-to-notes)
 - [Presentations](${SITE.url}/ai-presentations)
 - [About](${SITE.url}/about)

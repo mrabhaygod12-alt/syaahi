@@ -661,6 +661,7 @@ button {
     gap: 4px;
   }
   .student-redesign .hub-rail nav > button {
+    min-width: 0;
     font-size: 12px;
     padding: 8px;
     min-height: 44px;
@@ -668,6 +669,17 @@ button {
     justify-content: center;
   }
   .student-redesign .hub-rail nav > button:nth-child(2) {
+    display: none;
+  }
+  .student-redesign .hub-rail nav > .hub-primary-ink {
+    flex: 1;
+    justify-content: center;
+    font-size: 12px;
+    padding: 8px;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .student-redesign .hub-rail nav > .hub-primary-ink svg {
     display: none;
   }
   .student-redesign .hub-rail nav > button svg {

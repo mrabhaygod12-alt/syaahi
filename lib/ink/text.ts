@@ -77,7 +77,9 @@ export function normalise(input: string): string {
 }
 
 export function wordCount(text: string): number {
-  const matches = text.match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200c\u200d'’\-]*/gu);
+  const matches = text.match(
+    /[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200c\u200d'’\-]*/gu,
+  );
   return matches ? matches.length : 0;
 }
 
@@ -166,19 +168,25 @@ export function paragraphs(text: string, all: Sentence[]): Paragraph[] {
   const out: Paragraph[] = [];
   let index = 0;
   let blockStart = 0;
+  let sentenceCursor = 0;
   const flush = (end: number) => {
     const raw = text.slice(blockStart, end);
     if (raw.trim().length === 0) return;
     const start = blockStart + (raw.length - raw.trimStart().length);
     const stop = end - (raw.length - raw.trimEnd().length);
-    const inside = all.filter((s) => s.start >= start && s.end <= stop);
+    while (sentenceCursor < all.length && all[sentenceCursor].start < start)
+      sentenceCursor++;
+    const first = sentenceCursor;
+    while (sentenceCursor < all.length && all[sentenceCursor].end <= stop)
+      sentenceCursor++;
+    const count = sentenceCursor - first;
     out.push({
       index,
       start,
       end: stop,
       text: text.slice(start, stop),
-      sentenceStart: inside.length ? all.indexOf(inside[0]) : 0,
-      sentenceEnd: inside.length ? all.indexOf(inside[inside.length - 1]) + 1 : 0,
+      sentenceStart: count ? first : 0,
+      sentenceEnd: count ? sentenceCursor : 0,
     });
     index += 1;
   };
@@ -208,9 +216,11 @@ export function segment(input: string): Segment {
 
 /** Lowercase word tokens, keeping apostrophes inside words. */
 export function tokens(text: string): string[] {
-  return (text.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200c\u200d'\-]*/gu) || []).map(
-    (t) => t.replace(/^['\-]+|['\-]+$/g, ""),
-  );
+  return (
+    text
+      .toLowerCase()
+      .match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200c\u200d'\-]*/gu) || []
+  ).map((t) => t.replace(/^['\-]+|['\-]+$/g, ""));
 }
 
 /**
