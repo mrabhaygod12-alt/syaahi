@@ -193,6 +193,24 @@ async function main() {
       text,
       "failed upload replaced good draft",
     );
+    await page
+      .getByText(
+        "Your private index will be checked. The report shows which sources were compared.",
+        { exact: true },
+      )
+      .waitFor();
+    await page
+      .getByLabel("Compare private source index", { exact: true })
+      .uncheck();
+    await page
+      .getByText(
+        "Add a source to compare overlap. Without one, only style and citation checks run.",
+        { exact: true },
+      )
+      .waitFor();
+    await page
+      .getByLabel("Compare private source index", { exact: true })
+      .check();
     await page.getByRole("button", { name: "Add comparison sources" }).click();
     const sources = page.getByRole("dialog", { name: "Comparison sources" });
     await sources.getByLabel("Reference text to compare (optional)").fill(text);
@@ -442,7 +460,9 @@ async function main() {
           nearText +
           "\n\n" +
           nearText +
-          " Results improved by 20 percent [3].\n\nReferences\n[1] Smith, J. (2024). Research. doi:10.1234/fixture-reference",
+          ' Results improved by 20 percent [3].\n\nA source quotation: "' +
+          original.replace("collection and", "collection\nand") +
+          '"\n\nReferences\n[1] Smith, J. (2024). Research. doi:10.1234/fixture-reference',
         referenceText: original.repeat(3),
         allowWeb: false,
         useIndex: false,
@@ -456,6 +476,30 @@ async function main() {
     assert(nearReport.phrasing.candidates.length > 0);
     await page.goto(origin + `/ink/report/${nearReport.id}`);
     await page.locator("mark[data-kind=phrase]").first().waitFor();
+    assert((await page.locator("mark[data-kind=plag]").count()) > 0);
+    await page
+      .getByRole("button", { name: "Similarity filters", exact: true })
+      .click();
+    await filters
+      .getByLabel("Exclude paired quotations", { exact: true })
+      .check();
+    await filters.getByRole("button", { name: "Done", exact: true }).click();
+    assert.equal(
+      await page.locator("mark[data-kind=plag]").count(),
+      0,
+      "wrapped quotation must be excluded from exact overlap",
+    );
+    await page
+      .getByRole("button", { name: "Similarity filters", exact: true })
+      .click();
+    await filters
+      .getByRole("button", { name: "Reset filters", exact: true })
+      .click();
+    await filters.getByRole("button", { name: "Done", exact: true }).click();
+    assert(
+      (await page.locator("mark[data-kind=plag]").count()) > 0,
+      "reset restores wrapped quotation evidence",
+    );
     await page
       .getByRole("button", { name: "Compare source", exact: true })
       .first()

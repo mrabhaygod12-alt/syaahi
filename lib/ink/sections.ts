@@ -85,10 +85,13 @@ export function quoteRanges(text: string): TextRange[] {
   // A missing close quote never excludes the remainder of the paper.
   for (const pattern of [
     /“[^“”]{8,2000}”/g,
-    /"[^"\n]{8,2000}"/g,
+    /"[^"]{8,2000}"/g,
     /«[^«»]{8,2000}»/g,
   ])
     for (const m of text.matchAll(pattern)) {
+      // PDF extraction inserts soft line breaks inside a quotation. Accept
+      // those, but do not pair unrelated quotes across a paragraph boundary.
+      if (/\n[ \t]*\n/.test(m[0])) continue;
       ranges.push({ start: m.index!, end: m.index! + m[0].length });
       if (ranges.length >= 500) return ranges;
     }

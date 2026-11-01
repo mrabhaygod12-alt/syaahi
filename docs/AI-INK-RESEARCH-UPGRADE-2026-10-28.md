@@ -50,12 +50,20 @@ A real Crossref request for DOI `10.1128/mbio.01735-25` returned a registry reco
 
 Local evidence files are under `output/ink-research*`. The browser suite checks upload, report, revision, report library, method, private source index and public product page at 320, 390, 768 and 1440 px; it includes source import/removal confirmation, evidence dialogs, filter reset, reference issues, canonical/FAQ metadata and private noindex assertions.
 
+## Hosted verification — 1 November 2026
+
+The signed-in paid-student journey was tested on production with synthetic documents. DOCX extraction and private indexing succeeded. A PDF was imported and compared with that saved index: 157 words, 67 exactly matched words, 43% raw similarity, one indexed/candidate/compared source. The deliberate missing reference `[3]` was flagged, and opt-in Crossref returned the real DOI record. Side-by-side evidence and JSON report download worked. One real AI editing request returned a 39-word revision of a 47-word selected passage, leaving the original unchanged for review. This verifies a successful request, not general editing accuracy or provider reliability under load.
+
+This journey exposed a quote-filter defect: searchable PDF extraction introduces soft line breaks inside paired quotations. The parser now accepts those soft breaks while rejecting quotation pairs spanning blank paragraph boundaries. Regression tests verify exclusion and reset without changing raw evidence. The composer also explains private-index comparison when enabled instead of incorrectly saying that no source was supplied. Local browser regression passed at all four tested widths after these fixes.
+
+Scopus remains unconfigured; full-web discovery remains unavailable on the tested server. Those checks are not represented as successful by the production report.
+
 ## What still requires separate work or access
 
 1. A licensed, broad full-text corpus and opt-in institutional ingestion agreements. A twenty-source private index is not a substitute for a publisher or global submission repository.
 2. Labelled evaluation datasets covering disciplines, languages, quotation styles and deliberate paraphrases. No measured precision/recall or comparative detection benchmark exists yet.
 3. Semantic/cross-language matching and a calibrated AI-writing detector, if independently evaluated and communicated with false-positive limits.
 4. OCR, layout-aware multi-column paper extraction, richer reference-format parsing and title/author lookup for sources without DOIs.
-5. Production licensed Scopus credentials and a configured web-search provider, followed by hosted paid-account verification. These are optional integrations, not reasons to fake a successful check.
+5. Production licensed Scopus credentials and a configured web-search provider, followed by verification of those specific integrations. These are optional integrations, not reasons to fake a successful check.
 
 These boundaries are visible in the product. They protect users from mistaking a partial source check for a definitive accusation or originality certificate.

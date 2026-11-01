@@ -122,6 +122,37 @@ async function main() {
     null,
   );
   assert.equal(quoteRanges('An unmatched " quotation ' + passage).length, 0);
+  const wrappedQuote = `The author says "${passage.replace("collection and", "collection\nand")}".`;
+  assert.equal(
+    quoteRanges(wrappedQuote).length,
+    1,
+    "PDF soft wraps retain paired quotations",
+  );
+  assert.equal(
+    quoteRanges(wrappedQuote.replace("collection\nand", "collection\n\nand"))
+      .length,
+    0,
+    "do not pair quotes across paragraphs",
+  );
+  const wrappedRaw = matchSources(wrappedQuote, [
+    {
+      id: "wrap",
+      title: "Wrapped quotation",
+      kind: "upload",
+      text: passage.repeat(3),
+    },
+  ]);
+  assert(wrappedRaw.matchedWords > 0);
+  const wrappedFiltered = filterMatches(wrappedQuote, wrappedRaw, {
+    ...DEFAULT_MATCH_FILTERS,
+    quotes: true,
+  });
+  assert(wrappedFiltered.excludedWords > 0);
+  assert.equal(
+    wrappedFiltered.match.matchedWords,
+    0,
+    "wrapped quoted source match is excluded",
+  );
   const quoted = `An author said "${passage}". ${passage}\n\nReferences\n[1] Author, A. (2024). ${passage}`;
   const raw = matchSources(quoted, [
     { id: "source", title: "Source", kind: "upload", text: passage.repeat(3) },

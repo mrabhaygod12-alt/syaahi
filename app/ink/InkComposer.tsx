@@ -415,8 +415,9 @@ export default function InkComposer() {
           </p>
           {text && !referenceText.trim() && !attached.length && !allowWeb && (
             <p className="ink-inline-notice">
-              Add a source to compare overlap. Without one, only style and
-              citation checks run.
+              {useIndex
+                ? "Your private index will be checked. The report shows which sources were compared."
+                : "Add a source to compare overlap. Without one, only style and citation checks run."}
             </p>
           )}
         </aside>
