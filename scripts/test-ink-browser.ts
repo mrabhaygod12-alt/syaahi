@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { chromium } from "playwright";
 import { fixturePdf } from "./fixtures/pdf";
 import { fixtureDocx } from "./fixtures/docx";
+import { normalise, wordCount } from "../lib/ink/text";
 const origin = "http://localhost:3217";
 Object.assign(process.env, {
   DATA_DIR: mkdtempSync(join(tmpdir(), "syaahi-ink-browser-")),
@@ -193,6 +194,13 @@ async function main() {
       text,
       "failed upload replaced good draft",
     );
+    const countingText = text + " doi:10.1234/example.";
+    await page.locator("#ink-text").fill(countingText);
+    await page
+      .getByRole("region", { name: "Submit a draft", exact: true })
+      .getByText(`${wordCount(normalise(countingText))} words`, { exact: true })
+      .waitFor();
+    await page.locator("#ink-text").fill(text);
     await page
       .getByText(
         "Your private index will be checked. The report shows which sources were compared.",
@@ -333,6 +341,15 @@ async function main() {
       selectedPassage,
     );
     // Explicit local provider fixtures: verify failure preservation and successful review/apply UI.
+    const rewriteCounting = selectedPassage + " doi:10.1234/example.";
+    await page.getByLabel("Passage", { exact: true }).fill(rewriteCounting);
+    await page
+      .getByText(
+        `${wordCount(normalise(rewriteCounting))} words · ${rewriteCounting.length} / 6,000 characters`,
+        { exact: true },
+      )
+      .waitFor();
+    await page.getByLabel("Passage", { exact: true }).fill(selectedPassage);
     await page.getByRole("button", { name: "My voice", exact: true }).click();
     const voiceDialog = page.getByRole("dialog", {
       name: "Your writing, as a guide",

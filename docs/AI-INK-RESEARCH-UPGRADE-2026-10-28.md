@@ -58,6 +58,8 @@ This journey exposed a quote-filter defect: searchable PDF extraction introduces
 
 Scopus remains unconfigured; full-web discovery remains unavailable on the tested server. Those checks are not represented as successful by the production report.
 
+The PDF preview originally counted whitespace-separated tokens (153), while analysis used normalized Unicode word boundaries (157). Composer and passage-editor counters now use the same normalization and word-count function as analysis. Browser regressions include DOI punctuation so the mismatch cannot silently return.
+
 ## What still requires separate work or access
 
 1. A licensed, broad full-text corpus and opt-in institutional ingestion agreements. A twenty-source private index is not a substitute for a publisher or global submission repository.

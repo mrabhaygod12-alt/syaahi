@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { requestJson } from "../client";
 import { InkDialog } from "../InkUI";
+import { normalise, wordCount } from "@/lib/ink/text";
 type Mode = "tighten" | "academic" | "plain" | "ownvoice" | "structure";
 const MODES: { id: Mode; label: string; help: string }[] = [
   { id: "tighten", label: "Tighten", help: "Less filler. A sharper argument." },
@@ -57,7 +58,7 @@ export default function RewriteDesk({
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [acceptOpen, setAcceptOpen] = useState(false);
-  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const words = useMemo(() => wordCount(normalise(text)), [text]);
   useEffect(() => {
     if (!reportId) return;
     let active = true;

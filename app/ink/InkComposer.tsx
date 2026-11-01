@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import { requestJson } from "./client";
 import { InkDialog, InkPaperArt } from "./InkUI";
 import type { InkSummary } from "./types";
 import { useInkSearch } from "./InkAccess";
+import { normalise, wordCount } from "@/lib/ink/text";
 interface DocumentOption {
   id: string;
   name: string;
@@ -47,7 +48,7 @@ export default function InkComposer() {
   const [pending, setPending] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const requestId = useRef("");
-  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const words = useMemo(() => wordCount(normalise(text)), [text]);
   const ready = text.trim().length >= 200 && text.length <= 120000 && !busy;
   useEffect(() => {
     let active = true;
