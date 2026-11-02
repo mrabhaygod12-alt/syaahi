@@ -212,7 +212,7 @@ async function main() {
       .uncheck();
     await page
       .getByText(
-        "Add a source to compare overlap. Without one, only style and citation checks run.",
+        "Add a source to compare overlap. Without one, only integrity and citation checks run.",
         { exact: true },
       )
       .waitFor();
@@ -322,106 +322,35 @@ async function main() {
     assert((await evidence.innerText()).includes("Machine learning"));
     await page.screenshot({ path: out + "/source-dialog.png" });
     await evidence.getByRole("button", { name: "Close dialog" }).click();
-    const selectedPassage = (await page
-      .locator("mark[data-kind=plag]")
-      .first()
-      .textContent())!.trim();
+    const pdfWait = page.waitForEvent("download");
     await page
-      .getByRole("link", { name: "Improve", exact: true })
-      .first()
+      .getByRole("button", { name: "Download PDF", exact: true })
       .click();
-    await page.getByLabel("Passage", { exact: true }).waitFor();
-    await page.waitForFunction(
-      () =>
-        document.querySelector<HTMLTextAreaElement>("#ink-rewrite-text")!.value
-          .length > 100,
-    );
-    assert.equal(
-      (await page.getByLabel("Passage", { exact: true }).inputValue()).trim(),
-      selectedPassage,
-    );
-    // Explicit local provider fixtures: verify failure preservation and successful review/apply UI.
-    const rewriteCounting = selectedPassage + " doi:10.1234/example.";
-    await page.getByLabel("Passage", { exact: true }).fill(rewriteCounting);
+    const pdf = await pdfWait;
+    assert.equal(pdf.suggestedFilename(), "ai-ink-integrity-report.pdf");
     await page
-      .getByText(
-        `${wordCount(normalise(rewriteCounting))} words · ${rewriteCounting.length} / 6,000 characters`,
-        { exact: true },
-      )
+      .getByRole("tab", { name: "Coverage & integrity", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Coverage & integrity", exact: true })
       .waitFor();
-    await page.getByLabel("Passage", { exact: true }).fill(selectedPassage);
-    await page.getByRole("button", { name: "My voice", exact: true }).click();
-    const voiceDialog = page.getByRole("dialog", {
-      name: "Your writing, as a guide",
-    });
-    await voiceDialog
-      .getByLabel("A sample of your own writing")
-      .fill(
-        "I describe experiments in plain terms. Each result has a source, and I keep my argument focused on the evidence.",
-      );
-    await voiceDialog
-      .getByRole("button", { name: "Save this sample", exact: true })
-      .click();
-    await voiceDialog.waitFor({ state: "hidden" });
-    await page.getByRole("button", { name: "Tighten", exact: true }).click();
-    await page.route("**/api/ink/rewrite", (r) =>
-      r.fulfill({
-        status: 503,
-        contentType: "application/json",
-        body: JSON.stringify({ error: "Fixture provider unavailable" }),
-      }),
-    );
     await page
-      .getByRole("button", { name: "Rewrite passage", exact: true })
-      .click();
-    await page
-      .getByRole("alert")
-      .filter({ hasText: "Fixture provider unavailable" })
+      .getByRole("heading", { name: "Google Scholar", exact: true })
       .waitFor();
     assert.equal(
-      (await page.getByLabel("Passage", { exact: true }).inputValue()).trim(),
-      selectedPassage,
+      await page
+        .getByRole("link", { name: "Improve writing", exact: true })
+        .count(),
+      0,
     );
-    await page.unroute("**/api/ink/rewrite");
-    await page.route("**/api/ink/rewrite", (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          result: {
-            text: "Revised fixture passage with the same research argument, ready for a human review.",
-            before: 58,
-            after: 15,
-            provider: "fixture",
-            model: "fixture",
-          },
-        }),
-      }),
-    );
-    await page
-      .getByRole("button", { name: "Rewrite passage", exact: true })
-      .click();
-    await page.getByRole("button", { name: "Use as new draft" }).waitFor();
-    await page.screenshot({
-      path: out + "/desktop-rewrite.png",
-      fullPage: true,
-      animations: "disabled",
-    });
-    await page.getByRole("button", { name: "Use as new draft" }).click();
-    await page
-      .getByRole("button", { name: "Use revision", exact: true })
-      .click();
-    assert.match(
-      await page.getByLabel("Passage", { exact: true }).inputValue(),
-      /Revised fixture/,
-    );
-    await page.unroute("**/api/ink/rewrite");
+    await page.goto(origin + "/ink/rewrite");
+    await page.waitForURL(origin + "/ink");
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
       for (const [key, path] of [
         ["upload", "/ink"],
         ["report", `/ink/report/${id}`],
-        ["rewrite", `/ink/rewrite?report=${id}`],
+
         ["library", "/ink/reports"],
         ["method", "/ink/how-it-works"],
         ["source-index", "/ink/sources"],
@@ -492,7 +421,11 @@ async function main() {
     const nearReport = (await nearResult.json()).report;
     assert(nearReport.phrasing.candidates.length > 0);
     await page.goto(origin + `/ink/report/${nearReport.id}`);
-    await page.locator("mark[data-kind=phrase]").first().waitFor();
+    await page.getByRole("tab", { name: /Sources/ }).click();
+    await page
+      .getByRole("heading", { name: "Shared-phrasing review", exact: true })
+      .waitFor();
+    await page.getByRole("tab", { name: /Document/ }).click();
     assert((await page.locator("mark[data-kind=plag]").count()) > 0);
     await page
       .getByRole("button", { name: "Similarity filters", exact: true })
@@ -523,7 +456,7 @@ async function main() {
       .click();
     await page.getByRole("dialog", { name: "Side-by-side evidence" }).waitFor();
     await page.keyboard.press("Escape");
-    await page.getByRole("tab", { name: /Citations/ }).click();
+    await page.getByRole("tab", { name: /References/ }).click();
     await page
       .getByText("Citation [3] has no matching numbered reference.", {
         exact: true,
@@ -573,14 +506,19 @@ async function main() {
     await page.getByLabel("Search reports").fill("Research chapter");
     await page.getByRole("link", { name: /Research chapter/ }).waitFor();
     await page.goto(origin + `/ink/report/${id}`);
-    await page.getByRole("button", { name: "Delete private report" }).click();
+    await page
+      .getByRole("button", { name: "Delete report", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "Keep report", exact: true })
       .click();
     assert.match(page.url(), /\/ink\/report\//);
-    await page.getByRole("button", { name: "Delete private report" }).click();
     await page
-      .getByRole("button", { name: "Confirm permanent deletion" })
+      .getByRole("button", { name: "Delete report", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "Delete this report?" })
+      .getByRole("button", { name: "Delete report", exact: true })
       .click();
     await page.waitForURL(/\/ink\/reports$/);
     await context.clearCookies();
@@ -602,7 +540,7 @@ async function main() {
     await page.getByRole("link", { name: "Sign in", exact: true }).waitFor();
     assert.deepEqual(errors, []);
     console.log(
-      "PASS AI Ink research studio: private-source DOCX import, index/search/delete/cancel, report filters/reset, real phrase evidence/reference issues, public canonical/FAQ and private noindex, PDF/DOCX import/error preservation, selected-passage rewrite with explicit provider fixtures, paid/free/login gates; seven pages at 320/390/768/1440px. No live AI/search calls.",
+      "PASS AI Ink research studio: private-source DOCX import, index/search/delete/cancel, report filters/reset, real phrase evidence/reference issues, public canonical/FAQ and private noindex, PDF/DOCX import/error preservation, retired editing redirects, real authorized PDF download and explicit research coverage, paid/free/login gates; six pages at 320/390/768/1440px. No live AI/search calls.",
     );
   } finally {
     await browser.close();

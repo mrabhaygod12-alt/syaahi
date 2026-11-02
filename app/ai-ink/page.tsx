@@ -4,7 +4,7 @@ export const metadata = pageMeta({
   title: "AI Ink: research paper similarity and citation checker",
   path: "/ai-ink",
   description:
-    "Check PDF and DOCX research papers against your private source index, review source similarity and missing references, verify DOI metadata and improve writing with AI Ink by Syaahii.",
+    "Check PDF and DOCX research papers against your private source index, review source similarity and missing references, discover research abstracts, verify DOI metadata and export evidence reports with AI Ink by Syaahii.",
 });
 const faqs = [
   {
@@ -13,7 +13,15 @@ const faqs = [
   },
   {
     q: "What does AI Ink check in research papers?",
-    a: "AI Ink compares text with supplied sources, an account-private source index and optional retrieved web results. Reports include matching passages, citation-format checks, reference-list issues and explainable writing patterns. Similarity requires context and does not establish plagiarism by itself.",
+    a: "AI Ink compares text with supplied sources, an account-private source index and optional retrieved web results. Reports include numbered matching passages, citation-format checks, a comparison ledger, text-integrity flags and a downloadable PDF. Similarity requires context and does not establish plagiarism by itself.",
+  },
+  {
+    q: "Does AI Ink search Google Scholar, Scopus and ScienceDirect?",
+    a: "OpenAlex discovery can compare available research abstracts when you opt in to sending selected excerpts. Google Scholar is a manual lookup, not automatically scraped. Licensed ScienceDirect full-text access is not configured; Scopus DOI metadata requires separately configured licensed access. These collections are not represented as fully searched databases.",
+  },
+  {
+    q: "Can AI Ink identify AI-generated images and graphs?",
+    a: "Not currently. Uploaded documents are extracted for text; image pixels and original page geometry are not assessed. AI Ink does not infer image origin or scientific data fabrication from visual appearance. The report states this limit explicitly.",
   },
   {
     q: "Can I check a PDF or Word document?",
@@ -53,15 +61,15 @@ const faqs = [
   },
   {
     q: "Is AI Ink an AI-writing authorship detector?",
-    a: "AI Ink’s current writing measurements describe phrasing, repetition and rhythm. They are not calibrated probabilities of AI authorship. AI Ink does not certify that a paper is human-written and does not promise to bypass another system’s detector or academic-integrity review.",
+    a: "AI Ink does not calculate a calibrated AI-authorship probability. Its text-integrity checks flag observable Unicode properties such as invisible characters and mixed-script words, which can also have legitimate causes. It does not certify that a paper is human-written or promise to bypass another system’s detector.",
   },
   {
     q: "Does AI Ink have Turnitin database access?",
     a: "No. AI Ink is an independent Syaahii tool and is not affiliated with Turnitin. Turnitin’s licensed publications and submitted-paper repository are not available through this implementation. AI Ink reports its own comparison sources and limits rather than claiming equivalent database coverage.",
   },
   {
-    q: "Can I improve passages after reviewing matches?",
-    a: "A finding can open its specific passage in the editing desk. Choose a writing mode, compare original and revised text, and explicitly accept the edit. Preserve attribution when paraphrasing, and verify facts and meaning before using any AI-generated revision.",
+    q: "Does AI Ink edit or rewrite my paper?",
+    a: "No. AI Ink is a checking workspace. It preserves your submitted text and lets you inspect source excerpts, adjust reversible similarity filters and download the evidence report. Writing and attribution decisions remain yours.",
   },
   {
     q: "Which student plan includes the AI Ink tool?",
@@ -78,7 +86,7 @@ export default function Page() {
       title="Research with care. Write with confidence."
       kicker="AI INK BY SYAAHII"
       path="/ai-ink"
-      lede="A document review workspace for research papers, review articles and book chapters. Compare source passages, inspect references and shape a clearer next draft."
+      lede="A document review workspace for research papers, review articles and book chapters. Compare source passages, inspect references and export a private evidence report."
       schema={{
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
@@ -87,7 +95,7 @@ export default function Page() {
         applicationCategory: "EducationalApplication",
         operatingSystem: "Web browser",
         description:
-          "Private source similarity, citation review and guided editing for student research documents.",
+          "Private source similarity, research-abstract discovery, citation review and PDF evidence reports for research documents.",
         featureList: [
           "PDF and DOCX import",
           "Private source fingerprint index",
@@ -95,9 +103,11 @@ export default function Page() {
           "Shared-phrasing review with source excerpts",
           "Reference-list checks",
           "Opt-in Crossref DOI metadata verification",
-          "Guided passage editing",
+          "OpenAlex research abstract discovery",
+          "Source provenance ledger",
+          "Professional PDF report export",
         ],
-        dateModified: "2026-10-28",
+        dateModified: "2026-11-02",
         publisher: { "@type": "Organization", name: "Syaahii", url: SITE.url },
       }}
     >
@@ -106,11 +116,11 @@ export default function Page() {
         dangerouslySetInnerHTML={{ __html: jsonLd(faqSchema(faqs)) }}
       />
       <section className="product-answer">
-        <p className="small">Reviewed 28 October 2026</p>
+        <p className="small">Reviewed 2 November 2026</p>
         <h2>What is AI Ink?</h2>
         <p>
           AI Ink is Syaahii’s private document-review tool for source
-          similarity, reference checking and guided writing improvement.
+          similarity, reference checking and evidence reports.
         </p>
         <a className="btn dark" href="/ink">
           Open AI Ink →
@@ -136,8 +146,8 @@ export default function Page() {
               body: "Find unresolved citations and duplicate entries, with optional DOI metadata checks.",
             },
             {
-              title: "Improve a passage",
-              body: "Compare suggested edits beside the original. You choose what to keep.",
+              title: "Export the evidence",
+              body: "Download a private PDF with numbered sources, comparison scope, source excerpts and your applied filters.",
             },
           ].map((x) => (
             <article className="card" key={x.title}>

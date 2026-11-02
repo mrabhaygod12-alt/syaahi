@@ -10,6 +10,14 @@ import { auditCitations, type CitationCoverage } from "./citations";
 import { segment } from "./text";
 import { verifyDois, type ScholarlyTrace } from "./scholarly";
 import { reviewPhrasing } from "./phrasing";
+import {
+  discoverResearch,
+  externalCoverage,
+  sourceEvidence,
+  type SourceEvidence,
+  type ResearchTrace,
+} from "./research";
+import { auditIntegrity } from "./integrity";
 
 /**
  * The analysis core: pure functions over text, with no storage or auth
@@ -18,6 +26,10 @@ import { reviewPhrasing } from "./phrasing";
  */
 
 export interface InkAnalysis {
+  methodVersion?: string;
+  evidence?: SourceEvidence[];
+  coverage?: ResearchTrace[];
+  integrity?: ReturnType<typeof auditIntegrity>;
   /** Normalised submission text, so spans can be highlighted later. */
   text: string;
   words: number;
@@ -52,6 +64,7 @@ export interface AnalyseInput {
   /** Disable web discovery for a fast, offline-only pass. */
   allowWeb?: boolean;
   verifyScholarly?: boolean;
+  allowResearch?: boolean;
   indexTrace?: InkAnalysis["index"];
 }
 
@@ -69,6 +82,8 @@ export async function analyse(input: AnalyseInput): Promise<InkAnalysis> {
   const doc = segment(raw);
   const style = analyseStyle(raw);
   const citations = auditCitations(doc.text);
+  const research = discoverResearch(doc.text, input.allowResearch === true);
+  const scholarly = verifyDois(doc.text, input.verifyScholarly === true);
 
   const allowWeb = input.allowWeb === true;
   let webSources: SourceDocument[] = [];
@@ -97,13 +112,22 @@ export async function analyse(input: AnalyseInput): Promise<InkAnalysis> {
   }
 
   const supplied = input.sources || [];
-  const eligible = [...supplied, ...webSources]
+  const researched = await research;
+  const eligible = [...supplied, ...webSources, ...researched.sources]
     .filter((s) => s.text?.trim().length >= 200)
     .filter((s, i, a) => a.findIndex((x) => x.id === s.id) === i)
     .slice(0, 34);
   const match = matchSources(doc.text, eligible);
   const phrasing = reviewPhrasing(doc.text, eligible, match);
-  const comparedWeb = eligible.filter((s) => s.kind === "web").length;
+  const evidence = eligible.map((s) =>
+    sourceEvidence(
+      s,
+      match.sources.find((m) => m.source.id === s.id)?.matchedWords || 0,
+    ),
+  );
+  const comparedWeb = eligible.filter(
+    (s) => s.kind === "web" && s.provider !== "OpenAlex",
+  ).length;
   if (search.results > comparedWeb) {
     search = {
       ...search,
@@ -118,6 +142,16 @@ export async function analyse(input: AnalyseInput): Promise<InkAnalysis> {
   }));
 
   return {
+    methodVersion: "ink-evidence-2",
+    evidence,
+    integrity: auditIntegrity(raw),
+    coverage: [
+      {
+        ...researched.trace,
+        compared: eligible.filter((s) => s.provider === "OpenAlex").length,
+      },
+      ...externalCoverage(),
+    ],
     text: doc.text,
     words: doc.words,
     characters: doc.characters,
@@ -126,7 +160,7 @@ export async function analyse(input: AnalyseInput): Promise<InkAnalysis> {
     match,
     citations,
     phrasing,
-    scholarly: await verifyDois(doc.text, input.verifyScholarly === true),
+    scholarly: await scholarly,
     index: input.indexTrace,
     search,
     checks: {

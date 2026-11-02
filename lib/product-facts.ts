@@ -100,6 +100,12 @@ export function productFacts() {
         "Supported numbered and author–year citation links, duplicates, unresolved and unused references",
       scholarly:
         "Opt-in Crossref DOI metadata, up to eight identifiers; Scopus requires operator-configured licensed commercial access",
+      discovery:
+        "Opt-in OpenAlex research abstracts and configured Tavily/Brave web results; public HTTPS pages may be privately indexed when extraction is permitted",
+      reports:
+        "Numbered sources, exact passage evidence, comparison provenance ledger, reversible filters and private PDF/JSON export; no AI editing",
+      unavailable:
+        "Google Scholar is manual lookup only. Licensed ScienceDirect full text and calibrated AI text/image detection are not connected. Figures and graphs are not assessed for AI origin.",
       privacy:
         "Account-private sources and reports; no automatic cross-account submission repository",
     },

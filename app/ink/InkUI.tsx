@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   FileSearch,
   FolderOpen,
-  PenLine,
   ScanLine,
   ShieldCheck,
   CircleHelp,
@@ -18,7 +17,6 @@ const links = [
   { href: "/ink", label: "Document check", icon: FileSearch },
   { href: "/ink/reports", label: "My reports", icon: FolderOpen },
   { href: "/ink/sources", label: "Source index", icon: FileSearch },
-  { href: "/ink/rewrite", label: "Improve writing", icon: PenLine },
   { href: "/ink/how-it-works", label: "How it works", icon: CircleHelp },
 ];
 
@@ -38,7 +36,7 @@ export function InkNavigation() {
             <small>BY SYAAHII</small>
           </span>
         </Link>
-        <p className="ink-nav-caption">YOUR WRITING SPACE</p>
+        <p className="ink-nav-caption">RESEARCH INTEGRITY</p>
         <nav aria-label="AI Ink">
           {links.map(({ href, label, icon: Icon }) => (
             <Link

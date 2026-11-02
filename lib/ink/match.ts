@@ -20,6 +20,9 @@ export interface SourceDocument {
   kind: "web" | "upload" | "corpus";
   text: string;
   retrievedAt?: string;
+  provider?: string;
+  scope?: "supplied-text" | "page-text" | "abstract" | "snippet";
+  truncated?: boolean;
 }
 
 export interface MatchedSpan {

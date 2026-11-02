@@ -158,6 +158,7 @@ async function handlePOST(req: NextRequest) {
       // Sending unpublished excerpts to search requires an explicit opt-in.
       allowWeb: body.allowWeb === true,
       verifyScholarly: body.verifyScholarly === true,
+      allowResearch: body.allowResearch === true,
       indexTrace: indexed?.trace,
     });
     const report = await saveReport({

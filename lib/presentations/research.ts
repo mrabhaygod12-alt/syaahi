@@ -61,8 +61,10 @@ export async function publicPage(
   maxBytes = 2_000_000,
   redirects = 0,
   beforeFetch?: (url: URL) => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<{ url: string; type: string; body: string; status: number }> {
   const url = publicResearchUrl(value);
+  signal?.throwIfAborted();
   await beforeFetch?.(url);
   const address = await resolvePublic(url);
   const response = await new Promise<{
@@ -74,6 +76,7 @@ export async function publicPage(
       url,
       {
         method: "GET",
+        signal,
         headers: {
           "User-Agent": "SyaahiResearch/1.0 (+https://www.syaahii.in/about)",
           Accept: "text/html,text/plain;q=0.9",
@@ -128,6 +131,7 @@ export async function publicPage(
       maxBytes,
       redirects + 1,
       beforeFetch,
+      signal,
     );
   }
   return {
@@ -217,17 +221,28 @@ export function extractPublicText(html: string, type: string) {
       .slice(0, 24000),
   };
 }
-export async function researchLink(value: string) {
+export async function researchLink(value: string, signal?: AbortSignal) {
   const url = publicResearchUrl(value);
   const policies = new Map<string, Awaited<ReturnType<typeof publicPage>>>();
   const checkPolicy = async (target: URL) => {
-    if (/(^|\.)(geeksforgeeks\.org|w3schools\.com)$/.test(target.hostname))
+    if (
+      /(^|\.)(geeksforgeeks\.org|w3schools\.com|sciencedirect\.com|scopus\.com|elsevier\.com)$/.test(
+        target.hostname,
+      ) ||
+      target.hostname.startsWith("scholar.google.")
+    )
       throw new Error(
         "This site's published terms restrict automated extraction. Paste material you can use instead.",
       );
     let policy = policies.get(target.origin);
     if (!policy) {
-      policy = await publicPage(new URL("/robots.txt", target).href, 256000);
+      policy = await publicPage(
+        new URL("/robots.txt", target).href,
+        256000,
+        0,
+        undefined,
+        signal,
+      );
       policies.set(target.origin, policy);
     }
     if (
@@ -240,7 +255,7 @@ export async function researchLink(value: string) {
       );
   };
   // Check the destination policy before following every article redirect.
-  const result = await publicPage(url.href, 2_000_000, 0, checkPolicy);
+  const result = await publicPage(url.href, 2_000_000, 0, checkPolicy, signal);
   if (result.status !== 200)
     throw new Error(
       `The source returned ${result.status}. It may require sign-in or block automated access.`,

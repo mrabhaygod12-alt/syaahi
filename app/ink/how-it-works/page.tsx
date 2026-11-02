@@ -22,17 +22,17 @@ export default function HowItWorks() {
           {
             Icon: Link2,
             title: "02. Compare your sources",
-            body: "Add references from your library or paste a source. Optional web search sends selected excerpts to the configured search provider.",
+            body: "Add references from your library or paste a source. Opt-in research discovery sends selected excerpts to OpenAlex to compare available abstracts. Web search uses the configured search provider. You can also import permitted public article text into your private index.",
           },
           {
             Icon: Quote,
             title: "03. Read the evidence",
-            body: "Review matched passages beside their sources, check attribution and see explainable writing patterns.",
+            body: "Review matched passages beside their sources, check citation markers and inspect each source’s comparison scope.",
           },
           {
             Icon: PenLine,
-            title: "04. Shape your next draft",
-            body: "Choose a passage, try an editing mode, and compare both versions before accepting a change.",
+            title: "04. Export the report",
+            body: "Download a private PDF with numbered sources, evidence excerpts, document facts, coverage and the selected similarity filters.",
           },
         ].map(({ Icon, title, body }) => (
           <section className="ink-method-card" key={title}>
@@ -54,7 +54,7 @@ export default function HowItWorks() {
           },
           {
             title: "Is this an AI detector?",
-            body: "No. Writing-pattern measurements describe phrasing, repetition and rhythm. They cannot prove who or what wrote a passage. AI Ink does not promise detector bypass or AI-footprint removal.",
+            body: "No calibrated AI-authorship detector is connected. Text-integrity flags identify observable Unicode properties such as invisible characters, direction controls and mixed Latin/Cyrillic words. These can have legitimate causes and do not prove authorship or misconduct. Figures and graphs are not assessed for AI origin.",
           },
           {
             title: "Which sources are covered?",
@@ -74,15 +74,16 @@ export default function HowItWorks() {
           },
           {
             title: "What happens to my document?",
-            body: "Your private report stores the extracted draft and evidence excerpts until you delete it. Full comparison-source bodies are not copied into reports. Sources explicitly added to your private index retain their text and fingerprints until removed. Uploaded files are parsed for text; they are not added to a public repository. Rewrites send your selected passage and optional writing sample to the configured AI provider. Database backups follow the operator’s backup policy.",
+            body: "Your private report stores the extracted draft and evidence excerpts until you delete it. Full comparison-source bodies are not copied into reports. Sources explicitly added to your private index retain their text and fingerprints until removed. Uploaded files are parsed for text; they are not added to a public repository. There is no AI editing service in AI Ink. Opt-in research discovery sends selected excerpts to OpenAlex; DOI verification sends DOI identifiers to registry services. Importing a public URL contacts its website after public-address and robots checks. Database backups follow the operator’s backup policy.",
           },
           {
             title: "What files can I upload?",
             body: "Searchable PDF and DOCX up to 10 MB; UTF-8 TXT, Markdown and LaTeX up to 500 KB. Scanned PDFs need OCR first. Legacy .doc and password-protected files are not supported. Text is extracted, not rendered as the original page layout.",
           },
           {
-            title: "Can an edit change my meaning?",
-            body: "It can. Numbers, common citations, quotations, code and equations are checked for preservation, but those checks cannot prove semantic accuracy. Keep attribution and review every claim before using the revised passage.",
+            title:
+              "Are Google Scholar, ScienceDirect and AI image checks included?",
+            body: "Google Scholar is a manual lookup only. Licensed ScienceDirect full-text access and AI-text/image detectors are not connected. Scopus DOI metadata is separate from text similarity. A report states which sources were actually compared; abstracts, snippets and metadata are never described as full-paper checks. Figures, graphs and image origins remain unassessed.",
           },
         ].map((item) => (
           <details key={item.title}>

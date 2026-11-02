@@ -66,7 +66,11 @@ function plain(value: unknown, max = 12000): string {
     .slice(0, max);
 }
 
-async function tavily(query: string, key: string, signal: AbortSignal): Promise<SourceDocument[]> {
+async function tavily(
+  query: string,
+  key: string,
+  signal: AbortSignal,
+): Promise<SourceDocument[]> {
   const response = await fetch(HOST.tavily, {
     method: "POST",
     headers: {
@@ -85,7 +89,12 @@ async function tavily(query: string, key: string, signal: AbortSignal): Promise<
   });
   if (!response.ok) throw new Error(`Tavily responded ${response.status}`);
   const data = (await readSearchJson(response)) as {
-    results?: Array<{ title?: string; url?: string; content?: string; raw_content?: string }>;
+    results?: Array<{
+      title?: string;
+      url?: string;
+      content?: string;
+      raw_content?: string;
+    }>;
   };
   return (data.results || [])
     .map((row): SourceDocument | null => {
@@ -100,6 +109,9 @@ async function tavily(query: string, key: string, signal: AbortSignal): Promise<
         title: plain(row.title, 200) || url,
         url,
         kind: "web",
+        provider: "Tavily",
+        scope: row.raw_content ? "page-text" : "snippet",
+        truncated: Boolean(row.raw_content && row.raw_content.length > 40000),
         text,
         retrievedAt: new Date().toISOString(),
       };
@@ -107,7 +119,11 @@ async function tavily(query: string, key: string, signal: AbortSignal): Promise<
     .filter((x): x is SourceDocument => x !== null);
 }
 
-async function brave(query: string, key: string, signal: AbortSignal): Promise<SourceDocument[]> {
+async function brave(
+  query: string,
+  key: string,
+  signal: AbortSignal,
+): Promise<SourceDocument[]> {
   const url = new URL(HOST.brave);
   url.searchParams.set("q", query.slice(0, 380));
   url.searchParams.set("count", "5");
@@ -121,7 +137,14 @@ async function brave(query: string, key: string, signal: AbortSignal): Promise<S
   });
   if (!response.ok) throw new Error(`Brave responded ${response.status}`);
   const data = (await readSearchJson(response)) as {
-    web?: { results?: Array<{ title?: string; url?: string; description?: string; extra_snippets?: string[] }> };
+    web?: {
+      results?: Array<{
+        title?: string;
+        url?: string;
+        description?: string;
+        extra_snippets?: string[];
+      }>;
+    };
   };
   return (data.web?.results || [])
     .map((row): SourceDocument | null => {
@@ -130,7 +153,9 @@ async function brave(query: string, key: string, signal: AbortSignal): Promise<S
       // Brave's free tier returns snippets only. Joining description and
       // extra_snippets gives enough contiguous prose to confirm short runs.
       const text = plain(
-        [row.description, ...(row.extra_snippets || [])].filter(Boolean).join(" "),
+        [row.description, ...(row.extra_snippets || [])]
+          .filter(Boolean)
+          .join(" "),
         8000,
       );
       if (text.length < 200) return null;
@@ -139,6 +164,8 @@ async function brave(query: string, key: string, signal: AbortSignal): Promise<S
         title: plain(row.title, 200) || href,
         url: href,
         kind: "web",
+        provider: "Brave",
+        scope: "snippet",
         text,
         retrievedAt: new Date().toISOString(),
       };
@@ -172,21 +199,28 @@ export async function discoverSources(
     provider === "tavily"
       ? process.env.TAVILY_API_KEY!
       : process.env.BRAVE_SEARCH_API_KEY!;
-  const queries = excerpts.slice(0, Math.max(1, Math.min(10, options.maxQueries ?? 6)));
+  const queries = excerpts.slice(
+    0,
+    Math.max(1, Math.min(10, options.maxQueries ?? 6)),
+  );
 
   const found: SourceDocument[] = [];
   let failures = 0;
   const signal = AbortSignal.timeout(15000);
   for (let offset = 0; offset < queries.length; offset += 2) {
-    await Promise.all(queries.slice(offset, offset + 2).map(async query => {
-    try {
-      const rows =
-        provider === "tavily" ? await tavily(query, key, signal) : await brave(query, key, signal);
-      found.push(...rows);
-    } catch {
-      failures += 1;
-    }
-    }));
+    await Promise.all(
+      queries.slice(offset, offset + 2).map(async (query) => {
+        try {
+          const rows =
+            provider === "tavily"
+              ? await tavily(query, key, signal)
+              : await brave(query, key, signal);
+          found.push(...rows);
+        } catch {
+          failures += 1;
+        }
+      }),
+    );
   }
 
   // De-duplicate by URL, keeping the longest retrieved text.
@@ -199,7 +233,11 @@ export async function discoverSources(
   const sources = [...byUrl.values()].slice(0, 24);
 
   const status: SearchTrace["status"] =
-    failures === 0 ? "complete" : failures >= queries.length ? "unavailable" : "partial";
+    failures === 0
+      ? "complete"
+      : failures >= queries.length
+        ? "unavailable"
+        : "partial";
 
   return {
     sources,
@@ -221,13 +259,19 @@ export async function discoverSources(
 async function readSearchJson(response: Response): Promise<unknown> {
   const reader = response.body?.getReader();
   if (!reader) throw new Error("Empty search response");
-  const parts: Uint8Array[] = []; let bytes = 0;
+  const parts: Uint8Array[] = [];
+  let bytes = 0;
   try {
     for (;;) {
-      const { done, value } = await reader.read(); if (done) break;
-      bytes += value.length; if (bytes > 1500000) throw new Error("Search response too large");
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.length;
+      if (bytes > 1500000) throw new Error("Search response too large");
       parts.push(value);
     }
     return JSON.parse(Buffer.concat(parts).toString("utf8"));
-  } finally { void reader.cancel().catch(() => {}); reader.releaseLock(); }
+  } finally {
+    void reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }

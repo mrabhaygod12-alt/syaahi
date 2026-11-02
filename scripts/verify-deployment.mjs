@@ -20,6 +20,8 @@ const checks = [
   ["/ai-ink", 200, "Research with care. Write with confidence."],
   ["/api/ink/sources", 401],
   ["/api/ink/sources", 401, undefined, undefined, "POST"],
+  ["/api/ink/export", 401, undefined, undefined, "POST"],
+  ["/api/ink/rewrite", 401, undefined, undefined, "POST"],
   [
     "/ai-generated-notes",
     200,

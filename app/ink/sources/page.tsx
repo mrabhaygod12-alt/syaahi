@@ -26,6 +26,29 @@ export default function SourcesPage() {
     [busy, setBusy] = useState(false),
     [remove, setRemove] = useState<Source | null>(null),
     [query, setQuery] = useState("");
+  const [url, setUrl] = useState("");
+  async function importUrl() {
+    setBusy(true);
+    setError("");
+    try {
+      await requestJson(
+        "/api/ink/sources",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "import-url", url }),
+        },
+        30000,
+      );
+      setOpen(false);
+      setUrl("");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Source import failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
   const file = useRef<HTMLInputElement>(null);
   async function load() {
     setLoading(true);
@@ -181,6 +204,30 @@ export default function SourcesPage() {
         title="Add a private source"
         wide
       >
+        <label className="ink-label" htmlFor="ink-source-url">
+          Public article URL
+        </label>
+        <input
+          id="ink-source-url"
+          className="ink-input"
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://example.org/research-article"
+          disabled={busy}
+        />
+        <button
+          className="ink-btn ink-btn--ghost"
+          disabled={busy || !url.trim()}
+          onClick={importUrl}
+        >
+          Import permitted page
+        </button>
+        <p className="ink-small-print">
+          Stores readable page text in your private index. Robots restrictions,
+          sign-in and paywalls are respected. Scholar, Scopus and ScienceDirect
+          require manual or licensed access.
+        </p>
         <button
           className="ink-btn ink-btn--ghost"
           disabled={busy}

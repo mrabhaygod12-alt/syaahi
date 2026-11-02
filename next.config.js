@@ -17,10 +17,13 @@ module.exports = {
     "playwright",
     "playwright-core",
     "pdf-parse",
+    "pdfkit",
+    "fontkit",
     "@remotion/renderer",
     "@remotion/bundler",
   ],
   outputFileTracingIncludes: {
+    "/api/ink/export": ["./lib/ink/fonts/*.ttf", "./lib/ink/fonts/*.txt"],
     "/api/presentations/**/*": [
       "./lib/presentations/hybrid/VideoRoot.tsx",
       "./lib/presentations/hybrid/visual.ts",

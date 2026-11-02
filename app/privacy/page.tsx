@@ -8,6 +8,10 @@ export const metadata = pageMeta({
 import { PageHero, Prose, H } from "@/components/site";
 const sections = [
   [
+    "AI Ink document checks",
+    "AI Ink stores extracted submission text, comparison excerpts and private report snapshots with your account. It does not add papers to a shared student repository. Sources explicitly added to your private index retain their text and fingerprints until removed; deleting a source does not remove excerpts in older reports. Research discovery is off by default: enabling it sends selected excerpts to OpenAlex to retrieve available abstracts. Optional web discovery sends excerpts to a configured search provider; DOI verification sends identifiers to Crossref and a licensed Scopus integration when configured. Importing a public article URL contacts that site after network-address and robots checks. PDF exports are generated locally on the application server using bundled fonts. No AI editing, AI-text detector or image-origin detector is used in this checking flow. Your private reports are excluded from public indexing.",
+  ],
+  [
     "Writer images, workspace preference and presentations",
     "We store your selected student or writer starting workspace, rich-text drafts, up to ten saved draft versions, and uploaded writer images. Images are resized and re-encoded to WebP without original metadata, and remain private until referenced in an approved public guide. Publication makes the guide and its referenced images publicly accessible; takedown revokes future access. Presentation briefs, reference text, outlines, slides, language, template, generation status and speaker notes are saved privately under your account. Generating slides sends the submitted text to a configured AI provider. PPTX downloads remain on your device once downloaded. Subscription records include plan, mandate/subscription and invoice/payment identifiers, paid period, cancellation status and ledger events. Payment credentials remain with Razorpay.",
   ],

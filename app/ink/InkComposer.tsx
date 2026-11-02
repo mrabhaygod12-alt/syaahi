@@ -35,6 +35,7 @@ export default function InkComposer() {
   const [allowWeb, setAllowWeb] = useState(false);
   const [useIndex, setUseIndex] = useState(true);
   const [verifyScholarly, setVerifyScholarly] = useState(false);
+  const [allowResearch, setAllowResearch] = useState(false);
   const [busy, setBusy] = useState<"import" | "scan" | null>(null);
   const [error, setError] = useState("");
   const [documents, setDocuments] = useState<DocumentOption[]>([]);
@@ -81,6 +82,7 @@ export default function InkComposer() {
     attached,
     useIndex,
     verifyScholarly,
+    allowResearch,
   ]);
   async function run() {
     if (!ready) return;
@@ -101,6 +103,7 @@ export default function InkComposer() {
             allowWeb,
             useIndex,
             verifyScholarly,
+            allowResearch,
             sourceIds: attached,
             requestId: requestId.current,
           }),
@@ -166,7 +169,7 @@ export default function InkComposer() {
             <br />
             <span>Your words.</span>
           </h1>
-          <p>Check your sources. Refine your writing. Submit with care.</p>
+          <p>Compare sources. Inspect the evidence. Export your report.</p>
         </div>
         <div className="ink-process" aria-label="Workflow">
           <span className="is-current">
@@ -178,7 +181,7 @@ export default function InkComposer() {
           </span>
           <i />
           <span>
-            <b>03</b> Improve
+            <b>03</b> Report
           </span>
         </div>
       </div>
@@ -300,7 +303,7 @@ export default function InkComposer() {
               <ScanLine size={22} />
             </span>
             <h2>Your check, in focus.</h2>
-            <p>Three ways to strengthen your draft.</p>
+            <p>Evidence for your next review.</p>
           </div>
           <div className="ink-check-types">
             {[
@@ -318,8 +321,8 @@ export default function InkComposer() {
               },
               {
                 Icon: PenLine,
-                label: "Writing patterns",
-                hint: "Clarity, repetition and phrasing",
+                label: "Document integrity",
+                hint: "Text anomalies that need review",
                 tone: "green",
               },
             ].map(({ Icon, label, hint, tone }) => (
@@ -393,6 +396,22 @@ export default function InkComposer() {
               aria-label="Allow selected excerpts to be sent to web search"
             />
           </label>
+          <label className="ink-web-toggle">
+            <span>
+              <strong>Discover research abstracts</strong>
+              <small>
+                Send selected excerpts to OpenAlex. Abstracts only, not full
+                papers.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={allowResearch}
+              onChange={(e) => setAllowResearch(e.target.checked)}
+              disabled={!!busy}
+              aria-label="Allow excerpt research with OpenAlex"
+            />
+          </label>
           <button
             className="ink-btn ink-btn--scan"
             disabled={!ready}
@@ -411,14 +430,14 @@ export default function InkComposer() {
             {!busy && <ArrowRight size={17} />}
           </button>
           <p className="ink-small-print">
-            200–120,000 characters. Style checks aren’t AI-authorship detection.{" "}
-            <Link href="/ink/how-it-works">See coverage</Link>
+            200–120,000 characters. AI authorship and image origins aren’t
+            assessed. <Link href="/ink/how-it-works">See coverage</Link>
           </p>
           {text && !referenceText.trim() && !attached.length && !allowWeb && (
             <p className="ink-inline-notice">
               {useIndex
                 ? "Your private index will be checked. The report shows which sources were compared."
-                : "Add a source to compare overlap. Without one, only style and citation checks run."}
+                : "Add a source to compare overlap. Without one, only integrity and citation checks run."}
             </p>
           )}
         </aside>

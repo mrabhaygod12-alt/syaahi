@@ -1,931 +1,731 @@
 "use client";
-
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { requestJson } from "../../client";
-import { wordOffsets } from "@/lib/ink/text";
+import {
+  Download,
+  Printer,
+  SlidersHorizontal,
+  ArrowLeft,
+  ExternalLink,
+  Trash2,
+  ShieldCheck,
+  FileSearch,
+} from "lucide-react";
 import type { InkReport } from "../../types";
 import { InkDialog } from "../../InkUI";
+import { requestJson } from "../../client";
 import {
   filterMatches,
   DEFAULT_MATCH_FILTERS,
   type MatchFilters,
 } from "@/lib/ink/filters";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Download,
-  Printer,
-  Trash2,
-  PenLine,
-} from "lucide-react";
+  reportFindings,
+  matchGroups,
+  GROUP_LABELS,
+  SOURCE_COLORS,
+} from "@/lib/ink/report-model";
 
-type Kind = "plag" | "style" | "cite" | "phrase";
-
-interface Finding {
-  key: string;
-  kind: Kind;
-  start: number;
-  end: number;
-  text: string;
-  reason: string;
-  source?: { title: string; url?: string; text: string };
-  n: number;
-}
-
-const KIND_LABEL: Record<Kind, string> = {
-  plag: "Overlap",
-  style: "Style",
-  cite: "Citation",
-  phrase: "Phrase review",
-};
-
-export default function InkReportView({
-  report: originalReport,
-}: {
-  report: InkReport;
-}) {
-  const [filters, setFilters] = useState<MatchFilters>(DEFAULT_MATCH_FILTERS);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const filtered = useMemo(
-    () => filterMatches(originalReport.text, originalReport.match, filters),
-    [originalReport, filters],
-  );
-  const report = useMemo(
-    () => ({ ...originalReport, match: filtered.match }),
-    [originalReport, filtered],
-  );
+type Tab = "proof" | "sources" | "citations" | "coverage";
+const TABS: Array<[Tab, string]> = [
+  ["proof", "Document"],
+  ["sources", "Sources"],
+  ["citations", "References"],
+  ["coverage", "Coverage & integrity"],
+];
+const href = (url?: string) =>
+  url && /^https?:\/\//i.test(url) ? url : undefined;
+const stamp = (value: string) =>
+  new Date(value).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+export default function InkReportView({ report }: { report: InkReport }) {
   const router = useRouter();
-  const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [sourceFinding, setSourceFinding] = useState<Finding | null>(null);
-  const [tab, setTab] = useState<"proof" | "sources" | "style" | "citations">(
-    "proof",
+  const [filters, setFilters] = useState<MatchFilters>(DEFAULT_MATCH_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false),
+    [tab, setTab] = useState<Tab>("proof");
+  const [selected, setSelected] = useState<string | null>(null),
+    [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [error, setError] = useState(""),
+    [exporting, setExporting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false),
+    [deleting, setDeleting] = useState(false);
+  const filtered = useMemo(
+    () => filterMatches(report.text, report.match, filters),
+    [report, filters],
   );
-  const [active, setActive] = useState<string | null>(null);
-
-  const findings = useMemo<Finding[]>(() => {
-    const text = report.text;
-    const offsets = wordOffsets(text);
-    const list: Finding[] = [];
-
-    // Copied passages: convert word indices to character spans.
-    for (const match of report.match.sources) {
-      for (const span of match.spans) {
-        const start = offsets[span.start];
-        if (start === undefined) continue;
-        const lastIndex = Math.min(span.end - 1, offsets.length - 1);
-        const end =
-          offsets[lastIndex] !== undefined
-            ? offsets[lastIndex] +
-              (text
-                .slice(offsets[lastIndex])
-                .match(/^[\p{L}\p{N}][\p{L}\p{N}\p{M}\u200c\u200d'\-]*/u)?.[0]
-                .length || 0)
-            : text.length;
-        list.push({
-          key: `plag-${match.source.id}-${span.start}`,
-          kind: "plag",
-          start,
-          end: Math.min(end, text.length),
-          text: text.slice(start, Math.min(end, text.length)),
-          reason: `${span.words} words in the same order as this source.`,
-          source: {
-            title: match.source.title,
-            url: match.source.url,
-            text: span.sourceText,
-          },
-          n: 0,
-        });
-      }
-    }
-
-    for (const span of report.style.spans) {
-      list.push({
-        key: `style-${span.start}`,
-        kind: "style",
-        start: span.start,
-        end: span.end,
-        text: span.text,
-        reason: span.reason,
-        n: 0,
-      });
-    }
-    for (const candidate of report.phrasing?.candidates || []) {
-      if (filters.excludedSources.includes(candidate.source.id)) continue;
-      list.push({
-        key: `phrase-${candidate.start}`,
-        kind: "phrase",
-        start: candidate.start,
-        end: candidate.end,
-        text: candidate.text,
-        reason: candidate.reason,
-        source: candidate.source,
-        n: 0,
-      });
-    }
-
-    for (const span of report.citations.uncited) {
-      list.push({
-        key: `cite-${span.start}`,
-        kind: "cite",
-        start: span.start,
-        end: span.end,
-        text: span.text,
-        reason: span.reason,
-        n: 0,
-      });
-    }
-
-    const priority: Record<Kind, number> = {
-      plag: 0,
-      phrase: 1,
-      cite: 2,
-      style: 3,
-    };
-    list.sort(
-      (a, b) =>
-        priority[a.kind] - priority[b.kind] ||
-        a.start - b.start ||
-        b.end - a.end,
-    );
-
-    // Drop overlaps so a style mark never sits inside a copied-passage mark.
-    const kept: Finding[] = [];
-    for (const item of list) {
-      // Higher-priority source evidence wins; no nested/overlapping DOM marks.
-      if (kept.some((k) => item.start < k.end && item.end > k.start)) continue;
-      kept.push(item);
-    }
-    kept.sort((a, b) => a.start - b.start);
-    kept.forEach((item, i) => {
-      item.n = i + 1;
-    });
-    return kept;
-  }, [report, filters.excludedSources]);
-
-  const counts = useMemo(() => {
-    const c: Record<Kind, number> = { plag: 0, style: 0, cite: 0, phrase: 0 };
-    for (const f of findings) c[f.kind] += 1;
-    return c;
-  }, [findings]);
-
-  /** Render the manuscript with inline marks, splitting text on finding bounds. */
+  const findings = useMemo(
+    () => reportFindings(report.text, filtered.match),
+    [report.text, filtered],
+  );
+  const groups = useMemo(
+    () => matchGroups(report.text, filtered.match),
+    [report.text, filtered],
+  );
+  const active = findings.find((f) => f.id === selected) || findings[0];
+  const activeSource = filtered.match.sources.find(
+    (s) => s.source.id === active?.sourceId,
+  );
+  const evidence = report.evidence || [];
   const body = useMemo(() => {
     const nodes: React.ReactNode[] = [];
     let cursor = 0;
-    for (const f of findings) {
-      if (f.start > cursor) nodes.push(report.text.slice(cursor, f.start));
+    for (const f of [...findings].sort(
+      (a, b) => a.start - b.start || b.end - a.end,
+    )) {
+      if (f.start < cursor) continue;
+      nodes.push(report.text.slice(cursor, f.start));
       nodes.push(
         <mark
-          key={f.key}
-          id={`mark-${f.key}`}
-          data-kind={f.kind}
-          data-n={f.n}
-          data-active={active === f.key}
-          onClick={() => setActive(f.key)}
+          key={f.id}
+          id={`finding-${f.id}`}
+          data-kind="plag"
+          data-active={active?.id === f.id}
+          style={{ borderBottomColor: f.color }}
+          role="button"
+          tabIndex={0}
+          aria-label={`Source ${f.sourceNumber}: ${f.words} matching words`}
+          onClick={() => setSelected(f.id)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              setActive(f.key);
+              setSelected(f.id);
             }
           }}
-          tabIndex={0}
-          role="button"
-          aria-label={`${KIND_LABEL[f.kind]} finding ${f.n}: ${f.reason}`}
         >
+          <sup style={{ background: f.color }}>{f.sourceNumber}</sup>
           {report.text.slice(f.start, f.end)}
         </mark>,
       );
       cursor = f.end;
     }
-    if (cursor < report.text.length) nodes.push(report.text.slice(cursor));
+    nodes.push(report.text.slice(cursor));
     return nodes;
-  }, [findings, report.text, active]);
-
+  }, [report.text, findings, active?.id]);
+  async function downloadPdf() {
+    setExporting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/ink/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: report.id, filters }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw Error(
+          data.error || "The PDF could not be generated. Please retry.",
+        );
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ai-ink-integrity-report.pdf";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "PDF export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
+  function downloadJson() {
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          {
+            ...report,
+            owner: undefined,
+            view: {
+              filters,
+              excludedWords: filtered.excludedWords,
+              match: filtered.match,
+            },
+          },
+          null,
+          2,
+        ),
+      ],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob),
+      a = document.createElement("a");
+    a.href = url;
+    a.download = "ai-ink-report.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+  async function remove() {
+    setDeleting(true);
+    try {
+      await requestJson("/api/ink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id: report.id }),
+      });
+      router.push("/ink/reports");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete report.");
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+  const score = report.comparedSources
+    ? `${Math.round(filtered.match.coverage * 100)}%`
+    : "—";
   return (
-    <main className="ink-page ink-page--wide">
-      <div className="ink-report-toolbar">
-        <button
-          className="ink-btn ink-btn--ghost"
-          onClick={() => setFiltersOpen(true)}
-        >
-          Similarity filters
-        </button>
-        <Link href={`/ink/rewrite?report=${report.id}`} className="ink-btn">
-          <PenLine size={15} /> Improve writing <ArrowRight size={14} />
+    <main className="ink-page ink-page--wide ink-review">
+      <div className="ink-review-actions">
+        <Link className="ink-btn ink-btn--ghost" href="/ink/reports">
+          <ArrowLeft size={15} /> My reports
         </Link>
-        <button
-          className="ink-btn ink-btn--ghost"
-          onClick={() => window.print()}
-        >
-          <Printer size={14} /> Print / save PDF
-        </button>
-        <button
-          className="ink-btn ink-btn--ghost"
-          onClick={() => {
-            const blob = new Blob(
-              [
-                JSON.stringify(
-                  {
-                    ...originalReport,
-                    view: {
-                      filters,
-                      excludedWords: filtered.excludedWords,
-                      eligibleWords: filtered.eligibleWords,
-                      similarity: report.match.coverage,
-                    },
-                  },
-                  null,
-                  2,
-                ),
-              ],
-              {
-                type: "application/json",
-              },
-            );
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "ai-ink-report.json";
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-          }}
-        >
-          <Download size={14} /> Download report
-        </button>
-        <button
-          className="ink-icon-btn"
-          aria-label="Delete private report"
-          onClick={() => setConfirmDelete(true)}
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
-      {error && <p role="alert">{error}</p>}
-      <div className="ink-report-head">
         <div>
-          <Link
-            href="/ink"
-            className="ink-note"
-            style={{ textDecoration: "none", fontSize: 12 }}
+          <button
+            className="ink-btn ink-btn--ghost"
+            onClick={() => setFiltersOpen(true)}
           >
-            <ArrowLeft
-              size={12}
-              style={{ verticalAlign: "middle", marginRight: 5 }}
-            />{" "}
-            New check
-          </Link>
-          <h1>{report.title}</h1>
-        </div>
-        <div className="ink-report-meta">
-          <div>
-            {report.words.toLocaleString()} words · {report.style.sentences}{" "}
-            sentences
-          </div>
-          <div>
-            {new Date(report.createdAt).toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </div>
+            <SlidersHorizontal size={15} /> Similarity filters
+          </button>
+          <button
+            className="ink-btn ink-btn--ghost"
+            onClick={() => window.print()}
+            aria-label="Print report"
+          >
+            <Printer size={15} />
+          </button>
+          <button
+            className="ink-btn"
+            onClick={downloadPdf}
+            disabled={exporting}
+          >
+            <Download size={16} />
+            {exporting ? "Preparing PDF…" : "Download PDF"}
+          </button>
         </div>
       </div>
-
-      <dl className="ink-scores" data-ink-reveal>
-        <div
-          className="ink-score"
-          data-tone={
-            report.match.coverage > 0.15
-              ? "bad"
-              : report.match.coverage > 0.05
-                ? "warn"
-                : "good"
-          }
-        >
-          <dt>Source similarity</dt>
-          <dd className="ink-figure">
+      {error && (
+        <p role="alert" className="ink-banner" data-tone="bad">
+          {error}
+        </p>
+      )}
+      <header className="ink-review-cover">
+        <div>
+          <p className="ink-kicker">DOCUMENT INTEGRITY REPORT</p>
+          <h1>{report.title}</h1>
+          <p>Checked {stamp(report.createdAt)}</p>
+          <code>{report.id}</code>
+        </div>
+        <div className="ink-report-seal">
+          <ShieldCheck size={30} />
+          <span>Private snapshot</span>
+          <small>{report.methodVersion || "Legacy method"}</small>
+        </div>
+      </header>
+      <section className="ink-review-overview" aria-label="Report overview">
+        <div className="ink-score-card">
+          <span>Text similarity</span>
+          <strong>{score}</strong>
+          <p>
             {report.comparedSources
-              ? Math.round(report.match.coverage * 100)
-              : "—"}
-            {report.comparedSources > 0 && <small>%</small>}
-          </dd>
+              ? `${filtered.match.matchedWords.toLocaleString()} of ${filtered.eligibleWords.toLocaleString()} eligible words`
+              : "Not measured: no comparison text was available."}
+          </p>
+          <small>
+            Raw:{" "}
+            {report.comparedSources
+              ? `${Math.round(report.match.coverage * 100)}%`
+              : "unmeasured"}{" "}
+            · {filtered.excludedWords} words excluded
+          </small>
+        </div>
+        <div className="ink-review-facts">
+          <div>
+            <strong>{report.words.toLocaleString()}</strong>
+            <span>Document words</span>
+          </div>
+          <div>
+            <strong>{report.comparedSources}</strong>
+            <span>Sources compared</span>
+          </div>
+          <div>
+            <strong>{filtered.match.sourceCount}</strong>
+            <span>Matching sources</span>
+          </div>
+          <div>
+            <strong>{report.integrity?.flags.length ?? "—"}</strong>
+            <span>Text integrity flags</span>
+          </div>
           <p>
-            {report.match.sourceCount === 0
-              ? report.comparedSources
-                ? "No matching runs in the compared sources."
-                : "No reference sources compared. Add sources to check overlap."
-              : `${report.match.matchedWords} words across ${report.match.sourceCount} source${report.match.sourceCount === 1 ? "" : "s"}.`}
+            Similarity is evidence for review, not a plagiarism verdict. No
+            AI-authorship score was calculated.
           </p>
         </div>
-        <div
-          className="ink-score"
-          data-tone={
-            report.citations.score >= 80
-              ? "good"
-              : report.citations.score >= 50
-                ? "warn"
-                : "bad"
-          }
-        >
-          <dt>Citation markers</dt>
-          <dd className="ink-figure">
-            {report.citations.score}
-            <small>%</small>
-          </dd>
-          <p>
-            {report.citations.cited} of {report.citations.totalClaims} checkable
-            claims contain a supported citation format.
-          </p>
-        </div>
-        <div
-          className="ink-score"
-          data-tone={
-            report.style.band === "clear"
-              ? "good"
-              : report.style.band === "watch"
-                ? "warn"
-                : "bad"
-          }
-        >
-          <dt>Style patterns</dt>
-          <dd className="ink-figure">
-            {report.style.footprint}
-            <small>/100</small>
-          </dd>
-          <p>
-            {report.style.band === "clear"
-              ? "Few of these style patterns were flagged."
-              : report.style.band === "watch"
-                ? "Some passages read as generic."
-                : "Several passages contain the measured style patterns."}
-          </p>
-        </div>
-        <div className="ink-score">
-          <dt>Findings</dt>
-          <dd className="ink-figure">{findings.length}</dd>
-          <p>
-            {counts.plag} overlap · {counts.style} style · {counts.cite}{" "}
-            citation · {counts.phrase} phrase review
-          </p>
-        </div>
-      </dl>
+      </section>
+      {(report.match.limited || report.phrasing?.limited) && (
+        <p className="ink-banner" data-tone="warn">
+          A comparison or evidence budget was reached. This report is a partial
+          review.
+        </p>
+      )}
+      <section className="ink-match-groups" aria-label="Match groups">
+        {groups.map((g) => (
+          <div key={g.id}>
+            <strong>{g.count}</strong>
+            <span>{g.label}</span>
+          </div>
+        ))}
+      </section>
       <p className="ink-small-print">
-        {report.match.limited && (
-          <>
-            Exact-match limits were reached; displayed coverage is partial.
-            Split long or highly repetitive material into smaller sections.{" "}
-          </>
-        )}
-        Raw similarity:{" "}
-        {originalReport.comparedSources
-          ? `${Math.round(originalReport.match.coverage * 100)}%`
-          : "unmeasured"}
-        . View excludes {filtered.excludedWords} words and{" "}
-        {filters.excludedSources.length} sources.{" "}
-        {report.index && (
-          <>
-            Private index: {report.index.indexed} indexed,{" "}
-            {report.index.candidates} candidates, {report.index.compared}{" "}
-            compared{report.index.limited ? "; candidate limit reached" : ""}.
-          </>
-        )}
-        {report.phrasing && (
-          <>
-            {" "}
-            Shared-phrasing review: {report.phrasing.candidates.length}{" "}
-            candidates across {report.phrasing.comparisons} sentence comparisons
-            {report.phrasing.limited ? "; review limit reached" : ""}.
-            Candidates are separate from exact similarity.
-          </>
-        )}
+        Groups count matched passages; the same passage may appear under several
+        sources. A nearby marker does not verify that it credits the matched
+        source.
       </p>
-
-      <div className="ink-tabs" role="tablist" aria-label="Report sections">
-        {(
-          [
-            ["proof", "Document", findings.length],
-            ["sources", "Sources", report.match.sourceCount],
-            ["style", "Style", report.style.signals.length],
-            [
-              "citations",
-              "Citations",
-              report.citations.uncited.length +
-                (report.citations.issues?.length || 0),
-            ],
-          ] as const
-        ).map(([id, label, n]) => (
+      {report.index && (
+        <p className="ink-note">
+          Private index: {report.index.indexed} indexed,{" "}
+          {report.index.candidates} candidates, {report.index.compared} compared
+          {report.index.limited ? " · limited" : ""}.
+        </p>
+      )}
+      <div
+        className="ink-review-tabs"
+        role="tablist"
+        aria-label="Report sections"
+      >
+        {TABS.map(([key, label], i) => (
           <button
-            key={id}
+            key={key}
+            id={`tab-${key}`}
             role="tab"
-            id={`ink-tab-${id}`}
-            aria-controls="ink-report-panel"
-            tabIndex={tab === id ? 0 : -1}
-            className="ink-tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
+            aria-controls={`panel-${key}`}
+            aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
+            onClick={() => setTab(key)}
             onKeyDown={(e) => {
-              const ids = ["proof", "sources", "style", "citations"] as const;
-              const index = ids.indexOf(id);
-              const next =
-                e.key === "ArrowRight"
-                  ? (index + 1) % 4
-                  : e.key === "ArrowLeft"
-                    ? (index + 3) % 4
-                    : e.key === "Home"
-                      ? 0
-                      : e.key === "End"
-                        ? 3
-                        : -1;
-              if (next >= 0) {
-                e.preventDefault();
-                setTab(ids[next]);
-                document.getElementById(`ink-tab-${ids[next]}`)?.focus();
-              }
+              let next = i;
+              if (e.key === "ArrowRight") next = (i + 1) % TABS.length;
+              else if (e.key === "ArrowLeft")
+                next = (i + TABS.length - 1) % TABS.length;
+              else if (e.key === "Home") next = 0;
+              else if (e.key === "End") next = TABS.length - 1;
+              else return;
+              e.preventDefault();
+              setTab(TABS[next][0]);
+              document.getElementById(`tab-${TABS[next][0]}`)?.focus();
             }}
           >
             {label}
-            <em>{n}</em>
           </button>
         ))}
       </div>
-
-      <div
-        id="ink-report-panel"
+      <section
+        id={`panel-${tab}`}
         role="tabpanel"
-        aria-labelledby={`ink-tab-${tab}`}
+        aria-labelledby={`tab-${tab}`}
+        tabIndex={0}
+        className="ink-review-panel"
       >
         {tab === "proof" && (
-          <>
-            {report.search.status === "skipped" && (
-              <div className="ink-banner" data-tone="warn">
-                {report.search.message}
+          <div className="ink-evidence-layout">
+            <article className="ink-review-paper">
+              <div className="ink-paper-heading">
+                <FileSearch size={17} />
+                <span>Extracted manuscript</span>
+                <small>{findings.length} matching passages</small>
               </div>
-            )}
-            {report.search.status === "unavailable" && (
-              <div className="ink-banner" data-tone="warn">
-                {report.search.message}
-              </div>
-            )}
-            <div className="ink-proof">
-              <div className="ink-manuscript">
-                <div className="ink-manuscript-body">{body}</div>
-              </div>
-              <div className="ink-margin" aria-label="Findings">
-                {findings.length === 0 ? (
-                  <div className="ink-margin-empty">
-                    <strong
-                      style={{
-                        display: "block",
-                        fontFamily: "var(--ink-serif)",
-                        fontSize: 17,
-                        color: "var(--ink)",
-                        marginBottom: 6,
-                      }}
-                    >
-                      Nothing flagged
-                    </strong>
-                    No matching runs, shared-phrasing candidates or citation
-                    prompts were found in this draft.
+              <p className="ink-small-print">
+                Reflowed text. Highlight positions refer to extracted text, not
+                original PDF pages.
+              </p>
+              <div className="ink-review-manuscript">{body}</div>
+            </article>
+            <aside className="ink-match-inspector">
+              <h2>Source evidence</h2>
+              {active && activeSource ? (
+                <>
+                  <div className="ink-source-title">
+                    <b style={{ background: active.color }}>
+                      {active.sourceNumber}
+                    </b>
+                    <h3>{activeSource.source.title}</h3>
                   </div>
-                ) : (
-                  findings.map((f) => (
-                    <article
-                      key={f.key}
-                      className="ink-card"
-                      data-kind={f.kind}
-                      data-active={active === f.key}
-                      aria-label={`Finding ${f.n}: ${f.reason}`}
+                  <span className="ink-tag">{active.words} matching words</span>
+                  <p>{GROUP_LABELS[active.group]}</p>
+                  <blockquote>{active.sourceText}</blockquote>
+                  <button
+                    className="ink-btn ink-btn--ghost"
+                    onClick={() => setEvidenceOpen(true)}
+                  >
+                    Compare source
+                  </button>
+                  {href(activeSource.source.url) && (
+                    <a
+                      className="ink-source-link"
+                      href={href(activeSource.source.url)}
+                      target="_blank"
+                      rel="noreferrer"
                     >
-                      <span className="ink-card-top">
-                        <span className="ink-card-n">
-                          {String(f.n).padStart(2, "0")}
-                        </span>
-                        <span className="ink-card-kind">
-                          {KIND_LABEL[f.kind]}
-                        </span>
-                      </span>
-                      <p className="ink-card-quote">{f.text}</p>
-                      <p className="ink-card-why">{f.reason}</p>
-                      {f.source && (
-                        <button
-                          className="ink-text-link"
-                          onClick={() => setSourceFinding(f)}
-                        >
-                          Compare source <ArrowRight size={12} />
-                        </button>
-                      )}
-                      <div className="ink-finding-actions">
-                        <button
-                          onClick={() => {
-                            setActive(f.key);
-                            document
-                              .getElementById(`mark-${f.key}`)
-                              ?.scrollIntoView({
-                                block: "center",
-                                behavior: window.matchMedia(
-                                  "(prefers-reduced-motion: reduce)",
-                                ).matches
-                                  ? "auto"
-                                  : "smooth",
-                              });
-                          }}
-                        >
-                          Locate passage
-                        </button>
-                        <Link
-                          href={`/ink/rewrite?report=${report.id}&start=${f.start}&end=${f.end}`}
-                        >
-                          Improve <PenLine size={12} />
-                        </Link>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
+                      Open source <ExternalLink size={13} />
+                    </a>
+                  )}
+                  <div className="ink-passage-list">
+                    {findings.map((f) => (
+                      <button
+                        key={f.id}
+                        aria-pressed={f.id === active.id}
+                        onClick={() => {
+                          setSelected(f.id);
+                          document
+                            .getElementById(`finding-${f.id}`)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            });
+                        }}
+                      >
+                        <b style={{ color: f.color }}>{f.sourceNumber}</b>
+                        <span>{f.text.slice(0, 95)}…</span>
+                        <small>{f.words} words</small>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p>
+                  No exact matching passages in the sources compared. This does
+                  not establish originality.
+                </p>
+              )}
+            </aside>
+          </div>
+        )}
+        {tab === "sources" && (
+          <>
+            <h2>Matching sources</h2>
+            <p className="ink-note">
+              Numbered sources correspond to manuscript highlights. Source
+              percentages can overlap; the overall score counts each matching
+              word once.
+            </p>
+            {filtered.match.sources.map((s, i) => (
+              <article className="ink-source-entry" key={s.source.id}>
+                <b
+                  className="ink-number"
+                  style={{
+                    background: SOURCE_COLORS[i % SOURCE_COLORS.length],
+                  }}
+                >
+                  {i + 1}
+                </b>
+                <div>
+                  <h3>{s.source.title}</h3>
+                  <p>
+                    {s.source.provider || s.source.kind} ·{" "}
+                    {s.source.scope || "Supplied comparison text"}
+                  </p>
+                  {href(s.source.url) && (
+                    <a
+                      href={href(s.source.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {s.source.url}
+                    </a>
+                  )}
+                  <small>
+                    {s.matchedWords} matched words · {s.spans.length} passages
+                  </small>
+                  <button
+                    className="ink-btn ink-btn--ghost"
+                    onClick={() => {
+                      setSelected(
+                        findings.find((f) => f.sourceId === s.source.id)?.id ||
+                          null,
+                      );
+                      setTab("proof");
+                    }}
+                  >
+                    Inspect passages
+                  </button>
+                </div>
+                <strong>{Math.round(s.coverage * 100)}%</strong>
+              </article>
+            ))}
+            {!filtered.match.sources.length && (
+              <p>No sources with exact matching runs under these filters.</p>
+            )}
+            <h2>Shared-phrasing review</h2>
+            <p className="ink-note">
+              Lexical candidates with some changed wording. These are outside
+              the exact-match percentage and require human review.
+            </p>
+            {(report.phrasing?.candidates || [])
+              .filter((c) => !filters.excludedSources.includes(c.source.id))
+              .map((c, i) => (
+                <details className="ink-reference-entry" key={i}>
+                  <summary>{c.source.title}</summary>
+                  <h3>Your passage</h3>
+                  <p>{c.text}</p>
+                  <h3>Source excerpt</h3>
+                  <p>{c.source.text}</p>
+                  <p>{c.reason}</p>
+                </details>
+              ))}
+            <h2>Comparison ledger</h2>
+            <p className="ink-note">
+              Includes compared sources with no matching text. Fingerprints
+              identify the retrieved comparison text, not a publisher
+              certification.
+            </p>
+            {evidence.length ? (
+              evidence.map((s) => (
+                <details className="ink-reference-entry" key={s.id}>
+                  <summary>
+                    {s.title} · {s.matchedWords} matched words
+                  </summary>
+                  <p>
+                    {s.provider} · {s.scope} · {s.characters.toLocaleString()}{" "}
+                    characters{s.truncated ? " · truncated" : ""}
+                  </p>
+                  {s.retrievedAt && <p>Retrieved {stamp(s.retrievedAt)}</p>}
+                  <code>SHA-256 {s.sha256}</code>
+                  {href(s.url) && (
+                    <p>
+                      <a href={href(s.url)} target="_blank" rel="noreferrer">
+                        {s.url}
+                      </a>
+                    </p>
+                  )}
+                </details>
+              ))
+            ) : (
+              <p>
+                This older snapshot does not contain a complete comparison
+                ledger. Its saved match excerpts remain available.
+              </p>
+            )}
+          </>
+        )}
+        {tab === "citations" && (
+          <>
+            <h2>Reference audit</h2>
+            <p className="ink-note">
+              Supported numbered and author–year references only. Metadata
+              verification does not prove a citation supports your claim.
+            </p>
+            <h3>Reference-list issues</h3>
+            {report.citations.issues?.length ? (
+              report.citations.issues.map((x, i) => (
+                <article key={i} className="ink-reference-entry">
+                  <span className="ink-tag">{x.kind.replaceAll("-", " ")}</span>
+                  <p>{x.text}</p>
+                </article>
+              ))
+            ) : (
+              <p>
+                No supported reference-list issues were flagged. Complex
+                citation formats still need review.
+              </p>
+            )}
+            <h3>Claims to review</h3>
+            {report.citations.uncited.map((c, i) => (
+              <article className="ink-reference-entry" key={i}>
+                <p>{c.text}</p>
+                <small>{c.reason}</small>
+              </article>
+            ))}
+            <h3>Recognized references</h3>
+            {(report.citations.references || []).map((r) => (
+              <p className="ink-reference-entry" key={r.id}>
+                {r.text}
+              </p>
+            ))}
+            <h3>DOI verification</h3>
+            <p>
+              {report.scholarly?.message || "No DOI verification was recorded."}
+            </p>
+            {report.scholarly?.records.map((r) => (
+              <article className="ink-reference-entry" key={r.doi}>
+                <a
+                  href={`https://doi.org/${encodeURIComponent(r.doi)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {r.doi}
+                </a>
+                <p>{r.title || "Metadata not available"}</p>
+                <small>
+                  Crossref: {r.status} · Scopus: {r.scopus}
+                </small>
+              </article>
+            ))}
+          </>
+        )}
+        {tab === "coverage" && (
+          <>
+            <h2>Coverage & integrity</h2>
+            <div className="ink-coverage-grid">
+              <article>
+                <span className="ink-tag">{report.search.status}</span>
+                <h3>Web discovery</h3>
+                <p>{report.search.message}</p>
+                <small>
+                  {report.search.results} comparison results · provider:{" "}
+                  {report.search.provider}
+                </small>
+              </article>
+              {report.coverage?.map((c) => (
+                <article key={c.provider}>
+                  <span
+                    className="ink-tag"
+                    data-tone={c.status === "compared" ? "good" : undefined}
+                  >
+                    {c.status.replaceAll("-", " ")}
+                  </span>
+                  <h3>{c.provider}</h3>
+                  <p>{c.message}</p>
+                  <small>
+                    {c.discovered} records discovered · {c.compared} text
+                    sources compared
+                  </small>
+                </article>
+              ))}
+            </div>
+            {!report.coverage && (
+              <p>
+                This legacy snapshot predates the coverage ledger. No additional
+                services have been queried when opening it.
+              </p>
+            )}
+            <h3>Text integrity review</h3>
+            <p>
+              {report.integrity?.message ||
+                "Text-integrity checks were not recorded in this older report."}
+            </p>
+            {report.integrity?.flags.length === 0 && (
+              <p>
+                No flags in the supported text checks. This is not an
+                originality or authorship certificate.
+              </p>
+            )}
+            {report.integrity?.flags.map((f) => (
+              <article key={f.kind} className="ink-reference-entry">
+                <strong>
+                  {f.kind.replaceAll("-", " ")} · {f.count}
+                </strong>
+                <p>{f.message}</p>
+              </article>
+            ))}
+            <h3>Continue your research</h3>
+            <p className="ink-note">
+              Manual lookups open external sites. These links are not evidence
+              that those collections were automatically searched or
+              text-compared.
+            </p>
+            <div className="ink-lookup-links">
+              <a
+                href={`https://scholar.google.com/scholar?q=${encodeURIComponent(report.title)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Google Scholar ↗
+              </a>
+              <a
+                href={`https://www.sciencedirect.com/search?qs=${encodeURIComponent(report.title)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                ScienceDirect ↗
+              </a>
+              <a
+                href="https://www.scopus.com/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Scopus ↗
+              </a>
             </div>
           </>
         )}
-
-        {tab === "sources" && (
-          <section className="ink-panel">
-            <h2 className="ink-h2">Matching sources</h2>
-            <p className="ink-note" style={{ marginBottom: 20 }}>
-              {report.search.message}
-            </p>
-            {report.match.sources.length === 0 ? (
-              <div className="ink-empty">
-                <strong>No matching sources</strong>
-                No run of twelve or more words in this draft appears in any
-                source that was checked.
-              </div>
-            ) : (
-              <div className="ink-table-scroll">
-                <table className="ink-table">
-                  <thead>
-                    <tr>
-                      <th>Source</th>
-                      <th>Matched passage</th>
-                      <th className="num">Words</th>
-                      <th className="num">Share</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.match.sources.map((m) => (
-                      <tr key={m.source.id}>
-                        <td style={{ maxWidth: 220 }}>
-                          {m.source.url ? (
-                            <a
-                              href={m.source.url}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                            >
-                              {m.source.title}
-                            </a>
-                          ) : (
-                            m.source.title
-                          )}
-                          <div style={{ marginTop: 4 }}>
-                            <span
-                              className="ink-tag"
-                              data-tone={
-                                m.source.kind === "upload" ? "info" : "muted"
-                              }
-                            >
-                              {m.source.kind === "upload"
-                                ? "Your source"
-                                : "Web"}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <em style={{ fontFamily: "var(--ink-serif)" }}>
-                            “{m.spans[0]?.sourceText.slice(0, 220)}
-                            {m.spans[0] && m.spans[0].sourceText.length > 220
-                              ? "…"
-                              : ""}
-                            ”
-                          </em>
-                          {m.spans.length > 1 && (
-                            <div
-                              style={{
-                                fontSize: 11.5,
-                                color: "var(--ink-3)",
-                                marginTop: 4,
-                              }}
-                            >
-                              +{m.spans.length - 1} more passage
-                              {m.spans.length - 1 === 1 ? "" : "s"}
-                            </div>
-                          )}
-                        </td>
-                        <td className="num">{m.matchedWords}</td>
-                        <td className="num">{Math.round(m.coverage * 100)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        )}
-
-        {tab === "style" && (
-          <div className="ink-grid-2">
-            <section className="ink-panel">
-              <h2 className="ink-h2">What the measurements say</h2>
-              <p className="ink-note" style={{ marginBottom: 20 }}>
-                These are properties of the writing, not a verdict on who wrote
-                it. Each one names something you can change.
-              </p>
-              {report.style.signals.map((signal) => (
-                <div key={signal.id} className="ink-signal">
-                  <div className="ink-signal-top">
-                    <span className="ink-signal-name">{signal.label}</span>
-                    <span className="ink-signal-val ink-figure">
-                      {signal.value}
-                    </span>
-                  </div>
-                  <div className="ink-meter">
-                    <span
-                      data-tone={
-                        signal.value >= 62
-                          ? "bad"
-                          : signal.value >= 40
-                            ? "warn"
-                            : "good"
-                      }
-                      style={{ width: `${signal.value}%` }}
-                    />
-                  </div>
-                  <p>{signal.reading}</p>
-                  <p>{signal.why}</p>
-                </div>
-              ))}
-            </section>
-
-            <section className="ink-panel">
-              <h2 className="ink-h2">Measured detail</h2>
-              <table className="ink-table" style={{ marginBottom: 24 }}>
-                <tbody>
-                  <tr>
-                    <td>Average sentence</td>
-                    <td className="num">
-                      {report.style.sentenceStats.mean} words
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Longest / shortest</td>
-                    <td className="num">
-                      {report.style.sentenceStats.max} /{" "}
-                      {report.style.sentenceStats.min}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Length spread</td>
-                    <td className="num">{report.style.sentenceStats.stdDev}</td>
-                  </tr>
-                  <tr>
-                    <td>Short sentences (&lt;8 words)</td>
-                    <td className="num">
-                      {Math.round(report.style.sentenceStats.shortRatio * 100)}%
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Long sentences (&gt;32 words)</td>
-                    <td className="num">
-                      {Math.round(report.style.sentenceStats.longRatio * 100)}%
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Words used once</td>
-                    <td className="num">
-                      {Math.round(report.style.vocabulary.uniqueRatio * 100)}%
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Average word length</td>
-                    <td className="num">
-                      {report.style.vocabulary.averageWordLength}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Paragraphs</td>
-                    <td className="num">{report.style.paragraphs}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <Link
-                href={`/ink/rewrite?report=${report.id}`}
-                className="ink-btn"
-                style={{ display: "inline-block", textDecoration: "none" }}
-              >
-                Open the rewrite desk
-              </Link>
-            </section>
-          </div>
-        )}
-
-        {tab === "citations" && (
-          <section className="ink-panel">
-            {!!report.citations.issues?.length && (
-              <>
-                <h2 className="ink-h2">Reference-list checks</h2>
-                <div className="ink-reference-issues">
-                  {report.citations.issues.map((issue, i) => (
-                    <article key={i}>
-                      <span
-                        className="ink-tag"
-                        data-tone={
-                          issue.kind === "missing-reference" ? "warn" : "info"
-                        }
-                      >
-                        {issue.kind.replace(/-/g, " ")}
-                      </span>
-                      <p>{issue.text}</p>
-                      <blockquote>
-                        {report.text
-                          .slice(issue.start, issue.end)
-                          .slice(0, 300)}
-                      </blockquote>
-                    </article>
-                  ))}
-                </div>
-              </>
-            )}
-            {report.scholarly?.enabled && (
-              <>
-                <h2 className="ink-h2">DOI metadata</h2>
-                <p className="ink-note">
-                  {report.scholarly.message}
-                  {report.scholarly.limited &&
-                    " Additional DOIs were not checked."}
-                </p>
-                {report.scholarly.records.length ? (
-                  <div className="ink-reference-issues">
-                    {report.scholarly.records.map((record) => (
-                      <article key={record.doi}>
-                        <a
-                          href={`https://doi.org/${encodeURIComponent(record.doi)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {record.doi}
-                        </a>
-                        <p>{record.title || "No title returned"}</p>
-                        <span
-                          className="ink-tag"
-                          data-tone={
-                            record.status === "found" ? "good" : "warn"
-                          }
-                        >
-                          Crossref: {record.status}
-                        </span>{" "}
-                        <span className="ink-tag">Scopus: {record.scopus}</span>
-                        {record.status === "not-found" && (
-                          <p className="ink-small-print">
-                            No Crossref record was found. This is not proof that
-                            the work does not exist.
-                          </p>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="ink-note">
-                    No DOI identifiers found in this document.
-                  </p>
-                )}
-              </>
-            )}
-            <h2 className="ink-h2">Claims that need a source</h2>
-            <p className="ink-note" style={{ marginBottom: 20 }}>
-              These sentences report a finding, a figure or a date without
-              saying where it came from. Not every one needs a citation — but
-              each is a place an examiner will stop and ask.
-            </p>
-            {report.citations.uncited.length === 0 ? (
-              <div className="ink-empty">
-                <strong>Nothing outstanding</strong>
-                Every claim this check recognised already names a source.
-              </div>
-            ) : (
-              <ol style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                {report.citations.uncited.map((item, i) => (
-                  <li
-                    key={item.start}
-                    style={{
-                      borderTop: i ? "1px solid var(--ink-rule-soft)" : 0,
-                      padding: "14px 0",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 14 }}>
-                      <span
-                        className="ink-card-n ink-figure"
-                        style={{ paddingTop: 3, minWidth: 20 }}
-                      >
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div>
-                        <p
-                          style={{
-                            fontFamily: "var(--ink-serif)",
-                            fontSize: 15,
-                            lineHeight: 1.6,
-                            margin: "0 0 6px",
-                          }}
-                        >
-                          {item.text}
-                        </p>
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: 12,
-                            color: "var(--ink-2)",
-                          }}
-                        >
-                          {item.reason}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        )}
-      </div>
+      </section>
+      <footer className="ink-review-footer">
+        <p>
+          Private report · {report.methodVersion || "Legacy snapshot"}. Re-run
+          to check newly available sources.
+        </p>
+        <div>
+          <button className="ink-btn ink-btn--ghost" onClick={downloadJson}>
+            Download report
+          </button>
+          <button
+            className="ink-icon-btn"
+            aria-label="Delete report"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </footer>
       <InkDialog
+        title="Similarity filters"
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
-        title="Similarity filters"
       >
-        <p className="ink-note">
-          Filters change this view. Original evidence stays in the saved report.
-        </p>
-        <label className="ink-filter-option">
+        <p>Recalculate this view without changing the original evidence.</p>
+        <label className="ink-filter-row">
           <input
             type="checkbox"
             checked={filters.bibliography}
             onChange={(e) =>
-              setFilters((f) => ({ ...f, bibliography: e.target.checked }))
+              setFilters({ ...filters, bibliography: e.target.checked })
             }
-          />{" "}
+          />
           Exclude bibliography
         </label>
-        <label className="ink-filter-option">
+        <label className="ink-filter-row">
           <input
             type="checkbox"
             checked={filters.quotes}
             onChange={(e) =>
-              setFilters((f) => ({ ...f, quotes: e.target.checked }))
+              setFilters({ ...filters, quotes: e.target.checked })
             }
-          />{" "}
+          />
           Exclude paired quotations
         </label>
-        <label htmlFor="ink-min-match">Minimum matching words</label>
-        <input
-          id="ink-min-match"
-          type="number"
-          min={12}
-          max={100}
-          value={filters.minWords}
-          onChange={(e) =>
-            setFilters((f) => ({
-              ...f,
-              minWords: Math.max(
-                12,
-                Math.min(100, Number(e.target.value) || 12),
-              ),
-            }))
-          }
-        />
-        {originalReport.match.sources.length > 0 && (
-          <>
-            <h3 className="ink-h3" style={{ marginTop: 24 }}>
-              Exclude sources
-            </h3>
-            {originalReport.match.sources.map((s) => (
-              <label className="ink-filter-option" key={s.source.id}>
-                <input
-                  type="checkbox"
-                  checked={filters.excludedSources.includes(s.source.id)}
-                  onChange={(e) =>
-                    setFilters((f) => ({
-                      ...f,
-                      excludedSources: e.target.checked
-                        ? [...f.excludedSources, s.source.id]
-                        : f.excludedSources.filter((id) => id !== s.source.id),
-                    }))
-                  }
-                />
-                {s.source.title}
-              </label>
-            ))}
-          </>
-        )}
+        <label className="ink-label">
+          Minimum matching words
+          <input
+            className="ink-input"
+            type="number"
+            min={12}
+            max={100}
+            value={filters.minWords}
+            onChange={(e) =>
+              setFilters({ ...filters, minWords: Number(e.target.value) })
+            }
+          />
+        </label>
+        <p>Exclude matching sources</p>
+        {report.match.sources.map((s) => (
+          <label className="ink-filter-row" key={s.source.id}>
+            <input
+              type="checkbox"
+              checked={filters.excludedSources.includes(s.source.id)}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  excludedSources: e.target.checked
+                    ? [...filters.excludedSources, s.source.id]
+                    : filters.excludedSources.filter((x) => x !== s.source.id),
+                })
+              }
+            />
+            {s.source.title}
+          </label>
+        ))}
         <div className="ink-dialog-actions">
           <button
             className="ink-btn ink-btn--ghost"
@@ -938,69 +738,37 @@ export default function InkReportView({
           </button>
         </div>
       </InkDialog>
-      <p className="ink-small-print">
-        Compared {report.comparedSources} sources. Similarity is measured
-        against those sources only. Writing patterns aren’t AI-authorship
-        detection. <Link href="/ink/how-it-works">Method and coverage</Link>
-      </p>
       <InkDialog
-        open={!!sourceFinding}
-        onClose={() => setSourceFinding(null)}
         title="Side-by-side evidence"
+        open={evidenceOpen}
+        onClose={() => setEvidenceOpen(false)}
         wide
       >
-        {sourceFinding && (
-          <>
-            <div className="ink-grid-2">
-              <div>
-                <h3 className="ink-h3">Your passage</h3>
-                <p className="ink-evidence-text">{sourceFinding.text}</p>
-              </div>
-              <div>
-                <h3 className="ink-h3">Source passage</h3>
-                <p className="ink-evidence-text">
-                  {sourceFinding.source?.text}
-                </p>
-              </div>
-            </div>
-            <p className="ink-note">
-              {sourceFinding.source?.url ? (
-                <a
-                  href={sourceFinding.source.url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                >
-                  {sourceFinding.source.title}
-                </a>
-              ) : (
-                sourceFinding.source?.title
-              )}
-            </p>
-            <div className="ink-dialog-actions">
-              <span className="ink-count">
-                Review attribution before editing.
-              </span>
-              <Link
-                className="ink-btn"
-                href={`/ink/rewrite?report=${report.id}&start=${sourceFinding.start}&end=${sourceFinding.end}`}
-              >
-                Improve passage <ArrowRight size={15} />
-              </Link>
-            </div>
-          </>
+        {active && (
+          <div className="ink-evidence-pair">
+            <section>
+              <h3>Your passage</h3>
+              <p>{active.text}</p>
+            </section>
+            <section>
+              <h3>Source {active.sourceNumber}</h3>
+              <p>{active.sourceText}</p>
+            </section>
+          </div>
         )}
       </InkDialog>
       <InkDialog
+        title="Delete this report?"
         open={confirmDelete}
         onClose={() => {
           if (!deleting) setConfirmDelete(false);
         }}
-        title="Delete this private report?"
+        dismissible={!deleting}
       >
-        <p className="ink-note">
-          This permanently removes the saved report. You can’t undo it.
+        <p>
+          This permanently removes this private report. Your indexed sources
+          remain available.
         </p>
-        {error && <p role="alert">{error}</p>}
         <div className="ink-dialog-actions">
           <button
             className="ink-btn ink-btn--ghost"
@@ -1009,25 +777,8 @@ export default function InkReportView({
           >
             Keep report
           </button>
-          <button
-            className="ink-btn ink-btn--danger"
-            disabled={deleting}
-            onClick={async () => {
-              setDeleting(true);
-              try {
-                await requestJson("/api/ink", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ action: "delete", id: report.id }),
-                });
-                router.push("/ink/reports");
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "Delete failed.");
-                setDeleting(false);
-              }
-            }}
-          >
-            {deleting ? "Deleting…" : "Confirm permanent deletion"}
+          <button className="ink-btn" disabled={deleting} onClick={remove}>
+            {deleting ? "Deleting…" : "Delete report"}
           </button>
         </div>
       </InkDialog>

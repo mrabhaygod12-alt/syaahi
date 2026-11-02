@@ -62,7 +62,7 @@ export default function InkAccess({ children }: { children: React.ReactNode }) {
             {state === "loading"
               ? "Checking your student access."
               : state === "plan"
-                ? "Document checks and the rewrite desk are included with a purchased student pack or active paid subscription."
+                ? "Document checking and evidence reports are included with a purchased student pack or active paid subscription."
                 : state === "login"
                   ? "Upload a document. Review the evidence. Make the next version clearer."
                   : message}
@@ -93,7 +93,7 @@ export default function InkAccess({ children }: { children: React.ReactNode }) {
               <Check size={13} /> Private reports
             </span>
             <span>
-              <Check size={13} /> Guided editing
+              <Check size={13} /> Source evidence
             </span>
           </div>
           {state === "plan" && (

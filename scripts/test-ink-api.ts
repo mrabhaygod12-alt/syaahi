@@ -43,7 +43,7 @@ async function main() {
       /Malformed/,
     );
     const { analyse } = await import("../lib/ink/analyse");
-    const { assertPreserved } = await import("../lib/ink/rewrite");
+    const exporter = await import("../app/api/ink/export/route");
     const { getReport } = await import("../lib/ink/store");
     const indexApi = await import("../app/api/ink/sources/route");
     const cookies: string[] = [];
@@ -326,39 +326,61 @@ async function main() {
       400,
     );
     assert.equal((await api.POST(req(cookies[0], null))).status, 400);
+    assert.equal((await rewrite.POST(req(cookies[0], { text }))).status, 410);
+    assert.equal((await rewrite.POST(req("", { text }))).status, 401);
+    assert.equal((await exporter.POST(req("", { id: report.id }))).status, 401);
     assert.equal(
-      (await rewrite.POST(req(cookies[0], { mode: "__proto__", text }))).status,
-      400,
+      (await exporter.POST(req(cookies[2], { id: report.id }))).status,
+      402,
+    );
+    assert.equal(
+      (await exporter.POST(req(cookies[1], { id: report.id }))).status,
+      404,
     );
     assert.equal(
       (
-        await rewrite.POST(
-          req(cookies[0], { mode: "plain", text: "x".repeat(6001) }),
+        await exporter.POST(
+          req(cookies[0], { id: report.id, filters: { minWords: -10 } }),
         )
       ).status,
       400,
     );
-    // No provider credentials are present in this isolated test. Service outages
-    // must be retryable 503 responses rather than blaming the learner's draft.
-    for (const key of Object.keys(process.env))
-      if (/API_KEY(?:_?\d+)?$/.test(key)) delete process.env[key];
-    const unavailable = await rewrite.POST(
-      req(cookies[0], { mode: "plain", text }),
+    const pdfResponse = await exporter.POST(req(cookies[0], { id: report.id }));
+    assert.equal(pdfResponse.status, 200);
+    assert.equal(pdfResponse.headers.get("content-type"), "application/pdf");
+    assert.equal(
+      Buffer.from(await pdfResponse.arrayBuffer())
+        .subarray(0, 5)
+        .toString(),
+      "%PDF-",
     );
-    assert.equal(unavailable.status, 503);
-    assert(Number(unavailable.headers.get("retry-after")) > 0);
+    assert.equal(
+      (
+        await indexApi.POST(
+          req(cookies[0], {
+            action: "import-url",
+            url: "https://scholar.google.com/scholar?q=example",
+          }),
+        )
+      ).status,
+      422,
+    );
+    assert.equal(
+      (
+        await indexApi.POST(
+          req(cookies[0], {
+            action: "import-url",
+            url: "https://127.0.0.1/secret",
+          }),
+        )
+      ).status,
+      422,
+    );
     const noSources = await analyse({ text, allowWeb: false });
     assert.equal(noSources.comparedSources, 0);
-    assert.throws(() =>
-      assertPreserved("Results: 12.5% [3].", "Results: 25% [3]."),
-    );
-    assertPreserved("Results: 12.5% [3].", "The result was 12.5% [3].");
-    assert.throws(() =>
-      assertPreserved(
-        "Use `const x = 3` and $x^2$.",
-        "Use `const x = 4` and $x^2$.",
-      ),
-    );
+    assert.equal(report.evidence.length, 1);
+    assert.equal(report.evidence[0].scope, "supplied-text");
+    assert.equal(report.evidence[0].sha256.length, 64);
     if (replica)
       await (
         await collection("users")
@@ -380,7 +402,7 @@ async function main() {
     assert.equal(await getReport(users[0].id, report.id), null);
     if (replica) await (await mongo()).client.close();
     console.log(
-      `PASS AI Ink ${replica ? "Mongo" : "SQLite"}: paid access, anonymous denial, report/index ownership, no source/hash disclosure, indexed matching, deduplication, 20-source cap and limited retrieval, input bounds/selectors, report idempotency, preservation and deletion. No live inference.`,
+      `PASS AI Ink ${replica ? "Mongo" : "SQLite"}: paid access, anonymous denial, report/index ownership, no source/hash disclosure, indexed matching, deduplication, 20-source cap and limited retrieval, input bounds/selectors, report idempotency, editing retirement, PDF owner authorization and deletion. No live inference.`,
     );
   } finally {
     await replica?.stop();

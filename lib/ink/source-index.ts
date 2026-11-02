@@ -7,6 +7,10 @@ const KEY = "ink-private-index-v1",
   MAX_SOURCES = 20,
   MAX_WORDS = 12000;
 interface IndexedSource {
+  provenance?: Pick<
+    SourceDocument,
+    "url" | "provider" | "scope" | "retrievedAt" | "truncated"
+  >;
   id: string;
   title: string;
   text: string;
@@ -48,6 +52,7 @@ export async function addIndexSource(
   owner: string,
   title: string,
   text: string,
+  provenance?: IndexedSource["provenance"],
 ) {
   if (text.trim().length < 200 || text.length > 60000)
     throw new InputValidationError(
@@ -79,6 +84,7 @@ export async function addIndexSource(
           fingerprints: fp.hashes,
           words: fp.words,
           createdAt: new Date().toISOString(),
+          provenance,
         },
       ],
     };
@@ -124,6 +130,7 @@ export async function querySourceIndex(
       text: s.text,
       kind: "corpus",
       retrievedAt: s.createdAt,
+      ...s.provenance,
     })),
     trace: {
       indexed: index.sources.length,

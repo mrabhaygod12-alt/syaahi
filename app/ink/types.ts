@@ -42,6 +42,9 @@ export interface InkStyle {
 }
 
 export interface InkSourceDoc {
+  provider?: string;
+  scope?: "supplied-text" | "page-text" | "abstract" | "snippet";
+  truncated?: boolean;
   id: string;
   title: string;
   url?: string;
@@ -103,6 +106,10 @@ export interface InkSearch {
 }
 
 export interface InkReport {
+  methodVersion?: string;
+  evidence?: import("@/lib/ink/research").SourceEvidence[];
+  coverage?: import("@/lib/ink/research").ResearchTrace[];
+  integrity?: ReturnType<typeof import("@/lib/ink/integrity").auditIntegrity>;
   phrasing?: {
     candidates: Array<{
       start: number;
