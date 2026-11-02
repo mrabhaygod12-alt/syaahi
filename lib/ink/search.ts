@@ -46,6 +46,13 @@ function safeUrl(value: unknown): string | null {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (
+      url.username ||
+      url.password ||
+      url.port ||
+      url.hostname.startsWith("[")
+    )
+      return null;
     if (url.hostname === "localhost" || url.hostname.endsWith(".local"))
       return null;
     if (/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname)) return null;
@@ -102,7 +109,9 @@ async function tavily(
       if (!url) return null;
       // Prefer the full page body; fall back to the snippet, which is still
       // enough to confirm a verbatim run of words.
-      const text = plain(row.raw_content, 40000) || plain(row.content, 8000);
+      const raw = plain(row.raw_content, 40001),
+        snippet = plain(row.content, 8001);
+      const text = raw ? raw.slice(0, 40000) : snippet.slice(0, 8000);
       if (text.length < 200) return null;
       return {
         id: `web-${createHash("sha256").update(url).digest("hex").slice(0, 20)}`,
@@ -110,8 +119,8 @@ async function tavily(
         url,
         kind: "web",
         provider: "Tavily",
-        scope: row.raw_content ? "page-text" : "snippet",
-        truncated: Boolean(row.raw_content && row.raw_content.length > 40000),
+        scope: raw ? "page-text" : "snippet",
+        truncated: raw ? raw.length > 40000 : snippet.length > 8000,
         text,
         retrievedAt: new Date().toISOString(),
       };
@@ -152,12 +161,13 @@ async function brave(
       if (!href) return null;
       // Brave's free tier returns snippets only. Joining description and
       // extra_snippets gives enough contiguous prose to confirm short runs.
-      const text = plain(
+      const snippet = plain(
         [row.description, ...(row.extra_snippets || [])]
           .filter(Boolean)
           .join(" "),
-        8000,
+        8001,
       );
+      const text = snippet.slice(0, 8000);
       if (text.length < 200) return null;
       return {
         id: `web-${createHash("sha256").update(href).digest("hex").slice(0, 20)}`,
@@ -166,6 +176,7 @@ async function brave(
         kind: "web",
         provider: "Brave",
         scope: "snippet",
+        truncated: snippet.length > 8000,
         text,
         retrievedAt: new Date().toISOString(),
       };

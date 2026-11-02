@@ -10,8 +10,10 @@ import { auditIntegrity } from "../lib/ink/integrity";
 import { integrityPdf } from "../lib/ink/pdf";
 import { DEFAULT_MATCH_FILTERS } from "../lib/ink/filters";
 import { reportFindings } from "../lib/ink/report-model";
+import { discoverSources } from "../lib/ink/search";
 async function main() {
   const original = globalThis.fetch;
+  const originalTavily = process.env.TAVILY_API_KEY;
   let calls = 0;
   const passage =
     "Machine learning models require careful evaluation using representative training collections before their results can support a responsible research conclusion about practical deployment.";
@@ -107,6 +109,30 @@ async function main() {
       researchJson(new Response("x".repeat(1000001))),
       /limit/,
     );
+    process.env.TAVILY_API_KEY = "local-fixture";
+    globalThis.fetch = async () =>
+      Response.json({
+        results: [
+          {
+            title: "Snippet fallback",
+            url: "https://example.org/paper",
+            raw_content: "   ",
+            content: abstract,
+          },
+          {
+            title: "Credential URL",
+            url: "https://secret@example.org/paper",
+            content: abstract,
+          },
+        ],
+      });
+    const snippets = await discoverSources([abstract]);
+    assert.equal(snippets.sources.length, 1);
+    assert.equal(
+      snippets.sources[0].scope,
+      "snippet",
+      "empty page text must not be called a full-page comparison",
+    );
     const report = {
       ...analysis,
       id: "ink-report-synthetic-evidence",
@@ -131,6 +157,8 @@ async function main() {
     );
   } finally {
     globalThis.fetch = original;
+    if (originalTavily === undefined) delete process.env.TAVILY_API_KEY;
+    else process.env.TAVILY_API_KEY = originalTavily;
   }
 }
 main().catch((e) => {
