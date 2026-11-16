@@ -126,7 +126,9 @@ export async function analyse(input: AnalyseInput): Promise<InkAnalysis> {
     ),
   );
   const comparedWeb = eligible.filter(
-    (s) => s.kind === "web" && s.provider !== "OpenAlex",
+    (s) =>
+      s.kind === "web" &&
+      !["OpenAlex", "Crossref abstracts"].includes(s.provider || ""),
   ).length;
   if (search.results > comparedWeb) {
     search = {
@@ -148,7 +150,9 @@ export async function analyse(input: AnalyseInput): Promise<InkAnalysis> {
     coverage: [
       {
         ...researched.trace,
-        compared: eligible.filter((s) => s.provider === "OpenAlex").length,
+        compared: eligible.filter((s) =>
+          ["OpenAlex", "Crossref abstracts"].includes(s.provider || ""),
+        ).length,
       },
       ...externalCoverage(),
     ],

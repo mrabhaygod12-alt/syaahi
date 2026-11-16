@@ -294,6 +294,20 @@ async function main() {
     await page
       .getByRole("heading", { name: "University Writer", exact: true })
       .waitFor();
+    await page.getByLabel("Credits to add").fill("3000");
+    await page
+      .getByLabel("Reason for the credit grant")
+      .fill("Admin browser grant verification");
+    await page.getByRole("button", { name: "Grant credits" }).click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "3,000 credits added." })
+      .waitFor();
+    assert.equal(
+      await page.getByText("+3,000 credits", { exact: true }).count(),
+      1,
+      "The grant is visible in the target account ledger",
+    );
     await page.goto(origin + "/admin/support?ticket=" + id);
     await page
       .getByRole("heading", { name: "Writer billing help", exact: true })
@@ -333,6 +347,31 @@ async function main() {
           false,
           `${path} overflows ${width}px`,
         );
+        if (path === "/admin/users" && width === 390) {
+          await page
+            .getByLabel("Search users")
+            .fill("student-browser@example.test");
+          await page.getByRole("button", { name: "Search accounts" }).click();
+          await page.waitForFunction(
+            () =>
+              document.querySelectorAll(".admin-table tbody tr").length === 1,
+          );
+          await page.getByRole("button", { name: "Inspect account" }).click();
+          await page
+            .getByRole("heading", { name: "University Writer", exact: true })
+            .waitFor();
+          assert.equal(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth > innerWidth + 1,
+            ),
+            false,
+            "Credit grant controls fit a narrow mobile viewport",
+          );
+          await page.screenshot({
+            path: "output/admin/users-credit-grant-mobile.png",
+            fullPage: true,
+          });
+        }
         if (path === "/admin/security") {
           await page
             .getByRole("button", {

@@ -22,7 +22,7 @@ export default function HowItWorks() {
           {
             Icon: Link2,
             title: "02. Compare your sources",
-            body: "Add references from your library or paste a source. Opt-in research discovery sends selected excerpts to OpenAlex to compare available abstracts. Web search uses the configured search provider. You can also import permitted public article text into your private index.",
+            body: "Add references from your library or paste a source. Opt-in research discovery sends selected excerpts to OpenAlex and Crossref to compare available abstracts. Web search uses the configured search provider. You can also import permitted public article text into your private index.",
           },
           {
             Icon: Quote,
@@ -74,7 +74,7 @@ export default function HowItWorks() {
           },
           {
             title: "What happens to my document?",
-            body: "Your private report stores the extracted draft and evidence excerpts until you delete it. Full comparison-source bodies are not copied into reports. Sources explicitly added to your private index retain their text and fingerprints until removed. Uploaded files are parsed for text; they are not added to a public repository. There is no AI editing service in AI Ink. Opt-in research discovery sends selected excerpts to OpenAlex; DOI verification sends DOI identifiers to registry services. Importing a public URL contacts its website after public-address and robots checks. Database backups follow the operator’s backup policy.",
+            body: "Your private report stores the extracted draft and evidence excerpts until you delete it. Full comparison-source bodies are not copied into reports. Sources explicitly added to your private index retain their text and fingerprints until removed. Uploaded files are parsed for text; they are not added to a public repository. There is no AI editing service in AI Ink. Opt-in research discovery sends selected excerpts to OpenAlex and Crossref; DOI verification sends DOI identifiers to registry services. Importing a public URL contacts its website after public-address and robots checks. Database backups follow the operator’s backup policy.",
           },
           {
             title: "What files can I upload?",

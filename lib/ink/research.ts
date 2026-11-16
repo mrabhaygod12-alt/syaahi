@@ -1,6 +1,49 @@
 import { createHash } from "node:crypto";
 import type { SourceDocument } from "./match";
 import { searchExcerpts } from "./match";
+import { load } from "cheerio";
+
+class ResearchServiceError extends Error {
+  constructor(public code: string) {
+    super("Research service unavailable.");
+  }
+}
+let crossrefBusy = false,
+  crossrefNext = 0;
+async function crossrefLookup(url: URL, signal?: AbortSignal) {
+  if (crossrefBusy || crossrefNext > Date.now() + 1500)
+    throw new ResearchServiceError("capacity busy; retry later");
+  crossrefBusy = true;
+  try {
+    const wait = Math.max(0, crossrefNext - Date.now());
+    if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+    signal?.throwIfAborted();
+    crossrefNext = Date.now() + 1100;
+    const response = await fetch(url, {
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+        : AbortSignal.timeout(10000),
+      redirect: "error",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "SyaahiiResearch/1.0 (+https://www.syaahii.in/ai-ink)",
+      },
+    });
+    if (response.status === 429)
+      crossrefNext =
+        Date.now() +
+        Math.min(
+          60000,
+          Math.max(
+            1100,
+            Number(response.headers.get("retry-after") || 10) * 1000 || 10000,
+          ),
+        );
+    return await researchJson(response);
+  } finally {
+    crossrefBusy = false;
+  }
+}
 
 export interface ResearchTrace {
   provider: string;
@@ -31,7 +74,7 @@ export interface SourceEvidence {
 
 /** Bounded JSON reads; a fixed API endpoint is never replaced with a result URL. */
 export async function researchJson(response: Response): Promise<any> {
-  if (!response.ok) throw new Error("Research service unavailable.");
+  if (!response.ok) throw new ResearchServiceError(`HTTP ${response.status}`);
   const reader = response.body?.getReader();
   if (!reader) throw new Error("Empty research response.");
   const parts: Uint8Array[] = [];
@@ -94,6 +137,42 @@ export function openAlexSources(rows: unknown): SourceDocument[] {
   return out;
 }
 
+export function crossrefSources(rows: unknown): SourceDocument[] {
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, 5).flatMap((row) => {
+    if (
+      !row ||
+      typeof row.DOI !== "string" ||
+      !/^10\.\d{4,9}\/\S{1,240}$/i.test(row.DOI) ||
+      typeof row.abstract !== "string"
+    )
+      return [];
+    const $ = load(row.abstract.slice(0, 60000));
+    $("script,style").remove();
+    const text = $.text().replace(/\s+/g, " ").trim().slice(0, 30000);
+    if (text.length < 200) return [];
+    const doi = row.DOI.toLowerCase();
+    return [
+      {
+        id:
+          "crossref-" +
+          createHash("sha256").update(doi).digest("hex").slice(0, 24),
+        title:
+          Array.isArray(row.title) && typeof row.title[0] === "string"
+            ? row.title[0].slice(0, 250)
+            : doi,
+        url: "https://doi.org/" + encodeURIComponent(doi),
+        text,
+        kind: "web" as const,
+        scope: "abstract" as const,
+        provider: "Crossref abstracts",
+        retrievedAt: new Date().toISOString(),
+        truncated: text.length >= 30000,
+      },
+    ];
+  });
+}
+
 export async function discoverResearch(
   text: string,
   enabled: boolean,
@@ -103,7 +182,7 @@ export async function discoverResearch(
     return {
       sources: [],
       trace: {
-        provider: "OpenAlex",
+        provider: "Research discovery",
         status: "not-requested",
         discovered: 0,
         compared: 0,
@@ -112,7 +191,10 @@ export async function discoverResearch(
     };
   const sources = new Map<string, SourceDocument>();
   let successes = 0,
-    discovered = 0;
+    discovered = 0,
+    fallbackSuccesses = 0,
+    fallbackUsed = false;
+  const failures = new Set<string>();
   const queries = searchExcerpts(text, 2);
   await Promise.all(
     queries.map(async (q) => {
@@ -121,13 +203,19 @@ export async function discoverResearch(
         url.searchParams.set("search", q.slice(0, 280));
         url.searchParams.set("per-page", "5");
         url.searchParams.set("select", "id,title,abstract_inverted_index");
+        if (process.env.OPENALEX_API_KEY)
+          url.searchParams.set("api_key", process.env.OPENALEX_API_KEY);
         const data = await researchJson(
           await fetch(url, {
             signal: signal
               ? AbortSignal.any([signal, AbortSignal.timeout(9000)])
               : AbortSignal.timeout(9000),
             redirect: "error",
-            headers: { Accept: "application/json" },
+            headers: {
+              Accept: "application/json",
+              "User-Agent":
+                "SyaahiiResearch/1.0 (+https://www.syaahii.in/ai-ink)",
+            },
           }),
         );
         if (!Array.isArray(data.results))
@@ -135,26 +223,68 @@ export async function discoverResearch(
         successes++;
         discovered += data.results.length;
         for (const s of openAlexSources(data.results)) sources.set(s.id, s);
-      } catch {
-        /* An unavailable service is never reported as a clean search. */
+      } catch (e) {
+        failures.add(
+          e instanceof ResearchServiceError
+            ? e.code
+            : e instanceof Error && /timeout|abort/i.test(e.name)
+              ? "timeout"
+              : "network or response failure",
+        );
       }
     }),
   );
+  if (queries.length && (sources.size === 0 || successes < queries.length)) {
+    fallbackUsed = true;
+    for (const q of queries) {
+      try {
+        const url = new URL("https://api.crossref.org/works");
+        url.searchParams.set("query.bibliographic", q.slice(0, 280));
+        url.searchParams.set("rows", "5");
+        url.searchParams.set("filter", "has-abstract:true");
+        url.searchParams.set("select", "DOI,title,abstract,URL");
+        const data = await crossrefLookup(url, signal);
+        if (!Array.isArray(data.message?.items))
+          throw Error("Unexpected metadata response.");
+        fallbackSuccesses++;
+        discovered += data.message.items.length;
+        for (const s of crossrefSources(data.message.items))
+          sources.set(s.id, s);
+      } catch (e) {
+        failures.add(
+          "Crossref " +
+            (e instanceof ResearchServiceError
+              ? e.code
+              : e instanceof Error && /timeout|abort/i.test(e.name)
+                ? "timeout"
+                : "network or response failure"),
+        );
+      }
+    }
+  }
+  const compared = [...sources.values()].slice(0, 10);
   return {
-    sources: [...sources.values()].slice(0, 10),
+    sources: compared,
     trace: {
-      provider: "OpenAlex",
+      provider: fallbackUsed ? "OpenAlex + Crossref" : "OpenAlex",
       status:
-        successes === queries.length && successes
+        successes === queries.length &&
+        successes &&
+        (!fallbackUsed || fallbackSuccesses === queries.length)
           ? "compared"
-          : successes
+          : successes || fallbackSuccesses
             ? "partial"
             : "unavailable",
       discovered,
-      compared: sources.size,
-      message: successes
-        ? "Compared available research abstracts. Records without readable abstracts were not text-compared; publisher full text was not accessed."
-        : "Research discovery could not complete. No OpenAlex text was compared.",
+      compared: compared.length,
+      message:
+        (successes || fallbackSuccesses
+          ? "Compared available research abstracts. Records without readable abstracts were not text-compared; publisher full text was not accessed."
+          : "Research discovery could not complete. No research abstract text was compared.") +
+        (failures.size
+          ? " Provider availability: " + [...failures].join("; ") + "."
+          : "") +
+        (fallbackUsed ? " Crossref abstract fallback was attempted." : ""),
     },
   };
 }

@@ -802,3 +802,123 @@ body:has(.admin-space) #main-content {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-credit-grant {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0 28px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid #c8d8cd;
+  border-left: 4px solid #285a49;
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, #f2f7f1 0%, #fff 72%),
+    repeating-linear-gradient(0deg, transparent 0 31px, #e8efe8 31px 32px);
+}
+.admin-credit-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 20px;
+}
+.admin-credit-heading .eyebrow {
+  margin: 0 0 6px;
+}
+.admin-credit-heading h3 {
+  margin: 0;
+  color: #173e31;
+}
+.admin-credit-heading > strong {
+  flex: 0 0 auto;
+  color: #173e31;
+  font-size: clamp(20px, 4vw, 30px);
+  line-height: 1.1;
+  text-align: right;
+}
+.admin-credit-heading > strong span {
+  display: block;
+  margin-top: 5px;
+  color: #617267;
+  font-size: 11px;
+  font-weight: 500;
+}
+.admin-credit-grant > p {
+  max-width: 72ch;
+  margin: 0;
+  font-size: 13px;
+}
+.admin-credit-fields {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.7fr) minmax(220px, 1.3fr);
+  gap: 14px;
+}
+.admin-credit-fields label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #314738;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-credit-fields input {
+  width: 100%;
+  min-width: 0;
+  background: #fff;
+}
+.admin-credit-grant > button {
+  min-height: 44px;
+  padding-inline: 20px;
+}
+.admin-credit-grant .admin-status {
+  margin: 0;
+}
+.admin-credit-ledger {
+  border-top: 1px solid #dce7dc;
+  padding-top: 12px;
+}
+.admin-credit-ledger h4 {
+  margin: 0 0 8px;
+  color: #314738;
+  font-size: 12px;
+}
+.admin-credit-ledger ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-credit-ledger li {
+  display: grid;
+  grid-template-columns: minmax(105px, auto) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 1px solid #edf1ec;
+  color: #285a49;
+  font-size: 12px;
+}
+.admin-credit-ledger li small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #617267;
+}
+.admin-credit-ledger li time {
+  color: #788579;
+  font-size: 11px;
+}
+@media (max-width: 620px) {
+  .admin-credit-heading {
+    display: grid;
+  }
+  .admin-credit-heading > strong {
+    text-align: left;
+  }
+  .admin-credit-fields,
+  .admin-credit-ledger li {
+    grid-template-columns: 1fr;
+  }
+  .admin-credit-ledger li {
+    gap: 3px;
+  }
+}

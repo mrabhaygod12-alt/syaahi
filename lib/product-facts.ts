@@ -101,7 +101,7 @@ export function productFacts() {
       scholarly:
         "Opt-in Crossref DOI metadata, up to eight identifiers; Scopus requires operator-configured licensed commercial access",
       discovery:
-        "Opt-in OpenAlex research abstracts and configured Tavily/Brave web results; public HTTPS pages may be privately indexed when extraction is permitted",
+        "Opt-in OpenAlex/Crossref research abstracts and configured Tavily/Brave web results; public HTTPS pages may be privately indexed when extraction is permitted",
       reports:
         "Numbered sources, exact passage evidence, comparison provenance ledger, reversible filters and private PDF/JSON export; no AI editing",
       unavailable:

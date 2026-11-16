@@ -109,6 +109,26 @@ async function main() {
       researchJson(new Response("x".repeat(1000001))),
       /limit/,
     );
+    globalThis.fetch = async (input) =>
+      new URL(String(input)).hostname === "api.openalex.org"
+        ? new Response("not available", { status: 403 })
+        : Response.json({
+            message: {
+              items: [
+                {
+                  DOI: "10.1234/fallback",
+                  title: ["Fallback research abstract"],
+                  abstract: `<jats:p>${abstract}</jats:p>`,
+                },
+              ],
+            },
+          });
+    const fallback = await discoverResearch(abstract, true);
+    assert.equal(fallback.trace.status, "partial");
+    assert.match(fallback.trace.message, /HTTP 403/);
+    assert.equal(fallback.sources[0].provider, "Crossref abstracts");
+    assert.equal(fallback.sources[0].scope, "abstract");
+    assert.equal(fallback.sources[0].text, abstract);
     process.env.TAVILY_API_KEY = "local-fixture";
     globalThis.fetch = async () =>
       Response.json({

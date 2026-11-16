@@ -11,7 +11,7 @@ Each newly compared source records its title, kind, URL when available, provider
 ## Actual research coverage
 
 - OpenAlex: optional, off by default. At most two selected-excerpt queries, five records per query, a nine-second request deadline and one-megabyte response cap. Available abstracts are reconstructed from positional indexes and compared as **abstracts**, never publisher full text. Failure is recorded as unavailable/partial rather than a clean search.
-- Crossref: existing explicit DOI opt-in; up to eight identifiers. Metadata is distinct from text matching.
+- Crossref: DOI verification remains a separate explicit opt-in for up to eight identifiers. Research discovery can fall back to available Crossref abstracts when OpenAlex fails or returns no readable abstracts: at most two queries, five records per query, ten-second request deadlines and one-megabyte responses. Returned abstracts are text-compared; DOI metadata alone is not. The same research consent names both services. Safe HTTP/timeout availability reasons are recorded, without response bodies, keys or excerpts in error logs. An optional server-only OPENALEX_API_KEY is supported; no key was supplied or configured.
 - Tavily/Brave: existing optional configured web discovery. Returned page text and snippets now have separate provenance scopes. This is bounded discovery, not an exhaustive internet crawl.
 - Public URL import: paid/private source index, public HTTPS only, validated and pinned public DNS, port restrictions, robots enforcement, bounded redirects, bytes and time, with cancellation. Restrictions are rechecked at redirect destinations. No sign-in/paywall bypass.
 - Google Scholar: clearly labeled manual lookup. It is not automatically scraped or compared.

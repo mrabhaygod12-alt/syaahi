@@ -400,8 +400,8 @@ export default function InkComposer() {
             <span>
               <strong>Discover research abstracts</strong>
               <small>
-                Send selected excerpts to OpenAlex. Abstracts only, not full
-                papers.
+                Send selected excerpts to OpenAlex and Crossref. Abstracts only,
+                not full papers.
               </small>
             </span>
             <input
@@ -409,7 +409,7 @@ export default function InkComposer() {
               checked={allowResearch}
               onChange={(e) => setAllowResearch(e.target.checked)}
               disabled={!!busy}
-              aria-label="Allow excerpt research with OpenAlex"
+              aria-label="Allow excerpt research with OpenAlex and Crossref"
             />
           </label>
           <button

@@ -12,6 +12,10 @@ export default function AdminUsers() {
     [role, setRole] = useState("none"),
     [reason, setReason] = useState(""),
     [error, setError] = useState(""),
+    [creditAmount, setCreditAmount] = useState(""),
+    [creditReason, setCreditReason] = useState(""),
+    [creditOperationId, setCreditOperationId] = useState(""),
+    [creditSuccess, setCreditSuccess] = useState(""),
     [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false);
   async function load() {
@@ -38,6 +42,8 @@ export default function AdminUsers() {
       setStatus(r.data.user.control.status);
       setRole(r.data.user.control.role || "none");
       setReason("");
+      setCreditSuccess("");
+      setCreditOperationId("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not inspect user.");
     } finally {
@@ -66,6 +72,63 @@ export default function AdminUsers() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save change.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function grantCredits() {
+    if (!detail) return;
+    setBusy(true);
+    setError("");
+    setCreditSuccess("");
+    const operationId = creditOperationId || globalThis.crypto.randomUUID();
+    setCreditOperationId(operationId);
+    try {
+      const r = await requestJson("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "credit-grant",
+          id: detail.user.id,
+          credits: Number(creditAmount),
+          reason: creditReason,
+          operationId,
+        }),
+      });
+      if (!r.response.ok) throw new Error(r.data.error);
+      const replayed = Boolean(r.data.grant.replayed);
+      setDetail((current: any) =>
+        current
+          ? {
+              ...current,
+              activity: {
+                ...current.activity,
+                credits: r.data.grant.balance,
+                creditLedger: [
+                  {
+                    reference: r.data.grant.eventId,
+                    delta: Number(creditAmount),
+                    reason: `Admin grant: ${creditReason.trim()}`,
+                    at: new Date().toISOString(),
+                  },
+                  ...(current.activity.creditLedger || []).filter(
+                    (entry: any) => entry.reference !== r.data.grant.eventId,
+                  ),
+                ].slice(0, 10),
+              },
+            }
+          : current,
+      );
+      setCreditSuccess(
+        replayed
+          ? "This grant was already recorded; the balance was not increased again."
+          : `${Number(creditAmount).toLocaleString()} credits added. New balance: ${Number(r.data.grant.balance).toLocaleString()}.`,
+      );
+      setCreditAmount("");
+      setCreditReason("");
+      setCreditOperationId("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not grant credits.");
     } finally {
       setBusy(false);
     }
@@ -230,6 +293,92 @@ export default function AdminUsers() {
               {detail.activity.stories.length} stories ·{" "}
               {detail.activity.tickets.length} support tickets
             </p>
+            <div className="admin-credit-grant">
+              <div className="admin-credit-heading">
+                <div>
+                  <p className="eyebrow">WALLET ADJUSTMENT</p>
+                  <h3>Grant study credits</h3>
+                </div>
+                <strong aria-label="Current credit balance">
+                  {Number(detail.activity.credits).toLocaleString()}
+                  <span> current credits</span>
+                </strong>
+              </div>
+              <p>
+                Grants are posted to the wallet ledger and recorded with the
+                administrator, recipient, and reason. Limit: 10,000 per grant.
+              </p>
+              <div className="admin-credit-fields">
+                <label>
+                  Credits to add
+                  <input
+                    aria-label="Credits to add"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    step="1"
+                    inputMode="numeric"
+                    value={creditAmount}
+                    onChange={(e) => {
+                      setCreditAmount(e.target.value);
+                      setCreditSuccess("");
+                    }}
+                  />
+                </label>
+                <label>
+                  Reason for the grant
+                  <input
+                    aria-label="Reason for the credit grant"
+                    minLength={5}
+                    maxLength={300}
+                    value={creditReason}
+                    onChange={(e) => {
+                      setCreditReason(e.target.value);
+                      setCreditSuccess("");
+                    }}
+                    placeholder="For example: admin test balance"
+                  />
+                </label>
+              </div>
+              <button
+                className="btn dark"
+                disabled={
+                  busy ||
+                  !/^\d+$/.test(creditAmount) ||
+                  Number(creditAmount) < 1 ||
+                  Number(creditAmount) > 10000 ||
+                  creditReason.trim().length < 5
+                }
+                onClick={grantCredits}
+              >
+                {busy ? "Recording grant…" : "Grant credits"}
+              </button>
+              {creditSuccess && (
+                <p role="status" className="admin-status">
+                  {creditSuccess}
+                </p>
+              )}
+              <div className="admin-credit-ledger" aria-live="polite">
+                <h4>Recent administrator grants</h4>
+                {(detail.activity.creditLedger || []).length ? (
+                  <ul>
+                    {detail.activity.creditLedger.map((entry: any) => (
+                      <li key={entry.reference}>
+                        <span>
+                          +{Number(entry.delta).toLocaleString()} credits
+                        </span>
+                        <small>{entry.reason}</small>
+                        <time dateTime={new Date(entry.at).toISOString()}>
+                          {new Date(entry.at).toLocaleString()}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No administrator grants have been recorded.</p>
+                )}
+              </div>
+            </div>
             <h3>Subscription</h3>
             {detail.activity.subscription ? (
               <p>

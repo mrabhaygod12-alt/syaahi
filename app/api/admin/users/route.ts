@@ -9,6 +9,10 @@ import {
 } from "@/lib/admin/accounts";
 import { rateLimit } from "@/lib/ratelimit";
 import { audit } from "@/lib/admin/audit";
+import {
+  grantAdminCredits,
+  recentAdminCreditLedger,
+} from "@/lib/admin/credits";
 export const GET = apiHandler(async (req: Request) => {
   const u = await currentUser(req);
   if (!adminScopes(u).users)
@@ -32,20 +36,21 @@ export const GET = apiHandler(async (req: Request) => {
       { listStories } = await import("@/lib/writing/stories"),
       { listTickets } = await import("@/lib/support");
     const { currentSubscription } = await import("@/lib/billing/subscriptions");
-    const [credits, orders, stories, tickets, subscription] = await Promise.all(
-      [
+    const [credits, orders, stories, tickets, subscription, creditLedger] =
+      await Promise.all([
         balance(id),
         userOrders(id),
         listStories(id),
         listTickets(id),
         currentSubscription(id),
-      ],
-    );
+        recentAdminCreditLedger(id),
+      ]);
     await audit(u!.id, id, "account.view");
     return NextResponse.json({
       user,
       activity: {
         credits,
+        creditLedger,
         orders,
         subscription,
         stories: stories.map((s) => ({
@@ -73,8 +78,13 @@ export const POST = apiHandler(async (req: Request) => {
   const limited = await rateLimit(req, "admin-user-change", 20, 60000);
   if (limited) return limited;
   try {
+    const body = await req.json();
+    if (body?.action === "credit-grant")
+      return NextResponse.json({
+        grant: await grantAdminCredits(u!, body),
+      });
     return NextResponse.json({
-      control: await changeManagedUser(u!, await req.json()),
+      control: await changeManagedUser(u!, body),
     });
   } catch (e) {
     if (!(e instanceof AdminInputError)) throw e;

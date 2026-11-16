@@ -198,6 +198,86 @@ async function main() {
     );
     const privileged = await asUser(first);
     assert.equal((await adminUsers.GET(req("/api/admin/users"))).status, 200);
+    const creditStore = await import("../lib/credits/store"),
+      beforeGrant = await creditStore.balance(learner.id),
+      creditOperationId = randomUUID(),
+      creditInput = {
+        action: "credit-grant",
+        id: learner.id,
+        credits: 300,
+        reason: "Synthetic admin grant test",
+        operationId: creditOperationId,
+      },
+      deniedGrant = await adminUsers.POST(
+        req("/api/admin/users", creditInput, own),
+      );
+    assert.equal(
+      deniedGrant.status,
+      403,
+      "Unprivileged users cannot grant credits",
+    );
+    const firstGrant = await adminUsers.POST(
+        req("/api/admin/users", creditInput),
+      ),
+      firstGrantText = await firstGrant.text();
+    assert.equal(firstGrant.status, 200, firstGrantText);
+    const firstGrantBody = JSON.parse(firstGrantText);
+    assert.equal(firstGrantBody.grant.balance, beforeGrant + 300);
+    assert.equal(firstGrantBody.grant.replayed, false);
+    const replayGrant = await adminUsers.POST(
+        req("/api/admin/users", creditInput),
+      ),
+      replayBody = await replayGrant.json();
+    assert.equal(replayGrant.status, 200);
+    assert.equal(replayBody.grant.balance, beforeGrant + 300);
+    assert.equal(replayBody.grant.replayed, true, "Retry is idempotent");
+    assert.equal(await creditStore.balance(learner.id), beforeGrant + 300);
+    const ledger = await adminUsers.GET(
+      req("/api/admin/users?id=" + encodeURIComponent(learner.id)),
+    );
+    const ledgerBody = await ledger.json();
+    assert.equal(ledgerBody.activity.creditLedger[0].delta, 300);
+    assert.match(
+      ledgerBody.activity.creditLedger[0].reason,
+      /Synthetic admin grant test/,
+    );
+    const collision = await adminUsers.POST(
+      req("/api/admin/users", { ...creditInput, credits: 301 }),
+    );
+    assert.equal(
+      collision.status,
+      409,
+      "An operation ID cannot be reused for a different grant",
+    );
+    const tooMany = await adminUsers.POST(
+      req("/api/admin/users", {
+        ...creditInput,
+        operationId: randomUUID(),
+        credits: 10_001,
+      }),
+    );
+    assert.equal(tooMany.status, 400, "A grant has a per-operation cap");
+    if (!replica) {
+      const { grantAdminCredits } = await import("../lib/admin/credits"),
+        { db } = await import("../lib/db"),
+        beforeAuditFailure = await creditStore.balance(learner.id);
+      db().exec(
+        "CREATE TRIGGER fail_credit_grant_audit BEFORE INSERT ON admin_audit WHEN json_extract(NEW.payload,'$.action')='credit.grant' BEGIN SELECT RAISE(ABORT,'Simulated credit audit outage'); END",
+      );
+      await assert.rejects(() =>
+        grantAdminCredits(privileged, {
+          ...creditInput,
+          credits: 77,
+          operationId: randomUUID(),
+        }),
+      );
+      assert.equal(
+        await creditStore.balance(learner.id),
+        beforeAuditFailure,
+        "A failed audit write rolls back its wallet credit",
+      );
+      db().exec("DROP TRIGGER fail_credit_grant_audit");
+    }
     const devices = await sessions.activeSessions(
       root.id,
       sessions.sessionKey(req("/api/auth")),
@@ -325,8 +405,26 @@ async function main() {
       409,
     );
     assert.equal((await supportStore.findTicket(id))!.status, t.status);
-    assert.equal((await supportStore.listTickets(undefined, { q: "Preview formatting", workspace: "student", status: "waiting" })).length, 1);
-    assert.equal((await supportStore.listTickets(undefined, { q: "[.*", status: "waiting" })).length, 0, "Search characters are literal, not regex operators");
+    assert.equal(
+      (
+        await supportStore.listTickets(undefined, {
+          q: "Preview formatting",
+          workspace: "student",
+          status: "waiting",
+        })
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await supportStore.listTickets(undefined, {
+          q: "[.*",
+          status: "waiting",
+        })
+      ).length,
+      0,
+      "Search characters are literal, not regex operators",
+    );
     await assert.rejects(
       () =>
         supportStore.changeTicket(
@@ -386,16 +484,58 @@ async function main() {
     assert(log.some((e) => e.action === "support.note"));
     assert(log.some((e) => e.action === "mfa.recovery_used"));
     assert(log.some((e) => e.action === "account.access"));
+    assert(
+      log.some(
+        (e) =>
+          e.action === "credit.grant" &&
+          e.target === learner.id &&
+          e.detail.includes("300 credits"),
+      ),
+      "Credit adjustments are attributed in the admin audit trail",
+    );
     assert(!JSON.stringify(log).includes(setup.secret));
     assert(!JSON.stringify(log).includes(codes[0]));
-    await accounts.changeManagedUser(privileged, { id: other.id, version: 1, action: "role", role: "admin", reason: "Second synthetic administrator for concurrency test" });
-    const otherCookie = await cookie(other), otherReq = req("/api/admin/mfa", undefined, otherCookie), otherSetup = await mfa.beginMfa(await asUser(otherCookie), otherReq, "other-safe-password");
-    await mfa.confirmMfa(await asUser(otherCookie), otherReq, otherSetup.id, mfa.totp(otherSetup.secret));
+    await accounts.changeManagedUser(privileged, {
+      id: other.id,
+      version: 1,
+      action: "role",
+      role: "admin",
+      reason: "Second synthetic administrator for concurrency test",
+    });
+    const otherCookie = await cookie(other),
+      otherReq = req("/api/admin/mfa", undefined, otherCookie),
+      otherSetup = await mfa.beginMfa(
+        await asUser(otherCookie),
+        otherReq,
+        "other-safe-password",
+      );
+    await mfa.confirmMfa(
+      await asUser(otherCookie),
+      otherReq,
+      otherSetup.id,
+      mfa.totp(otherSetup.secret),
+    );
     const roleRace = await Promise.allSettled([
-      accounts.changeManagedUser(await asUser(first), { id: other.id, version: 2, action: "role", role: "none", reason: "Concurrent removal by synthetic first administrator" }),
-      accounts.changeManagedUser(await asUser(otherCookie), { id: root.id, version: 0, action: "role", role: "none", reason: "Concurrent removal by synthetic second administrator" }),
+      accounts.changeManagedUser(await asUser(first), {
+        id: other.id,
+        version: 2,
+        action: "role",
+        role: "none",
+        reason: "Concurrent removal by synthetic first administrator",
+      }),
+      accounts.changeManagedUser(await asUser(otherCookie), {
+        id: root.id,
+        version: 0,
+        action: "role",
+        role: "none",
+        reason: "Concurrent removal by synthetic second administrator",
+      }),
     ]);
-    assert.equal(roleRace.filter(r => r.status === "fulfilled").length, 1, "Concurrent administrators cannot remove every root administrator");
+    assert.equal(
+      roleRace.filter((r) => r.status === "fulfilled").length,
+      1,
+      "Concurrent administrators cannot remove every root administrator",
+    );
     console.log(
       `Admin security, MFA replay, per-device revocation, role lifecycle and private support checks passed (${replica ? "MongoDB" : "SQLite"}).`,
     );

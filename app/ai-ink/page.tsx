@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "Does AI Ink search Google Scholar, Scopus and ScienceDirect?",
-    a: "OpenAlex discovery can compare available research abstracts when you opt in to sending selected excerpts. Google Scholar is a manual lookup, not automatically scraped. Licensed ScienceDirect full-text access is not configured; Scopus DOI metadata requires separately configured licensed access. These collections are not represented as fully searched databases.",
+    a: "OpenAlex discovery with a Crossref abstract fallback can compare available research abstracts when you opt in to sending selected excerpts. Google Scholar is a manual lookup, not automatically scraped. Licensed ScienceDirect full-text access is not configured; Scopus DOI metadata requires separately configured licensed access. These collections are not represented as fully searched databases.",
   },
   {
     q: "Can AI Ink identify AI-generated images and graphs?",
@@ -103,7 +103,7 @@ export default function Page() {
           "Shared-phrasing review with source excerpts",
           "Reference-list checks",
           "Opt-in Crossref DOI metadata verification",
-          "OpenAlex research abstract discovery",
+          "OpenAlex and Crossref research abstract discovery",
           "Source provenance ledger",
           "Professional PDF report export",
         ],
