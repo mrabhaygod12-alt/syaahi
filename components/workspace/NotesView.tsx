@@ -154,7 +154,9 @@ export default function NotesView() {
                   );
                 } catch (e) {
                   toast(
-                    e instanceof Error ? e.message : "PDF export failed.",
+                    e instanceof Error
+                      ? e.message
+                      : "PDF export failed. Your notes are still here; use Print / Save as PDF as a fallback.",
                     true,
                   );
                 } finally {
@@ -163,6 +165,15 @@ export default function NotesView() {
               }}
             >
               {dlState || "Download PDF"}
+            </button>
+            <button
+              className="btn light"
+              type="button"
+              onClick={() => window.print()}
+              aria-label="Print or save handwritten notes as PDF"
+              title="Open your browser’s print dialog, then choose Save as PDF"
+            >
+              Print / Save as PDF
             </button>
           </div>
         </header>

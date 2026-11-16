@@ -53,13 +53,16 @@ async function handlePOST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("PDF layout failure", error);
+    console.error(
+      "PDF renderer unavailable",
+      error instanceof Error ? error.name : "unknown",
+    );
     return NextResponse.json(
       {
         error:
-          "PDF could not be rendered. Check Chromium is installed, then retry.",
+          "The PDF renderer is temporarily unavailable. Please retry shortly or use Print / Save as PDF.",
       },
-      { status: 503 },
+      { status: 503, headers: { "Retry-After": "5" } },
     );
   }
 }

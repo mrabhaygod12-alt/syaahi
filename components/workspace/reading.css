@@ -352,6 +352,90 @@
   color: #d3ddbc;
 }
 
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body:has(.notebook-room),
+  body:has(.notebook-room) #__next,
+  body:has(.notebook-room) main,
+  body:has(.notebook-room) .lesson-shell,
+  body:has(.notebook-room) .lesson-main,
+  body:has(.notebook-room) .ws-app,
+  body:has(.notebook-room) .notebook-room {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+  body:has(.notebook-room) * {
+    visibility: hidden !important;
+  }
+  body:has(.notebook-room) .notebook-room,
+  body:has(.notebook-room) .notebook-room * {
+    visibility: visible !important;
+  }
+  body:has(.notebook-room) header.top,
+  body:has(.notebook-room) footer,
+  body:has(.notebook-room) .ws-chat,
+  .notebook-toolbar,
+  .notebook-view-bar,
+  .notebook-options,
+  .notebook-room .section-heading,
+  .notebook-room .notebook-section-details,
+  .notebook-room .notebook-report,
+  .notebook-room .reader-controls,
+  .notebook-room .notes-dots,
+  .notebook-room .notes-toolbar {
+    display: none !important;
+  }
+  .notebook-room .pages-col {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .notebook-room .note-anchor {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    break-after: page;
+    page-break-after: always;
+  }
+  .notebook-room .print-note {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .notebook-room .print-note iframe {
+    display: block !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    border: 0 !important;
+  }
+  .notebook-room a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
+
 .atlas-appearance {
   margin: 12px 0 20px;
   border: 1px solid var(--line);

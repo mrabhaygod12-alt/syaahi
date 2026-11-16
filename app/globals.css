@@ -1104,6 +1104,12 @@ body:has(.ws-gate) footer {
   background: #fbf8f3;
   border-top: 1px solid var(--line);
 }
+.ws-prompt-hint {
+  margin: 0 2px 7px;
+  color: #667268;
+  font-size: 11px;
+  line-height: 1.45;
+}
 .ws-prompt-card {
   background: #fff;
   border: 1px solid #dcd3c6;
@@ -1264,6 +1270,10 @@ body:has(.ws-gate) footer {
 .ws-chip:active {
   background: #edf5f1;
   border-color: #214b40;
+}
+.ws-chip:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 .ws-msg-tools {
   display: flex;

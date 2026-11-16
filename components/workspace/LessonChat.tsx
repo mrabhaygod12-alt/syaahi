@@ -457,6 +457,43 @@ export default function LessonChat({
   }
 
   const last = thread[thread.length - 1];
+  const starterPrompts = tutorContext
+    ? [
+        {
+          label: "Explain simply",
+          question: `Explain ${tutorContext.topic} in simpler language, then give one concrete example.`,
+        },
+        {
+          label: "Show a worked example",
+          question: `Walk through one worked example for ${tutorContext.topic} step by step.`,
+        },
+        {
+          label: "Give me a hint",
+          question: `Give me one small hint about ${tutorContext.topic} without giving the checkpoint answer.`,
+        },
+      ]
+    : [
+        {
+          label: "Explain simply",
+          question:
+            "Explain the main idea in simpler language, then give one concrete example. Cite the note page you used.",
+        },
+        {
+          label: "Worked example",
+          question:
+            "Walk through a worked example from this lesson step by step. Cite the note page you used.",
+        },
+        {
+          label: "Compare ideas",
+          question:
+            "Compare two related ideas from this lesson and explain when each applies. Cite the note pages you used.",
+        },
+        {
+          label: "Check my understanding",
+          question:
+            "Ask me one question about this lesson and wait for my answer before explaining it.",
+        },
+      ];
 
   return (
     <aside
@@ -469,7 +506,7 @@ export default function LessonChat({
           <span className="small">
             {tutorContext
               ? "Reading along with you"
-              : "answers only from this lesson"}
+              : "Grounded in your notes · page links included"}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -554,22 +591,30 @@ export default function LessonChat({
                 ? `You’re studying ${tutorContext.topic}. Ask for a simpler explanation, an example, or a hint.`
                 : "I can work with you on this lesson and answer any questions."}
             </p>
-            <div className="ws-chips">
-              {(tutorContext ? [tutorContext.topic] : topics).map((t) => (
+            <div className="ws-chips" aria-label="Suggested questions">
+              {starterPrompts.map((prompt) => (
                 <button
-                  key={t}
+                  key={prompt.label}
                   className="ws-chip"
-                  onClick={() => ask(`Explain "${t}" simply`)}
+                  disabled={busy}
+                  onClick={() => ask(prompt.question)}
                 >
-                  Explain “{t.slice(0, 28)}”
+                  {prompt.label}
                 </button>
               ))}
-              <button
-                className="ws-chip"
-                onClick={() => ask("Quiz me on this lesson")}
-              >
-                Quiz me
-              </button>
+              {!tutorContext && topics.length > 0 && (
+                <button
+                  className="ws-chip"
+                  disabled={busy}
+                  onClick={() =>
+                    ask(
+                      `Explain “${topics[0]}” simply and cite the note page you used.`,
+                    )
+                  }
+                >
+                  Start with {topics[0].slice(0, 24)}
+                </button>
+              )}
             </div>
             <p className="small" style={{ marginTop: 10 }}>
               Tip: select any text in your notes → “Ask ✦”.
@@ -694,7 +739,17 @@ export default function LessonChat({
               className="ws-chip"
               onClick={() => ask(`Give an example for: ${last.q}`)}
             >
-              Iska example?
+              Show a worked example
+            </button>
+            <button
+              className="ws-chip"
+              onClick={() =>
+                ask(
+                  `Explain this more simply and keep the page citations: ${last.q}`,
+                )
+              }
+            >
+              Explain more simply
             </button>
             <button
               className="ws-chip"
@@ -709,6 +764,9 @@ export default function LessonChat({
         )}
       </div>
       <div className="ws-prompt-wrap">
+        <div className="ws-prompt-hint">
+          Ask for a simpler explanation, a worked example, or a specific page.
+        </div>
         <form
           className="ws-prompt-card"
           onSubmit={(e) => {
@@ -729,7 +787,7 @@ export default function LessonChat({
                 ask();
               }
             }}
-            placeholder="Ask anything about this lesson or paste questions…"
+            placeholder="Ask about a concept, example, or note page…"
             maxLength={500}
           />
           <div className="ws-prompt-footer">
