@@ -28,7 +28,14 @@ export default function AdminShell({
     router = useRouter(),
     account = useAccount(),
     [access, setAccess] = useState<any>(null),
+    [accountRevision, setAccountRevision] = useState(0),
     [error, setError] = useState("");
+  useEffect(() => {
+    const refreshAccess = () => setAccountRevision((revision) => revision + 1);
+    window.addEventListener("syaahi:account-updated", refreshAccess);
+    return () =>
+      window.removeEventListener("syaahi:account-updated", refreshAccess);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     setAccess(null);
@@ -61,7 +68,7 @@ export default function AdminShell({
           startTransition(() => setError(e.message));
       });
     return () => controller.abort();
-  }, [path, account.loading, account.user?.id, account.error]);
+  }, [path, account.loading, account.user?.id, account.error, accountRevision]);
   if (account.loading || (access && access.owner !== account.user?.id))
     return (
       <main className="wrap feature-section" aria-busy="true">
@@ -175,7 +182,7 @@ export default function AdminShell({
               onChange={(event) => setInspectQuery(event.target.value)}
             />
             <button className="btn dark" disabled={!inspectQuery.trim()}>
-              Inspect account
+              Find account
             </button>
             <small>
               Account changes require a reason and create an audit entry.

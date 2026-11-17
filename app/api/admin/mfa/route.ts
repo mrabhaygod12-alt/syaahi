@@ -25,7 +25,7 @@ export const GET = apiHandler(async (req: Request) => {
       { error: "Administrator access required." },
       { status: 403 },
     );
-  const limited = await rateLimit(req, "admin-mfa-status", 30, 60000);
+  const limited = await rateLimit(req, "admin-mfa-status", 120, 60000);
   if (limited) return limited;
   return NextResponse.json(await mfaStatus(u, req));
 });

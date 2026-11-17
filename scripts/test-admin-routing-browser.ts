@@ -13,7 +13,7 @@ async function main() {
     APP_ROLE: "all",
     BACKEND_URL: "",
     WORKER_MODE: "external",
-    NEXT_DIST_DIR: ".next-validation",
+    NEXT_DIST_DIR: process.env.NEXT_DIST_DIR || ".next-validation",
     NEXT_PUBLIC_APP_URL: origin,
     ADMIN_EMAILS: "admin-browser@example.test",
     ADMIN_MFA_ENFORCE: "1",
@@ -427,7 +427,7 @@ async function main() {
       window.dispatchEvent(new Event("syaahi:account-updated")),
     );
     await page
-      .getByRole("heading", { name: "Your administrator security." })
+      .getByRole("heading", { name: "Protect administrator access." })
       .waitFor();
     await add(context, writerCookie);
     await page.evaluate(() =>
