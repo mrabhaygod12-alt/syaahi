@@ -4,6 +4,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { NextRequest, NextResponse } from "next/server";
 import { authError, currentUser } from "@/lib/auth/server";
 import { adminScopes } from "@/lib/auth/admin";
+import { rateLimit } from "@/lib/ratelimit";
 import {
   listPendingPayments,
   approvePayment,
@@ -27,6 +28,8 @@ async function handleGET(req: NextRequest) {
       { error: "Admin access required." },
       { status: 403 },
     );
+  const limited = await rateLimit(req, "upi-admin-read", 120, 60000);
+  if (limited) return limited;
 
   const url = new URL(req.url);
   const action = url.searchParams.get("action") || "list";
@@ -176,6 +179,8 @@ async function handlePOST(req: NextRequest) {
       { error: "Admin access required." },
       { status: 403 },
     );
+  const limited = await rateLimit(req, "upi-admin-write", 20, 60000);
+  if (limited) return limited;
 
   const body = await req.json().catch(() => ({}));
   const action = String(body.action || "");

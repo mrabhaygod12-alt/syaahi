@@ -21,6 +21,8 @@ export const GET = apiHandler(async (req: Request) => {
       { error: "Verified support administrator required." },
       { status: 403 },
     );
+  const limited = await rateLimit(req, "admin-support-read", 60, 60000);
+  if (limited) return limited;
   const url = new URL(req.url),
     id = url.searchParams.get("id");
   if (id) {

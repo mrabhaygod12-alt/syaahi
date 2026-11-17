@@ -5,11 +5,14 @@ import { isAdmin } from "@/lib/auth/admin";
 import { rateLimit } from "@/lib/ratelimit";
 import { reviewList, moderateReview, ReviewError } from "@/lib/growth/reviews";
 export const GET = apiHandler(async (req: NextRequest) => {
-  if (!isAdmin(await currentUser(req)))
+  const user = await currentUser(req);
+  if (!isAdmin(user))
     return NextResponse.json(
       { error: "Editorial access and MFA required." },
       { status: 403 },
     );
+  const denied = await rateLimit(req, "admin-review-read", 60, 60000);
+  if (denied) return denied;
   return NextResponse.json({ reviews: await reviewList() });
 });
 export const POST = apiHandler(async (req: NextRequest) => {

@@ -20,12 +20,14 @@ async function guard(req: Request) {
 }
 export const GET = apiHandler(async (req: Request) => {
   const u = await guard(req);
-  return u
-    ? NextResponse.json(await mfaStatus(u, req))
-    : NextResponse.json(
-        { error: "Administrator access required." },
-        { status: 403 },
-      );
+  if (!u)
+    return NextResponse.json(
+      { error: "Administrator access required." },
+      { status: 403 },
+    );
+  const limited = await rateLimit(req, "admin-mfa-status", 30, 60000);
+  if (limited) return limited;
+  return NextResponse.json(await mfaStatus(u, req));
 });
 export const POST = apiHandler(async (req: Request) => {
   const u = await guard(req);

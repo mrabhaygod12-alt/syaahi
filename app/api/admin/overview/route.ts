@@ -7,6 +7,7 @@ import { adminScopes } from "@/lib/auth/admin";
 import { recentAudit } from "@/lib/admin/audit";
 import { listReviewStories, listContentReports } from "@/lib/writing/stories";
 import { listTickets } from "@/lib/support";
+import { rateLimit } from "@/lib/ratelimit";
 export const GET = apiHandler(async (req: Request) => {
   const u = await currentUser(req),
     scopes = adminScopes(u);
@@ -15,6 +16,8 @@ export const GET = apiHandler(async (req: Request) => {
       { error: "Verified administrator access required." },
       { status: 403 },
     );
+  const limited = await rateLimit(req, "admin-overview", 30, 60000);
+  if (limited) return limited;
   const [review, reports, tickets, events, feedback, services] =
     await Promise.all([
       scopes.editorial ? listReviewStories() : [],
