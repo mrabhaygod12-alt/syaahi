@@ -72,7 +72,8 @@ async function main() {
   assert.equal(monthlyCheckoutConfigured("max"), false);
   await assert.rejects(() => resolveMonthlyPlan("max", provider), /paused/);
   delete process.env.RAZORPAY_AUTO_PROVISION_PLANS;
-  process.env.RAZORPAY_KEY_ID = "rzp_live_differentmerchant";
+  // Deliberately synthetic live-mode ID for the registry mismatch case.
+  process.env.RAZORPAY_KEY_ID = "rzp_live_examplekeyfortest";
   assert.equal(
     await registeredPlanId("starter"),
     "",
