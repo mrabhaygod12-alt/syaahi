@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { NextRequest } from "next/server";
 import { middleware } from "../middleware";
 import { releaseRevision } from "../lib/release";
@@ -13,6 +15,35 @@ import {
 } from "../lib/billing/subscriptions";
 
 async function main() {
+  const vercelConfig = JSON.parse(
+    readFileSync(resolve(process.cwd(), "vercel.json"), "utf8"),
+  ) as {
+    routes?: Array<{
+      src?: string;
+      continue?: boolean;
+      transforms?: Array<{
+        type?: string;
+        op?: string;
+        target?: { key?: string };
+      }>;
+    }>;
+  };
+  const originHeaderTransform = vercelConfig.routes?.find(
+    (route) =>
+      route.src === "/(.*)" &&
+      route.continue === true &&
+      route.transforms?.some(
+        (transform) =>
+          transform.type === "response.headers" &&
+          transform.op === "delete" &&
+          transform.target?.key?.toLowerCase() ===
+            "x-render-origin-server",
+      ),
+  );
+  assert.ok(
+    originHeaderTransform,
+    "Vercel must strip the Render-origin header and continue to the Next.js route",
+  );
   const commit = "a".repeat(40);
   assert.equal(releaseRevision(` ${commit} `), commit.slice(0, 12));
   for (const invalid of [
