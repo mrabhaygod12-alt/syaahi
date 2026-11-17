@@ -71,3 +71,31 @@ export async function recentAudit(): Promise<AdminEvent[]> {
     .all(new Date(Date.now() - 180 * 86400000).toISOString())
     .map((r) => JSON.parse(String(r.payload)));
 }
+
+/** Return a small, target-scoped history for the account inspector. */
+export async function auditForTarget(target: string): Promise<AdminEvent[]> {
+  if (useMongo())
+    return (
+      await (
+        await collection("admin_audit")
+      )
+        .find({ target, expiresAt: { $gt: new Date() } })
+        .sort({ at: -1 })
+        .limit(20)
+        .toArray()
+    ).map((r) => ({
+      id: String(r.id || r._id),
+      actor: String(r.actor),
+      target: String(r.target),
+      action: String(r.action),
+      at: String(r.at),
+      detail: String(r.detail || ""),
+    }));
+  auditSetup();
+  return db()
+    .prepare(
+      "SELECT payload FROM admin_audit WHERE at>? AND json_extract(payload,'$.target')=? ORDER BY at DESC LIMIT 20",
+    )
+    .all(new Date(Date.now() - 180 * 86400000).toISOString(), target)
+    .map((r) => JSON.parse(String(r.payload)) as AdminEvent);
+}

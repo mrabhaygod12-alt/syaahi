@@ -8,11 +8,11 @@ import {
   AdminInputError,
 } from "@/lib/admin/accounts";
 import { rateLimit } from "@/lib/ratelimit";
-import { audit } from "@/lib/admin/audit";
 import {
   grantAdminCredits,
   recentAdminCreditLedger,
 } from "@/lib/admin/credits";
+import { audit, auditForTarget } from "@/lib/admin/audit";
 export const GET = apiHandler(async (req: Request) => {
   const u = await currentUser(req);
   if (!adminScopes(u).users)
@@ -46,6 +46,7 @@ export const GET = apiHandler(async (req: Request) => {
         recentAdminCreditLedger(id),
       ]);
     await audit(u!.id, id, "account.view");
+    const adminEvents = await auditForTarget(id);
     return NextResponse.json({
       user,
       activity: {
@@ -61,6 +62,7 @@ export const GET = apiHandler(async (req: Request) => {
           slug: s.slug,
         })),
         tickets,
+        adminEvents,
       },
     });
   } catch (e) {

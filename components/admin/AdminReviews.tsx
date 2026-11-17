@@ -1,12 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 export default function AdminReviews() {
   const [items, setItems] = useState<any[]>([]),
     [error, setError] = useState(""),
     [loaded, setLoaded] = useState(false),
-    [busy, setBusy] = useState("");
+    [busy, setBusy] = useState(""),
+    [refreshing, setRefreshing] = useState(false);
   async function load() {
+    setRefreshing(true);
+    setError("");
     try {
       const { response, data } = await requestJson("/api/admin/reviews");
       if (!response.ok || !Array.isArray(data.reviews))
@@ -15,6 +19,8 @@ export default function AdminReviews() {
       setLoaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load reviews.");
+    } finally {
+      setRefreshing(false);
     }
   }
   useEffect(() => {
@@ -22,13 +28,26 @@ export default function AdminReviews() {
   }, []);
   return (
     <main className="wrap feature-section admin-content">
-      <p className="eyebrow">TRUST & FEEDBACK</p>
-      <h1>Review real experiences.</h1>
-      <p>
-        Check authenticity, relevance and privacy before publishing. Both
-        positive and negative feedback are welcome.
-      </p>
-      {error && <p role="alert">{error}</p>}
+      <AdminPageHeader
+        eyebrow="TRUST & FEEDBACK"
+        title="Review verified experiences."
+        description="Check authenticity, relevance and privacy before publishing. Both positive and critical feedback belong in a trustworthy review system."
+        actions={
+          <button
+            className="btn light"
+            type="button"
+            disabled={refreshing || !!busy}
+            onClick={() => void load()}
+          >
+            {refreshing ? "Refreshing…" : "Refresh reviews"}
+          </button>
+        }
+      />
+      {error && (
+        <p role="alert" className="admin-error">
+          {error}
+        </p>
+      )}
       {!loaded && !error && <p role="status">Loading review queue…</p>}
       {loaded && !items.length && (
         <section className="admin-panel">No submitted feedback yet.</section>

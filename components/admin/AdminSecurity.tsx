@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { requestJson, ServiceRequestError } from "@/lib/http-client";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import SessionSecurity from "@/components/SessionSecurity";
 
 interface Status {
@@ -147,12 +148,11 @@ export default function AdminSecurity() {
   );
   return (
     <main className="wrap feature-section admin-content">
-      <p className="eyebrow">PRIVILEGED ACCESS</p>
-      <h1>Your administrator security.</h1>
-      <p>
-        Verify a second factor before managing people, editorial decisions or
-        payments. Verification lasts 15 minutes in this session.
-      </p>
+      <AdminPageHeader
+        eyebrow="PRIVILEGED ACCESS"
+        title="Protect administrator access."
+        description="Use a verified second factor before managing accounts, editorial decisions or payments. Elevation is scoped to this session and expires after 15 minutes."
+      />
       {error && (
         <div className="admin-error" role="alert">
           <p>{error}</p>

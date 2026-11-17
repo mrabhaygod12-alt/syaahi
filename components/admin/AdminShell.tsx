@@ -1,6 +1,6 @@
 "use client";
 import { startTransition, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { requestJson, ServiceRequestError } from "@/lib/http-client";
 import { useAccount } from "@/components/WorkspaceProvider";
 import {
@@ -22,8 +22,10 @@ export default function AdminShell({
   children: React.ReactNode;
 }) {
   const [navOpen, setNavOpen] = useState(false),
-    [filter, setFilter] = useState("");
+    [filter, setFilter] = useState(""),
+    [inspectQuery, setInspectQuery] = useState("");
   const path = usePathname(),
+    router = useRouter(),
     account = useAccount(),
     [access, setAccess] = useState<any>(null),
     [error, setError] = useState("");
@@ -150,6 +152,36 @@ export default function AdminShell({
       )}
       <nav className="admin-nav" aria-label="Administration">
         <p className="admin-nav-label">PLATFORM</p>
+        {access.scopes.users && (
+          <form
+            className="admin-nav-inspect"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const query = inspectQuery.trim();
+              if (!query) return;
+              setNavOpen(false);
+              router.push(`/admin/users?q=${encodeURIComponent(query)}`);
+            }}
+          >
+            <label htmlFor="admin-inspect-query">Inspect an account</label>
+            <input
+              id="admin-inspect-query"
+              type="search"
+              maxLength={120}
+              autoComplete="off"
+              placeholder="Email, name, or user ID"
+              value={inspectQuery}
+              onChange={(event) => setInspectQuery(event.target.value)}
+            />
+            <button className="btn dark" disabled={!inspectQuery.trim()}>
+              Inspect account
+            </button>
+            <small>
+              Account changes require a reason and create an audit entry.
+            </small>
+          </form>
+        )}
         <div>
           {links
             .map(([name, href, enabled], index) => ({

@@ -2,7 +2,10 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
 import type { ManagedUser } from "@/lib/admin/accounts";
+import { useAccount } from "@/components/WorkspaceProvider";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 export default function AdminUsers() {
+  const account = useAccount();
   const [users, setUsers] = useState<ManagedUser[]>([]),
     [q, setQ] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -18,16 +21,20 @@ export default function AdminUsers() {
     [creditSuccess, setCreditSuccess] = useState(""),
     [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false);
-  async function load() {
+  async function load(term = q, statusFilter = filter) {
+    setError("");
     const r = await requestJson(
-      `/api/admin/users?q=${encodeURIComponent(q)}&status=${filter}`,
+      `/api/admin/users?q=${encodeURIComponent(term)}&status=${statusFilter}`,
     );
     if (!r.response.ok) throw new Error(r.data.error);
     setUsers(r.data.users);
     setLoaded(true);
   }
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    const initialQuery =
+      new URLSearchParams(location.search).get("q")?.slice(0, 120) || "";
+    setQ(initialQuery);
+    load(initialQuery).catch((e) => setError(e.message));
   }, []);
   async function open(id: string) {
     setBusy(true);
@@ -133,13 +140,60 @@ export default function AdminUsers() {
       setBusy(false);
     }
   }
+  async function inspectSignedInAccount() {
+    const email = account.user?.email?.trim();
+    if (!email) {
+      setError(
+        "Your signed-in account could not be identified. Sign in again.",
+      );
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const r = await requestJson(
+        `/api/admin/users?q=${encodeURIComponent(email)}&status=all`,
+      );
+      if (!r.response.ok) throw new Error(r.data.error);
+      const target = (r.data.users as ManagedUser[]).find(
+        (user) => user.email.toLowerCase() === email.toLowerCase(),
+      );
+      setUsers(r.data.users);
+      setQ(email);
+      setLoaded(true);
+      if (!target)
+        throw new Error(
+          "The signed-in account was not found in the user directory.",
+        );
+      await open(target.id);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not inspect this account.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <main className="wrap feature-section admin-content">
-      <p className="eyebrow">PEOPLE & ACCESS</p>
-      <h1>Manage accounts with context.</h1>
-      <p>
+      <AdminPageHeader
+        eyebrow="PEOPLE & ACCESS"
+        title="Inspect accounts with context."
+        description="Review a person’s workspace, wallet, publishing activity, support history and administrator changes. Every access change is version-checked and audited."
+        actions={
+          <button
+            className="btn light"
+            type="button"
+            disabled={busy || !account.user?.email}
+            onClick={() => void inspectSignedInAccount()}
+          >
+            Inspect my account
+          </button>
+        }
+      />
+      <p className="admin-page-note">
         Role and access changes revoke every session for the affected account.
-        Removal here is reversible; saved work and payment records remain.
+        Account removal is reversible; saved work and payment records remain.
       </p>
       {error && (
         <p role="alert" className="admin-error">
@@ -230,8 +284,52 @@ export default function AdminUsers() {
       {detail && (
         <div className="admin-detail">
           <section className="admin-panel">
-            <h2>{detail.user.name}</h2>
-            <p>{detail.user.email}</p>
+            <div className="admin-inspect-header">
+              <div>
+                <p className="eyebrow">ACCOUNT INSPECTION</p>
+                <h2>{detail.user.name}</h2>
+                <p>{detail.user.email}</p>
+              </div>
+              <button
+                type="button"
+                className="btn light"
+                onClick={() => setDetail(null)}
+              >
+                Close inspection
+              </button>
+            </div>
+            <dl className="admin-account-facts">
+              <div>
+                <dt>Workspace</dt>
+                <dd>{detail.user.workspace}</dd>
+              </div>
+              <div>
+                <dt>Email status</dt>
+                <dd>
+                  {detail.user.verified ? "Verified" : "Pending verification"}
+                </dd>
+              </div>
+              <div>
+                <dt>Account access</dt>
+                <dd>{detail.user.control.status}</dd>
+              </div>
+              <div>
+                <dt>Administrator role</dt>
+                <dd>{detail.user.control.role || "No elevated role"}</dd>
+              </div>
+              <div>
+                <dt>Created</dt>
+                <dd>{new Date(detail.user.createdAt).toLocaleDateString()}</dd>
+              </div>
+              <div>
+                <dt>Control version</dt>
+                <dd>{detail.user.control.version}</dd>
+              </div>
+            </dl>
+            <p className="small admin-account-id">
+              User ID · <code>{detail.user.id}</code>
+            </p>
+            <div className="admin-inspect-divider" />
             <label>
               Account name
               <input
@@ -308,6 +406,22 @@ export default function AdminUsers() {
                 Grants are posted to the wallet ledger and recorded with the
                 administrator, recipient, and reason. Limit: 10,000 per grant.
               </p>
+              {detail.user.id === account.user?.id && (
+                <button
+                  className="btn light"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setCreditAmount("3000");
+                    setCreditReason(
+                      "Authorized 3,000-credit admin test balance",
+                    );
+                    setCreditSuccess("");
+                  }}
+                >
+                  Prepare 3,000-credit test grant
+                </button>
+              )}
               <div className="admin-credit-fields">
                 <label>
                   Credits to add
@@ -426,6 +540,24 @@ export default function AdminUsers() {
                 {t.status}
               </p>
             ))}
+            <h3>Administrator audit trail</h3>
+            {(detail.activity.adminEvents || []).length ? (
+              <ol className="admin-account-audit">
+                {detail.activity.adminEvents.map((event: any) => (
+                  <li key={event.id}>
+                    <div>
+                      <strong>{event.action}</strong>
+                      <small>{event.detail || "No reason recorded"}</small>
+                    </div>
+                    <time dateTime={event.at}>
+                      {new Date(event.at).toLocaleString()}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>No account-level administrator actions recorded.</p>
+            )}
           </section>
         </div>
       )}

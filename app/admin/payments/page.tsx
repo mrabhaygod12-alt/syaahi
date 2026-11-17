@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 
 interface Payment {
   orderId: string;
@@ -30,12 +31,12 @@ interface Stats {
 }
 
 const STATUS_TABS = [
-  { key: "gateway", label: "Razorpay", icon: "↗" },
-  { key: "all", label: "All payments", icon: "▤" },
-  { key: "", label: "Pending", icon: "⏳" },
-  { key: "approved", label: "Approved", icon: "✅" },
-  { key: "rejected", label: "Rejected", icon: "❌" },
-  { key: "expired", label: "Expired", icon: "⌛" },
+  { key: "gateway", label: "Razorpay" },
+  { key: "all", label: "All payments" },
+  { key: "", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+  { key: "expired", label: "Expired" },
 ];
 
 export default function AdminPayments() {
@@ -52,6 +53,8 @@ export default function AdminPayments() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [updatedAt, setUpdatedAt] = useState("");
+  const [canInspectUsers, setCanInspectUsers] = useState(false);
 
   const loadPayments = useCallback(
     async (tab?: string, p?: number) => {
@@ -73,8 +76,10 @@ export default function AdminPayments() {
           setError(j.error);
           return;
         }
+        setError("");
         setPayments(j.payments || []);
         setTotal(j.total || 0);
+        setUpdatedAt(new Date().toISOString());
       } catch (err) {
         setError("Failed to load payments.");
       } finally {
@@ -94,6 +99,10 @@ export default function AdminPayments() {
   useEffect(() => {
     loadPayments();
     loadStats();
+    fetch("/api/admin/access", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((access) => setCanInspectUsers(access.scopes?.users === true))
+      .catch(() => setCanInspectUsers(false));
   }, [loadPayments, loadStats]);
 
   // Auto-refresh every 15 seconds
@@ -169,300 +178,318 @@ export default function AdminPayments() {
 
   if (authorized === false) {
     return (
-      <div className="admin-page">
-        <div
-          className="wrap"
-          style={{ padding: "80px 24px", textAlign: "center" }}
-        >
-          <h1>🔒 Access Denied</h1>
-          <p>You don't have admin permissions. Contact the site owner.</p>
-          <a href="/dashboard" className="btn dark" style={{ marginTop: 16 }}>
-            ← Dashboard
+      <main className="wrap feature-section admin-content">
+        <section className="admin-panel admin-access-denied">
+          <p className="eyebrow">PAYMENTS OPERATIONS</p>
+          <h1>Payment access is restricted.</h1>
+          <p>
+            This account does not have a verified payment-administrator scope.
+            Ask a site administrator to review your role if you should have
+            access.
+          </p>
+          <a href="/admin" className="btn dark">
+            Return to control room
           </a>
-        </div>
-      </div>
+        </section>
+      </main>
     );
   }
 
   return (
-    <div className="admin-page">
-      <div className="wrap" style={{ paddingTop: 24, paddingBottom: 48 }}>
-        <p className="small">
-          <a href="/dashboard">← Dashboard</a>
-        </p>
-
-        <div className="admin-header">
-          <h1>💰 Payment Admin</h1>
-          <p className="small">
-            Manage UPI payments. Auto-refreshes every 15 seconds.
-          </p>
-        </div>
-
-        {/* ── Stats Cards ── */}
-        {stats && (
-          <div className="admin-stats-grid">
-            <div className="stat-card pending">
-              <div className="stat-icon">⏳</div>
-              <div className="stat-value">{stats.pending}</div>
-              <div className="stat-label">Pending</div>
-            </div>
-            <div className="stat-card approved">
-              <div className="stat-icon">✅</div>
-              <div className="stat-value">{stats.approved}</div>
-              <div className="stat-label">Approved</div>
-            </div>
-            <div className="stat-card rejected">
-              <div className="stat-icon">❌</div>
-              <div className="stat-value">{stats.rejected}</div>
-              <div className="stat-label">Rejected</div>
-            </div>
-            <div className="stat-card revenue">
-              <div className="stat-icon">💰</div>
-              <div className="stat-value">
-                ₹{stats.totalRevenue.toLocaleString("en-IN")}
-              </div>
-              <div className="stat-label">Manual UPI revenue</div>
-            </div>
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setPage(1);
-            setQuery(search.trim());
-            setActiveTab((current) =>
-              current === "gateway" ? "gateway" : "all",
-            );
-          }}
-          style={{
-            display: "flex",
-            gap: 8,
-            flexWrap: "wrap",
-            marginBottom: 20,
-          }}
-        >
-          <label style={{ flex: 1 }}>
-            Find a user's payment
-            <input
-              style={{ width: "100%" }}
-              value={search}
-              maxLength={120}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Email, user ID, order ID or UTR"
-            />
-          </label>
-          <button className="btn dark" type="submit">
-            Search
-          </button>
+    <main className="wrap feature-section admin-content admin-page admin-payments">
+      <AdminPageHeader
+        eyebrow="PAYMENTS OPERATIONS"
+        title="Payments and wallet orders."
+        description="Review Razorpay orders and manually submitted UPI payments. Every approval still requires a bank-statement match."
+        actions={
           <button
             className="btn light"
             type="button"
+            disabled={loading}
             onClick={() => {
-              setSearch("");
-              setQuery("");
-              setPage(1);
+              void loadPayments();
+              void loadStats();
             }}
           >
-            Clear
+            {loading ? "Refreshing…" : "Refresh payments"}
           </button>
-        </form>
-        {/* ── Tab Bar ── */}
-        <div className="admin-tabs">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              className={`admin-tab ${activeTab === tab.key ? "active" : ""}`}
-              onClick={() => {
-                setActiveTab(tab.key);
-                setPage(1);
-                loadPayments(tab.key, 1);
-              }}
-            >
-              {tab.icon} {tab.label}
-              {tab.key === "" && stats ? ` (${stats.pending})` : ""}
-            </button>
-          ))}
+        }
+      />
+      {updatedAt && (
+        <p className="admin-page-note" role="status">
+          Refreshed {new Date(updatedAt).toLocaleTimeString()} · automatic
+          refresh every 15 seconds
+        </p>
+      )}
+
+      {/* ── Stats Cards ── */}
+      {stats && (
+        <div className="admin-stat-grid admin-payment-stats">
+          <div className="admin-panel">
+            <span>Pending</span>
+            <strong>{stats.pending.toLocaleString("en-IN")}</strong>
+            <small>Awaiting review</small>
+          </div>
+          <div className="admin-panel">
+            <span>Approved</span>
+            <strong>{stats.approved.toLocaleString("en-IN")}</strong>
+            <small>Recorded payments</small>
+          </div>
+          <div className="admin-panel">
+            <span>Rejected</span>
+            <strong>{stats.rejected.toLocaleString("en-IN")}</strong>
+            <small>Declined submissions</small>
+          </div>
+          <div className="admin-panel">
+            <span>Manual UPI revenue</span>
+            <strong>₹{stats.totalRevenue.toLocaleString("en-IN")}</strong>
+            <small>Captured UPI payments</small>
+          </div>
         </div>
+      )}
 
-        {/* ── Error ── */}
-        {error && (
-          <div className="admin-error">
-            {error}
-            <button onClick={() => setError("")} className="toast-close">
-              ✕
-            </button>
-          </div>
-        )}
+      <form
+        className="admin-panel admin-payment-search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          setQuery(search.trim());
+          setActiveTab((current) =>
+            current === "gateway" ? "gateway" : "all",
+          );
+        }}
+      >
+        <label className="admin-payment-search-field">
+          Find a user's payment
+          <input
+            className="admin-payment-search-input"
+            value={search}
+            maxLength={120}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Email, user ID, order ID or UTR"
+          />
+        </label>
+        <button className="btn dark" type="submit">
+          Search
+        </button>
+        <button
+          className="btn light"
+          type="button"
+          onClick={() => {
+            setSearch("");
+            setQuery("");
+            setPage(1);
+          }}
+        >
+          Clear
+        </button>
+      </form>
+      {/* ── Tab Bar ── */}
+      <div className="admin-tabs">
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            className={`admin-tab ${activeTab === tab.key ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setPage(1);
+              loadPayments(tab.key, 1);
+            }}
+          >
+            {tab.label}
+            {tab.key === "" && stats ? ` (${stats.pending})` : ""}
+          </button>
+        ))}
+      </div>
 
-        {/* ── Payment Cards ── */}
-        {loading ? (
-          <div style={{ textAlign: "center", padding: 40 }}>
-            <div className="admin-spinner"></div>
-            <p className="small">Loading payments…</p>
-          </div>
-        ) : payments.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60 }}>
-            <p style={{ fontSize: "2rem" }}>🎯</p>
-            <p>No payments in this category.</p>
-          </div>
-        ) : (
-          <div className="admin-payments-list">
-            {payments.map((p) => (
-              <div
-                key={p.orderId}
-                className={`admin-payment-card status-${p.status}`}
-              >
-                <div className="payment-card-header">
-                  <div className="payment-user">
-                    <div className="user-avatar">
-                      {(p.userName || "U")[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <b>{p.userName || "Unknown"}</b>
-                      <br />
-                      <span className="small">
-                        {p.userEmail || p.user.slice(0, 8)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="payment-amount">
-                    <span className="amount-value">₹{p.amountInr}</span>
-                    <span className="small">{p.credits} pages</span>
-                  </div>
-                </div>
+      {/* ── Error ── */}
+      {error && (
+        <div className="admin-error">
+          {error}
+          <button onClick={() => setError("")} className="toast-close">
+            ✕
+          </button>
+        </div>
+      )}
 
-                <div className="payment-card-body">
-                  <div className="payment-detail-row">
-                    <span>Order</span>
-                    <code style={{ overflowWrap: "anywhere" }}>
-                      {p.orderId}
-                    </code>
+      {/* ── Payment Cards ── */}
+      {loading ? (
+        <div className="admin-panel admin-payment-empty" aria-busy="true">
+          <div className="admin-spinner"></div>
+          <p role="status">Loading payment records…</p>
+        </div>
+      ) : payments.length === 0 ? (
+        <div className="admin-panel admin-payment-empty">
+          <span className="admin-empty-icon" aria-hidden="true">
+            ₹
+          </span>
+          <h2>No payments in this view</h2>
+          <p>Try a different status or clear the account search.</p>
+        </div>
+      ) : (
+        <div className="admin-payments-list">
+          {payments.map((p) => (
+            <div
+              key={p.orderId}
+              className={`admin-panel admin-payment-card status-${p.status}`}
+            >
+              <div className="payment-card-header">
+                <div className="payment-user">
+                  <div className="user-avatar" aria-hidden="true">
+                    {(p.userName || "U")[0].toUpperCase()}
                   </div>
-                  <div className="payment-detail-row">
-                    <span>User ID</span>
-                    <code style={{ overflowWrap: "anywhere" }}>{p.user}</code>
-                  </div>
-                  <div className="payment-detail-row">
-                    <span>UTR / Payment ID</span>
-                    <code className="utr-code">
-                      {p.utr || p.paymentId || "Not submitted"}
-                    </code>
-                  </div>
-                  <div className="payment-detail-row">
-                    <span>Payee UPI</span>
-                    <code>{p.upiId || "Gateway"}</code>
-                  </div>
-                  <div className="payment-detail-row">
-                    <span>Method</span>
-                    <span>
-                      {p.method === "upi_qr"
-                        ? `UPI QR · ${p.qrProvider || "legacy"}`
-                        : "Auto Gateway"}
+                  <div>
+                    <b>{p.userName || "Unknown"}</b>
+                    <br />
+                    <span className="small">
+                      {p.userEmail || p.user.slice(0, 8)}
                     </span>
                   </div>
-                  <div className="payment-detail-row">
-                    <span>Time</span>
-                    <span>
-                      {p.createdAt
-                        ? new Date(p.createdAt).toLocaleString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "Not recorded (legacy order)"}
-                    </span>
-                  </div>
-                  {p.rejectionReason && (
-                    <div className="payment-detail-row rejection">
-                      <span>Reason</span>
-                      <span>{p.rejectionReason}</span>
-                    </div>
-                  )}
                 </div>
+                <div className="payment-amount">
+                  <span className="amount-value">₹{p.amountInr}</span>
+                  <span className="small">{p.credits} pages</span>
+                </div>
+              </div>
 
-                {/* ── Actions ── */}
-                {(p.status === "utr_submitted" || p.status === "verifying") && (
-                  <div className="payment-card-actions">
-                    <button
-                      className="btn dark approve-btn"
-                      disabled={actionBusy === p.orderId}
-                      onClick={() => approve(p.orderId)}
+              <div className="payment-card-body">
+                <div className="payment-detail-row">
+                  <span>Order</span>
+                  <code style={{ overflowWrap: "anywhere" }}>{p.orderId}</code>
+                </div>
+                <div className="payment-detail-row">
+                  <span>User ID</span>
+                  <code style={{ overflowWrap: "anywhere" }}>{p.user}</code>
+                </div>
+                <div className="payment-detail-row">
+                  <span>UTR / Payment ID</span>
+                  <code className="utr-code">
+                    {p.utr || p.paymentId || "Not submitted"}
+                  </code>
+                </div>
+                <div className="payment-detail-row">
+                  <span>Payee UPI</span>
+                  <code>{p.upiId || "Gateway"}</code>
+                </div>
+                <div className="payment-detail-row">
+                  <span>Method</span>
+                  <span>
+                    {p.method === "upi_qr"
+                      ? `UPI QR · ${p.qrProvider || "legacy"}`
+                      : "Auto Gateway"}
+                  </span>
+                </div>
+                <div className="payment-detail-row">
+                  <span>Time</span>
+                  <span>
+                    {p.createdAt
+                      ? new Date(p.createdAt).toLocaleString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "Not recorded (legacy order)"}
+                  </span>
+                </div>
+                {p.rejectionReason && (
+                  <div className="payment-detail-row rejection">
+                    <span>Reason</span>
+                    <span>{p.rejectionReason}</span>
+                  </div>
+                )}
+                {canInspectUsers && (
+                  <div className="payment-detail-row admin-payment-inspect">
+                    <span>Account actions</span>
+                    <a
+                      href={`/admin/users?q=${encodeURIComponent(p.userEmail || p.user)}`}
                     >
-                      {actionBusy === p.orderId ? "…" : "✅ Approve"}
-                    </button>
-
-                    {rejectingId === p.orderId ? (
-                      <div className="reject-form">
-                        <input
-                          type="text"
-                          placeholder="Reason (optional)"
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          className="reject-input"
-                        />
-                        <button
-                          className="btn reject-confirm"
-                          disabled={actionBusy === p.orderId}
-                          onClick={() => reject(p.orderId)}
-                        >
-                          Confirm Reject
-                        </button>
-                        <button
-                          className="btn-link"
-                          onClick={() => {
-                            setRejectingId(null);
-                            setRejectReason("");
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="btn reject-btn"
-                        onClick={() => setRejectingId(p.orderId)}
-                      >
-                        ❌ Reject
-                      </button>
-                    )}
+                      Inspect account
+                    </a>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* ── Pagination ── */}
-        {total > 20 && (
-          <div className="admin-pagination">
-            <button
-              className="btn light"
-              disabled={page <= 1}
-              onClick={() => {
-                setPage((p) => p - 1);
-                loadPayments(undefined, page - 1);
-              }}
-            >
-              ← Prev
-            </button>
-            <span className="small">
-              Page {page} of {Math.ceil(total / 20)}
-            </span>
-            <button
-              className="btn light"
-              disabled={page >= Math.ceil(total / 20)}
-              onClick={() => {
-                setPage((p) => p + 1);
-                loadPayments(undefined, page + 1);
-              }}
-            >
-              Next →
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+              {/* ── Actions ── */}
+              {(p.status === "utr_submitted" || p.status === "verifying") && (
+                <div className="payment-card-actions">
+                  <button
+                    className="btn dark approve-btn"
+                    disabled={actionBusy === p.orderId}
+                    onClick={() => approve(p.orderId)}
+                  >
+                    {actionBusy === p.orderId ? "…" : "✅ Approve"}
+                  </button>
+
+                  {rejectingId === p.orderId ? (
+                    <div className="reject-form">
+                      <input
+                        type="text"
+                        placeholder="Reason (optional)"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        className="reject-input"
+                      />
+                      <button
+                        className="btn reject-confirm"
+                        disabled={actionBusy === p.orderId}
+                        onClick={() => reject(p.orderId)}
+                      >
+                        Confirm Reject
+                      </button>
+                      <button
+                        className="btn-link"
+                        onClick={() => {
+                          setRejectingId(null);
+                          setRejectReason("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn reject-btn"
+                      onClick={() => setRejectingId(p.orderId)}
+                    >
+                      ❌ Reject
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Pagination ── */}
+      {total > 20 && (
+        <div className="admin-pagination">
+          <button
+            className="btn light"
+            disabled={page <= 1}
+            onClick={() => {
+              setPage((p) => p - 1);
+              loadPayments(undefined, page - 1);
+            }}
+          >
+            ← Prev
+          </button>
+          <span className="small">
+            Page {page} of {Math.ceil(total / 20)}
+          </span>
+          <button
+            className="btn light"
+            disabled={page >= Math.ceil(total / 20)}
+            onClick={() => {
+              setPage((p) => p + 1);
+              loadPayments(undefined, page + 1);
+            }}
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </main>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import {
   TICKET_STATUSES,
   type SupportTicket,
@@ -15,14 +16,17 @@ export default function AdminSupport() {
     [workspace, setWorkspace] = useState("all"),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loaded, setLoaded] = useState(false);
   const load = async () => {
+    setError("");
     const r = await requestJson(
       `/api/admin/support?q=${encodeURIComponent(q)}&status=${status}&workspace=${workspace}`,
     );
     if (!r.response.ok) throw new Error(r.data.error);
     setTickets(r.data.tickets);
     setAgents(r.data.agents);
+    setLoaded(true);
   };
   useEffect(() => {
     load().catch((e) => setError(e.message));
@@ -74,12 +78,26 @@ export default function AdminSupport() {
   }
   return (
     <main className="wrap feature-section admin-content">
-      <p className="eyebrow">SUPPORT OPERATIONS</p>
-      <h1>Help people move forward.</h1>
-      <p>
-        Manage student and writer conversations. Internal notes stay private to
-        verified support administrators.
-      </p>
+      <AdminPageHeader
+        eyebrow="SUPPORT OPERATIONS"
+        title="Resolve issues with context."
+        description="Manage student and writer conversations, assign teammates, and keep private operations notes separate from customer replies."
+        actions={
+          <button
+            className="btn light"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              load()
+                .catch((e) => setError(e.message))
+                .finally(() => setBusy(false));
+            }}
+          >
+            {busy ? "Refreshing…" : "Refresh inbox"}
+          </button>
+        }
+      />
       {error && (
         <p role="alert" className="admin-error">
           {error}
@@ -127,14 +145,18 @@ export default function AdminSupport() {
           Search
         </button>
       </form>
-      <div className="admin-support-grid">
+      <div className="admin-support-grid" aria-busy={!loaded || busy}>
         <section className="admin-panel">
           <h2>Latest tickets</h2>
           <p className="small">
             Up to 100 matching tickets. Refine the search for older
             conversations.
           </p>
-          {tickets.length === 0 && <p>No tickets match this view.</p>}
+          {!loaded ? (
+            <p role="status">Loading support inbox…</p>
+          ) : tickets.length === 0 ? (
+            <p>No tickets match this view. Try a broader search or status.</p>
+          ) : null}
           <ul className="admin-ticket-list">
             {tickets.map((t) => (
               <li key={t.id}>

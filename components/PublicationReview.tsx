@@ -2,6 +2,7 @@
 import type { RichNode } from "@/lib/writing/document";
 import StoryDocument from "./StoryDocument";
 import { requestJson, ServiceRequestError } from "@/lib/http-client";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 
 import { useEffect, useState } from "react";
 
@@ -45,8 +46,11 @@ export default function PublicationReview() {
   const [note, setNote] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
+    setMessage("");
     try {
       const [
         { response: reviewResponse, data: review },
@@ -74,6 +78,8 @@ export default function PublicationReview() {
       setMessage(
         error instanceof Error ? error.message : "Could not load review queue.",
       );
+    } finally {
+      setLoading(false);
     }
   };
   useEffect(() => {
@@ -150,14 +156,21 @@ export default function PublicationReview() {
   );
   return (
     <main className="wrap feature-section publication-review">
-      <header>
-        <p className="eyebrow">EDITORIAL &amp; SAFETY</p>
-        <h1>Publication review</h1>
-        <p className="small">
-          Review submissions, record decisions, and take down public guides when
-          a substantiated report requires it.
-        </p>
-      </header>
+      <AdminPageHeader
+        eyebrow="EDITORIAL & SAFETY"
+        title="Review before publication."
+        description="Assess submitted stories, record editorial decisions, and respond to substantiated reports while preserving the public version until an approved replacement is ready."
+        actions={
+          <button
+            className="btn light"
+            type="button"
+            disabled={loading || !!busy}
+            onClick={() => void load()}
+          >
+            {loading ? "Refreshing…" : "Refresh queues"}
+          </button>
+        }
+      />
       {message && (
         <p className="inline-error" role="alert">
           {message}
@@ -165,6 +178,7 @@ export default function PublicationReview() {
       )}
       <section aria-labelledby="review-queue">
         <h2 id="review-queue">Editorial queue</h2>
+        {loading && <p role="status">Loading editorial submissions…</p>}
         {stories.map((story) => (
           <article className="interactive-panel" key={story.id}>
             <p className="eyebrow">
@@ -229,13 +243,14 @@ export default function PublicationReview() {
             </div>
           </article>
         ))}
-        {!stories.length && (
+        {!loading && !stories.length && (
           <p className="card">No submitted guides in the review queue.</p>
         )}
       </section>
       <section className="moderation-queue" aria-labelledby="report-queue">
         <p className="eyebrow">COMMUNITY REPORTS</p>
         <h2 id="report-queue">Open reports ({openReports.length})</h2>
+        {loading && <p role="status">Loading community reports…</p>}
         <label className="small">
           Filter reports{" "}
           <select

@@ -2,32 +2,67 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "@/lib/http-client";
 import ProviderCatalog from "./ProviderCatalog";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 export default function AdminOverview() {
   const [data, setData] = useState<any>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(false),
+    [updatedAt, setUpdatedAt] = useState("");
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const r = await requestJson("/api/admin/overview", {
+        cache: "no-store",
+      });
+      if (!r.response.ok) throw new Error(r.data.error);
+      setData(r.data);
+      setUpdatedAt(new Date().toISOString());
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not refresh the control room.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
   useEffect(() => {
-    requestJson("/api/admin/overview")
-      .then((r) => {
-        if (!r.response.ok) throw new Error(r.data.error);
-        setData(r.data);
-      })
-      .catch((e) => setError(e.message));
+    void load();
+    const timer = setInterval(() => void load(), 30000);
+    return () => clearInterval(timer);
   }, []);
   return (
     <main className="wrap feature-section admin-content">
-      <p className="eyebrow">SYAAHI ADMINISTRATION</p>
-      <h1>A clear view of your platform.</h1>
-      <p>
-        Review work, resolve issues and manage access through protected, audited
-        controls.
-      </p>
+      <AdminPageHeader
+        eyebrow="SYAAHI ADMINISTRATION"
+        title="A clear view of your platform."
+        description="Review queues, resolve issues, manage access and check service health through protected, audited controls."
+        actions={
+          <button
+            className="btn light"
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+          >
+            {loading ? "Refreshing…" : "Refresh overview"}
+          </button>
+        }
+      />
+      {updatedAt && (
+        <p className="admin-page-note" role="status">
+          Updated {new Date(updatedAt).toLocaleTimeString()} · refreshes every
+          30 seconds
+        </p>
+      )}
       {error && (
         <p role="alert" className="admin-error">
           {error}
         </p>
       )}
       {!data ? (
-        <p role="status">Loading control room…</p>
+        <p role="status" aria-busy={loading}>
+          Loading control room…
+        </p>
       ) : (
         <>
           <div className="admin-stat-grid">
@@ -38,7 +73,7 @@ export default function AdminOverview() {
               ["Feedback to review", data.pendingReviews],
             ].map(([name, n]) => (
               <section key={name} className="admin-panel">
-                <strong>{n}</strong>
+                <strong>{Number(n || 0).toLocaleString("en-IN")}</strong>
                 <p>{name}</p>
                 <small>Bounded operational queue; not an all-time total</small>
               </section>
@@ -74,6 +109,12 @@ export default function AdminOverview() {
                 "Consent-based growth",
                 "/admin/growth",
                 "View aggregate funnel and retention measurements.",
+                data.scopes.editorial,
+              ],
+              [
+                "Verified reviews",
+                "/admin/reviews",
+                "Review eligible user feedback before it appears publicly.",
                 data.scopes.editorial,
               ],
               [
