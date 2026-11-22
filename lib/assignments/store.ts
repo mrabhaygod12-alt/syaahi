@@ -31,7 +31,10 @@ export async function createAssignment(
           return existing;
         }
         const active = await jobs.countDocuments(
-          { user: assignment.user, status: { $in: ["queued", "working"] } },
+          {
+            user: assignment.user,
+            status: { $in: ["queued", "working", "outline"] },
+          },
           opts,
         );
         if (active >= 1)
@@ -43,7 +46,7 @@ export async function createAssignment(
           Math.min(200, Number(process.env.ASSIGNMENT_QUEUE_LIMIT) || 40),
         );
         const totalActive = await jobs.countDocuments(
-          { status: { $in: ["queued", "working"] } },
+          { status: { $in: ["queued", "working", "outline"] } },
           opts,
         );
         if (totalActive >= globalLimit)
@@ -98,7 +101,7 @@ export async function createAssignment(
     const active = Number(
       db()
         .prepare(
-          "SELECT COUNT(*) AS count FROM assignment_jobs WHERE user_id=? AND status IN ('queued','working')",
+          "SELECT COUNT(*) AS count FROM assignment_jobs WHERE user_id=? AND status IN ('queued','working','outline')",
         )
         .get(assignment.user)?.count || 0,
     );
@@ -113,7 +116,7 @@ export async function createAssignment(
     const totalActive = Number(
       db()
         .prepare(
-          "SELECT COUNT(*) AS count FROM assignment_jobs WHERE status IN ('queued','working')",
+          "SELECT COUNT(*) AS count FROM assignment_jobs WHERE status IN ('queued','working','outline')",
         )
         .get()?.count || 0,
     );
@@ -238,6 +241,8 @@ export async function pendingAssignments(limit = 1): Promise<string[]> {
           $or: [
             { status: "queued", leaseUntil: { $lt: now } },
             { status: "working", leaseUntil: { $lt: now } },
+            // Recover older jobs that stopped at the outline approval screen.
+            { status: "outline", leaseUntil: { $lt: now } },
           ],
         })
         .sort({ createdAt: 1 })
@@ -247,7 +252,7 @@ export async function pendingAssignments(limit = 1): Promise<string[]> {
     ).map((doc) => String(doc._id));
   return db()
     .prepare(
-      "SELECT id FROM assignment_jobs WHERE (status='queued' OR status='working') AND lease_until<? ORDER BY rowid LIMIT ?",
+      "SELECT id FROM assignment_jobs WHERE status IN ('queued','working','outline') AND lease_until<? ORDER BY rowid LIMIT ?",
     )
     .all(now, limit)
     .map((row) => String(row.id));
@@ -267,6 +272,7 @@ export async function claimAssignment(
         $or: [
           { status: "queued", leaseUntil: { $lt: Date.now() } },
           { status: "working", leaseUntil: { $lt: Date.now() } },
+          { status: "outline", leaseUntil: { $lt: Date.now() } },
         ],
       },
       { $set: { status: "working", leaseToken: token, leaseUntil: until } },
@@ -278,7 +284,7 @@ export async function claimAssignment(
   return transaction(() => {
     const row = db()
       .prepare(
-        "SELECT payload FROM assignment_jobs WHERE id=? AND ((status='queued' AND lease_until<?) OR (status='working' AND lease_until<?))",
+        "SELECT payload FROM assignment_jobs WHERE id=? AND status IN ('queued','working','outline') AND lease_until<?",
       )
       .get(id, Date.now(), Date.now());
     if (!row) return null;

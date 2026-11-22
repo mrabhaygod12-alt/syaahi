@@ -188,7 +188,10 @@ export default function AssignmentStudio() {
   }, []);
 
   useEffect(() => {
-    if (!assignment || !["queued", "working"].includes(assignment.status))
+    if (
+      !assignment ||
+      !["queued", "working", "outline"].includes(assignment.status)
+    )
       return;
     const timer = window.setInterval(() => {
       void jsonRequest(`/api/assignments/${encodeURIComponent(assignment.id)}`)
@@ -397,7 +400,7 @@ export default function AssignmentStudio() {
       setOutline(data.assignment.outline || []);
       setBalance(data.balance);
       setNotice(
-        "Your outline is being prepared. The 8-credit charge covers this assignment, revisions, and exports.",
+        "Your assignment is being built. Page drafting starts automatically after the outline; 8 credits cover this assignment, revisions, and exports.",
       );
       window.history.replaceState(
         {},
@@ -646,11 +649,11 @@ export default function AssignmentStudio() {
             </h1>
             <p>
               {viewMode === "prompt"
-                ? "Describe the task in your own words. Add the instructor brief if you have it; we’ll turn it into a plan you can review."
+                ? "Describe the task in your own words. Add the instructor brief if you have it; we’ll structure the draft and show the outline as its pages are written."
                 : viewMode === "details"
                   ? "Check the topic, course, format, and requirements before research begins."
                   : viewMode === "research"
-                    ? "Select sources you have checked, set the paper, then review the outline before drafting."
+                    ? "Select sources you have checked and set the page style. The outline and page draft then build automatically."
                     : viewMode === "outline"
                       ? "Change the section order or wording, then approve the outline to begin drafting."
                       : viewMode === "building"
@@ -742,9 +745,14 @@ export default function AssignmentStudio() {
                     <h2>{phaseLabel(assignment)}</h2>
                     <p className="assignment-build-description">
                       {assignment.phase === "outline"
-                        ? "Reading the confirmed brief and preparing a structure for you to review."
+                        ? "Reading the confirmed brief and preparing the page structure."
                         : "Pages are saved as they finish. You can return to this draft if you leave the workspace."}
                     </p>
+                    {assignment.error ? (
+                      <p className="assignment-build-retry" role="status">
+                        {assignment.error}
+                      </p>
+                    ) : null}
                     <div
                       className="assignment-build-track"
                       role="progressbar"
@@ -810,6 +818,25 @@ export default function AssignmentStudio() {
                         </div>
                       ))}
                     </div>
+                    {assignment.phase === "draft" &&
+                    assignment.outline.length > 0 ? (
+                      <details className="assignment-build-outline">
+                        <summary>
+                          Outline · {assignment.outline.length} sections
+                        </summary>
+                        <ol>
+                          {assignment.outline.map((heading, index) => (
+                            <li key={`${assignment.id}-outline-${index}`}>
+                              {heading}
+                            </li>
+                          ))}
+                        </ol>
+                        <p>
+                          Drafting continues automatically. Review the finished
+                          pages and refine them when the draft is ready.
+                        </p>
+                      </details>
+                    ) : null}
                   </div>
                 ) : null}
                 {assignment.status === "outline" && (

@@ -1953,6 +1953,43 @@
 .assignment-build-count strong {
   color: #3a5744;
 }
+.assignment-build-retry {
+  width: min(500px, 100%);
+  margin: -10px 0 14px;
+  color: #8a6230;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.assignment-build-outline {
+  width: min(500px, 100%);
+  margin-top: 20px;
+  padding: 12px 15px;
+  border: 1px solid #e2e8de;
+  border-radius: 12px;
+  background: #ffffffbf;
+  color: #4b5f4c;
+  text-align: left;
+}
+.assignment-build-outline summary {
+  color: #365640;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.assignment-build-outline ol {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding-left: 22px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.assignment-build-outline p {
+  margin: 10px 0 0;
+  color: #7b8578;
+  font-size: 10px;
+  line-height: 1.45;
+}
 .assignment-build-steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
