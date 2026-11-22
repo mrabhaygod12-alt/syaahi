@@ -652,7 +652,8 @@ export default function StudioWorkbench({ id }: { id?: string }) {
       </main>
     );
   const ready = deck.status === "done" && !dirty && !refining,
-    legacy = deck.designEngine !== 3;
+    legacy = deck.designEngine !== 3,
+    savedDuringChecks = saveState === "Saved · visual checks queued";
   return (
     <main
       className={"cv-workbench" + (presenting ? " cv-presenting" : "")}
@@ -668,7 +669,9 @@ export default function StudioWorkbench({ id }: { id?: string }) {
             {dirty
               ? saveState
               : working
-                ? deck.stage
+                ? savedDuringChecks
+                  ? saveState
+                  : deck.stage
                 : legacy
                   ? "Saved archive · read & export"
                   : saveState}

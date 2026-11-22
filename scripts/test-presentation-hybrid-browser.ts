@@ -207,9 +207,26 @@ async function main() {
       .locator(".cv-stage-center .cv-slide")
       .waitFor({ timeout: 15000 });
     await page.getByRole("button", { name: "Open Design panel" }).click();
+    const autosaveResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/presentations/${id}`) &&
+        response.request().method() === "PATCH",
+      { timeout: 30000 },
+    );
     await page
       .getByLabel("Scene heading", { exact: true })
       .fill("Protect every database transaction");
+    const savedResponse = await autosaveResponse;
+    assert.equal(
+      savedResponse.status(),
+      200,
+      `Autosave request failed: ${await savedResponse.text()}`,
+    );
+    assert.equal(
+      (await ownedDeck(user.id, id))?.slides[0].title,
+      "Protect every database transaction",
+      "Autosave must persist the edited scene before the quality recheck starts",
+    );
     for (let i = 0; i < 80; i++) {
       const d = await ownedDeck(user.id, id);
       if (d?.status === "queued") {
@@ -222,9 +239,9 @@ async function main() {
       () =>
         document
           .querySelector(".cv-save-state")
-          ?.textContent?.includes("Saved"),
+          ?.textContent?.includes("Saved · visual checks queued"),
       null,
-      { timeout: 15000 },
+      { timeout: 30000 },
     );
     await page.reload();
     await page.getByLabel("Scene heading", { exact: true }).waitFor();
