@@ -20,6 +20,7 @@ import { renderPdf } from "@/lib/pdf/server";
 import type { PrintNote } from "@/lib/pdf/document";
 import { parseNote } from "@/lib/notes/parse";
 import type { Block } from "@/lib/notes/parse";
+import { assignmentSectionMarkdown } from "@/lib/assignments/visuals";
 
 type Context = { params: Promise<{ id: string }> };
 export const runtime = "nodejs";
@@ -30,14 +31,14 @@ function pdfNotes(
 ): PrintNote[] {
   const style = {
     font: assignment.font,
-    ink: "#1c3d78",
+    ink: "#2056b3",
     paper: assignment.paper,
-    size: 22,
+    size: 20,
     jitter: 1,
   };
   const notes: PrintNote[] = assignment.sections.map((section, index) => ({
     topic: `${assignment.title} · ${index + 1}/${assignment.pageCount}`,
-    markdown: `${index === 0 ? `## ${assignment.title}\n\n**Course:** ${assignment.course || "University study"}\n\n**AI-assisted study draft · verify claims and citations before submitting.**\n\n` : ""}${section.markdown}`,
+    markdown: `${index === 0 ? `## ${assignment.title}\n\n**Course:** ${assignment.course || "University study"}\n\n**AI-assisted study draft · verify claims and citations before submitting.**\n\n` : ""}${assignmentSectionMarkdown(section, assignment.outline, index)}`,
     style,
     template: "study",
   }));
@@ -60,7 +61,7 @@ function runs(text: string, font: string) {
         text: part.startsWith("**") ? part.slice(2, -2) : part,
         bold: part.startsWith("**"),
         font,
-        color: "17365D",
+        color: "2056B3",
         size: 25,
       }),
   );
@@ -85,7 +86,7 @@ function docxBlock(
         new TextRun({
           text,
           font,
-          color: "17365D",
+          color: "2056B3",
           size: opts.size || 25,
           bold: opts.bold,
           italics: opts.italic,
@@ -139,34 +140,63 @@ function docxBlock(
           ),
         }),
       ];
-    case "diagram":
-      return [
+    case "diagram": {
+      const node = (text: string) =>
         new Paragraph({
           children: [
-            new TextRun({
-              text: block.labels.join("     ↓     "),
-              font,
-              color: "17365D",
-              size: 25,
-              bold: true,
-            }),
+            new TextRun({ text, font, color: "2056B3", size: 23, bold: true }),
           ],
           alignment: "center" as any,
           border: {
-            top: { color: "7892B0", space: 5, size: 5, style: "single" as any },
+            top: { color: "9DB7E1", space: 4, size: 5, style: "single" as any },
             bottom: {
-              color: "7892B0",
+              color: "9DB7E1",
+              space: 4,
+              size: 5,
+              style: "single" as any,
+            },
+            left: {
+              color: "9DB7E1",
+              space: 5,
+              size: 5,
+              style: "single" as any,
+            },
+            right: {
+              color: "9DB7E1",
               space: 5,
               size: 5,
               style: "single" as any,
             },
           },
-          spacing: { before: 160, after: 160 },
-        }),
-      ];
+          spacing: { before: 55, after: 55 },
+        });
+      return block.labels.flatMap((label, index) =>
+        index === block.labels.length - 1
+          ? [node(label)]
+          : [
+              node(label),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: block.dtype === "cycle" ? "↻" : "↓",
+                    font: "Aptos",
+                    color: "2056B3",
+                    size: 22,
+                    bold: true,
+                  }),
+                ],
+                alignment: "center" as any,
+                spacing: { before: 0, after: 0 },
+              }),
+            ],
+      );
+    }
     case "illustration":
       return [
-        p(`${block.caption}  →  ${block.labels.join("  →  ")}`, { bold: true }),
+        p(
+          `${block.caption}\n${block.labels.map((label) => `• ${label}`).join("     ")}`,
+          { bold: true },
+        ),
       ];
     case "definition":
       return [p(`Definition · ${block.text}`)];
@@ -279,7 +309,7 @@ async function handleGET(req: NextRequest, context: Context) {
             new TextRun({
               text: assignment.title,
               font: assignment.font,
-              color: "17365D",
+              color: "2056B3",
               size: 38,
               bold: true,
             }),
@@ -287,7 +317,9 @@ async function handleGET(req: NextRequest, context: Context) {
           spacing: { after: 180 },
         }),
       );
-    for (const block of parseNote(section.markdown))
+    for (const block of parseNote(
+      assignmentSectionMarkdown(section, assignment.outline, index),
+    ))
       children.push(
         ...docxBlock(block, assignment.font, assignment.paper === "ruled"),
       );
@@ -301,7 +333,7 @@ async function handleGET(req: NextRequest, context: Context) {
           new TextRun({
             text: "References",
             font: assignment.font,
-            color: "17365D",
+            color: "2056B3",
             size: 34,
             bold: true,
           }),
@@ -347,7 +379,7 @@ async function handleGET(req: NextRequest, context: Context) {
     ],
     styles: {
       default: {
-        document: { run: { font: assignment.font, size: 25, color: "17365D" } },
+        document: { run: { font: assignment.font, size: 25, color: "2056B3" } },
       },
     },
   });

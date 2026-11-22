@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -27,6 +34,8 @@ import type {
   CitationStyle,
   AssignmentFormat,
 } from "@/lib/assignments/types";
+import { parseNote, type Block } from "@/lib/notes/parse";
+import { assignmentSectionMarkdown } from "@/lib/assignments/visuals";
 import {
   ASSIGNMENT_CREDITS,
   ASSIGNMENT_FORMATS,
@@ -95,7 +104,7 @@ function phaseLabel(assignment: Assignment) {
       ? "Reading your brief"
       : "Building your outline";
   if (assignment.status === "working")
-    return `Writing page ${Math.min(assignment.sections.length + 1, assignment.pageCount)} of ${assignment.pageCount}`;
+    return `Writing + diagramming page ${Math.min(assignment.sections.length + 1, assignment.pageCount)} of ${assignment.pageCount}`;
   return "In the writing queue";
 }
 
@@ -105,6 +114,198 @@ function sourceName(source: AssignmentSource) {
     : source.year
       ? String(source.year)
       : "Author details unavailable";
+}
+
+function sectionProvider(assignment: Assignment, index: number) {
+  const section = assignment.sections[index];
+  return section ? `${section.provider} · ${section.model}` : "Not recorded";
+}
+
+function assignmentRichText(value: string) {
+  return value
+    .split(/(\*\*[^*]+\*\*|\[source needed\])/gi)
+    .filter(Boolean)
+    .map((part, index) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={index}>{part.slice(2, -2)}</strong>
+      ) : part.toLowerCase() === "[source needed]" ? (
+        <em className="assignment-source-needed" key={index}>
+          source needed
+        </em>
+      ) : (
+        part
+      ),
+    );
+}
+
+function AssignmentPageBlock({ block }: { block: Block }) {
+  switch (block.kind) {
+    case "title":
+      return null;
+    case "h3":
+      return (
+        <h4 className="assignment-paper-subheading">
+          {assignmentRichText(block.text)}
+        </h4>
+      );
+    case "para":
+      return <p>{assignmentRichText(block.text)}</p>;
+    case "definition":
+      return (
+        <p className="assignment-paper-callout">
+          <b>Definition</b> {assignmentRichText(block.text)}
+        </p>
+      );
+    case "summary":
+      return (
+        <p className="assignment-paper-callout is-summary">
+          <b>Key takeaway</b> {assignmentRichText(block.text)}
+        </p>
+      );
+    case "alert":
+      return (
+        <p className="assignment-paper-callout is-alert">
+          <b>Check this</b> {assignmentRichText(block.text)}
+        </p>
+      );
+    case "margin":
+    case "sketch":
+      return (
+        <p className="assignment-paper-margin">
+          ✎ {assignmentRichText(block.text)}
+        </p>
+      );
+    case "bullets":
+      return (
+        <ul className="assignment-paper-list">
+          {block.items.map((item, index) => (
+            <li key={index}>{assignmentRichText(item)}</li>
+          ))}
+        </ul>
+      );
+    case "steps":
+      return (
+        <ol className="assignment-paper-list is-numbered">
+          {block.items.map((item, index) => (
+            <li key={index}>{assignmentRichText(item)}</li>
+          ))}
+        </ol>
+      );
+    case "table":
+      return (
+        <div className="assignment-paper-table-wrap">
+          <table className="assignment-paper-table">
+            <thead>
+              <tr>
+                {block.head.map((cell, index) => (
+                  <th key={index}>{assignmentRichText(cell)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, index) => (
+                    <td key={index}>{assignmentRichText(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    case "diagram":
+      return (
+        <figure
+          className={`assignment-visual assignment-visual-${block.dtype}`}
+          aria-label={`${block.dtype} diagram: ${block.labels.join(", ")}`}
+        >
+          <figcaption>
+            {block.dtype === "flow"
+              ? "Process flow"
+              : block.dtype === "decision"
+                ? "Decision map"
+                : block.dtype === "layers"
+                  ? "Concept layers"
+                  : "Cycle"}
+          </figcaption>
+          {block.dtype === "decision" ? (
+            <>
+              <div className="assignment-decision-question">
+                {assignmentRichText(block.labels[0])}
+              </div>
+              <span className="assignment-visual-stem" aria-hidden="true">
+                ↓
+              </span>
+              <div className="assignment-decision-branches">
+                {block.labels.slice(1).map((label, index) => (
+                  <span key={index}>{assignmentRichText(label)}</span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="assignment-flow-nodes">
+              {block.labels.map((label, index) => (
+                <Fragment key={index}>
+                  <div className="assignment-flow-node">
+                    <small>{String(index + 1).padStart(2, "0")}</small>
+                    <span>{assignmentRichText(label)}</span>
+                  </div>
+                  {index < block.labels.length - 1 && (
+                    <span className="assignment-flow-arrow" aria-hidden="true">
+                      {block.dtype === "cycle" ? "↻" : "→"}
+                    </span>
+                  )}
+                </Fragment>
+              ))}
+            </div>
+          )}
+          {block.dtype === "cycle" && (
+            <div className="assignment-cycle-return">
+              ↻ Repeat from the first step
+            </div>
+          )}
+        </figure>
+      );
+    case "illustration":
+      return (
+        <figure
+          className="assignment-visual assignment-concept-map"
+          aria-label={`Concept map for ${block.caption}`}
+        >
+          <figcaption>Concept map</figcaption>
+          <div className="assignment-concept-center">
+            {assignmentRichText(block.caption)}
+          </div>
+          <span className="assignment-concept-stem" aria-hidden="true" />
+          <div className="assignment-concept-branches">
+            {block.labels.map((label, index) => (
+              <span key={index}>{assignmentRichText(label)}</span>
+            ))}
+          </div>
+        </figure>
+      );
+    case "timeline":
+    case "terms":
+      return (
+        <dl className="assignment-paper-terms">
+          {block.items.map(([term, text], index) => (
+            <div key={index}>
+              <dt>{assignmentRichText(term)}</dt>
+              <dd>{assignmentRichText(text)}</dd>
+            </div>
+          ))}
+        </dl>
+      );
+    case "code":
+      return (
+        <pre className="assignment-paper-code">
+          <code>{block.text}</code>
+        </pre>
+      );
+    default:
+      return null;
+  }
 }
 
 export default function AssignmentStudio() {
@@ -746,7 +947,7 @@ export default function AssignmentStudio() {
                     <p className="assignment-build-description">
                       {assignment.phase === "outline"
                         ? "Reading the confirmed brief and preparing the page structure."
-                        : "Pages are saved as they finish. You can return to this draft if you leave the workspace."}
+                        : "Writing and visual planning run together. Each page saves as it finishes, with a built-in diagram fallback if a visual model is unavailable."}
                     </p>
                     {assignment.error ? (
                       <p className="assignment-build-retry" role="status">
@@ -1056,63 +1257,18 @@ export default function AssignmentStudio() {
                                   </span>
                                 </div>
                                 <h3>{section.heading}</h3>
-                                {section.markdown
-                                  .split("\n")
-                                  .filter(
-                                    (line) =>
-                                      line.trim() && !line.startsWith("#"),
-                                  )
-                                  .map((line, lineIndex) =>
-                                    line.startsWith("Diagram:") ? (
-                                      <div
-                                        className="assignment-diagram"
-                                        key={lineIndex}
-                                      >
-                                        {line
-                                          .replace(/^Diagram:\s*/i, "")
-                                          .split("|")
-                                          .map((step, stepIndex) => (
-                                            <span key={stepIndex}>
-                                              {step.trim()}
-                                            </span>
-                                          ))}
-                                      </div>
-                                    ) : line.startsWith("Illustration:") ? (
-                                      <div
-                                        className="assignment-map"
-                                        key={lineIndex}
-                                      >
-                                        {line
-                                          .replace(/^Illustration:\s*/i, "")
-                                          .split("|")
-                                          .map((step, stepIndex) => (
-                                            <span key={stepIndex}>
-                                              {step.trim()}
-                                            </span>
-                                          ))}
-                                      </div>
-                                    ) : line.startsWith("-") ? (
-                                      <p
-                                        className="assignment-paper-bullet"
-                                        key={lineIndex}
-                                      >
-                                        {line.slice(1).trim()}
-                                      </p>
-                                    ) : line.startsWith("|") ? (
-                                      <p
-                                        className="assignment-paper-table"
-                                        key={lineIndex}
-                                      >
-                                        {line
-                                          .replaceAll("|", "  ·  ")
-                                          .replaceAll("---", "")}
-                                      </p>
-                                    ) : (
-                                      <p key={lineIndex}>
-                                        {line.replace(/\*\*/g, "")}
-                                      </p>
-                                    ),
-                                  )}
+                                {parseNote(
+                                  assignmentSectionMarkdown(
+                                    section,
+                                    assignment.outline,
+                                    previewIndex,
+                                  ),
+                                ).map((block, blockIndex) => (
+                                  <AssignmentPageBlock
+                                    key={blockIndex}
+                                    block={block}
+                                  />
+                                ))}
                               </article>
                             ))}
                         </div>
@@ -1133,6 +1289,54 @@ export default function AssignmentStudio() {
                             <MessageCircle size={15} /> Ask about this page
                           </button>
                         </div>
+                        <details className="assignment-agent-details">
+                          <summary>
+                            <Sparkles size={14} /> How this page was built{" "}
+                            <ChevronDown size={14} />
+                          </summary>
+                          <p>
+                            Separate planning, writing and visual passes;
+                            deterministic checks validate page structure.
+                          </p>
+                          <ul>
+                            <li>
+                              <span>Outline planner</span>
+                              <b>
+                                {assignment.outline.length ===
+                                assignment.pageCount
+                                  ? "Complete"
+                                  : "Review needed"}
+                              </b>
+                            </li>
+                            <li>
+                              <span>Writer</span>
+                              <b>{sectionProvider(assignment, previewIndex)}</b>
+                            </li>
+                            <li>
+                              <span>Visual designer</span>
+                              <b>
+                                {assignment.sections[previewIndex]
+                                  ?.visualProvider
+                                  ? `${assignment.sections[previewIndex].visualProvider} · ${assignment.sections[previewIndex].visualModel || "model"}`
+                                  : "Syaahi · deterministic fallback"}
+                              </b>
+                            </li>
+                            <li>
+                              <span>Page structure</span>
+                              <b>
+                                {assignment.sections[previewIndex]
+                                  ?.structureChecked
+                                  ? "Passed"
+                                  : "Needs review"}
+                              </b>
+                            </li>
+                          </ul>
+                          <small>
+                            The visual pass prefers a rotated provider lane when
+                            another is configured; deterministic diagrams are
+                            the fallback. Check all source claims before use.
+                          </small>
+                        </details>
                         {assignment.sources.length > 0 && (
                           <section className="assignment-reference-list">
                             <h3>Research trail</h3>

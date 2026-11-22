@@ -32,6 +32,17 @@ export interface AssignmentSection {
   markdown: string;
   provider: string;
   model: string;
+  visual?: AssignmentVisual;
+  visualProvider?: string;
+  visualModel?: string;
+  structureChecked?: boolean;
+  wordCount?: number;
+}
+
+export interface AssignmentVisual {
+  kind: "flow" | "cycle" | "layers" | "decision" | "concept";
+  title: string;
+  labels: string[];
 }
 
 export interface Assignment {
