@@ -6,6 +6,7 @@ import {
   gatewaySetup,
   type GatewayType,
 } from "./gateway-config";
+import { CROWLLM_VERIFIED_FREE_CHAT_MODELS } from "./crowllm-models";
 
 export type ProviderType =
   | "openrouter"
@@ -140,32 +141,41 @@ export function eligibleProviders(): ProviderDef[] {
   const gateway: ProviderDef[] = gatewaySetup()
     .filter((p) => p.ready)
     .flatMap((p, index) =>
-      p.models.map((model, modelIndex) => ({
-        id:
-          modelIndex === 0
-            ? `${p.type}-configured`
-            : `${p.type}-configured-${modelIndex + 1}`,
-        type: p.type,
-        model,
-        maxCtx: Math.max(
-          8192,
-          Math.min(
-            200000,
-            Number(process.env[`${GATEWAYS[p.type].prefix}_MAX_CONTEXT`]) ||
-              8192,
+      p.models
+        .filter(
+          (model) =>
+            p.type !== "crowllm" ||
+            process.env.CROWLLM_FREE_ONLY !== "true" ||
+            CROWLLM_VERIFIED_FREE_CHAT_MODELS.includes(
+              model as (typeof CROWLLM_VERIFIED_FREE_CHAT_MODELS)[number],
+            ),
+        )
+        .map((model, modelIndex) => ({
+          id:
+            modelIndex === 0
+              ? `${p.type}-configured`
+              : `${p.type}-configured-${modelIndex + 1}`,
+          type: p.type,
+          model,
+          maxCtx: Math.max(
+            8192,
+            Math.min(
+              200000,
+              Number(process.env[`${GATEWAYS[p.type].prefix}_MAX_CONTEXT`]) ||
+                8192,
+            ),
           ),
-        ),
-        priority:
-          p.type === "radox"
-            ? 2.5 + modelIndex / 10
-            : p.type === "hms"
-              ? 30 + modelIndex / 10
-              : p.type === "crowllm"
-                ? 31 + modelIndex / 10
-                : 12 + index + modelIndex / 10,
-        tier: "auto" as const,
-        note: "Explicit opt-in; active catalog checked before requests. Account quotas apply; gateway labels do not attest upstream identity or free billing.",
-      })),
+          priority:
+            p.type === "radox"
+              ? 2.5 + modelIndex / 10
+              : p.type === "hms"
+                ? 30 + modelIndex / 10
+                : p.type === "crowllm"
+                  ? 3.25 + modelIndex / 100
+                  : 12 + index + modelIndex / 10,
+          tier: "auto" as const,
+          note: "Explicit opt-in; active catalog checked before requests. Account quotas apply; gateway labels do not attest upstream identity or free billing.",
+        })),
     );
   return [...PROVIDERS, ...gateway].filter(
     (p) =>

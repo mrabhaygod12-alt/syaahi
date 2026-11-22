@@ -16,6 +16,7 @@ import {
   gatewayModel,
   normalizeCatalogModel,
 } from "../lib/ai/gateway-catalog";
+import { CROWLLM_VERIFIED_FREE_CHAT_MODELS } from "../lib/ai/crowllm-models";
 
 const originalFetch = globalThis.fetch;
 const types = Object.keys(GATEWAYS) as GatewayType[];
@@ -93,7 +94,11 @@ async function main() {
   delete process.env.HMS_MODELS;
   delete process.env.CROWLLM_MODELS;
   assert.equal(gatewayModels("hms")[0], "deepseek-v4.1-flash-free");
-  assert.equal(gatewayModels("crowllm")[0], "hy4-flash:free");
+  assert.deepEqual(
+    gatewayModels("crowllm"),
+    [...CROWLLM_VERIFIED_FREE_CHAT_MODELS],
+  );
+  assert.equal(gatewayModels("crowllm").length, 24);
   process.env.CROWLLM_MODELS = "glm-5.3-flash:free";
   assert.deepEqual(gatewayModels("crowllm"), ["glm-5.3-flash:free"]);
   delete process.env.CROWLLM_MODELS;
@@ -104,6 +109,13 @@ async function main() {
   );
   assert.equal(
     normalizeCatalogModel({ id: "hy4-flash:free" }, "crowllm")?.advertisedFree,
+    null,
+  );
+  assert.equal(
+    normalizeCatalogModel(
+      { id: "crow-roleplay:free" },
+      "crowllm",
+    )?.advertisedFree,
     true,
   );
   enable("hms", "policy-guard");

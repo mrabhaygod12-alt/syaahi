@@ -1,4 +1,5 @@
 import { providerKeys, orderedKeys } from "./keys";
+import { CROWLLM_VERIFIED_FREE_CHAT_MODELS } from "./crowllm-models";
 export const GATEWAYS = {
   llm7: {
     label: "LLM7",
@@ -87,15 +88,21 @@ export function gatewayBase(type: GatewayType) {
 }
 export function gatewayModels(type: GatewayType) {
   const prefix = GATEWAYS[type].prefix;
-  const defaults: Partial<Record<GatewayType, string>> = {
+  const defaults: Partial<Record<GatewayType, string | readonly string[]>> = {
     hms: "deepseek-v4.1-flash-free",
-    crowllm: "hy4-flash:free",
+    crowllm: CROWLLM_VERIFIED_FREE_CHAT_MODELS,
   };
-  const configured = [
-    process.env[`${prefix}_MODEL`],
-    process.env[`${prefix}_MODELS`],
-  ].filter(Boolean);
-  const selected = configured.length ? configured : [defaults[type]];
+  const configured =
+    type === "crowllm" && process.env.CROWLLM_MODELS
+      ? [process.env.CROWLLM_MODELS]
+      : [process.env[`${prefix}_MODEL`], process.env[`${prefix}_MODELS`]].filter(
+          (value): value is string => Boolean(value),
+        );
+  const selected: string[] = configured.length
+    ? configured
+    : typeof defaults[type] === "string"
+      ? [defaults[type] as string]
+      : [...(defaults[type] || [])];
   return [
     ...new Set(
       selected
@@ -105,7 +112,7 @@ export function gatewayModels(type: GatewayType) {
         .map((s) => s.trim())
         .filter((s) => /^[a-z0-9][a-z0-9._:/@+-]{0,159}$/i.test(s)),
     ),
-  ].slice(0, 4);
+  ].slice(0, type === "crowllm" ? 40 : 4);
 }
 export function gatewayKeyName(type: GatewayType) {
   return `${GATEWAYS[type].prefix}_API_KEY`;
@@ -124,6 +131,16 @@ export function gatewaySetup() {
       keyCount = gatewayKeys(type).length,
       models = gatewayModels(type),
       base = gatewayBase(type);
+    const verifiedFreeModelCount =
+      type === "crowllm"
+        ? models.filter((model) =>
+            CROWLLM_VERIFIED_FREE_CHAT_MODELS.includes(
+              model as (typeof CROWLLM_VERIFIED_FREE_CHAT_MODELS)[number],
+            ),
+          ).length
+        : null;
+    const freeOnly =
+      type === "crowllm" && process.env.CROWLLM_FREE_ONLY === "true";
     const policyReady =
       (type !== "logfare" || process.env.LOGFARE_DATA_POLICY_ACK === "true") &&
       (type !== "llm7" || process.env.LLM7_DOWNSTREAM_APPROVED === "true") &&
@@ -137,11 +154,13 @@ export function gatewaySetup() {
           ? "keys required"
           : !models.length
             ? "model IDs required"
-            : !policyReady
-              ? type === "llm7"
-                ? "downstream approval required"
-                : "data policy review required"
-              : "configured";
+            : freeOnly && verifiedFreeModelCount === 0
+              ? "no verified free chat models"
+              : !policyReady
+                ? type === "llm7"
+                  ? "downstream approval required"
+                  : "data policy review required"
+                : "configured";
     return {
       type,
       label: def.label,
@@ -149,6 +168,7 @@ export function gatewaySetup() {
       enabled,
       keyCount,
       models,
+      verifiedFreeModelCount,
       status,
       ready: status === "configured",
       keyVariable: gatewayKeyName(type),

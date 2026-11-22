@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { gatewayBase, type GatewayType } from "./gateway-config";
+import { isCrowllmVerifiedFreeChatModel } from "./crowllm-models";
 export interface CatalogModel {
   id: string;
   name: string;
@@ -47,6 +48,8 @@ export function normalizeCatalogModel(
       m.output_modalities ??
       metadata.output_modalities,
   );
+  const verifiedCrowllmText =
+    type === "crowllm" && isCrowllmVerifiedFreeChatModel(m.id);
   const declared = String(m.type || m.model_type || "").toLowerCase();
   const endpoints = strings(m.endpoints);
   const kind =
@@ -69,7 +72,9 @@ export function normalizeCatalogModel(
             : ["embedding", "embeddings"].includes(declared) ||
                 endpoints.includes("embeddings")
               ? "embedding"
-              : "unknown";
+              : verifiedCrowllmText
+                ? "text"
+                : "unknown";
   const context = Number(
     m.context_window?.tokens ??
       m.context_window ??
@@ -88,6 +93,19 @@ export function normalizeCatalogModel(
     completion !== null &&
     Number.isFinite(Number(input)) &&
     Number.isFinite(Number(completion));
+  const advertisedFree = knownPricing
+    ? Number(input) === 0 && Number(completion) === 0
+    : type === "crowllm"
+      ? m.is_free === false
+        ? false
+        : verifiedCrowllmText
+          ? true
+          : null
+      : typeof m.is_free === "boolean"
+        ? m.is_free
+        : type === "hms" && m.id === "deepseek-v4.1-flash-free"
+          ? true
+          : null;
   return {
     id: m.id,
     name:
@@ -114,14 +132,7 @@ export function normalizeCatalogModel(
             (type === "radox" && Array.isArray(m.capabilities))
           ? false
           : null,
-    advertisedFree: knownPricing
-      ? Number(input) === 0 && Number(completion) === 0
-      : typeof m.is_free === "boolean"
-        ? m.is_free
-        : (type === "hms" && m.id === "deepseek-v4.1-flash-free") ||
-            (type === "crowllm" && m.id.endsWith(":free"))
-          ? true
-        : null,
+    advertisedFree,
     accessible:
       typeof m.premium_unlocked === "boolean"
         ? m.premium_unlocked

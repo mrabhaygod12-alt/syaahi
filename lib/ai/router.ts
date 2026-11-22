@@ -24,7 +24,31 @@ export interface Usage {
 }
 const breaker = new Map<string, { fails: number; until: number }>();
 const active = new Map<string, number>();
+let crowllmModelCursor = 0;
 const quotaPrefix = "sorry, to prevent abuse of free resources";
+function requestCandidates() {
+  const all = eligibleProviders();
+  const crowllm = all.filter((provider) => provider.type === "crowllm");
+  // CrowLLM can advertise dozens of models. Rotate one at a time so those
+  // models share traffic across requests instead of consuming retry attempts
+  // (or hammering one provider) in a single request.
+  const start = crowllm.length ? crowllmModelCursor++ % crowllm.length : 0;
+  const rotatedCrowllm = crowllm.length
+    ? Array.from({ length: crowllm.length }, (_, offset) =>
+        crowllm[(start + offset) % crowllm.length],
+      )
+    : [];
+  const selectedCrowllm =
+    rotatedCrowllm.find((provider) => !cooling(provider)) || rotatedCrowllm[0];
+  const selected =
+    crowllm.length > 1
+      ? [
+          ...all.filter((provider) => provider.type !== "crowllm"),
+          selectedCrowllm!,
+        ]
+      : all;
+  return selected.sort((a, b) => a.priority - b.priority);
+}
 async function inferenceFetch(input: RequestInfo | URL, init?: RequestInit) {
   const response = await globalThis.fetch(input, { ...init, redirect: "error" });
   if (!response.body) return response;
@@ -242,9 +266,7 @@ export async function chatWithFallback(
     maxAttempts?: number;
   },
 ) {
-  const candidates = eligibleProviders().sort(
-    (a, b) => a.priority - b.priority,
-  );
+  const candidates = requestCandidates();
   if (!candidates.length)
     throw new Error(
       "NO_KEYS: Configure an eligible AI provider in .env.local.",
@@ -352,9 +374,7 @@ export async function* chatStreamWithFallback(
   messages: ChatMsg[],
   opts?: { maxTokens?: number; signal?: AbortSignal },
 ): AsyncGenerator<ChatStreamEvent> {
-  const candidates = eligibleProviders().sort(
-    (a, b) => a.priority - b.priority,
-  );
+  const candidates = requestCandidates();
   if (!candidates.length) {
     yield {
       error:
