@@ -12,30 +12,30 @@ import { publishDueStories } from "@/lib/writing/publishing";
 import { processPendingAssignments } from "@/lib/assignments/engine";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
+  syaahiHeartbeat?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
   syaahiReminderTick?: number;
 };
+async function recordWorkerHeartbeat() {
+  if (!useMongo()) return;
+  try {
+    await (
+      await collection("system_state")
+    ).updateOne(
+      { _id: "generation_worker" },
+      { $set: { seenAt: new Date(), role: "worker" } },
+      { upsert: true },
+    );
+  } catch {
+    // Job processing still runs if the diagnostic write is temporarily down.
+  }
+}
 export function kickWorker(standalone = false) {
   if (process.env.WORKER_MODE === "external" && !standalone) return;
   const tick = async () => {
     if (state.syaahiTick) return;
     state.syaahiTick = true;
     try {
-      // A separate worker can fail while the web service keeps answering
-      // requests. Record a cheap heartbeat so monitors can detect that split.
-      if (standalone && useMongo()) {
-        try {
-          await (
-            await collection("system_state")
-          ).updateOne(
-            { _id: "generation_worker" },
-            { $set: { seenAt: new Date(), role: "worker" } },
-            { upsert: true },
-          );
-        } catch {
-          // Processing still gets a chance when the diagnostic write fails.
-        }
-      }
       await publishDueStories();
       kickPlanTasks();
       kickMedia();
@@ -68,6 +68,15 @@ export function kickWorker(standalone = false) {
       state.syaahiTick = false;
     }
   };
+  // Keep liveness independent from queue work. A long provider request should
+  // not make a healthy worker look offline just because its job tick is busy.
+  if (standalone && !state.syaahiHeartbeat) {
+    void recordWorkerHeartbeat();
+    state.syaahiHeartbeat = setInterval(() => {
+      void recordWorkerHeartbeat();
+    }, 15_000);
+    state.syaahiHeartbeat.unref();
+  }
   if (!state.syaahiWorker) {
     state.syaahiWorker = setInterval(tick, 5000);
     state.syaahiWorker.unref();
