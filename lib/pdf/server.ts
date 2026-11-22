@@ -102,3 +102,14 @@ export async function renderPdf(
     shared.printActive = Math.max(0, (shared.printActive || 1) - 1);
   }
 }
+
+export async function closePrintBrowser() {
+  const current = shared.printBrowser;
+  shared.printBrowser = undefined;
+  if (!current) return;
+  try {
+    await (await current).close();
+  } catch {
+    // A process may already have closed its renderer during shutdown.
+  }
+}

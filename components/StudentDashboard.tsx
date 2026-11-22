@@ -8,6 +8,8 @@ import {
   Files,
   Coins,
   GraduationCap,
+  PenLine,
+  ArrowRight,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "./WorkspaceProvider";
@@ -224,7 +226,7 @@ export default function StudentDashboard() {
           <details className="hub-tools-menu">
             <summary>More tools</summary>
             <a href="/presentations">Presentation studio</a>
-            <a href="/interview">Interview practice</a>
+            <a href="/assignment">Assignment Studio</a>
             <a href="/blog">Study blog</a>
             <button onClick={() => setTab("sources")}>Sources</button>
             <button onClick={() => setTab("wallet")}>Credits</button>
@@ -413,6 +415,25 @@ export default function StudentDashboard() {
                     </button>
                   </article>
                 </section>
+
+                <a className="hub-assignment-launch" href="/assignment">
+                  <span className="hub-assignment-icon">
+                    <PenLine size={20} />
+                  </span>
+                  <span className="hub-assignment-copy">
+                    <small>NEW · UNIVERSITY WORKSPACE</small>
+                    <strong>Assignment Studio</strong>
+                    <span>
+                      Research, shape your outline, and build a
+                      handwritten-style A4 draft with sources in view.
+                    </span>
+                  </span>
+                  <span className="hub-assignment-cost">
+                    <b>8</b>
+                    <small>credits</small>
+                  </span>
+                  <ArrowRight className="hub-assignment-arrow" size={18} />
+                </a>
 
                 <div className="hub-split">
                   <section className="hub-panel">

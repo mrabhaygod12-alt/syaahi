@@ -9,6 +9,7 @@ import { deliverStudyReminders } from "@/lib/study/reminders";
 import { indexDocumentBatch } from "@/lib/documents/vectors";
 import { processPendingDeck } from "@/lib/presentations/store";
 import { publishDueStories } from "@/lib/writing/publishing";
+import { processPendingAssignments } from "@/lib/assignments/engine";
 const state = globalThis as unknown as {
   syaahiWorker?: ReturnType<typeof setInterval>;
   syaahiTick?: boolean;
@@ -39,9 +40,12 @@ export function kickWorker(standalone = false) {
       kickPlanTasks();
       kickMedia();
       await cleanExpiredMedia();
-      await Promise.all(
-        (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
-      );
+      await Promise.all([
+        Promise.all(
+          (await pendingJobs()).slice(0, workerConcurrency()).map(processJob),
+        ),
+        processPendingAssignments(),
+      ]);
       await processPendingDeck();
       await processPendingVideo();
       if (standalone) await indexDocumentBatch();

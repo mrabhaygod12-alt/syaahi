@@ -568,6 +568,106 @@
   font-size: 17px;
   line-height: 1.4;
 }
+.hub-assignment-launch {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 22px;
+  padding: 19px 22px;
+  border: 1px solid #dbe5d6;
+  border-radius: 15px;
+  background: linear-gradient(105deg, #f1f5ec, #fffdf8 74%);
+  color: #274333;
+  text-decoration: none;
+  box-shadow: 0 8px 24px #2948320c;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.hub-assignment-launch:hover {
+  border-color: #b7c9ad;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px #29483215;
+}
+.hub-assignment-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #dce5d5;
+  border-radius: 13px;
+  background: #fff;
+  color: #456d4d;
+}
+.hub-assignment-copy {
+  display: grid;
+  gap: 4px;
+}
+.hub-assignment-copy > small {
+  color: #768a6d;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+.hub-assignment-copy > strong {
+  color: #2d4938;
+  font-size: 17px;
+}
+.hub-assignment-copy > span {
+  max-width: 67ch;
+  color: #728071;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.hub-assignment-cost {
+  display: grid;
+  gap: 2px;
+  min-width: 50px;
+  text-align: center;
+}
+.hub-assignment-cost b {
+  color: #3d6545;
+  font-size: 18px;
+}
+.hub-assignment-cost small {
+  color: #81907d;
+  font-size: 9px;
+}
+.hub-assignment-arrow {
+  color: #71866c;
+}
+@media (max-width: 560px) {
+  .hub-assignment-launch {
+    grid-template-columns: 40px minmax(0, 1fr) 16px;
+    gap: 10px;
+    padding: 15px;
+  }
+  .hub-assignment-icon {
+    width: 38px;
+    height: 38px;
+  }
+  .hub-assignment-copy > strong {
+    font-size: 15px;
+  }
+  .hub-assignment-copy > span {
+    font-size: 11px;
+  }
+  .hub-assignment-cost {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    text-align: left;
+  }
+  .hub-assignment-arrow {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
 @media (max-width: 900px) {
   .student-hub {
     grid-template-columns: 1fr;

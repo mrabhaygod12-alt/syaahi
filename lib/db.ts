@@ -27,6 +27,10 @@ export function db(): DatabaseSync {
       delta INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, status TEXT NOT NULL,
       payload TEXT NOT NULL, lease_until INTEGER NOT NULL DEFAULT 0, lease_token TEXT);
+    CREATE TABLE IF NOT EXISTS assignment_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+      status TEXT NOT NULL, payload TEXT NOT NULL, lease_until INTEGER NOT NULL DEFAULT 0,
+      lease_token TEXT);
+    CREATE INDEX IF NOT EXISTS assignment_jobs_user ON assignment_jobs(user_id, status);
     CREATE INDEX IF NOT EXISTS jobs_user ON jobs(user_id);
     CREATE TABLE IF NOT EXISTS reservations (job_id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
       remaining INTEGER NOT NULL CHECK(remaining >= 0));
