@@ -77,9 +77,12 @@ async function main() {
           citationStyle: body.citationStyle,
           sources: [source],
           phase: "outline",
-          status: "queued",
+          status: "outline",
           progress: 0,
-          outline: [],
+          outline: [
+            "Evidence acquisition choices",
+            "Reliability and limitations",
+          ],
           sections: [],
           revisionCount: 0,
           attemptCount: 0,
@@ -107,6 +110,35 @@ async function main() {
           }),
         });
       } else if (url.pathname === `/api/assignments/${id}`) {
+        if (request.method() === "PATCH") {
+          const body = request.postDataJSON();
+          if (body.action === "outline") assignment.outline = body.outline;
+          if (body.action === "approve") {
+            assignment.status = "ready";
+            assignment.phase = "draft";
+            assignment.progress = 100;
+            assignment.sections = [
+              {
+                heading: "Evidence acquisition choices",
+                markdown:
+                  "A clear chain of custody makes digital evidence more defensible.\n\n- Record each transfer and tool version.\n- Preserve hashes and original media.\n\nDiagram: Identify | Preserve | Verify",
+                sources: [source.doi],
+              },
+              {
+                heading: "Reliability and limitations",
+                markdown:
+                  "Examiners should explain the method, uncertainty, and limitations.\n\n| Method | Strength | Limitation |\n| --- | --- | --- |",
+                sources: [source.doi],
+              },
+            ];
+          }
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ assignment, balance: 32 }),
+          });
+          return;
+        }
         await route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -124,11 +156,14 @@ async function main() {
     await page.goto(`${base}/assignment`, { waitUntil: "networkidle" });
     await page
       .getByRole("heading", {
-        name: /Build an assignment with sources in view/i,
+        name: /What assignment are you working on/i,
       })
       .waitFor();
     const essentialOnly = page.getByRole("button", { name: "Essential only" });
-    if (await essentialOnly.isVisible()) await essentialOnly.click();
+    if (await essentialOnly.isVisible())
+      await essentialOnly.evaluate((button: HTMLButtonElement) =>
+        button.click(),
+      );
     for (const width of [360, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await noHorizontalOverflow(page, width);
@@ -142,6 +177,12 @@ async function main() {
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page
+      .getByLabel("Assignment prompt")
+      .fill(
+        "Create a source-led analysis of privacy in university AI systems.",
+      );
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page
       .getByLabel("Assignment title")
       .fill("Privacy in large language models");
     await page.getByLabel("Course or department").fill("MSc Computer Science");
@@ -153,6 +194,7 @@ async function main() {
       .fill(
         "Compare privacy risks and mitigation approaches, include a balanced conclusion, and cite credible research.",
       );
+    await page.getByRole("button", { name: /Continue to research/ }).click();
     await page.getByRole("button", { name: /Suggest/ }).click();
     await page.getByText(/AI suggests 6 content pages/).waitFor();
     assert.equal(
@@ -163,15 +205,34 @@ async function main() {
     await page.getByRole("button", { name: /Find sources/ }).click();
     await page.getByText("Privacy in university AI systems").waitFor();
     await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: /Create research plan/ }).click();
+    await page.getByRole("heading", { name: "Review the outline" }).waitFor();
+    await page.getByRole("button", { name: /Approve and draft/ }).click();
+    await page.getByText("Draft complete · 2 pages").waitFor();
+    for (const width of [360, 390, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await noHorizontalOverflow(page, width);
+    }
     await page
-      .getByRole("button", { name: /Build assignment outline/ })
+      .getByRole("button", { name: /Reliability and limitations/ })
       .click();
     await page
-      .getByRole("heading", { name: "Privacy in large language models" })
+      .getByRole("heading", { name: "Reliability and limitations" })
       .waitFor();
+    await page
+      .getByRole("button", { name: "Enter full screen preview" })
+      .click();
+    assert.match(
+      (await page.locator(".assignment-main").getAttribute("class")) || "",
+      /is-preview-fullscreen/,
+      "The preview toolbar should enter full-screen focus mode.",
+    );
     await noHorizontalOverflow(page, 390);
+    await page
+      .getByRole("button", { name: "Exit full screen preview" })
+      .click();
     console.log(
-      "PASS: assignment form, AI page suggestion, research selection, and queue submit work without horizontal overflow at 360, 390, 768, 1024, and 1440px.",
+      "PASS: prompt-first setup, brief details, research selection, outline approval, page navigation, and responsive full-page preview work without horizontal overflow at 360, 390, 768, 1024, and 1440px.",
     );
   } finally {
     await browser.close();
