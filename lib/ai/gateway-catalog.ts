@@ -118,6 +118,9 @@ export function normalizeCatalogModel(
       ? Number(input) === 0 && Number(completion) === 0
       : typeof m.is_free === "boolean"
         ? m.is_free
+        : (type === "hms" && m.id === "deepseek-v4.1-flash-free") ||
+            (type === "crowllm" && m.id.endsWith(":free"))
+          ? true
         : null,
     accessible:
       typeof m.premium_unlocked === "boolean"

@@ -158,7 +158,11 @@ export function eligibleProviders(): ProviderDef[] {
         priority:
           p.type === "radox"
             ? 2.5 + modelIndex / 10
-            : 12 + index + modelIndex / 10,
+            : p.type === "hms"
+              ? 30 + modelIndex / 10
+              : p.type === "crowllm"
+                ? 31 + modelIndex / 10
+                : 12 + index + modelIndex / 10,
         tier: "auto" as const,
         note: "Explicit opt-in; active catalog checked before requests. Account quotas apply; gateway labels do not attest upstream identity or free billing.",
       })),
@@ -190,6 +194,8 @@ export const PROVIDER_BASE_URL: Record<ProviderType, string> = {
   unorouter: "https://api.unorouter.com/v1",
   aihubmix: "https://aihubmix.com/v1",
   antseed: gatewayBase("antseed"),
+  hms: GATEWAYS.hms.base,
+  crowllm: GATEWAYS.crowllm.base,
 };
 
 export function providerEnvKey(t: ProviderType): string {
@@ -209,5 +215,7 @@ export function providerEnvKey(t: ProviderType): string {
     unorouter: "UNOROUTER_API_KEY",
     aihubmix: "AIHUBMIX_API_KEY",
     antseed: "ANTSEED_API_KEY",
+    hms: "HMS_API_KEY",
+    crowllm: "CROWLLM_API_KEY",
   }[t];
 }

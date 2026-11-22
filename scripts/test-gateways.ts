@@ -6,6 +6,7 @@ import {
   GATEWAYS,
   gatewayBase,
   gatewayKeys,
+  gatewayModels,
   gatewaySetup,
   type GatewayType,
 } from "../lib/ai/gateway-config";
@@ -22,7 +23,7 @@ function clear() {
   for (const name of Object.keys(process.env)) {
     if (
       /_API_KEY(?:_\d+)?$/.test(name) ||
-      /^(ENABLE_(RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED|LLM7)|(?:RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED|LLM7)_(MODEL|MODELS|BASE_URL|DATA_POLICY_ACK|FREE_ONLY|DOWNSTREAM_APPROVED))$/.test(
+      /^(ENABLE_(RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED|LLM7|HMS|CROWLLM)|(?:RADOX|AIHUBMIX|UNOROUTER|LOGFARE|ANTSEED|LLM7|HMS|CROWLLM)_(MODEL|MODELS|BASE_URL|DATA_POLICY_ACK|FREE_ONLY|DOWNSTREAM_APPROVED))$/.test(
         name,
       )
     )
@@ -38,6 +39,8 @@ function enable(type: GatewayType, suffix: string, model = "fixture-text") {
     process.env.ANTSEED_BASE_URL = "https://gateway.example.test/v1";
   if (type === "logfare") process.env.LOGFARE_DATA_POLICY_ACK = "true";
   if (type === "llm7") process.env.LLM7_DOWNSTREAM_APPROVED = "true";
+  if (type === "hms") process.env.HMS_DATA_POLICY_ACK = "true";
+  if (type === "crowllm") process.env.CROWLLM_DATA_POLICY_ACK = "true";
 }
 function request(input: Parameters<typeof fetch>[0], init?: RequestInit) {
   return {
@@ -87,6 +90,48 @@ async function main() {
     process.env[`ENABLE_${prefix}`] = "false";
   }
   assert.equal(eligibleProviders().length, 0, "No implicit gateway opt-in");
+  delete process.env.HMS_MODELS;
+  delete process.env.CROWLLM_MODELS;
+  assert.equal(gatewayModels("hms")[0], "deepseek-v4.1-flash-free");
+  assert.equal(gatewayModels("crowllm")[0], "hy4-flash:free");
+  process.env.CROWLLM_MODELS = "glm-5.3-flash:free";
+  assert.deepEqual(gatewayModels("crowllm"), ["glm-5.3-flash:free"]);
+  delete process.env.CROWLLM_MODELS;
+  assert.equal(
+    normalizeCatalogModel({ id: "deepseek-v4.1-flash-free" }, "hms")
+      ?.advertisedFree,
+    true,
+  );
+  assert.equal(
+    normalizeCatalogModel({ id: "hy4-flash:free" }, "crowllm")?.advertisedFree,
+    true,
+  );
+  enable("hms", "policy-guard");
+  delete process.env.HMS_DATA_POLICY_ACK;
+  assert.equal(
+    gatewaySetup().find((p) => p.type === "hms")!.status,
+    "data policy review required",
+  );
+  process.env.HMS_DATA_POLICY_ACK = "true";
+  enable("crowllm", "policy-guard");
+  delete process.env.CROWLLM_DATA_POLICY_ACK;
+  assert.equal(
+    gatewaySetup().find((p) => p.type === "crowllm")!.status,
+    "data policy review required",
+  );
+  for (const name of [
+    "HMS_API_KEY",
+    "HMS_API_KEY_1",
+    "HMS_MODELS",
+    "ENABLE_HMS",
+    "HMS_DATA_POLICY_ACK",
+    "CROWLLM_API_KEY",
+    "CROWLLM_API_KEY_1",
+    "CROWLLM_MODELS",
+    "ENABLE_CROWLLM",
+    "CROWLLM_DATA_POLICY_ACK",
+  ])
+    delete process.env[name];
   process.env.ENABLE_LOGFARE = "true";
   delete process.env.LOGFARE_DATA_POLICY_ACK;
   assert.equal(
@@ -525,7 +570,7 @@ async function main() {
   await assert.rejects(gatewayModel("unorouter","metadata-fixture-only","unknown-price"),/not verified as free/);
   await assert.rejects(gatewayModel("unorouter","metadata-fixture-only","not-in-account"),/active catalog/);
   console.log(
-    "PASS gateways: six adapters, explicit opt-in, bounded key pools, catalog isolation/validation, media/training guards, structured output, 401 failover, 429 cooldown, per-model isolation, bounded in-flight requests, 200 quota rejection, interrupted stream safety, MFA-protected paginated catalog and secret redaction. Fixtures only; no live inference.",
+    `PASS gateways: ${types.length} adapters, explicit opt-in, bounded key pools, catalog isolation/validation, media/training guards, structured output, 401 failover, 429 cooldown, per-model isolation, bounded in-flight requests, 200 quota rejection, interrupted stream safety, MFA-protected paginated catalog and secret redaction. Fixtures only; no live inference.`,
   );
 }
 main()

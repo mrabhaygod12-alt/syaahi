@@ -10,6 +10,7 @@ type Setup = {
   credentialLimit: number;
   keyVariable: string;
   modelVariable: string;
+  policyAckVariable: string | null;
   models: string[];
   docs: string;
 };
@@ -70,6 +71,12 @@ export default function ProviderCatalog({ providers }: { providers: Setup[] }) {
               <code>{p.keyVariable}</code>
               <br />
               <code>{p.modelVariable}</code>
+              {p.policyAckVariable && (
+                <>
+                  <br />
+                  <code>{p.policyAckVariable}</code>
+                </>
+              )}
             </p>
             <p>
               {p.models.length

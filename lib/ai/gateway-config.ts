@@ -36,6 +36,18 @@ export const GATEWAYS = {
     base: "",
     docs: "https://antseed.com/docs/gateway/api/",
   },
+  hms: {
+    label: "100MilionSeek",
+    prefix: "HMS",
+    base: "https://100milionseek.top/v1",
+    docs: "https://100milionseek.top/docs",
+  },
+  crowllm: {
+    label: "CrowLLM",
+    prefix: "CROWLLM",
+    base: "https://crowllm.com/v1",
+    docs: "https://docs.crowllm.com/en/docs/guide/quickstart",
+  },
 } as const;
 export type GatewayType = keyof typeof GATEWAYS;
 export const isGateway = (value: string): value is GatewayType =>
@@ -75,9 +87,18 @@ export function gatewayBase(type: GatewayType) {
 }
 export function gatewayModels(type: GatewayType) {
   const prefix = GATEWAYS[type].prefix;
+  const defaults: Partial<Record<GatewayType, string>> = {
+    hms: "deepseek-v4.1-flash-free",
+    crowllm: "hy4-flash:free",
+  };
+  const configured = [
+    process.env[`${prefix}_MODEL`],
+    process.env[`${prefix}_MODELS`],
+  ].filter(Boolean);
+  const selected = configured.length ? configured : [defaults[type]];
   return [
     ...new Set(
-      [process.env[`${prefix}_MODEL`], process.env[`${prefix}_MODELS`]]
+      selected
         .filter(Boolean)
         .join(",")
         .split(",")
@@ -105,7 +126,9 @@ export function gatewaySetup() {
       base = gatewayBase(type);
     const policyReady =
       (type !== "logfare" || process.env.LOGFARE_DATA_POLICY_ACK === "true") &&
-      (type !== "llm7" || process.env.LLM7_DOWNSTREAM_APPROVED === "true");
+      (type !== "llm7" || process.env.LLM7_DOWNSTREAM_APPROVED === "true") &&
+      (type !== "hms" || process.env.HMS_DATA_POLICY_ACK === "true") &&
+      (type !== "crowllm" || process.env.CROWLLM_DATA_POLICY_ACK === "true");
     const status = !enabled
       ? "disabled"
       : !base
@@ -130,6 +153,16 @@ export function gatewaySetup() {
       ready: status === "configured",
       keyVariable: gatewayKeyName(type),
       modelVariable: `${def.prefix}_MODELS`,
+      policyAckVariable:
+        type === "hms"
+          ? "HMS_DATA_POLICY_ACK"
+          : type === "crowllm"
+            ? "CROWLLM_DATA_POLICY_ACK"
+            : type === "logfare"
+              ? "LOGFARE_DATA_POLICY_ACK"
+              : type === "llm7"
+                ? "LLM7_DOWNSTREAM_APPROVED"
+                : null,
       credentialLimit: type === "logfare" ? 1 : 4,
     };
   });
