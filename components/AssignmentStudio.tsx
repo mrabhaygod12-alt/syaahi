@@ -1319,8 +1319,11 @@ export default function AssignmentStudio() {
                     )}
                     <div className="assignment-prompt-submit">
                       <span>
-                        <b>8 credits once you approve the research plan</b>
-                        <small>Prompt and outline review are free.</small>
+                        <b>8 credits when you create the research plan</b>
+                        <small>
+                          Prompt and brief setup are free. Outline review,
+                          edits, and exports are included.
+                        </small>
                       </span>
                       <button
                         type="submit"
