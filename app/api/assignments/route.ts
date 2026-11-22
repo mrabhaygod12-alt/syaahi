@@ -4,6 +4,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { authError, currentUser } from "@/lib/auth/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { balance } from "@/lib/credits/store";
+import { applyAssignmentLaunchGift } from "@/lib/assignments/launch-gift";
 import {
   AssignmentQueueFullError,
   createAssignment,
@@ -37,10 +38,12 @@ async function handleGET(req: NextRequest) {
       { error: "Switch to your student workspace to use Assignment Studio." },
       { status: 403 },
     );
+  const gift = await applyAssignmentLaunchGift(user.id);
   const assignments = await listAssignments(user.id);
   return NextResponse.json({
     assignments: assignments.map(publicAssignment),
-    balance: await balance(user.id),
+    balance: gift.balance,
+    assignmentGiftApplied: gift.granted,
   });
 }
 

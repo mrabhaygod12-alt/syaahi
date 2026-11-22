@@ -9,6 +9,7 @@ import { publishingPath } from "@/lib/workspace-routing";
 export function SiteFooter() {
   const pathname = usePathname();
   const { user } = useAccount();
+  if (pathname === "/assignment") return null;
   if (pathname === "/ink" || pathname?.startsWith("/ink/")) return null;
   if (
     [

@@ -38,6 +38,7 @@ async function main() {
       saveClaimedAssignment,
     } = await import("../lib/assignments/store");
     const api = await import("../app/api/assignments/route");
+    const creditsApi = await import("../app/api/credits/route");
     const itemApi = await import("../app/api/assignments/[id]/route");
     const exportApi = await import("../app/api/assignments/[id]/export/route");
     const researchApi = await import("../app/api/assignments/research/route");
@@ -71,6 +72,25 @@ async function main() {
         },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+    const balanceBeforeGift = await balance(user.id);
+    const giftResponse = await creditsApi.GET(request("/api/credits"));
+    assert.equal(giftResponse.status, 200);
+    const gift = await giftResponse.json();
+    assert.equal(gift.assignmentGiftApplied, true);
+    assert.equal(
+      gift.balance,
+      balanceBeforeGift + 10,
+      "The assignment launch offer should credit each account once.",
+    );
+    const replayResponse = await creditsApi.GET(request("/api/credits"));
+    assert.equal(replayResponse.status, 200);
+    const replay = await replayResponse.json();
+    assert.equal(replay.assignmentGiftApplied, false);
+    assert.equal(
+      replay.balance,
+      gift.balance,
+      "A repeated dashboard load must not grant twice.",
+    );
     const initialBalance = await balance(user.id);
     const id = "c44e813a-95ab-4b36-92b1-58c19ee101a4";
     const payload = {
@@ -111,11 +131,31 @@ async function main() {
       "assignment-test-password-long",
     );
     await markEmailVerified(outsider.id);
+    const outsiderBalanceBeforeGift = await balance(outsider.id);
     const otherCookie = (
       await auth.startSession(outsider, new Request(origin))
     ).headers
       .get("set-cookie")!
       .split(";")[0];
+    const outsiderGiftResponses = await Promise.all([
+      creditsApi.GET(request("/api/credits", undefined, "GET", otherCookie)),
+      creditsApi.GET(request("/api/credits", undefined, "GET", otherCookie)),
+    ]);
+    assert(outsiderGiftResponses.every((response) => response.status === 200));
+    const outsiderGifts = await Promise.all(
+      outsiderGiftResponses.map((response) => response.json()),
+    );
+    assert(
+      outsiderGifts.every(
+        (gift) => gift.balance === outsiderBalanceBeforeGift + 10,
+      ),
+      "Concurrent visits must apply one account-wide gift, not zero or two.",
+    );
+    assert.equal(
+      outsiderGifts.filter((gift) => gift.assignmentGiftApplied).length,
+      1,
+      "The account-wide gift may only be marked as newly granted once.",
+    );
     const hidden = await itemApi.GET(
       request(`/api/assignments/${id}`, undefined, "GET", otherCookie),
       { params: Promise.resolve({ id }) },
@@ -310,7 +350,7 @@ async function main() {
     }
 
     console.log(
-      `PASS (${isMongo ? "Mongo replica set" : "SQLite"}): auth ownership, fixed/idempotent 8-credit charge, outline review, queue claim, source discovery, and PDF/DOCX exports.`,
+      `PASS (${isMongo ? "Mongo replica set" : "SQLite"}): idempotent 10-credit launch gift, assignment ownership, fixed 8-credit charge, outline review, queue claim, source discovery, and PDF/DOCX exports.`,
     );
   } finally {
     await (await import("../lib/pdf/server")).closePrintBrowser();

@@ -52,6 +52,54 @@
   color: white;
   box-shadow: 0 6px 18px #173f351f;
 }
+.hub-rail nav a.hub-assignment-link {
+  color: #fff;
+  background: #315b47;
+  box-shadow: 0 7px 18px #173f351d;
+  font-weight: 650;
+}
+.hub-rail nav a.hub-assignment-link:hover {
+  background: #244b39;
+  transform: translateY(-1px);
+}
+.hub-credit-gift {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 15px;
+  border: 1px solid #cee0c9;
+  border-radius: 13px;
+  color: #31533d;
+  background: linear-gradient(110deg, #f2f8ed, #fffdf4);
+  box-shadow: 0 8px 22px #2749300a;
+  font-size: 13px;
+  animation: hub-appear 0.28s ease-out;
+}
+.hub-credit-gift > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.hub-credit-gift > span svg {
+  flex: 0 0 auto;
+  color: #a37d39;
+}
+.hub-credit-gift > button {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  color: #526b55;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+}
+.hub-credit-gift > button:hover {
+  background: #e6efdf;
+}
 .hub-rail nav small {
   margin-left: auto;
 }

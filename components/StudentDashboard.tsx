@@ -3,10 +3,9 @@ import {
   Sun,
   Plus,
   Library,
-  RotateCcw,
   CalendarDays,
   Files,
-  Coins,
+  Sparkles,
   GraduationCap,
   PenLine,
   ArrowRight,
@@ -40,6 +39,7 @@ export default function StudentDashboard() {
     [jobs, setJobs] = useState<Lesson[]>([]),
     [credits, setCredits] = useState<number | null>(null),
     [error, setError] = useState(""),
+    [creditNotice, setCreditNotice] = useState(""),
     [query, setQuery] = useState(""),
     [topic, setTopic] = useState(""),
     [noteLanguage, setNoteLanguage] = useState(""),
@@ -80,7 +80,13 @@ export default function StudentDashboard() {
       requestJson("/api/credits"),
     ]);
     if (j.response.ok) setJobs(j.data.jobs || []);
-    if (c.response.ok) setCredits(c.data.balance);
+    if (c.response.ok) {
+      setCredits(c.data.balance);
+      if (c.data.assignmentGiftApplied)
+        setCreditNotice(
+          "10 complimentary credits have been added to your wallet for Assignment Studio.",
+        );
+    }
     const collaborations = await requestJson("/api/collaboration");
     if (collaborations.response.ok)
       setShared(collaborations.data.lessons || []);
@@ -194,18 +200,17 @@ export default function StudentDashboard() {
             ["today", "Home"],
             ["create", "Create lesson"],
             ["library", "Notebooks"],
-            ["review", "Practice"],
+            ["assignment", "Assignment Studio"],
             ["planner", "Exam planner"],
           ].map(([key, label], index) => {
-            const Icon = [
-              Sun,
-              Plus,
-              Library,
-              RotateCcw,
-              CalendarDays,
-              Files,
-              Coins,
-            ][index];
+            const Icon = [Sun, Plus, Library, PenLine, CalendarDays][index];
+            if (key === "assignment")
+              return (
+                <a key={key} href="/assignment" className="hub-assignment-link">
+                  <Icon size={18} aria-hidden="true" />
+                  {label}
+                </a>
+              );
             return (
               <button
                 key={key}
@@ -226,7 +231,6 @@ export default function StudentDashboard() {
           <details className="hub-tools-menu">
             <summary>More tools</summary>
             <a href="/presentations">Presentation studio</a>
-            <a href="/assignment">Assignment Studio</a>
             <a href="/blog">Study blog</a>
             <button onClick={() => setTab("sources")}>Sources</button>
             <button onClick={() => setTab("wallet")}>Credits</button>
@@ -258,6 +262,20 @@ export default function StudentDashboard() {
             </a>
           </div>
         </header>
+        {creditNotice && (
+          <div className="hub-credit-gift" role="status">
+            <span>
+              <Sparkles size={16} aria-hidden="true" /> {creditNotice}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCreditNotice("")}
+              aria-label="Dismiss credit gift message"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {tab === "today" && hub && !hub.state.preferences && (
           <div className="hub-onboarding-hint">
             <span>Make your first notebook relevant to your course.</span>

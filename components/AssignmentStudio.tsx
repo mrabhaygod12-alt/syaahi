@@ -139,6 +139,8 @@ export default function AssignmentStudio() {
       const data = await jsonRequest("/api/assignments");
       setAssignments(data.assignments || []);
       setBalance(data.balance ?? null);
+      if (data.assignmentGiftApplied)
+        setNotice("10 complimentary launch credits were added to your wallet.");
       const id = selectedId || assignment?.id;
       if (id) {
         const current = await jsonRequest(
@@ -158,6 +160,10 @@ export default function AssignmentStudio() {
         if (!alive) return;
         setAssignments(data.assignments || []);
         setBalance(data.balance ?? null);
+        if (data.assignmentGiftApplied)
+          setNotice(
+            "10 complimentary launch credits were added to your wallet.",
+          );
         const requested = new URLSearchParams(location.search).get("id");
         const active = requested
           ? (data.assignments || []).find(

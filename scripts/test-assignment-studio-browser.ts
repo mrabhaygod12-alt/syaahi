@@ -159,6 +159,15 @@ async function main() {
         name: /What assignment are you working on/i,
       })
       .waitFor();
+    assert.equal(
+      await page
+        .locator(
+          "footer.site-footer, footer.app-copyright, footer.publication-footer",
+        )
+        .count(),
+      0,
+      "Assignment Studio should not render the site footer.",
+    );
     const essentialOnly = page.getByRole("button", { name: "Essential only" });
     if (await essentialOnly.isVisible())
       await essentialOnly.evaluate((button: HTMLButtonElement) =>
